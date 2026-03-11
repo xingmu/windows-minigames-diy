@@ -1,0 +1,250 @@
+// Zen-C Snake Game
+// 使用Zen-C现代系统编程语言开发的贪吃蛇游戏
+
+import std.io;
+import std.math;
+import std.time;
+import std.term;
+
+// 游戏常量
+const WIDTH: i32 = 20;
+const HEIGHT: i32 = 20;
+const MAX_LENGTH: i32 = 100;
+
+// 方向枚举
+enum Direction {
+    Up,
+    Down,
+    Left,
+    Right
+}
+
+// 位置结构
+struct Position {
+    x: i32,
+    y: i32
+}
+
+// 蛇结构
+struct Snake {
+    body: [MAX_LENGTH]Position,
+    length: i32,
+    direction: Direction
+}
+
+// 游戏状态
+struct GameState {
+    snake: Snake,
+    food: Position,
+    score: i32,
+    game_over: bool
+}
+
+// 初始化游戏
+fn init_game(game: &mut GameState) {
+    // 初始化蛇
+    game.snake.length = 3;
+    game.snake.direction = Direction::Right;
+    
+    // 蛇的初始位置（水平线）
+    for i in 0..game.snake.length {
+        game.snake.body[i] = Position { x: 5 + i, y: 10 };
+    }
+    
+    // 生成食物
+    let seed = time.now().nanos();
+    math.srand(seed);
+    game.food = Position {
+        x: math.rand() % (WIDTH - 2) + 1,
+        y: math.rand() % (HEIGHT - 2) + 1
+    };
+    
+    game.score = 0;
+    game.game_over = false;
+}
+
+// 绘制游戏界面
+fn draw_game(game: &GameState) {
+    // 清屏
+    term.clear();
+    
+    // 绘制上边框
+    io.print("╔");
+    for _ in 0..WIDTH {
+        io.print("═");
+    }
+    io.println("╗");
+    
+    // 绘制游戏区域
+    for y in 0..HEIGHT {
+        io.print("║");
+        for x in 0..WIDTH {
+            let mut is_snake = false;
+            let mut is_head = false;
+            
+            // 检查是否是蛇身
+            for i in 0..game.snake.length {
+                if game.snake.body[i].x == x && game.snake.body[i].y == y {
+                    is_snake = true;
+                    if i == 0 {
+                        is_head = true;
+                    }
+                    break;
+                }
+            }
+            
+            // 检查是否是食物
+            if game.food.x == x && game.food.y == y {
+                io.print("🍎");
+            } else if is_head {
+                io.print("🐍");
+            } else if is_snake {
+                io.print("🟩");
+            } else {
+                io.print("  ");
+            }
+        }
+        io.println("║");
+    }
+    
+    // 绘制下边框
+    io.print("╚");
+    for _ in 0..WIDTH {
+        io.print("═");
+    }
+    io.println("╝");
+    
+    // 显示分数和指令
+    io.println("分数: {}", game.score);
+    io.println("控制: W/A/S/D 移动, Q 退出, P 暂停");
+    if game.game_over {
+        io.println("\n游戏结束! 按R重新开始");
+    }
+}
+
+// 处理输入
+fn process_input(game: &mut GameState) {
+    if term.kbhit() {
+        let ch = term.getch();
+        
+        match ch {
+            'w' | 'W' => {
+                if game.snake.direction != Direction::Down {
+                    game.snake.direction = Direction::Up;
+                }
+            },
+            's' | 'S' => {
+                if game.snake.direction != Direction::Up {
+                    game.snake.direction = Direction::Down;
+                }
+            },
+            'a' | 'A' => {
+                if game.snake.direction != Direction::Right {
+                    game.snake.direction = Direction::Left;
+                }
+            },
+            'd' | 'D' => {
+                if game.snake.direction != Direction::Left {
+                    game.snake.direction = Direction::Right;
+                }
+            },
+            'q' | 'Q' => {
+                game.game_over = true;
+            },
+            'r' | 'R' => {
+                if game.game_over {
+                    init_game(game);
+                }
+            },
+            _ => {}
+        }
+    }
+}
+
+// 更新游戏状态
+fn update_game(game: &mut GameState) {
+    if game.game_over {
+        return;
+    }
+    
+    // 移动蛇
+    let mut new_head = game.snake.body[0];
+    
+    match game.snake.direction {
+        Direction::Up => new_head.y -= 1,
+        Direction::Down => new_head.y += 1,
+        Direction::Left => new_head.x -= 1,
+        Direction::Right => new_head.x += 1,
+    }
+    
+    // 检查边界碰撞
+    if new_head.x < 0 || new_head.x >= WIDTH ||
+       new_head.y < 0 || new_head.y >= HEIGHT {
+        game.game_over = true;
+        return;
+    }
+    
+    // 检查自身碰撞
+    for i in 0..game.snake.length {
+        if game.snake.body[i].x == new_head.x &&
+           game.snake.body[i].y == new_head.y {
+            game.game_over = true;
+            return;
+        }
+    }
+    
+    // 移动蛇身
+    for i in (1..game.snake.length).rev() {
+        game.snake.body[i] = game.snake.body[i - 1];
+    }
+    game.snake.body[0] = new_head;
+    
+    // 检查是否吃到食物
+    if new_head.x == game.food.x && new_head.y == game.food.y {
+        // 增加蛇长
+        if game.snake.length < MAX_LENGTH {
+            game.snake.length += 1;
+        }
+        
+        // 生成新食物
+        game.food = Position {
+            x: math.rand() % (WIDTH - 2) + 1,
+            y: math.rand() % (HEIGHT - 2) + 1
+        };
+        
+        // 增加分数
+        game.score += 10;
+    }
+}
+
+// 主函数
+fn main() -> i32 {
+    let mut game = GameState {
+        snake: Snake {
+            body: [Position { x: 0, y: 0 }; MAX_LENGTH],
+            length: 0,
+            direction: Direction::Right
+        },
+        food: Position { x: 0, y: 0 },
+        score: 0,
+        game_over: false
+    };
+    
+    io.println("Zen-C贪吃蛇游戏 🐍");
+    io.println("按任意键开始游戏...");
+    term.getch();
+    
+    init_game(&mut game);
+    
+    while !game.game_over {
+        draw_game(&game);
+        process_input(&mut game);
+        update_game(&mut game);
+        time.sleep(100); // 100ms延迟
+    }
+    
+    draw_game(&game);
+    io.println("\n游戏结束! 最终分数: {}", game.score);
+    
+    0
+}

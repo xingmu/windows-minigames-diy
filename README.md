@@ -1,10 +1,11 @@
 # Zen-C Snake Game 🐍
 
-一个使用Zen-C现代系统编程语言开发的跨平台贪吃蛇游戏。
+一个使用**Zen-C现代系统编程语言**开发的跨平台贪吃蛇游戏。
 
 ## 🎮 游戏特点
 
-- **现代语言**: 使用Zen-C开发，享受类型安全、模式匹配、泛型等现代特性
+- **真正的Zen-C**: 使用Zen-C语言开发，不是C语言！
+- **现代特性**: 享受类型安全、模式匹配、泛型、RAII等现代语言特性
 - **跨平台**: 支持Windows、macOS、Linux
 - **高性能**: 编译为人类可读的GNU C/C11，100% C ABI兼容
 - **零依赖**: 仅需标准库，无需额外依赖
@@ -35,8 +36,32 @@
 ## 🚀 快速开始
 
 ### 前提条件
+- **Zen-C编译器**: 需要安装`zc`编译器
 - **C编译器**: gcc/clang (Linux/macOS) 或 MinGW/MSVC (Windows)
 - **终端**: 支持UTF-8的终端（推荐）或标准终端
+
+### 安装Zen-C编译器
+
+#### Linux/macOS
+```bash
+# 克隆Zen-C仓库
+git clone https://github.com/z-libs/Zen-C.git
+cd Zen-C
+
+# 编译并安装
+make install
+```
+
+#### Windows
+```bash
+# 克隆Zen-C仓库
+git clone https://github.com/z-libs/Zen-C.git
+cd Zen-C
+
+# 编译并安装
+make install
+# 可能需要管理员权限
+```
 
 ### 构建和运行
 
@@ -59,11 +84,8 @@ make
 git clone https://github.com/xingmu/zenc_snake_game.git
 cd zenc_snake_game
 
-# 方法1: 使用构建脚本
-build\build_windows.bat
-
-# 方法2: 手动编译（使用MinGW）
-gcc -o snake_game.exe src/snake_game.c
+# 使用构建脚本
+build_windows.bat
 
 # 运行游戏
 snake_game.exe
@@ -72,11 +94,11 @@ snake_game.exe
 #### 所有平台（使用构建脚本）
 ```bash
 # Linux/macOS
-chmod +x build/build_mac.sh
-./build/build_mac.sh
+chmod +x build_mac.sh
+./build_mac.sh
 
 # Windows
-build\build_windows.bat
+build_windows.bat
 ```
 
 ## 📁 项目结构
@@ -84,15 +106,14 @@ build\build_windows.bat
 ```
 zenc_snake_game/
 ├── src/                    # 源代码目录
-│   ├── snake_game.c       # 主游戏程序（UTF-8版本）
-│   └── snake_game_windows.c # Windows兼容版本
-├── build/                 # 构建配置
-│   ├── Makefile          # Linux/macOS构建
-│   ├── build_windows.bat # Windows构建脚本
-│   └── build_mac.sh      # macOS构建脚本
+│   └── main.zc            # Zen-C主游戏程序
+├── build/                 # 构建输出目录
 ├── docs/                  # 文档目录
 ├── examples/              # 示例代码目录
 ├── tests/                 # 测试代码目录
+├── Makefile              # Linux/macOS构建配置
+├── build_windows.bat     # Windows构建脚本
+├── build_mac.sh          # macOS构建脚本
 ├── README.md             # 项目说明
 ├── CONTRIBUTING.md       # 贡献指南
 ├── SECURITY.md           # 安全策略
@@ -102,8 +123,10 @@ zenc_snake_game/
 
 ## 🛠️ 技术栈
 
-- **语言**: Zen-C (编译为C)
-- **图形**: 终端ASCII图形 / SDL2可选
+- **语言**: Zen-C (现代系统编程语言)
+- **编译器**: zc (Zen-C编译器)
+- **后端**: 编译为人类可读的GNU C/C11
+- **图形**: 终端ASCII图形
 - **构建系统**: Makefile + 平台特定脚本
 - **版本控制**: Git + GitHub Actions
 
