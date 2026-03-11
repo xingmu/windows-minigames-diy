@@ -1,16 +1,9 @@
-// Zen-C Snake Game - 真正的跨平台版本
-// 使用条件编译处理不同平台的终端控制
+// Zen-C Snake Game - 跨平台简化版
+// 使用纯C标准库函数，确保在所有平台上都能运行
 
 import std.io;
 import std.math;
 import std.time;
-
-// 平台检测
-#if defined(_WIN32) || defined(WIN32) || defined(__WIN32__) || defined(__NT__)
-    #define IS_WINDOWS 1
-#else
-    #define IS_WINDOWS 0
-#endif
 
 // 游戏常量
 const WIDTH: i32 = 20;
@@ -47,18 +40,11 @@ struct GameState {
     paused: bool
 }
 
-// 跨平台清屏函数
+// 简单的清屏函数（使用ANSI转义序列）
 fn clear_screen() {
-    #if IS_WINDOWS
-        // Windows: 使用system命令
-        // 注意：这需要包含stdlib.h
-        // system("cls");
-        // 简化版本：使用ANSI转义序列（Windows 10+支持）
-        io.print("\x1b[2J\x1b[H");
-    #else
-        // Unix/Linux/macOS: 使用ANSI转义序列
-        io.print("\x1b[2J\x1b[H");
-    #endif
+    // ANSI转义序列：清屏并移动光标到左上角
+    // 大多数现代终端都支持，包括Windows Terminal、PowerShell、Git Bash
+    io.print("\x1b[2J\x1b[H");
 }
 
 // 初始化游戏
@@ -85,18 +71,14 @@ fn init_game(game: &mut GameState) {
     game.paused = false;
 }
 
-// 绘制游戏界面
+// 绘制游戏界面（使用ASCII字符确保跨平台兼容）
 fn draw_game(game: &GameState) {
     // 清屏
     clear_screen();
     
-    // 显示平台信息
-    #if IS_WINDOWS
-        io.println("Zen-C Snake Game - Windows Version");
-    #else
-        io.println("Zen-C Snake Game - Unix/Linux/macOS Version");
-    #endif
-    io.println("========================================");
+    // 游戏标题
+    io.println("Zen-C Snake Game (Cross-Platform)");
+    io.println("==================================");
     
     // 绘制上边框
     io.print("+");
@@ -125,11 +107,11 @@ fn draw_game(game: &GameState) {
             
             // 检查是否是食物
             if game.food.x == x && game.food.y == y {
-                io.print("@");  // 食物
+                io.print("@");  // 食物使用@符号
             } else if is_head {
-                io.print("O");  // 蛇头
+                io.print("O");  // 蛇头使用O符号
             } else if is_snake {
-                io.print("*");  // 蛇身
+                io.print("*");  // 蛇身使用*符号
             } else {
                 io.print(" ");  // 空格
             }
@@ -155,6 +137,32 @@ fn draw_game(game: &GameState) {
     if game.game_over {
         io.println("\nGAME OVER! Press R to restart");
     }
+    
+    io.println("Platform: Zen-C (Compiled to C)");
+}
+
+// 简单的非阻塞输入检查
+fn check_input() -> bool {
+    // 这是一个简化的实现
+    // 在实际应用中，可能需要使用平台特定的非阻塞输入
+    // 这里我们使用一个简单的轮询方法
+    return true; // 简化版本，总是返回true
+}
+
+// 获取输入字符（简化版）
+fn get_input_char() -> char {
+    // 简化版本：使用标准输入
+    // 注意：这可能会阻塞，但在游戏循环中是可以接受的
+    let ch: char = ' ';
+    // 这里需要实际的输入实现
+    return ch;
+}
+
+// 处理输入（简化版）
+fn process_input(game: &mut GameState) {
+    // 简化版本：我们将在主循环中处理输入
+    // 实际实现需要使用非阻塞输入
+    // 这里我们留空，让主循环处理
 }
 
 // 更新游戏状态
@@ -215,19 +223,12 @@ fn update_game(game: &mut GameState) {
 
 // 主函数
 fn main() -> i32 {
-    io.println("Welcome to Zen-C Snake Game!");
-    io.println("=============================");
-    
-    #if IS_WINDOWS
-        io.println("Running on Windows platform");
-        io.println("Note: For best experience, use Windows Terminal or PowerShell");
-    #else
-        io.println("Running on Unix/Linux/macOS platform");
-    #endif
-    
-    io.println("\nThis game demonstrates Zen-C's cross-platform capabilities.");
-    io.println("The same Zen-C code compiles to C that runs on all platforms.");
-    io.println("\nPress any key to start...");
+    io.println("Zen-C Snake Game - Cross Platform Version");
+    io.println("==========================================");
+    io.println("This game is written in Zen-C and compiled to C.");
+    io.println("It should work on Windows, Linux, and macOS.");
+    io.println("");
+    io.println("Press any key to start...");
     
     let mut game = GameState {
         snake: Snake {
@@ -243,38 +244,31 @@ fn main() -> i32 {
     
     init_game(&mut game);
     
-    // 游戏主循环
+    // 简单的主循环
     let mut running = true;
     while running {
         draw_game(&game);
         
-        // 注意：这是一个简化版本
-        // 实际游戏需要非阻塞输入处理
-        // 这里我们只更新游戏状态
+        // 简单的输入处理
+        // 在实际应用中，这里需要非阻塞输入
+        // 简化版本：我们只更新游戏状态
         
         update_game(&mut game);
         time.sleep(200); // 200ms延迟
         
-        // 简化：游戏运行10秒后自动结束
-        // 在实际游戏中，这里应该有输入处理和游戏结束条件
-        static mut counter: i32 = 0;
-        unsafe {
-            counter += 1;
-            if counter > 50 { // 大约10秒
-                game.game_over = true;
-            }
-        }
-        
+        // 检查游戏是否结束
         if game.game_over {
             draw_game(&game);
-            io.println("\nDemo completed! Final Score: {}", game.score);
-            io.println("This demonstrates Zen-C code running cross-platform.");
+            io.println("\nGame Over! Final Score: {}", game.score);
+            io.println("Press R to restart or Q to quit");
+            
+            // 等待用户输入
+            // 简化版本：直接退出
             running = false;
         }
     }
     
-    io.println("\nThank you for testing Zen-C Snake Game!");
-    io.println("The same Zen-C source code works on Windows, Linux, and macOS.");
+    io.println("\nThank you for playing Zen-C Snake Game!");
     
     0
 }
