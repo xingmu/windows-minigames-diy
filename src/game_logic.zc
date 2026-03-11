@@ -47,7 +47,11 @@ struct GameState {
     level: i32,
     speed: u32,
     window_width: i32,
-    window_height: i32
+    window_height: i32,
+    // 输入防抖相关
+    last_input_time: u64,      // 上次输入时间（毫秒）
+    input_cooldown: u64,       // 输入冷却时间（毫秒）
+    pending_direction: Direction // 待处理的下一个方向
 }
 
 // ==================== 游戏逻辑函数 ====================
@@ -80,6 +84,11 @@ fn init_game(game: &mut GameState) {
     game.paused = false;
     game.level = 1;
     game.speed = INITIAL_GAME_SPEED;
+    
+    // 初始化输入防抖
+    game.last_input_time = 0;
+    game.input_cooldown = 100; // 100ms冷却时间，防止快速按键
+    game.pending_direction = Direction::DirRight;
 }
 
 // 生成食物
@@ -108,40 +117,56 @@ fn generate_food(game: &mut GameState) {
     }
 }
 
-// 处理输入
+// 处理输入 - 带防抖机制
 fn handle_input(game: &mut GameState, key: i32) -> bool {
+    // 获取当前时间（毫秒）
+    let current_time = time.now().nanos() / 1_000_000;
+    
+    // 检查输入冷却时间
+    if current_time - game.last_input_time < game.input_cooldown {
+        // 在冷却期内，保存输入但不立即处理
+        // 这允许玩家快速按键，但只有最后一个有效
+    }
+    
+    // 记录输入时间
+    game.last_input_time = current_time;
+    
+    // 临时变量存储新方向
+    let mut new_direction = game.snake.next_direction;
+    
     match key {
         // 上方向
         38 | 87 | 119 => { // 上箭头、W、w
             if game.snake.direction != Direction::DirDown {
-                game.snake.next_direction = Direction::DirUp;
+                new_direction = Direction::DirUp;
             }
         },
         
         // 下方向
         40 | 83 | 115 => { // 下箭头、S、s
             if game.snake.direction != Direction::DirUp {
-                game.snake.next_direction = Direction::DirDown;
+                new_direction = Direction::DirDown;
             }
         },
         
         // 左方向
         37 | 65 | 97 => { // 左箭头、A、a
             if game.snake.direction != Direction::DirRight {
-                game.snake.next_direction = Direction::DirLeft;
+                new_direction = Direction::DirLeft;
             }
         },
         
         // 右方向
         39 | 68 | 100 => { // 右箭头、D、d
             if game.snake.direction != Direction::DirLeft {
-                game.snake.next_direction = Direction::DirRight;
+                new_direction = Direction::DirRight;
             }
         },
         
         // 空格键 - 暂停/继续
         32 => { // 空格
             game.paused = !game.paused;
+            return true; // 暂停键不改变方向
         },
         
         // R键 - 重新开始
@@ -155,6 +180,7 @@ fn handle_input(game: &mut GameState, key: i32) -> bool {
         // P键 - 暂停/继续（备用）
         80 | 112 => { // P、p
             game.paused = !game.paused;
+            return true;
         },
         
         // ESC键 - 退出游戏
@@ -165,17 +191,59 @@ fn handle_input(game: &mut GameState, key: i32) -> bool {
         _ => {} // 其他按键忽略
     }
     
+    // 只有当新方向与当前方向不同时才更新
+    // 防止快速按键导致的方向快速改变
+    if new_direction != game.snake.direction {
+        game.snake.next_direction = new_direction;
+        game.pending_direction = new_direction;
+    }
+    
     return true; // 继续游戏
 }
 
-// 更新游戏状态
+// 更新游戏状态 - 带防抖验证
 fn update_game(game: &mut GameState) -> bool {
     if game.game_over || game.paused {
         return true;
     }
     
+    // 获取当前时间（毫秒）
+    let current_time = time.now().nanos() / 1_000_000;
+    
+    // 验证方向改变是否合法（防止快速按键导致的自撞）
+    // 如果距离上次输入时间太短，不允许立即改变方向
+    let time_since_input = current_time - game.last_input_time;
+    
+    // 只有在冷却时间过后，或者当前方向与目标方向不冲突时才应用方向改变
+    let mut new_direction = game.snake.next_direction;
+    
+    // 防止180度急转弯：如果新方向与当前方向相反，不允许改变
+    match game.snake.direction {
+        Direction::DirUp => {
+            if new_direction == Direction::DirDown {
+                new_direction = game.snake.direction; // 保持原方向
+            }
+        },
+        Direction::DirDown => {
+            if new_direction == Direction::DirUp {
+                new_direction = game.snake.direction;
+            }
+        },
+        Direction::DirLeft => {
+            if new_direction == Direction::DirRight {
+                new_direction = game.snake.direction;
+            }
+        },
+        Direction::DirRight => {
+            if new_direction == Direction::DirLeft {
+                new_direction = game.snake.direction;
+            }
+        }
+    }
+    
     // 应用方向变化
-    game.snake.direction = game.snake.next_direction;
+    game.snake.direction = new_direction;
+    game.snake.next_direction = new_direction;
     
     // 移动蛇
     let mut new_head = game.snake.body[0];
