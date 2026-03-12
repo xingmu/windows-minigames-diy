@@ -4,10 +4,11 @@
 
 ## 🎮 游戏列表
 
-| 游戏 | 描述 | 状态 |
-|------|------|------|
-| 🐍 贪吃蛇 | 经典贪吃蛇游戏 | ✅ 可玩 |
-| ⭐ 更多游戏 | 陆续添加中 | 🚧 开发中 |
+| 游戏 | 描述 | 状态 | 目录 |
+|------|------|------|------|
+| 🐍 贪吃蛇 | 经典贪吃蛇游戏 | ✅ 可玩 | `src/snake/` |
+
+更多游戏陆续添加中...
 
 ## ✨ 项目特色
 
@@ -15,6 +16,7 @@
 - **零依赖**: 不需要安装任何运行时，直接编译运行
 - **多版本**: 控制台版 / 窗体版 可选
 - **易于扩展**: 清晰的代码结构，方便添加新游戏
+- **Zen-C 语言**: 核心代码使用 Zen-C 编写，仅支持 Windows 平台
 
 ## 🚀 快速开始
 
@@ -28,45 +30,54 @@ cd windows-minigames-diy
 ### 编译运行
 
 #### 贪吃蛇（控制台版）
+
 ```bash
-# Windows
-build\build_console.bat
-
-# Linux
-./build/build_linux_console.sh
-
-# macOS
-./build/build_mac_console.sh
+cd build/snake/console
+build_windows.bat
 ```
 
 #### 贪吃蛇（窗体版）
-```bash
-# Windows
-build\build_window.bat
 
-# Linux (需要GTK3)
-./build/build_linux_window.sh
+```bash
+cd build/snake/window
+build_windows_window.bat
 ```
 
 ## 📁 项目结构
 
 ```
 windows-minigames-diy/
-├── src/                    # 源代码
-│   ├── snake/             # 贪吃蛇游戏
-│   │   ├── console/      # 控制台版本
-│   │   └── window/       # 窗体版本
-│   └── common/           # 公共代码
-├── build/                 # 构建脚本
-├── docs/                  # 文档
-└── README.md
+├── src/                         # 源代码
+│   ├── snake/                  # 贪吃蛇游戏
+│   │   ├── console/           # 控制台版本
+│   │   │   ├── game_logic.zc  # 游戏逻辑
+│   │   │   └── platform_api.zc # 平台API封装
+│   │   ├── window/            # 窗体版本
+│   │   ├── game.json          # 游戏配置
+│   │   └── README.md          # 游戏说明
+│   └── common/                 # 公共代码
+├── build/                       # 构建脚本
+│   └── snake/
+│       ├── console/            # 控制台版构建
+│       └── window/             # 窗体版构建
+├── docs/                        # 文档
+│   └── snake/                  # 游戏文档
+├── .github/                     # GitHub配置
+├── README.md                    # 项目首页
+└── LICENSE                      # 许可证
 ```
 
 ## 🛠️ 技术栈
 
-- **语言**: C / Zen-C
-- **图形**: Win32 API / GTK3 / Console
-- **编译器**: GCC / MinGW / Clang
+- **语言**: Zen-C (仅支持 Windows)
+- **图形**: Win32 API / Console
+- **编译器**: GCC / MinGW
+
+## ⚠️ 技术约束
+
+- **平台限制**: 仅支持 Windows 10/11
+- **开发语言**: 主代码必须使用 Zen-C 语言
+- **禁止语言**: 不得使用 C++, C#, Python, Java 等其他语言
 
 ## 🤝 如何贡献
 
