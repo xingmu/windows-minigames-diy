@@ -1,45 +1,60 @@
 @echo off
+chcp 65001 >nul
 echo ========================================
 echo   Zen-C 贪吃蛇游戏 - Windows窗体版构建脚本
 echo ========================================
 echo.
 
-REM 检查是否安装了MinGW
-where gcc >nul 2>nul
+REM 检查是否安装了Zen-C编译器
+where zc >nul 2>nul
 if %errorlevel% neq 0 (
-    echo ❌ 错误: 未找到MinGW GCC编译器
+    echo ❌ 错误: 未找到Zen-C编译器 (zc)
     echo.
-    echo 请安装MinGW:
-    echo 1. 下载: https://sourceforge.net/projects/mingw/
-    echo 2. 安装时选择: mingw32-base, mingw32-gcc-g++
-    echo 3. 添加C:\MinGW\bin到系统PATH
+    echo 请先安装Zen-C编译器:
+    echo.
+    echo 方法1 - 从源码编译:
+    echo   git clone https://github.com/z-libs/Zen-C.git
+    echo   cd Zen-C
+    echo   mkdir build && cd build
+    echo   cmake .. -DCMAKE_BUILD_TYPE=Release
+    echo   cmake --build . --config Release
+    echo   echo 将 build/zc 添加到系统PATH
+    echo.
+    echo 方法2 - 使用预编译版本:
+    echo   访问 https://github.com/z-libs/Zen-C/releases
+    echo   下载对应平台的预编译二进制文件
+    echo.
+    echo 更多信息: https://zenc-lang.org/
     echo.
     pause
     exit /b 1
 )
 
-echo ✅ 找到MinGW GCC编译器
+echo ✅ 找到Zen-C编译器 (zc)
 echo.
 
-REM 设置编译选项
-set SOURCE_FILE=src\windows\snake_game_win32.c
-set OUTPUT_FILE=build\snake_game_win32.exe
-set COMPILE_OPTIONS=-O2 -Wall -Wextra -mwindows -DUNICODE -D_UNICODE
+REM 设置源文件和输出文件
+set SOURCE_DIR=src
+set BUILD_DIR=build
+set OUTPUT_FILE=%BUILD_DIR%\snake_game.exe
 
 REM 创建构建目录
-if not exist build mkdir build
+if not exist %BUILD_DIR% mkdir %BUILD_DIR%
 
 echo 🔨 正在编译Windows窗体版贪吃蛇游戏...
-echo 源文件: %SOURCE_FILE%
+echo 源文件: %SOURCE_DIR%\main_window.zc
 echo 输出文件: %OUTPUT_FILE%
 echo.
 
-REM 编译游戏
-gcc %COMPILE_OPTIONS% %SOURCE_FILE% -o %OUTPUT_FILE%
+REM 编译Zen-C源代码
+REM Zen-C编译器会将.zc文件编译为C代码，然后调用gcc编译
+zc build %SOURCE_DIR%\main_window.zc -o %OUTPUT_FILE%
 
 if %errorlevel% neq 0 (
     echo ❌ 编译失败!
     echo 请检查错误信息
+    echo.
+    echo 提示: 确保所有源文件(.zc)都在正确位置
     pause
     exit /b 1
 )
@@ -51,18 +66,12 @@ echo 📏 文件大小:
 for %%F in (%OUTPUT_FILE%) do echo        %%~zF 字节
 echo.
 
-REM 检查依赖
-echo 🔍 检查运行时依赖...
-dumpbin /dependents %OUTPUT_FILE% | findstr ".dll"
-echo.
-
 REM 创建运行脚本
 echo 📝 创建运行脚本...
-echo @echo off > build\run_game.bat
-echo echo 正在启动Zen-C贪吃蛇游戏... >> build\run_game.bat
-echo echo ======================================== >> build\run_game.bat
-echo %OUTPUT_FILE% >> build\run_game.bat
-echo pause >> build\run_game.bat
+echo @echo off > %BUILD_DIR%\run_game.bat
+echo echo 正在启动Zen-C贪吃蛇游戏... >> %BUILD_DIR%\run_game.bat
+echo echo ======================================== >> %BUILD_DIR%\run_game.bat
+echo start "" "%~dp0snake_game.exe" >> %BUILD_DIR%\run_game.bat
 
 echo 🎮 游戏已准备就绪!
 echo.
@@ -77,7 +86,7 @@ echo   R键: 重新开始
 echo   ESC键: 退出游戏
 echo.
 echo 🖼️ 游戏特性:
-echo   - 美观的窗体界面
+echo   - 美观的Windows窗体界面
 echo   - 彩色图形显示
 echo   - 分数和等级系统
 echo   - 网格背景
