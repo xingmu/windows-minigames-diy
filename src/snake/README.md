@@ -58,15 +58,6 @@ snake/
 └── .gitignore           # Git 忽略文件
 ```
 
-## 🛠️ 技术栈
-
-- **语言**: Zen-C (现代系统编程语言)
-- **编译器**: zc (Zen-C 编译器)
-- **后端**: 编译为人类可读的 GNU C/C11
-- **图形**: Windows GDI 图形
-- **构建系统**: Windows 批处理脚本
-- **版本控制**: Git + GitHub Actions
-
 ## 📄 许可证
 
 本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
