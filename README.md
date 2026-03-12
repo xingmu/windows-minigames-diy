@@ -20,13 +20,13 @@
 
 | 子项目 | 描述 | 路径 |
 |--------|------|------|
-| 🐍 Snake Game | Windows 贪吃蛇游戏（窗体版本） | [src/snake](./src/snake) |
+| 🐍 Snake Game | Windows 贪吃蛇游戏（窗体版本） | [src/001-snake](./src/001-snake) |
 
 ## 📁 项目结构
 
 ```
 windows-minigames-diy/
-├── src/snake/              # 贪吃蛇游戏子项目
+├── src/001-snake/              # 贪吃蛇游戏子项目
 │   ├── src/                # 源代码
 │   ├── README.md           # 游戏说明
 │   └── build_windows.bat   # Windows构建
@@ -44,11 +44,11 @@ cd windows-minigames-diy
 
 ### 进入子项目
 ```bash
-cd src/snake
+cd src/001-snake
 ```
 
 ### 构建和运行
-查看 [src/snake/README.md](./src/snake/README.md) 了解编译方式。
+查看 [src/001-snake/README.md](./src/001-snake/README.md) 了解编译方式。
 
 ## 📄 许可证
 

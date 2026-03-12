@@ -35,7 +35,7 @@ make install
 ```bash
 # 克隆仓库
 git clone https://github.com/xingmu/windows-minigames-diy.git
-cd windows-minigames-diy/src/snake
+cd windows-minigames-diy/src/001-snake
 
 # 使用构建脚本
 build_windows.bat
@@ -47,7 +47,7 @@ snake_game.exe
 ## 📁 项目结构
 
 ```
-snake/
+001-snake/
 ├── src/                    # 源代码目录
 │   └── main.zc            # Zen-C 主游戏程序
 ├── build/                 # 构建输出目录
