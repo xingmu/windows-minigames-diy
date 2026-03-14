@@ -1,0 +1,91 @@
+include <stdio.h>
+include <stdlib.h>
+include <time.h>
+
+def N: i32 = 9
+
+struct Cell { m: bool, o: bool, f: bool, n: i32 }
+
+global b: [9][9]Cell
+global over: bool = false
+global win: bool = false
+
+fn init() {
+    for r in 0..N { for c in 0..N { b[r][c] = Cell{m:false,o:false,f:false,n:0}; } }
+    srand((unsigned)time(0));
+    mut k: i32 = 0;
+    while k < 10 { 
+        let r = rand() as i32 % N; 
+        let c = rand() as i32 % N; 
+        if !b[r][c].m { b[r][c].m = true; k = k + 1; } 
+    }
+    for r in 0..N { for c in 0..N { 
+        if b[r][c].m { continue; } 
+        mut t: i32 = 0;
+        for dr in -1..=1 { for dc in -1..=1 { 
+            let nr = r+dr; let nc = c+dc; 
+            if nr>=0 && nr<N && nc>=0 && nc<N && b[nr][nc].m { t = t + 1; } 
+        } }
+        b[r][c].n = t; 
+    } }
+}
+
+fn show() {
+    printf(" 123456789\n +--------+\n");
+    for r in 0..N { printf("%d|", r+1);
+        for c in 0..N { 
+            if b[r][c].f { printf("F"); } 
+            else if !b[r][c].o { printf("."); } 
+            else if b[r][c].m { printf("*"); } 
+            else { printf("%d", b[r][c].n); } 
+        }
+        printf("|\n"); 
+    }
+    printf(" +--------+\n");
+}
+
+fn reveal(r: i32, c: i32) {
+    if r < 0 { return; }
+    if r >= N { return; }
+    if c < 0 { return; }
+    if c >= N { return; }
+    if b[r][c].o { return; }
+    if b[r][c].f { return; }
+    b[r][c].o = true;
+    if b[r][c].m { over = true; return; }
+    if b[r][c].n == 0 { 
+        for dr in -1..=1 { for dc in -1..=1 { 
+            if dr!=0 || dc!=0 { reveal(r+dr,c+dc); } 
+        } } 
+    }
+}
+
+fn check() -> bool {
+    for r in 0..N { for c in 0..N { 
+        if !b[r][c].m && !b[r][c].o { return false; } 
+    } }
+    return true;
+}
+
+fn main() -> i32 {
+    init();
+    printf("=== Minesweeper ===\n");
+    show();
+    while !over && !win {
+        printf("r c (0 flag): ");
+        mut r: i32 = 0;
+        mut c: i32 = 0;
+        if scanf("%d %d", &r, &c) != 2 { break; }
+        if r==0 && c>=1 && c<=9 { 
+            b[(c-1)/9][(c-1)%9].f = !b[(c-1)/9][(c-1)%9].f; 
+        }
+        else if r>=1 && r<=9 && c>=1 && c<=9 { 
+            reveal(r-1, c-1); 
+            if check() { win = true; }
+        }
+        show();
+    }
+    if over { printf("BOOM! Game Over!\n"); }
+    if win { printf("You Win!\n"); }
+    return 0;
+}
