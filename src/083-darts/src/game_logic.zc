@@ -1,0 +1,293 @@
+// game_logic.zc - Zen-C Darts（飞镖）游戏核心逻辑
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 800;
+const GAME_HEIGHT: i32 = 600;
+const BOARD_CENTER_X: i32 = 400;
+const BOARD_CENTER_Y: i32 = 300;
+const BOARD_RADIUS: i32 = 220;
+const OUTER_BULL_RADIUS: i32 = 45;
+const INNER_BULL_RADIUS: i32 = 18;
+const TRIPLE_RING_RADIUS: i32 = 110;
+const DOUBLE_RING_OUTER: i32 = 170;
+const WIRE_WIDTH: i32 = 2;
+
+// 飞镖分数环
+const DOUBLE_RING_INNER: i32 = 155;
+const TRIPLE_RING_OUTER: i32 = 118;
+const SINGLE_OUTER_START: i32 = 170;
+const SINGLE_INNER_START: i32 = 99;
+
+// 初始分数
+const INITIAL_SCORE: i32 = 301;
+const DARTS_PER_ROUND: i32 = 3;
+const WINNING_SCORE: i32 = 0;
+
+// 颜色定义
+const COLOR_BLACK: Color = Color { r: 20, g: 20, b: 20 };
+const COLOR_WHITE: Color = Color { r: 240, g: 240, b: 240 };
+const COLOR_GREEN: Color = Color { r: 0, g: 180, b: 0 };
+const COLOR_RED: Color = Color { r: 220, g: 20, b: 20 };
+const COLOR_YELLOW: Color = Color { r: 255, g: 220, b: 0 };
+const COLOR_BROWN: Color = Color { r: 139, g: 90, b: 43 };
+const COLOR_CREAM: Color = Color { r: 245, g: 245, b: 220 };
+const COLOR_GREY: Color = Color { r: 128, g: 128, b: 128 };
+const COLOR_DARK_GREEN: Color = Color { r: 0, g: 100, b: 0 };
+
+// 20个扇区的标准顺序（逆时针，从12点钟方向开始）
+const SECTOR_SCORES: [20]i32 = [
+    20, 1, 18, 4, 13, 6, 10, 15, 2, 17,
+    3, 19, 7, 16, 8, 11, 14, 9, 12, 5
+];
+
+// ==================== 游戏状态枚举 ====================
+
+enum GameStatus {
+    Ready,        // 等待开始
+    Aiming,       // 瞄准中
+    Throwing,     // 投掷动画
+    RoundEnd,     // 本轮结束
+    GameOver,     // 游戏结束
+    Won,          // 获胜
+}
+
+// ==================== 数据结构 ====================
+
+// 投掷的飞镖
+struct Dart {
+    x: i32,
+    y: i32,
+    landed: bool,
+    score: i32,
+    multiplier: i32,  // 1=单倍, 2=双倍, 3=三倍
+}
+
+// 飞镖游戏状态
+struct DartsState {
+    score: i32,           // 当前剩余分数
+    round: i32,           // 当前轮次
+    darts_thrown: i32,     // 本轮已投出的飞镖数
+    round_score: i32,      // 本轮得分
+    total_score: i32,      // 累计得分（用于统计）
+    status: GameStatus,
+    width: i32,
+    height: i32,
+    darts: [DARTS_PER_ROUND]Dart,
+    last_throw_score: i32,  // 上一次投掷的得分
+    message: string,        // 显示消息
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut DartsState) {
+    game.score = INITIAL_SCORE;
+    game.round = 1;
+    game.darts_thrown = 0;
+    game.round_score = 0;
+    game.total_score = 0;
+    game.status = GameStatus.Ready;
+    game.width = GAME_WIDTH;
+    game.height = GAME_HEIGHT;
+    game.last_throw_score = 0;
+    game.message = "按空格键开始游戏".to_string();
+    
+    for i in 0..DARTS_PER_ROUND {
+        game.darts[i].landed = false;
+        game.darts[i].x = 0;
+        game.darts[i].y = 0;
+        game.darts[i].score = 0;
+        game.darts[i].multiplier = 1;
+    }
+}
+
+// 计算投掷得分
+fn calculate_score(dx: i32, dy: i32) -> (i32, i32) {
+    let dist = math.sqrt((dx * dx + dy * dy) as f32) as i32;
+    let cx = BOARD_CENTER_X;
+    let cy = BOARD_CENTER_Y;
+    
+    // 归一化角度 (0-360度，12点钟方向为0度)
+    var angle = math.atan2(dy as f32, dx as f32) * 180.0 / 3.14159;
+    angle = angle + 90.0;  // 旋转使12点钟方向为0度
+    if angle < 0 {
+        angle = angle + 360.0;
+    }
+    
+    // 外边缘未击中
+    if dist > BOARD_RADIUS {
+        return (0, 1);
+    }
+    
+    // 击中内牛眼 (50分)
+    if dist <= INNER_BULL_RADIUS {
+        return (50, 2);
+    }
+    
+    // 击中外牛眼 (25分)
+    if dist <= OUTER_BULL_RADIUS {
+        return (25, 1);
+    }
+    
+    // 计算扇区
+    let sector_angle = 360.0 / 20.0;  // 每个扇区18度
+    var sector = (angle / sector_angle) as i32 % 20;
+    let base_score = SECTOR_SCORES[sector];
+    
+    // 双倍环 (外圈，2倍)
+    if dist > DOUBLE_RING_INNER && dist <= DOUBLE_RING_OUTER {
+        return (base_score * 2, 2);
+    }
+    
+    // 三倍环
+    if dist > TRIPLE_RING_OUTER && dist <= DOUBLE_RING_INNER {
+        return (base_score * 3, 3);
+    }
+    
+    // 单倍区
+    return (base_score, 1);
+}
+
+// 投掷飞镖
+fn throw_dart(game: &mut DartsState, target_x: i32, target_y: i32) {
+    if game.status != GameStatus.Aiming {
+        return;
+    }
+    
+    if game.darts_thrown >= DARTS_PER_ROUND {
+        return;
+    }
+    
+    // 计算相对BOARD_CENTER_X, BOARD_CENTER_Y的偏移
+    let dx = target_x - BOARD_CENTER_X;
+    let dy = target_y - BOARD_CENTER_Y;
+    
+    let (score, mult) = calculate_score(dx, dy);
+    
+    // 添加随机散布（模拟真实投掷）
+    let spread = math.rand() % 15 - 7;
+    let angle = math.atan2(dy as f32, dx as f32);
+    let spread_x = (spread as f32 * math.cos(angle)) as i32;
+    let spread_y = (spread as f32 * math.sin(angle)) as i32;
+    
+    let dart_index = game.darts_thrown;
+    game.darts[dart_index].x = target_x + spread_x;
+    game.darts[dart_index].y = target_y + spread_y;
+    game.darts[dart_index].landed = true;
+    game.darts[dart_index].score = score;
+    game.darts[dart_index].multiplier = mult;
+    
+    game.darts_thrown = game.darts_thrown + 1;
+    game.last_throw_score = score;
+    game.round_score = game.round_score + score;
+    
+    // 更新剩余分数
+    if score > 0 {
+        if game.score >= score {
+            game.score = game.score - score;
+        } else {
+            // 过线（bust），本轮得分不算
+            game.message = "过线！本轮得分不计".to_string();
+            game.status = GameStatus.RoundEnd;
+            return;
+        }
+    }
+    
+    // 检查获胜
+    if game.score == WINNING_SCORE {
+        game.status = GameStatus.Won;
+        game.message = "恭喜获胜！按 R 重新开始".to_string();
+        return;
+    }
+    
+    // 检查本轮是否结束
+    if game.darts_thrown >= DARTS_PER_ROUND {
+        game.status = GameStatus.RoundEnd;
+        game.message = "本轮结束！得分: " ++ game.round_score.toString().to_string();
+    } else {
+        let remaining = DARTS_PER_ROUND - game.darts_thrown;
+        game.message = "剩余 " ++ remaining.toString() ++ " 支飞镖".to_string();
+    }
+}
+
+// 开始下一轮
+fn next_round(game: &mut DartsState) {
+    game.round = game.round + 1;
+    game.darts_thrown = 0;
+    game.round_score = 0;
+    game.total_score = game.total_score + game.round_score;
+    game.status = GameStatus.Aiming;
+    game.message = "第 " ++ game.round.toString() ++ " 轮".to_string();
+    
+    for i in 0..DARTS_PER_ROUND {
+        game.darts[i].landed = false;
+        game.darts[i].x = 0;
+        game.darts[i].y = 0;
+        game.darts[i].score = 0;
+        game.darts[i].multiplier = 1;
+    }
+}
+
+// 重置游戏
+fn reset_game(game: &mut DartsState) {
+    init_game(game);
+    game.status = GameStatus.Aiming;
+    game.message = "新游戏开始！".to_string();
+}
+
+// 处理键盘输入
+fn handle_input(game: &mut DartsState, key: KeyCode) -> bool {
+    match key {
+        KeyCode.KeySpace => {
+            if game.status == GameStatus.Ready {
+                game.status = GameStatus.Aiming;
+                game.message = "瞄准后点击投掷飞镖".to_string();
+            } else if game.status == GameStatus.RoundEnd {
+                next_round(game);
+            }
+        },
+        KeyCode.KeyR => {
+            reset_game(game);
+        },
+        KeyCode.KeyEscape => {
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+// 获取状态文本
+fn get_status_text(game: &DartsState) -> string {
+    match game.status {
+        GameStatus.Ready => return "按空格键开始游戏",
+        GameStatus.Aiming => return "瞄准靶心，点击投掷！",
+        GameStatus.Throwing => return "投掷中...",
+        GameStatus.RoundEnd => return game.message,
+        GameStatus.GameOver => return "游戏结束！按 R 重新开始",
+        GameStatus.Won => return "恭喜获胜！按 R 重新开始",
+    }
+    return ""
+}
+
+// 获取控制说明
+fn get_controls_text() -> string {
+    "控制: 鼠标瞄准 | 点击投掷 | 空格 下一轮 | R 重开 | ESC 退出"
+}
+
+// 获取当前鼠标位置的预计得分
+fn get_aim_score(x: i32, y: i32) -> string {
+    let dx = x - BOARD_CENTER_X;
+    let dy = y - BOARD_CENTER_Y;
+    let (score, mult) = calculate_score(dx, dy);
+    
+    if score == 0 {
+        return "未击中".to_string();
+    }
+    
+    let mult_str = if mult == 2 { "D" } else if mult == 3 { "T" } else { "" };
+    return mult_str ++ score.toString();
+}

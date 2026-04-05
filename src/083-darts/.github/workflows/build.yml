@@ -1,0 +1,29 @@
+name: Build Darts Game
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Zen-C
+      run: |
+        git clone --depth 1 https://github.com/z-libs/Zen-C.git /tmp/Zen-C
+        cd /tmp/Zen-C
+        mkdir -p build && cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        cmake --build . --config Release
+        echo "$PWD" >> $GITHUB_PATH
+    
+    - name: Build
+      run: |
+        cd ${{ github.workspace }}
+        make clean
+        make all
