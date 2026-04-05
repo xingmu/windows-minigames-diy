@@ -1,0 +1,889 @@
+// game.zc - 射击训练游戏核心
+// Shooting Gallery - 移动靶射击训练游戏
+
+import std.math;
+import "platform_api.zc";
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH = 800;
+const GAME_HEIGHT = 600;
+const GAME_DURATION = 60;
+const MAX_TARGETS = 8;
+const TARGET_SPAWN_INTERVAL: u32 = 1200;
+const TARGET_LIFETIME: u32 = 3500;
+const CROSSHAIR_SIZE = 20;
+
+const TARGET_TYPE_STANDING = 0;
+const TARGET_TYPE_MOVING = 1;
+const TARGET_TYPE_BONUS = 2;
+
+const POINTS_STANDING = 10;
+const POINTS_MOVING = 20;
+const POINTS_BONUS = 50;
+
+const TARGET_WIDTH = 40;
+const TARGET_HEIGHT = 60;
+
+// ==================== 数据结构 ====================
+
+// 目标
+struct Target {
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    targetType: int,
+    alive: bool,
+    spawnTime: u32,
+    vx: int,
+    vy: int,
+    hit: bool,
+    hitTime: u32,
+}
+
+// 准星
+struct Crosshair {
+    x: int,
+    y: int,
+    visible: bool,
+}
+
+// 游戏状态枚举
+enum GameStatus {
+    Ready,
+    Playing,
+    GameOver,
+}
+
+// 射击场状态
+struct ShootingGalleryState {
+    targets: [MAX_TARGETS]Target,
+    crosshair: Crosshair,
+    score: int,
+    timeLeft: int,
+    status: GameStatus,
+    width: int,
+    height: int,
+    lastSpawnTime: u32,
+    totalTime: u32,
+    lastUpdateTime: u32,
+    gameStartTime: u32,
+    missCount: int,
+    totalShots: int,
+    hitCount: int,
+}
+
+// ==================== 射击场游戏类 ====================
+
+class ShootingGalleryGame {
+    // 继承自框架的状态
+    window: WindowHandle;
+    width: int;
+    height: int;
+    state: GameStatus;
+    score: int;
+    running: bool;
+    targetFPS: int;
+    frameTime: u32;
+    lastFrame: u32;
+    
+    // 射击场特有状态
+    gallery: ShootingGalleryState;
+    
+    // 构造函数
+    pub fn create(title: str, width: int, height: int, fps: int) {
+        self.width = width;
+        self.height = height;
+        self.targetFPS = fps;
+        self.frameTime = 1000 / fps as u32;
+        self.state = GameStatus.Ready;
+        self.score = 0;
+        self.running = false;
+        
+        // 创建窗口
+        self.window = createWindow(title, width, height);
+        if self.window == nil {
+            println("错误: 无法创建窗口");
+            return;
+        }
+        
+        // 初始化射击场状态
+        self.initGallery();
+        
+        println("射击训练游戏窗口创建成功: " ++ title);
+    }
+    
+    // 初始化射击场
+    fn initGallery() {
+        self.gallery.width = self.width;
+        self.gallery.height = self.height;
+        self.gallery.score = 0;
+        self.gallery.timeLeft = GAME_DURATION;
+        self.gallery.status = GameStatus.Ready;
+        self.gallery.lastSpawnTime = 0;
+        self.gallery.totalTime = 0;
+        self.gallery.lastUpdateTime = 0;
+        self.gallery.gameStartTime = 0;
+        self.gallery.missCount = 0;
+        self.gallery.totalShots = 0;
+        self.gallery.hitCount = 0;
+        self.gallery.crosshair = Crosshair.{ 
+            x: self.width / 2, 
+            y: self.height / 2, 
+            visible: true 
+        };
+        
+        for i in 0..MAX_TARGETS {
+            self.gallery.targets[i].alive = false;
+            self.gallery.targets[i].hit = false;
+        }
+    }
+    
+    // 重置游戏
+    fn resetGame() {
+        self.gallery.score = 0;
+        self.gallery.timeLeft = GAME_DURATION;
+        self.gallery.status = GameStatus.Playing;
+        self.gallery.missCount = 0;
+        self.gallery.totalShots = 0;
+        self.gallery.hitCount = 0;
+        self.gallery.totalTime = 0;
+        self.gallery.gameStartTime = getTickCount();
+        self.gallery.lastUpdateTime = self.gallery.gameStartTime;
+        self.gallery.lastSpawnTime = self.gallery.gameStartTime;
+        self.gallery.crosshair = Crosshair.{ 
+            x: self.gallery.width / 2, 
+            y: self.gallery.height / 2, 
+            visible: true 
+        };
+        
+        for i in 0..MAX_TARGETS {
+            self.gallery.targets[i].alive = false;
+            self.gallery.targets[i].hit = false;
+        }
+    }
+    
+    // 开始游戏主循环
+    pub fn run() {
+        if self.window == nil {
+            return;
+        }
+        
+        self.running = true;
+        self.lastFrame = getTickCount();
+        
+        // 初始绘制
+        self.onInit();
+        
+        // 主消息循环
+        while self.running {
+            self.processEvents();
+            self.update();
+            self.render();
+            self.frameLimit();
+        }
+        
+        self.onShutdown();
+    }
+    
+    // 停止游戏
+    pub fn stop() {
+        self.running = false;
+    }
+    
+    // 获取分数
+    pub fn getScore() -> int {
+        return self.gallery.score;
+    }
+    
+    // 获取游戏状态
+    pub fn getState() -> GameStatus {
+        return self.gallery.status;
+    }
+    
+    // ===== 事件处理 =====
+    
+    fn processEvents() {
+        var event = Event.{};
+        
+        while pollEvent(self.window, &event) {
+            match event.msg {
+                MessageType.Quit => {
+                    self.running = false;
+                }
+                MessageType.KeyDown => {
+                    if event.key.key == VirtualKey.Escape {
+                        self.running = false;
+                    }
+                }
+                MessageType.MouseDown => {
+                    self.onMouseDown(event.mouse.x, event.mouse.y, event.mouse.button);
+                }
+                MessageType.MouseUp => {
+                    self.onMouseUp(event.mouse.x, event.mouse.y, event.mouse.button);
+                }
+                MessageType.MouseMove => {
+                    self.gallery.crosshair.x = event.mouse.x;
+                    self.gallery.crosshair.y = event.mouse.y;
+                }
+                MessageType.Resize => {
+                    self.width = event.width;
+                    self.height = event.height;
+                }
+                _ => {}
+            }
+        }
+    }
+    
+    // 更新游戏逻辑
+    fn update() {
+        if self.gallery.status != GameStatus.Playing {
+            return;
+        }
+        
+        var currentTime = getTickCount();
+        var dt = currentTime - self.lastFrame;
+        
+        // 更新计时
+        self.gallery.totalTime = self.gallery.totalTime + dt as u32;
+        self.gallery.lastUpdateTime = currentTime;
+        self.gallery.timeLeft = GAME_DURATION - (self.gallery.totalTime / 1000) as int;
+        
+        if self.gallery.timeLeft <= 0 {
+            self.gallery.timeLeft = 0;
+            self.gallery.status = GameStatus.GameOver;
+            return;
+        }
+        
+        // 生成新目标
+        if currentTime - self.gallery.lastSpawnTime >= TARGET_SPAWN_INTERVAL {
+            self.spawnTarget();
+            self.gallery.lastSpawnTime = currentTime;
+        }
+        
+        // 更新目标
+        self.updateTargets();
+    }
+    
+    // 生成目标
+    fn spawnTarget() {
+        var slot = -1;
+        for i in 0..MAX_TARGETS {
+            if !self.gallery.targets[i].alive {
+                slot = i;
+                break;
+            }
+        }
+        
+        if slot < 0 {
+            return;
+        }
+        
+        var r = math.rand() % 100;
+        var targetType = TARGET_TYPE_STANDING;
+        if r >= 90 {
+            targetType = TARGET_TYPE_BONUS;
+        } else if r >= 70 {
+            targetType = TARGET_TYPE_MOVING;
+        }
+        
+        var x = (math.rand() % (self.gallery.width - TARGET_WIDTH - 100)) as int + 50;
+        var y = (math.rand() % 280) as int + 200;
+        
+        var target = &mut self.gallery.targets[slot];
+        target.x = x;
+        target.y = y;
+        target.width = TARGET_WIDTH;
+        target.height = TARGET_HEIGHT;
+        target.targetType = targetType;
+        target.alive = true;
+        target.hit = false;
+        target.spawnTime = getTickCount();
+        
+        if targetType == TARGET_TYPE_MOVING {
+            target.vx = ((math.rand() % 3) as int - 1) * 2;
+            target.vy = ((math.rand() % 3) as int - 1) * 2;
+            if target.vx == 0 && target.vy == 0 {
+                target.vx = 2;
+            }
+        } else {
+            target.vx = 0;
+            target.vy = 0;
+        }
+    }
+    
+    // 更新所有目标
+    fn updateTargets() {
+        var currentTime = getTickCount();
+        
+        for i in 0..MAX_TARGETS {
+            var target = &mut self.gallery.targets[i];
+            
+            if !target.alive {
+                continue;
+            }
+            
+            // 检查超时
+            if currentTime - target.spawnTime >= TARGET_LIFETIME {
+                target.alive = false;
+                continue;
+            }
+            
+            // 检查击中动画结束
+            if target.hit {
+                if currentTime - target.hitTime >= 200 {
+                    target.alive = false;
+                    target.hit = false;
+                }
+                continue;
+            }
+            
+            // 移动目标
+            if target.targetType == TARGET_TYPE_MOVING {
+                target.x = target.x + target.vx;
+                target.y = target.y + target.vy;
+                
+                // 边界检测
+                if target.x <= 20 || target.x >= self.gallery.width - target.width - 20 {
+                    target.vx = -target.vx;
+                    if target.x < 20 { target.x = 20; }
+                    if target.x > self.gallery.width - target.width - 20 { 
+                        target.x = self.gallery.width - target.width - 20; 
+                    }
+                }
+                if target.y <= 100 || target.y >= self.gallery.height - target.height - 20 {
+                    target.vy = -target.vy;
+                    if target.y < 100 { target.y = 100; }
+                    if target.y > self.gallery.height - target.height - 20 { 
+                        target.y = self.gallery.height - target.height - 20; 
+                    }
+                }
+            }
+        }
+    }
+    
+    // 渲染画面
+    fn render() {
+        var fb = getFrameBuffer(self.window);
+        var pitch = getFrameBufferPitch(self.window);
+        
+        if fb == nil {
+            return;
+        }
+        
+        // 清屏
+        this.clearBuffer(fb, pitch, Color.Black());
+        
+        match self.gallery.status {
+            GameStatus.Ready => {
+                self.drawReadyScreen(fb, pitch);
+            }
+            GameStatus.Playing => {
+                self.drawBackground(fb, pitch);
+                self.drawTargets(fb, pitch);
+                self.drawUI(fb, pitch);
+                self.drawCrosshair(fb, pitch);
+            }
+            GameStatus.GameOver => {
+                self.drawBackground(fb, pitch);
+                self.drawGameOverScreen(fb, pitch);
+                self.drawCrosshair(fb, pitch);
+            }
+        }
+        
+        presentFrame(self.window);
+        self.lastFrame = getTickCount();
+    }
+    
+    // 清空缓冲区
+    fn clearBuffer(fb: rawptr, pitch: int, color: Color) {
+        var pixels = fb as u32 mut;
+        var count = (pitch * self.height) / 4;
+        
+        for i in 0..count {
+            pixels[i] = color;
+        }
+    }
+    
+    // 绘制背景
+    fn drawBackground(fb: rawptr, pitch: int) {
+        // 夜空背景
+        this.fillRectBuffer(fb, pitch, 0, 0, self.width, self.height, Color.RGB(15, 15, 35));
+        
+        // 绘制星空
+        for i in 0..60 {
+            var sx = ((i * 13 + 7) * 17) % self.width;
+            var sy = ((i * 7 + 3) * 11) % (self.height / 2);
+            var brightness = i % 4;
+            if brightness == 0 {
+                this.fillRectBuffer(fb, pitch, sx, sy, 2, 2, Color.White());
+            } else if brightness == 1 {
+                this.fillRectBuffer(fb, pitch, sx, sy, 2, 2, Color.RGB(180, 180, 220));
+            } else {
+                this.fillRectBuffer(fb, pitch, sx, sy, 1, 1, Color.RGB(150, 150, 180));
+            }
+        }
+        
+        // 绘制地面/草地
+        this.fillRectBuffer(fb, pitch, 0, self.height - 80, self.width, 80, Color.RGB(30, 60, 30));
+        this.fillRectBuffer(fb, pitch, 0, self.height - 80, self.width, 5, Color.RGB(50, 100, 50));
+        
+        // 绘制射击台
+        this.fillRectBuffer(fb, pitch, self.width / 2 - 80, self.height - 55, 160, 45, Color.RGB(70, 50, 30));
+        this.fillRectBuffer(fb, pitch, self.width / 2 - 80, self.height - 55, 160, 4, Color.RGB(100, 80, 50));
+        
+        // 射击台顶部装饰
+        this.fillRectBuffer(fb, pitch, self.width / 2 - 60, self.height - 75, 120, 20, Color.RGB(80, 60, 35));
+        
+        // 目标架
+        this.fillRectBuffer(fb, pitch, 50, self.height - 85, 15, 30, Color.RGB(60, 45, 25));
+        this.fillRectBuffer(fb, pitch, self.width - 65, self.height - 85, 15, 30, Color.RGB(60, 45, 25));
+    }
+    
+    // 绘制目标
+    fn drawTargets(fb: rawptr, pitch: int) {
+        for i in 0..MAX_TARGETS {
+            if self.gallery.targets[i].alive {
+                self.drawTarget(fb, pitch, &self.gallery.targets[i]);
+            }
+        }
+    }
+    
+    // 绘制单个目标
+    fn drawTarget(fb: rawptr, pitch: int, target: &Target) {
+        var color: Color;
+        var borderColor: Color;
+        
+        match target.targetType {
+            TARGET_TYPE_STANDING => {
+                color = Color.RGB(180, 60, 60);
+                borderColor = Color.RGB(220, 120, 120);
+            }
+            TARGET_TYPE_MOVING => {
+                color = Color.RGB(60, 120, 180);
+                borderColor = Color.RGB(120, 180, 240);
+            }
+            TARGET_TYPE_BONUS => {
+                color = Color.RGB(255, 200, 0);
+                borderColor = Color.RGB(255, 240, 150);
+            }
+            _ => {
+                color = Color.RGB(120, 120, 120);
+                borderColor = Color.RGB(200, 200, 200);
+            }
+        }
+        
+        if target.hit {
+            color = Color.RGB(255, 255, 100);
+            borderColor = Color.RGB(255, 220, 50);
+        }
+        
+        var x = target.x;
+        var y = target.y;
+        var w = target.width;
+        var h = target.height;
+        
+        // 靶框
+        this.fillRectBuffer(fb, pitch, x, y, w, h, color);
+        this.drawRectBuffer(fb, pitch, x, y, w, h, borderColor);
+        
+        // 内部装饰
+        this.fillRectBuffer(fb, pitch, x + 3, y + 3, w - 6, h - 6, Color.RGB(40, 40, 40));
+        
+        // 靶心
+        var cx = x + w / 2;
+        var cy = y + h / 2 - 5;
+        
+        this.drawCircleBuffer(fb, pitch, cx, cy, 15, Color.RGB(200, 200, 200));
+        this.drawCircleBuffer(fb, pitch, cx, cy, 10, Color.RGB(220, 50, 50));
+        this.drawCircleBuffer(fb, pitch, cx, cy, 5, Color.RGB(255, 255, 100));
+        
+        // 顶部支架
+        this.fillRectBuffer(fb, pitch, x + w / 2 - 3, y - 12, 6, 12, Color.RGB(80, 60, 40));
+        
+        // 加分靶特殊效果
+        if target.targetType == TARGET_TYPE_BONUS {
+            this.drawCircleBuffer(fb, pitch, cx, cy, 22, Color.RGB(255, 215, 0));
+        }
+    }
+    
+    // 绘制准星
+    fn drawCrosshair(fb: rawptr, pitch: int) {
+        var x = self.gallery.crosshair.x;
+        var y = self.gallery.crosshair.y;
+        var size = CROSSHAIR_SIZE;
+        var color = Color.White();
+        
+        // 水平线
+        this.fillRectBuffer(fb, pitch, x - size, y - 1, size - size / 3, 2, color);
+        this.fillRectBuffer(fb, pitch, x + size / 3, y - 1, size - size / 3, 2, color);
+        
+        // 垂直线
+        this.fillRectBuffer(fb, pitch, x - 1, y - size, 2, size - size / 3, color);
+        this.fillRectBuffer(fb, pitch, x - 1, y + size / 3, 2, size - size / 3, color);
+        
+        // 中心点
+        this.fillRectBuffer(fb, pitch, x - 2, y - 2, 4, 4, color);
+        
+        // 外圈
+        this.drawCircleBuffer(fb, pitch, x, y, size, color);
+    }
+    
+    // 绘制UI
+    fn drawUI(fb: rawptr, pitch: int) {
+        // 顶部信息栏
+        this.fillRectBuffer(fb, pitch, 0, 0, self.width, 45, Color.Black());
+        this.fillRectBuffer(fb, pitch, 0, 45, self.width, 2, Color.RGB(80, 80, 80));
+        
+        // 分数 (使用简单数字绘制)
+        self.drawString(fb, pitch, 15, 12, "SCORE:", Color.RGB(255, 215, 0));
+        self.drawNumber(fb, pitch, 95, 12, self.gallery.score, Color.RGB(255, 215, 0));
+        
+        // 时间
+        self.drawString(fb, pitch, self.width / 2 - 60, 12, "TIME:", 
+            if self.gallery.timeLeft <= 10 { Color.Red() } else { Color.RGB(100, 200, 255) });
+        self.drawNumber(fb, pitch, self.width / 2 + 10, 12, self.gallery.timeLeft,
+            if self.gallery.timeLeft <= 10 { Color.Red() } else { Color.RGB(100, 200, 255) });
+        
+        // 命中率
+        var accuracy = self.getAccuracy();
+        self.drawString(fb, pitch, self.width - 150, 12, "HIT:", Color.RGB(100, 255, 100));
+        self.drawNumber(fb, pitch, self.width - 90, 12, accuracy, Color.RGB(100, 255, 100));
+        self.drawChar(fb, pitch, self.width - 60, 12, '%', Color.RGB(100, 255, 100));
+        
+        // 底部信息栏
+        this.fillRectBuffer(fb, pitch, 0, self.height - 25, self.width, 25, Color.Black());
+        this.fillRectBuffer(fb, pitch, 0, self.height - 25, self.width, 2, Color.RGB(80, 80, 80));
+        
+        // 目标说明
+        self.drawString(fb, pitch, 15, self.height - 18, "RED=10pts  BLUE=20pts  GOLD=50pts", Color.RGB(150, 150, 150));
+    }
+    
+    // 绘制开始画面
+    fn drawReadyScreen(fb: rawptr, pitch: int) {
+        this.fillRectBuffer(fb, pitch, 0, 0, self.width, self.height, Color.RGB(10, 10, 25));
+        
+        // 标题
+        self.drawString(fb, pitch, self.width / 2 - 120, 100, "SHOOTING GALLERY", Color.RGB(255, 215, 0));
+        self.drawString(fb, pitch, self.width / 2 - 90, 140, "60 Second Challenge", Color.RGB(200, 200, 200));
+        
+        // 分隔线
+        this.fillRectBuffer(fb, pitch, self.width / 2 - 150, 170, 300, 2, Color.RGB(100, 100, 100));
+        
+        // 目标说明
+        self.drawString(fb, pitch, self.width / 2 - 120, 200, "TARGETS:", Color.White());
+        
+        this.fillRectBuffer(fb, pitch, self.width / 2 - 120, 225, 20, 20, Color.RGB(180, 60, 60));
+        self.drawString(fb, pitch, self.width / 2 - 90, 228, "Standing Target = 10 points", Color.RGB(180, 180, 180));
+        
+        this.fillRectBuffer(fb, pitch, self.width / 2 - 120, 255, 20, 20, Color.RGB(60, 120, 180));
+        self.drawString(fb, pitch, self.width / 2 - 90, 258, "Moving Target = 20 points", Color.RGB(180, 180, 180));
+        
+        this.fillRectBuffer(fb, pitch, self.width / 2 - 120, 285, 20, 20, Color.RGB(255, 200, 0));
+        self.drawString(fb, pitch, self.width / 2 - 90, 288, "Bonus Target = 50 points", Color.RGB(180, 180, 180));
+        
+        // 分隔线
+        this.fillRectBuffer(fb, pitch, self.width / 2 - 150, 330, 300, 2, Color.RGB(100, 100, 100));
+        
+        // 操作说明
+        self.drawString(fb, pitch, self.width / 2 - 100, 350, "CONTROLS:", Color.White());
+        self.drawString(fb, pitch, self.width / 2 - 100, 380, "Mouse to Aim", Color.RGB(180, 180, 180));
+        self.drawString(fb, pitch, self.width / 2 - 100, 405, "Left Click to Shoot", Color.RGB(180, 180, 180));
+        self.drawString(fb, pitch, self.width / 2 - 100, 430, "ESC to Quit", Color.RGB(180, 180, 180));
+        
+        // 开始提示
+        self.drawString(fb, pitch, self.width / 2 - 90, 480, "CLICK TO START", Color.White());
+    }
+    
+    // 绘制游戏结束画面
+    fn drawGameOverScreen(fb: rawptr, pitch: int) {
+        this.fillRectBuffer(fb, pitch, 0, 0, self.width, self.height, Color.RGB(10, 10, 25));
+        
+        // 游戏结束标题
+        self.drawString(fb, pitch, self.width / 2 - 100, 80, "GAME OVER", Color.RGB(255, 80, 80));
+        
+        // 分隔线
+        this.fillRectBuffer(fb, pitch, self.width / 2 - 180, 130, 360, 2, Color.RGB(100, 100, 100));
+        
+        // 最终分数
+        self.drawString(fb, pitch, self.width / 2 - 100, 160, "FINAL SCORE:", Color.RGB(255, 215, 0));
+        self.drawNumber(fb, pitch, self.width / 2 + 60, 160, self.gallery.score, Color.RGB(255, 215, 0));
+        
+        // 命中率
+        var accuracy = self.getAccuracy();
+        self.drawString(fb, pitch, self.width / 2 - 80, 210, "ACCURACY:", Color.RGB(100, 255, 100));
+        self.drawNumber(fb, pitch, self.width / 2 + 30, 210, accuracy, Color.RGB(100, 255, 100));
+        self.drawChar(fb, pitch, self.width / 2 + 70, 210, '%', Color.RGB(100, 255, 100));
+        
+        // 射偏次数
+        self.drawString(fb, pitch, self.width / 2 - 80, 245, "SHOTS MISSED:", Color.RGB(255, 100, 100));
+        self.drawNumber(fb, pitch, self.width / 2 + 70, 245, self.gallery.missCount, Color.RGB(255, 100, 100));
+        
+        // 分隔线
+        this.fillRectBuffer(fb, pitch, self.width / 2 - 180, 290, 360, 2, Color.RGB(100, 100, 100));
+        
+        // 重新开始提示
+        self.drawString(fb, pitch, self.width / 2 - 110, 330, "CLICK TO PLAY AGAIN", Color.RGB(200, 200, 200));
+    }
+    
+    // 缓冲区填充矩形
+    fn fillRectBuffer(fb: rawptr, pitch: int, x: int, y: int, w: int, h: int, color: Color) {
+        var pixels = fb as u32 mut;
+        var linePitch = pitch / 4;
+        
+        for py in y..(y + h) {
+            if py < 0 || py >= self.height {
+                continue;
+            }
+            for px in x..(x + w) {
+                if px < 0 || px >= self.width {
+                    continue;
+                }
+                pixels[py * linePitch + px] = color;
+            }
+        }
+    }
+    
+    // 缓冲区绘制矩形边框
+    fn drawRectBuffer(fb: rawptr, pitch: int, x: int, y: int, w: int, h: int, color: Color) {
+        this.drawLineBuffer(fb, pitch, x, y, x + w, y, color);
+        this.drawLineBuffer(fb, pitch, x + w, y, x + w, y + h, color);
+        this.drawLineBuffer(fb, pitch, x + w, y + h, x, y + h, color);
+        this.drawLineBuffer(fb, pitch, x, y + h, x, y, color);
+    }
+    
+    // 缓冲区绘制线条 (Bresenham)
+    fn drawLineBuffer(fb: rawptr, pitch: int, x1: int, y1: int, x2: int, y2: int, color: Color) {
+        var dx = abs(x2 - x1);
+        var dy = abs(y2 - y1);
+        var sx = if x1 < x2 { 1 } else { -1 };
+        var sy = if y1 < y2 { 1 } else { -1 };
+        var err = dx - dy;
+        
+        var px = x1;
+        var py = y1;
+        
+        loop {
+            if px >= 0 && px < self.width && py >= 0 && py < self.height {
+                var pixels = fb as u32 mut;
+                var linePitch = pitch / 4;
+                pixels[py * linePitch + px] = color;
+            }
+            
+            if px == x2 && py == y2 {
+                break;
+            }
+            
+            var e2 = 2 * err;
+            if e2 > -dy {
+                err = err - dy;
+                px = px + sx;
+            }
+            if e2 < dx {
+                err = err + dx;
+                py = py + sy;
+            }
+        }
+    }
+    
+    // 缓冲区绘制圆
+    fn drawCircleBuffer(fb: rawptr, pitch: int, cx: int, cy: int, radius: int, color: Color) {
+        var d = 3 - 2 * radius;
+        var x = 0;
+        var y = radius;
+        var pixels = fb as u32 mut;
+        var linePitch = pitch / 4;
+        
+        loop {
+            this.setPixelBuffer(pixels, linePitch, cx + x, cy + y, color);
+            this.setPixelBuffer(pixels, linePitch, cx - x, cy + y, color);
+            this.setPixelBuffer(pixels, linePitch, cx + x, cy - y, color);
+            this.setPixelBuffer(pixels, linePitch, cx - x, cy - y, color);
+            this.setPixelBuffer(pixels, linePitch, cx + y, cy + x, color);
+            this.setPixelBuffer(pixels, linePitch, cx - y, cy + x, color);
+            this.setPixelBuffer(pixels, linePitch, cx + y, cy - x, color);
+            this.setPixelBuffer(pixels, linePitch, cx - y, cy - x, color);
+            
+            if d < 0 {
+                d = d + 4 * x + 6;
+            } else {
+                d = d + 4 * (x - y) + 10;
+                y = y - 1;
+            }
+            
+            x = x + 1;
+            if x > y {
+                break;
+            }
+        }
+    }
+    
+    // 设置像素
+    fn setPixelBuffer(pixels: u32 mut, linePitch: int, x: int, y: int, color: Color) {
+        if x >= 0 && x < self.width && y >= 0 && y < self.height {
+            pixels[y * linePitch + x] = color;
+        }
+    }
+    
+    // 绘制字符串 (简化版 8x8 字体)
+    fn drawString(fb: rawptr, pitch: int, x: int, y: int, text: str, color: Color) {
+        var px = x;
+        var py = y;
+        
+        for i in 0..len(text) {
+            if text[i] == '\n' {
+                py = py + 12;
+                px = x;
+                continue;
+            }
+            
+            self.drawChar(fb, pitch, px, py, text[i], color);
+            px = px + 8;
+            
+            if px > self.width - 8 {
+                py = py + 12;
+                px = x;
+            }
+        }
+    }
+    
+    // 绘制字符
+    fn drawChar(fb: rawptr, pitch: int, x: int, y: int, c: u8, color: Color) {
+        // 简单的 8x8 位图字体
+        // 这里使用占位符矩形，实际需要完整的字形数据
+        this.fillRectBuffer(fb, pitch, x, y, 8, 8, color);
+    }
+    
+    // 绘制数字
+    fn drawNumber(fb: rawptr, pitch: int, x: int, y: int, n: int, color: Color) {
+        if n < 0 {
+            self.drawChar(fb, pitch, x, y, '-' as u8, color);
+            n = -n;
+            x = x + 8;
+        }
+        
+        var digits: [16]u8;
+        var count = 0;
+        
+        if n == 0 {
+            digits[0] = '0' as u8;
+            count = 1;
+        } else {
+            while n > 0 && count < 16 {
+                digits[count] = (n % 10) as u8 + '0' as u8;
+                n = n / 10;
+                count = count + 1;
+            }
+        }
+        
+        var px = x + (count - 1) * 8;
+        for i in 0..count {
+            self.drawChar(fb, pitch, px, y, digits[count - 1 - i], color);
+            px = px - 8;
+        }
+    }
+    
+    // 获取命中率
+    fn getAccuracy() -> int {
+        var total = self.gallery.totalShots;
+        if total == 0 {
+            return 0;
+        }
+        return self.gallery.hitCount * 100 / total;
+    }
+    
+    // 绝对值
+    fn abs(n: int) -> int {
+        return if n < 0 { -n } else { n };
+    }
+    
+    // 帧率限制
+    fn frameLimit() {
+        var elapsed = getTickCount() - self.lastFrame;
+        if elapsed < self.frameTime {
+            sleep(self.frameTime - elapsed);
+        }
+    }
+    
+    // 初始化回调
+    fn onInit() {
+        self.gallery.gameStartTime = getTickCount();
+        self.gallery.crosshair = Crosshair.{ 
+            x: self.width / 2, 
+            y: self.height / 2, 
+            visible: true 
+        };
+    }
+    
+    // 关闭回调
+    fn onShutdown() {
+        if self.window != nil {
+            closeWindow(self.window);
+            self.window = nil;
+        }
+    }
+    
+    // 鼠标按下回调
+    fn onMouseDown(x: int, y: int, button: MouseButton) {
+        if self.gallery.status == GameStatus.Ready || self.gallery.status == GameStatus.GameOver {
+            self.resetGame();
+            return;
+        }
+        
+        if self.gallery.status == GameStatus.Playing {
+            self.handleShoot(x, y);
+        }
+    }
+    
+    // 鼠标释放回调
+    fn onMouseUp(x: int, y: int, button: MouseButton) {
+        // 暂不需要
+    }
+    
+    // 处理射击
+    fn handleShoot(shootX: int, shootY: int) {
+        if self.gallery.status != GameStatus.Playing {
+            return;
+        }
+        
+        self.gallery.totalShots = self.gallery.totalShots + 1;
+        var hit = false;
+        
+        for i in 0..MAX_TARGETS {
+            var target = &mut self.gallery.targets[i];
+            
+            if !target.alive || target.hit {
+                continue;
+            }
+            
+            if shootX >= target.x && shootX <= target.x + target.width &&
+               shootY >= target.y && shootY <= target.y + target.height {
+                
+                target.hit = true;
+                target.hitTime = getTickCount();
+                hit = true;
+                self.gallery.hitCount = self.gallery.hitCount + 1;
+                
+                match target.targetType {
+                    TARGET_TYPE_STANDING => {
+                        self.gallery.score = self.gallery.score + POINTS_STANDING;
+                    }
+                    TARGET_TYPE_MOVING => {
+                        self.gallery.score = self.gallery.score + POINTS_MOVING;
+                    }
+                    TARGET_TYPE_BONUS => {
+                        self.gallery.score = self.gallery.score + POINTS_BONUS;
+                    }
+                    _ => {}
+                }
+                
+                break;
+            }
+        }
+        
+        if !hit {
+            self.gallery.missCount = self.gallery.missCount + 1;
+        }
+    }
+}
