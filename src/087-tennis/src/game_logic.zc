@@ -1,0 +1,929 @@
+// game_logic.zc - Tennis网球游戏逻辑
+// 087-Tennis 网球游戏 - 俯视角双人对战网球
+// 玩家vs电脑，键盘控制球拍移动和挥拍
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const WINDOW_WIDTH: int = 640;
+const WINDOW_HEIGHT: int = 480;
+
+const COURT_MARGIN: int = 30;
+const NET_Y: int = WINDOW_HEIGHT / 2;
+
+// 球拍尺寸
+const RACKET_WIDTH: int = 80;
+const RACKET_HEIGHT: int = 10;
+const RACKET_SPEED: int = 8;
+
+// 球参数
+const BALL_RADIUS: int = 6;
+const BALL_INITIAL_SPEED: int = 4;
+const BALL_MAX_SPEED: int = 14;
+const GRAVITY: float = 0.12;
+const AIR_RESISTANCE: float = 0.998;
+
+// 网球计分制
+const POINT_WIN_SCORE: int = 4;
+const GAME_WIN_SCORE: int = 6;
+const SET_WIN_GAMES: int = 2;
+
+// ==================== 分数名称 ====================
+
+const POINT_NAMES: str[] = ["0", "15", "30", "40"];
+
+// 发球方
+enum ServeSide {
+    Player,
+    CPU,
+}
+
+// ==================== Tennis游戏类 ====================
+
+pub class TennisGame extends Game {
+    // ===== 玩家球拍 =====
+    playerRacketX: int;
+    playerRacketY: int;
+    playerRacketWidth: int;
+    playerRacketHeight: int;
+    
+    // ===== CPU球拍 =====
+    cpuRacketX: int;
+    cpuRacketY: int;
+    cpuRacketWidth: int;
+    cpuRacketHeight: int;
+    
+    // ===== 球 =====
+    ballX: float;
+    ballY: float;
+    ballVX: float;
+    ballVY: float;
+    ballSpeed: int;
+    ballSpin: float;       // 上旋/下旋
+    
+    // ===== 游戏状态 =====
+    gameStarted: bool;
+    gameOver: bool;
+    winner: str;
+    servingSide: ServeSide;
+    
+    // ===== 按键状态 =====
+    keyLeft: bool;
+    keyRight: bool;
+    keySwing: bool;
+    isSwinging: bool;
+    swingCooldown: u32;
+    
+    // ===== 分数系统 =====
+    playerPoints: int;
+    cpuPoints: int;
+    playerGames: int;
+    cpuGames: int;
+    playerSets: int;
+    cpuSets: int;
+    
+    // ===== 发球 =====
+    canServe: bool;
+    serveReady: bool;
+    serveTimer: u32;
+    lastServeHit: bool;     // 上次是否接发球得分
+    
+    // ===== AI =====
+    aiTargetX: int;
+    aiLastUpdate: u32;
+    aiReactionDelay: u32;
+    
+    // ===== 轨迹预测 =====
+    trailX: float[20];
+    trailY: float[20];
+    trailIndex: int;
+    
+    // onInit - 初始化游戏
+    pub fn onInit() {
+        self.setState(GameState.Playing);
+        self.gameStarted = false;
+        self.gameOver = false;
+        self.winner = "";
+        
+        // 初始化玩家球拍 (底部)
+        self.playerRacketX = WINDOW_WIDTH / 2 - RACKET_WIDTH / 2;
+        self.playerRacketY = WINDOW_HEIGHT - COURT_MARGIN - 40;
+        self.playerRacketWidth = RACKET_WIDTH;
+        self.playerRacketHeight = RACKET_HEIGHT;
+        
+        // 初始化CPU球拍 (顶部)
+        self.cpuRacketX = WINDOW_WIDTH / 2 - RACKET_WIDTH / 2;
+        self.cpuRacketY = COURT_MARGIN + 30;
+        self.cpuRacketWidth = RACKET_WIDTH;
+        self.cpuRacketHeight = RACKET_HEIGHT;
+        
+        // 按键
+        self.keyLeft = false;
+        self.keyRight = false;
+        self.keySwing = false;
+        self.isSwinging = false;
+        self.swingCooldown = 0;
+        
+        // 分数
+        self.playerPoints = 0;
+        self.cpuPoints = 0;
+        self.playerGames = 0;
+        self.cpuGames = 0;
+        self.playerSets = 0;
+        self.cpuSets = 0;
+        
+        // 发球
+        self.servingSide = ServeSide.Player;
+        self.canServe = true;
+        self.serveReady = true;
+        self.serveTimer = 0;
+        self.lastServeHit = false;
+        
+        // AI
+        self.aiTargetX = WINDOW_WIDTH / 2;
+        self.aiLastUpdate = 0;
+        self.aiReactionDelay = 80;
+        
+        // 轨迹
+        self.resetTrail();
+        
+        // 重置球
+        self.resetBall();
+    }
+    
+    // onShutdown
+    pub fn onShutdown() {
+    }
+    
+    // onUpdate - 每帧更新
+    pub fn onUpdate(dt: u32) {
+        if self.gameOver {
+            return;
+        }
+        
+        // 更新挥拍冷却
+        if self.swingCooldown > 0 {
+            self.swingCooldown = self.swingCooldown - dt;
+            if self.swingCooldown > 300 {
+                self.swingCooldown = 0;
+            }
+        }
+        
+        // 更新玩家球拍
+        self.updatePlayerRacket();
+        
+        // 更新CPU AI
+        self.updateCPU(dt);
+        
+        // 更新球
+        if self.gameStarted {
+            self.updateBall();
+        }
+        
+        // 更新轨迹
+        self.updateTrail();
+        
+        // 更新挥拍动画
+        if self.isSwinging {
+            if self.swingCooldown <= 0 {
+                self.isSwinging = false;
+            }
+        }
+    }
+    
+    // 更新玩家球拍
+    private fn updatePlayerRacket() {
+        if self.keyLeft {
+            self.playerRacketX = self.playerRacketX - RACKET_SPEED;
+        }
+        if self.keyRight {
+            self.playerRacketX = self.playerRacketX + RACKET_SPEED;
+        }
+        
+        // 边界限制
+        if self.playerRacketX < COURT_MARGIN {
+            self.playerRacketX = COURT_MARGIN;
+        }
+        if self.playerRacketX + self.playerRacketWidth > WINDOW_WIDTH - COURT_MARGIN {
+            self.playerRacketX = WINDOW_WIDTH - COURT_MARGIN - self.playerRacketWidth;
+        }
+    }
+    
+    // 更新CPU AI
+    private fn updateCPU(dt: u32) {
+        var currentTime = getTickCount();
+        if currentTime - self.aiLastUpdate < self.aiReactionDelay {
+            return;
+        }
+        self.aiLastUpdate = currentTime;
+        
+        // 预测球的落点
+        if self.ballVY < 0.0 && self.ballY < NET_Y + 50 {
+            // 球飞向CPU
+            if self.ballVY != 0.0 {
+                var timeToReach = (self.cpuRacketY + self.cpuRacketHeight - self.ballY) / (-self.ballVY);
+                timeToReach = timeToReach * 0.8; // 提前量
+                
+                var predictedX = self.ballX + self.ballVX * timeToReach;
+                
+                // 添加随机误差 (AI难度)
+                var errorMargin = 15 + (self.cpuGames * 3);
+                var error = (math.rand() % errorMargin * 2 - errorMargin) as float;
+                
+                self.aiTargetX = (predictedX + error) as int;
+            }
+        } else {
+            // 球在其他地方，回到中间
+            self.aiTargetX = WINDOW_WIDTH / 2 + (math.rand() % 20 - 10);
+        }
+        
+        // 移动CPU球拍
+        var cpuCenter = self.cpuRacketX + RACKET_WIDTH / 2;
+        var diff = self.aiTargetX - cpuCenter;
+        var cpuSpeed = 5 + self.cpuGames;
+        
+        if diff > cpuSpeed {
+            self.cpuRacketX = self.cpuRacketX + cpuSpeed;
+        } else if diff < -cpuSpeed {
+            self.cpuRacketX = self.cpuRacketX - cpuSpeed;
+        }
+        
+        // 边界限制
+        if self.cpuRacketX < COURT_MARGIN {
+            self.cpuRacketX = COURT_MARGIN;
+        }
+        if self.cpuRacketX + self.cpuRacketWidth > WINDOW_WIDTH - COURT_MARGIN {
+            self.cpuRacketX = WINDOW_WIDTH - COURT_MARGIN - self.cpuRacketWidth;
+        }
+    }
+    
+    // 更新球
+    private fn updateBall() {
+        // 空气阻力
+        self.ballVX = self.ballVX * AIR_RESISTANCE;
+        self.ballVY = self.ballVY * AIR_RESISTANCE;
+        
+        // 施加上旋效果
+        if self.ballSpin != 0.0 {
+            self.ballVX = self.ballVX + self.ballSpin * 0.02;
+            // 限制横向速度
+            if self.ballVX > 8.0 {
+                self.ballVX = 8.0;
+            }
+            if self.ballVX < -8.0 {
+                self.ballVX = -8.0;
+            }
+        }
+        
+        // 重力
+        self.ballVY = self.ballVY + GRAVITY;
+        
+        // 移动球
+        self.ballX = self.ballX + self.ballVX;
+        self.ballY = self.ballY + self.ballVY;
+        
+        // ===== 边界碰撞 =====
+        
+        // 左右边界
+        if self.ballX <= COURT_MARGIN as float + BALL_RADIUS as float {
+            self.ballX = COURT_MARGIN as float + BALL_RADIUS as float;
+            self.ballVX = -self.ballVX * 0.85;
+        }
+        if self.ballX >= WINDOW_WIDTH as float - COURT_MARGIN as float - BALL_RADIUS as float {
+            self.ballX = WINDOW_WIDTH as float - COURT_MARGIN as float - BALL_RADIUS as float;
+            self.ballVX = -self.ballVX * 0.85;
+        }
+        
+        // 上边界 (CPU区域出界 = 玩家得分)
+        if self.ballY <= COURT_MARGIN as float + BALL_RADIUS as float {
+            self.playerScorePoint();
+            return;
+        }
+        
+        // 下边界 (玩家区域出界 = CPU得分)
+        if self.ballY >= WINDOW_HEIGHT as float - COURT_MARGIN as float - BALL_RADIUS as float {
+            self.cpuScorePoint();
+            return;
+        }
+        
+        // 球网碰撞
+        if self.checkNetCollision() {
+            self.ballVY = -self.ballVY * 0.4;
+            if self.ballVY > -1.0 {
+                self.ballVY = -1.0;
+            }
+        }
+        
+        // ===== 球拍碰撞 =====
+        
+        // CPU球拍碰撞 (球从上往下飞)
+        if self.ballVY > 0.0 && self.checkRacketCollision(
+            self.cpuRacketX, self.cpuRacketY, self.cpuRacketWidth, self.cpuRacketHeight
+        ) {
+            self.handleCPUHit();
+        }
+        
+        // 玩家球拍碰撞 (球从下往上飞)
+        if self.ballVY < 0.0 && self.checkRacketCollision(
+            self.playerRacketX, self.playerRacketY, self.playerRacketWidth, self.playerRacketHeight
+        ) {
+            self.handlePlayerHit();
+        }
+    }
+    
+    // 检查球网碰撞
+    private fn checkNetCollision() -> bool {
+        var netTop = NET_Y as float - 3.0;
+        var ballBottom = self.ballY + BALL_RADIUS as float;
+        var ballTop = self.ballY - BALL_RADIUS as float;
+        
+        return ballBottom >= netTop && 
+               ballTop <= netTop + 6.0 &&
+               self.ballX > COURT_MARGIN as float && 
+               self.ballX < WINDOW_WIDTH as float - COURT_MARGIN as float;
+    }
+    
+    // 检查球拍碰撞
+    private fn checkRacketCollision(rx: int, ry: int, rw: int, rh: int) -> bool {
+        var ballLeft = self.ballX - BALL_RADIUS as float;
+        var ballRight = self.ballX + BALL_RADIUS as float;
+        var ballTop = self.ballY - BALL_RADIUS as float;
+        var ballBottom = self.ballY + BALL_RADIUS as float;
+        
+        var racketLeft = rx as float;
+        var racketRight = (rx + rw) as float;
+        var racketTop = ry as float;
+        var racketBottom = (ry + rh) as float;
+        
+        return ballRight >= racketLeft && ballLeft <= racketRight &&
+               ballBottom >= racketTop && ballTop <= racketBottom;
+    }
+    
+    // 处理CPU击中球
+    private fn handleCPUHit() {
+        self.ballVY = self.absFloat(self.ballVY);
+        
+        // 根据击中位置计算反弹角度
+        var racketCenter = self.cpuRacketX as float + RACKET_WIDTH as float / 2.0;
+        var hitOffset = self.ballX - racketCenter;
+        
+        // 反弹方向和角度
+        self.ballVX = hitOffset * 0.08;
+        
+        // 增加速度
+        if self.ballSpeed < BALL_MAX_SPEED {
+            self.ballSpeed = self.ballSpeed + 1;
+        }
+        
+        var speed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
+        if speed > 0.0 {
+            var factor = self.ballSpeed as float / speed;
+            self.ballVX = self.ballVX * factor;
+            self.ballVY = self.ballVY * factor;
+        }
+        
+        // 上旋
+        self.ballSpin = self.ballVX * 0.3;
+    }
+    
+    // 处理玩家击中球
+    private fn handlePlayerHit() {
+        self.ballVY = -self.absFloat(self.ballVY);
+        
+        // 根据击中位置计算反弹角度
+        var racketCenter = self.playerRacketX as float + RACKET_WIDTH as float / 2.0;
+        var hitOffset = self.ballX - racketCenter;
+        
+        // 反弹方向和角度
+        self.ballVX = hitOffset * 0.1 + (self.keyRight ? 1.0 : 0.0) - (self.keyLeft ? 1.0 : 0.0);
+        
+        // 挥拍加成
+        if self.isSwinging || self.keySwing {
+            self.ballSpeed = self.ballSpeed + 2;
+            if self.ballSpeed > BALL_MAX_SPEED {
+                self.ballSpeed = BALL_MAX_SPEED;
+            }
+        }
+        
+        var speed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
+        if speed > 0.0 {
+            var factor = self.ballSpeed as float / speed;
+            self.ballVX = self.ballVX * factor;
+            self.ballVY = self.ballVY * factor;
+        }
+        
+        // 下旋 (向后的挥拍)
+        self.ballSpin = -1.0;
+        
+        // 清除挥拍状态
+        self.isSwinging = false;
+        self.swingCooldown = 150;
+    }
+    
+    // 玩家得分
+    private fn playerScorePoint() {
+        self.playerPoints = self.playerPoints + 1;
+        self.lastServeHit = true;
+        self.checkPointWin();
+        if !self.gameOver {
+            self.resetBall();
+        }
+    }
+    
+    // CPU得分
+    private fn cpuScorePoint() {
+        self.cpuPoints = self.cpuPoints + 1;
+        self.lastServeHit = false;
+        self.checkPointWin();
+        if !self.gameOver {
+            self.resetBall();
+        }
+    }
+    
+    // 检查分(局)胜利
+    private fn checkPointWin() {
+        // 玩家赢得一分
+        if self.playerPoints >= POINT_WIN_SCORE && self.playerPoints - self.cpuPoints >= 2 {
+            self.playerGames = self.playerGames + 1;
+            self.playerPoints = 0;
+            self.cpuPoints = 0;
+            self.switchServe();
+            self.checkGameWin();
+            return;
+        }
+        
+        // CPU赢得一分
+        if self.cpuPoints >= POINT_WIN_SCORE && self.cpuPoints - self.playerPoints >= 2 {
+            self.cpuGames = self.cpuGames + 1;
+            self.playerPoints = 0;
+            self.cpuPoints = 0;
+            self.switchServe();
+            self.checkGameWin();
+            return;
+        }
+        
+        // Deuce (40-40)
+        if self.playerPoints >= 3 && self.cpuPoints >= 3 {
+            // 保持当前分数，等待领先2分
+        }
+    }
+    
+    // 检查局胜利
+    private fn checkGameWin() {
+        // 玩家赢得一局
+        if self.playerGames >= GAME_WIN_SCORE && self.playerGames - self.cpuGames >= 1 {
+            self.playerSets = self.playerSets + 1;
+            self.playerGames = 0;
+            self.cpuGames = 0;
+            self.checkMatchWin();
+            return;
+        }
+        
+        // CPU赢得一局
+        if self.cpuGames >= GAME_WIN_SCORE && self.cpuGames - self.playerGames >= 1 {
+            self.cpuSets = self.cpuSets + 1;
+            self.playerGames = 0;
+            self.cpuGames = 0;
+            self.checkMatchWin();
+            return;
+        }
+    }
+    
+    // 检查比赛胜利
+    private fn checkMatchWin() {
+        if self.playerSets >= SET_WIN_GAMES {
+            self.gameOver = true;
+            self.winner = "PLAYER";
+            self.setState(GameState.Won);
+        } else if self.cpuSets >= SET_WIN_GAMES {
+            self.gameOver = true;
+            self.winner = "CPU";
+            self.setState(GameState.Lost);
+        }
+    }
+    
+    // 换发球
+    private fn switchServe() {
+        if self.servingSide == ServeSide.Player {
+            self.servingSide = ServeSide.CPU;
+        } else {
+            self.servingSide = ServeSide.Player;
+        }
+        self.canServe = true;
+        self.serveReady = true;
+    }
+    
+    // 重置球
+    private fn resetBall() {
+        self.ballX = WINDOW_WIDTH as float / 2.0;
+        self.ballY = NET_Y as float;
+        self.ballVX = 0.0;
+        self.ballVY = 0.0;
+        self.ballSpeed = BALL_INITIAL_SPEED;
+        self.ballSpin = 0.0;
+        self.gameStarted = false;
+        self.serveReady = true;
+        self.serveTimer = getTickCount();
+        self.resetTrail();
+    }
+    
+    // 发球
+    private fn serve() {
+        if !self.serveReady || !self.canServe {
+            return;
+        }
+        
+        self.gameStarted = true;
+        self.serveReady = false;
+        
+        // 随机发球角度
+        var angle = (math.rand() % 25 - 12) as float;
+        var power = self.ballSpeed as float;
+        
+        if self.servingSide == ServeSide.Player {
+            // 玩家发球：向上发
+            self.ballX = self.playerRacketX as float + RACKET_WIDTH as float / 2.0;
+            self.ballY = self.playerRacketY as float - BALL_RADIUS as float - 2.0;
+            self.ballVX = self.sin(angle) * power;
+            self.ballVY = -power;
+            self.ballSpin = 0.5; // 上旋
+        } else {
+            // CPU发球：向下发
+            self.ballX = self.cpuRacketX as float + RACKET_WIDTH as float / 2.0;
+            self.ballY = self.cpuRacketY as float + self.cpuRacketHeight as float + BALL_RADIUS as float + 2.0;
+            self.ballVX = self.sin(angle) * power;
+            self.ballVY = power;
+            self.ballSpin = -0.5; // 下旋
+        }
+    }
+    
+    // 重置轨迹
+    private fn resetTrail() {
+        for i in 0..20 {
+            self.trailX[i] = self.ballX;
+            self.trailY[i] = self.ballY;
+        }
+        self.trailIndex = 0;
+    }
+    
+    // 更新轨迹
+    private fn updateTrail() {
+        self.trailX[self.trailIndex] = self.ballX;
+        self.trailY[self.trailIndex] = self.ballY;
+        self.trailIndex = (self.trailIndex + 1) % 20;
+    }
+    
+    // onRender - 渲染画面
+    pub fn onRender(canvas: Canvas) {
+        // 天空背景
+        canvas.clear(Color.ARGB(255, 135, 206, 235));
+        
+        // 绘制球场
+        self.drawCourt(canvas);
+        
+        // 绘制球网
+        self.drawNet(canvas);
+        
+        // 绘制轨迹
+        self.drawTrail(canvas);
+        
+        // 绘制球
+        if self.gameStarted {
+            self.drawBall(canvas);
+        }
+        
+        // 绘制球拍
+        self.drawRacket(canvas, self.cpuRacketX, self.cpuRacketY, self.cpuRacketWidth, self.cpuRacketHeight, false);
+        self.drawRacket(canvas, self.playerRacketX, self.playerRacketY, self.playerRacketWidth, self.playerRacketHeight, true);
+        
+        // 绘制分数
+        self.drawScore(canvas);
+        
+        // 绘制发球提示
+        if !self.gameStarted && !self.gameOver && self.serveReady {
+            self.drawServePrompt(canvas);
+        }
+        
+        // 游戏结束
+        if self.gameOver {
+            self.drawGameOver(canvas);
+        }
+    }
+    
+    // 绘制球场
+    private fn drawCourt(canvas: Canvas) {
+        // 草地
+        canvas.fillRect(0, NET_Y, WINDOW_WIDTH, WINDOW_HEIGHT - NET_Y, Color.ARGB(255, 60, 140, 60));
+        canvas.fillRect(0, COURT_MARGIN, WINDOW_WIDTH, NET_Y - COURT_MARGIN, Color.ARGB(255, 60, 140, 60));
+        
+        // 土地区域
+        canvas.fillRect(COURT_MARGIN + 5, NET_Y, WINDOW_WIDTH - 2 * COURT_MARGIN - 10, 40, Color.ARGB(255, 180, 120, 80));
+        canvas.fillRect(COURT_MARGIN + 5, NET_Y - 40, WINDOW_WIDTH - 2 * COURT_MARGIN - 10, 40, Color.ARGB(255, 180, 120, 80));
+        
+        // 边线
+        var lineColor = Color.White();
+        canvas.drawRect(COURT_MARGIN, COURT_MARGIN, 
+                        WINDOW_WIDTH - 2 * COURT_MARGIN, 
+                        WINDOW_HEIGHT - 2 * COURT_MARGIN, 
+                        lineColor);
+        
+        // 发球线
+        var serviceY1 = NET_Y + 80;
+        var serviceY2 = NET_Y - 80;
+        canvas.drawLine(COURT_MARGIN + 40, serviceY1, WINDOW_WIDTH - COURT_MARGIN - 40, serviceY1, lineColor);
+        canvas.drawLine(COURT_MARGIN + 40, serviceY2, WINDOW_WIDTH - COURT_MARGIN - 40, serviceY2, lineColor);
+        
+        // 中线
+        canvas.drawLine(WINDOW_WIDTH / 2, NET_Y - 80, WINDOW_WIDTH / 2, NET_Y + 80, lineColor);
+        
+        // 底线标记
+        canvas.drawLine(COURT_MARGIN + 10, COURT_MARGIN + 10, COURT_MARGIN + 30, COURT_MARGIN + 10, lineColor);
+        canvas.drawLine(COURT_MARGIN + 10, COURT_MARGIN + 10, COURT_MARGIN + 10, COURT_MARGIN + 30, lineColor);
+        canvas.drawLine(WINDOW_WIDTH - COURT_MARGIN - 10, COURT_MARGIN + 10, WINDOW_WIDTH - COURT_MARGIN - 30, COURT_MARGIN + 10, lineColor);
+        canvas.drawLine(WINDOW_WIDTH - COURT_MARGIN - 10, COURT_MARGIN + 10, WINDOW_WIDTH - COURT_MARGIN - 10, COURT_MARGIN + 30, lineColor);
+    }
+    
+    // 绘制球网
+    private fn drawNet(canvas: Canvas) {
+        // 网柱
+        canvas.fillRect(COURT_MARGIN - 4, NET_Y - 4, 8, 8, Color.DarkGray());
+        canvas.fillRect(WINDOW_WIDTH - COURT_MARGIN - 4, NET_Y - 4, 8, 8, Color.DarkGray());
+        
+        // 网
+        for i in 0..50 {
+            var x = COURT_MARGIN + (WINDOW_WIDTH - 2 * COURT_MARGIN) * i / 50;
+            canvas.setPixel(x as int, NET_Y, Color.White());
+        }
+        
+        // 网带
+        canvas.fillRect(COURT_MARGIN, NET_Y - 3, WINDOW_WIDTH - 2 * COURT_MARGIN, 6, Color.ARGB(255, 255, 255, 200));
+        
+        // 网眼
+        for j in 0..3 {
+            var y = NET_Y - 20 + j * 7;
+            for i in 0..20 {
+                var x = COURT_MARGIN + 10 + i * ((WINDOW_WIDTH - 2 * COURT_MARGIN - 20) / 20);
+                canvas.setPixel(x, y, Color.ARGB(100, 200, 200, 200));
+            }
+        }
+    }
+    
+    // 绘制轨迹
+    private fn drawTrail(canvas: Canvas) {
+        if !self.gameStarted {
+            return;
+        }
+        
+        for i in 0..19 {
+            var idx1 = self.trailIndex;
+            var idx2 = (self.trailIndex + i + 1) % 20;
+            var alpha = (i * 12) as u8;
+            if alpha > 200 {
+                alpha = 200;
+            }
+            var trailColor = Color.ARGB(alpha, 255, 255, 0);
+            canvas.fillCircle(self.trailX[idx2] as int, self.trailY[idx2] as int, 2, trailColor);
+        }
+    }
+    
+    // 绘制球
+    private fn drawBall(canvas: Canvas) {
+        // 阴影
+        canvas.fillCircle(self.ballX as int + 2, self.ballY as int + 2, BALL_RADIUS, Color.ARGB(80, 0, 0, 0));
+        
+        // 球体
+        canvas.fillCircle(self.ballX as int, self.ballY as int, BALL_RADIUS, Color.Yellow());
+        canvas.drawCircle(self.ballX as int, self.ballY as int, BALL_RADIUS, Color.White());
+        
+        // 高光
+        canvas.setPixel(self.ballX as int - 2, self.ballY as int - 2, Color.White());
+    }
+    
+    // 绘制球拍
+    private fn drawRacket(canvas: Canvas, x: int, y: int, w: int, h: int, isPlayer: bool) {
+        var racketColor: Color;
+        var gripColor: Color;
+        
+        if isPlayer {
+            racketColor = Color.RGB(80, 50, 20);
+            gripColor = Color.Brown();
+        } else {
+            racketColor = Color.RGB(60, 60, 60);
+            gripColor = Color.DarkGray();
+        }
+        
+        // 挥拍时发光效果
+        if isPlayer && self.isSwinging {
+            racketColor = Color.Orange();
+        }
+        
+        // 拍框
+        canvas.fillRect(x, y, w, h, racketColor);
+        canvas.drawRect(x, y, w, h, Color.Black());
+        
+        // 握柄
+        var gripW = 12;
+        var gripH = 6;
+        var gripY = if isPlayer { y - gripH } else { y + h };
+        canvas.fillRect(x + w/2 - gripW/2, gripY, gripW, gripH, gripColor);
+        
+        // 球拍线
+        var lineColor = Color.ARGB(200, 255, 255, 255);
+        for i in 0..4 {
+            var lx = x + w * (i + 1) / 5;
+            canvas.drawLine(lx, y + 1, lx, y + h - 1, lineColor);
+        }
+    }
+    
+    // 绘制分数
+    private fn drawScore(canvas: Canvas) {
+        var bigFont = Font.("Arial", 22);
+        var smallFont = Font.("Arial", 12);
+        var tinyFont = Font.("Arial", 10);
+        
+        // 玩家分数 (底部)
+        var playerPts = POINT_NAMES[self.playerPoints];
+        canvas.drawText(WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT - COURT_MARGIN + 8, "P", Color.White(), smallFont);
+        canvas.drawText(WINDOW_WIDTH / 2 - 30, WINDOW_HEIGHT - COURT_MARGIN + 5, playerPts, Color.Yellow(), bigFont);
+        
+        // CPU分数 (顶部)
+        var cpuPts = POINT_NAMES[self.cpuPoints];
+        canvas.drawText(WINDOW_WIDTH / 2 - 60, COURT_MARGIN - 25, "CPU", Color.White(), smallFont);
+        canvas.drawText(WINDOW_WIDTH / 2 - 30, COURT_MARGIN - 28, cpuPts, Color.Yellow(), bigFont);
+        
+        // 局分
+        var gamesFont = Font.("Arial", 14);
+        canvas.drawText(WINDOW_WIDTH / 2 + 10, WINDOW_HEIGHT - COURT_MARGIN + 8, 
+                        self.intToString(self.playerGames), Color.White(), gamesFont);
+        canvas.drawText(WINDOW_WIDTH / 2 + 10, COURT_MARGIN - 25, 
+                        self.intToString(self.cpuGames), Color.White(), gamesFont);
+        
+        // 盘分 (右上角)
+        canvas.drawText(WINDOW_WIDTH - 60, COURT_MARGIN + 5, 
+                        self.intToString(self.cpuSets) ++ "-" ++ self.intToString(self.playerSets), 
+                        Color.White(), tinyFont);
+        
+        // 发球方指示
+        if self.serveReady && !self.gameStarted {
+            var indicator = if self.servingSide == ServeSide.Player { "P SERVE" } else { "CPU SERVE" };
+            canvas.drawText(WINDOW_WIDTH / 2 - 30, WINDOW_HEIGHT / 2 + 10, indicator, Color.Yellow(), smallFont);
+        }
+    }
+    
+    // 绘制发球提示
+    private fn drawServePrompt(canvas: Canvas) {
+        var font = Font.("Arial", 14);
+        var prompt = if self.servingSide == ServeSide.Player {
+            "P: SPACE or CLICK to serve"
+        } else {
+            "CPU serving..."
+        };
+        canvas.drawText(WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 - 30, prompt, Color.Yellow(), font);
+    }
+    
+    // 绘制游戏结束
+    private fn drawGameOver(canvas: Canvas) {
+        canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(160, 0, 0, 0));
+        
+        var font = Font.("Arial", 36);
+        var subFont = Font.("Arial", 18);
+        var tinyFont = Font.("Arial", 14);
+        
+        var titleText = if self.winner == "PLAYER" { "YOU WIN!" } else { "CPU WINS!" };
+        var titleColor = if self.winner == "PLAYER" { Color.Green() } else { Color.Red() };
+        
+        canvas.drawText(WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 - 60, titleText, titleColor, font);
+        
+        var setsText = "Sets: " ++ self.intToString(self.cpuSets) ++ " - " ++ self.intToString(self.playerSets);
+        canvas.drawText(WINDOW_WIDTH / 2 - 50, WINDOW_HEIGHT / 2 - 10, setsText, Color.White(), subFont);
+        
+        var gamesText = "Games: " ++ self.intToString(self.cpuGames) ++ " - " ++ self.intToString(self.playerGames);
+        canvas.drawText(WINDOW_WIDTH / 2 - 50, WINDOW_HEIGHT / 2 + 20, gamesText, Color.LightGray(), subFont);
+        
+        canvas.drawText(WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2 + 60, "Press R to restart", Color.Yellow(), tinyFont);
+    }
+    
+    // onKeyDown - 键盘按下
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.Left | VirtualKey.KeyA => {
+                self.keyLeft = true;
+            }
+            VirtualKey.Right | VirtualKey.KeyD => {
+                self.keyRight = true;
+            }
+            VirtualKey.Space => {
+                if self.serveReady && self.servingSide == ServeSide.Player {
+                    self.serve();
+                } else {
+                    self.keySwing = true;
+                    self.isSwinging = true;
+                    self.swingCooldown = 200;
+                }
+            }
+            VirtualKey.KeyR => {
+                if self.gameOver {
+                    self.onInit();
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    // onKeyUp - 键盘释放
+    pub fn onKeyUp(key: VirtualKey) {
+        match key {
+            VirtualKey.Left | VirtualKey.KeyA => {
+                self.keyLeft = false;
+            }
+            VirtualKey.Right | VirtualKey.KeyD => {
+                self.keyRight = false;
+            }
+            VirtualKey.Space => {
+                self.keySwing = false;
+            }
+            _ => {}
+        }
+    }
+    
+    // onMouseDown - 鼠标按下
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        if self.gameOver {
+            return;
+        }
+        
+        if self.serveReady {
+            // 玩家区域点击发球
+            if self.servingSide == ServeSide.Player && y > NET_Y {
+                self.serve();
+                return;
+            }
+        }
+        
+        // 挥拍
+        self.isSwinging = true;
+        self.swingCooldown = 200;
+    }
+    
+    // onMouseUp - 鼠标释放
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+        self.isSwinging = false;
+    }
+    
+    // ============ 辅助函数 ============
+    
+    fn absFloat(x: float) -> float {
+        return if x < 0.0 { -x } else { x };
+    }
+    
+    fn sqrtFloat(n: float) -> float {
+        if n < 0.0 {
+            return 0.0;
+        }
+        var x = n;
+        var y = 1.0;
+        while y < x {
+            x = (x + y) / 2.0;
+            y = n / x;
+        }
+        return x;
+    }
+    
+    fn sin(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = rad;
+        var term = rad;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn cos(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = 1.0;
+        var term = 1.0;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
+            result = result +            result = result + term;
+        }
+        return result;
+    }
+    
+    fn intToString(n: int) -> str {
+        if n == 0 {
+            return "0";
+        }
+        var result = "";
+        var num = n;
+        while num > 0 {
+            var digit = num % 10;
+            result = (digit as char + "") ++ result;
+            num = num / 10;
+        }
+        return result;
+    }
+}

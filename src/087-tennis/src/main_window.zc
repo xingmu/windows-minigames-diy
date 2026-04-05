@@ -1,0 +1,41 @@
+// main_window.zc - Tennis网球游戏入口
+// 087-Tennis 网球游戏 - 俯视角双人对战网球
+// 玩家vs电脑，键盘/鼠标控制
+
+import std.io;
+
+// 导入框架和游戏
+import "platform_api.zc";
+import "game.zc";
+import "game_logic.zc";
+
+// 主函数
+pub fn main() {
+    io.println("===========================================");
+    io.println("  Zen-C Tennis Game");
+    io.println("  网球 - 俯视角双人对战");
+    io.println("===========================================");
+    io.println("");
+    io.println("操作说明:");
+    io.println("  左右方向键 / A D  - 移动球拍");
+    io.println("  空格键 / 鼠标左键  - 挥拍 / 发球");
+    io.println("  R 键              - 重新开始");
+    io.println("");
+    
+    // 初始化平台
+    initPlatform();
+    
+    // 创建游戏
+    var game = TennisGame.("Tennis - 网球 087", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    
+    // 运行游戏
+    game.run();
+    
+    // 清理
+    game.destroy();
+    shutdownPlatform();
+    
+    io.println("游戏已退出，再见!");
+    
+    0
+}
