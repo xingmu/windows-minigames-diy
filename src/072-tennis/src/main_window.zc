@@ -1,0 +1,139 @@
+// main_window.zc - 游戏入口点
+// 框架版本: 1.0.0
+
+// 主函数 - 程序入口
+pub fn main() {
+    println("===========================================");
+    println("  Zen-C 游戏框架 v1.0.0");
+    println("  现代系统编程，零开销");
+    println("===========================================");
+    println("");
+    
+    // 初始化平台
+    initPlatform();
+    
+    // 游戏主循环在 game.zc 的 Game.run() 中实现
+    // 子类通过重写 onInit, onUpdate, onRender 等方法实现具体游戏
+    
+    println("框架已就绪");
+    println("");
+    println("使用方法:");
+    println("  1. 创建一个继承自 Game 的类");
+    println("  2. 重写 onInit() 进行初始化");
+    println("  3. 重写 onUpdate(dt) 更新游戏逻辑");
+    println("  4. 重写 onRender(canvas) 绘制游戏画面");
+    println("  5. 调用 run() 开始游戏");
+    println("");
+    
+    // 清理
+    shutdownPlatform();
+}
+
+// ============================================================================
+// 示例：如何创建第一个游戏
+// ============================================================================
+/*
+ 
+// 伪代码示例 - 展示如何使用框架创建游戏
+
+import "platform_api.zc";
+import "game.zc";
+
+// 创建一个简单的乒乓球游戏
+class PongGame extends Game {
+    // 球的位置和速度
+    ballX: int;
+    ballY: int;
+    ballVX: int;
+    ballVY: int;
+    
+    // 挡板位置
+    paddleY: int;
+    
+    // 分数
+    playerScore: int;
+    cpuScore: int;
+    
+    fn onInit() {
+        // 初始化游戏状态
+        self.ballX = 400;
+        self.ballY = 300;
+        self.ballVX = 5;
+        self.ballVY = 5;
+        self.paddleY = 250;
+        self.playerScore = 0;
+        self.cpuScore = 0;
+        
+        self.setState(GameState.Playing);
+    }
+    
+    fn onUpdate(dt: u32) {
+        // 更新球位置
+        self.ballX = self.ballX + self.ballVX;
+        self.ballY = self.ballY + self.ballVY;
+        
+        // 碰撞检测
+        if self.ballY <= 0 || self.ballY >= self.height - 10 {
+            self.ballVY = -self.ballVY;
+        }
+        
+        // 挡板碰撞
+        if self.ballX <= 20 && self.ballY >= self.paddleY && 
+           self.ballY <= self.paddleY + 100 {
+            self.ballVX = -self.ballVX;
+            self.addScore(1);
+        }
+        
+        // 失分检测
+        if self.ballX <= 0 {
+            self.cpuScore = self.cpuScore + 1;
+            self.ballX = 400;
+            self.ballY = 300;
+        }
+        
+        // 胜利检测
+        if self.playerScore >= 10 {
+            self.setState(GameState.Won);
+        }
+    }
+    
+    fn onRender(canvas: Canvas) {
+        // 绘制背景
+        canvas.clear(Color.Green());
+        
+        // 绘制球
+        canvas.fillCircle(self.ballX, self.ballY, 10, Color.White());
+        
+        // 绘制挡板
+        canvas.fillRect(10, self.paddleY, 10, 100, Color.White());
+        
+        // 绘制分数
+        canvas.drawText(350, 10, self.playerScore.toString(), Color.White());
+    }
+    
+    fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.Up => {
+                self.paddleY = self.paddleY - 20;
+            }
+            VirtualKey.Down => {
+                self.paddleY = self.paddleY + 20;
+            }
+            _ => {}
+        }
+    }
+    
+    fn onMouseDown(x: int, y: int, button: MouseButton) {
+        // 可以用鼠标控制挡板
+        self.paddleY = y - 50;
+    }
+}
+
+// 运行游戏
+fn main() {
+    var game = PongGame.("Pong Game", 800, 600, 60);
+    game.run();
+    game.destroy();
+}
+
+*/
