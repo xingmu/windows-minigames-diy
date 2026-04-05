@@ -1,0 +1,653 @@
+// game_logic.zc - Zen-C 台球游戏核心逻辑
+// 俯视图斯诺克风格台球
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 900;
+const GAME_HEIGHT: i32 = 500;
+
+// 台球桌尺寸
+const TABLE_LEFT: i32 = 40;
+const TABLE_TOP: i32 = 40;
+const TABLE_RIGHT: i32 = 860;
+const TABLE_BOTTOM: i32 = 460;
+const TABLE_WIDTH: i32 = TABLE_RIGHT - TABLE_LEFT;
+const TABLE_HEIGHT: i32 = TABLE_BOTTOM - TABLE_TOP;
+
+// 边岸厚度
+const CUSHION_SIZE: i32 = 20;
+
+// 球半径
+const BALL_RADIUS: i32 = 12;
+
+// 球的数量
+const MAX_BALLS: i32 = 22;
+
+// 口袋半径
+const POCKET_RADIUS: i32 = 20;
+
+// 摩擦系数 (每帧速度衰减)
+const FRICTION: i32 = 2;
+
+// 最大击球力度
+const MAX_POWER: i32 = 25;
+
+// 最小速度阈值
+const MIN_VELOCITY: i32 = 1;
+
+// ==================== 球的颜色定义 ====================
+
+// 球的颜色
+const CUE_BALL_COLOR: Color = Color.RGB(255, 255, 240);  // 象牙白
+
+// 红色球 (1-15球心位置，固定)
+const BALL_RED_COLOR: Color = Color.RGB(220, 30, 30);
+const BALL_YELLOW_COLOR: Color = Color.RGB(220, 200, 30);
+const BALL_GREEN_COLOR: Color = Color.RGB(30, 180, 30);
+const BALL_BROWN_COLOR: Color = Color.RGB(150, 90, 30);
+const BALL_BLUE_COLOR: Color = Color.RGB(30, 30, 220);
+const BALL_PINK_COLOR: Color = Color.RGB(255, 150, 200);
+const BALL_BLACK_COLOR: Color = Color.RGB(20, 20, 20);
+
+// 袋口位置 (6个)
+const POCKET_POSITIONS: [6]PocketPos = [
+    PocketPos.{ x: TABLE_LEFT, y: TABLE_TOP },                          // 左上
+    PocketPos.{ x: (TABLE_LEFT + TABLE_RIGHT) / 2, y: TABLE_TOP - 5 },   // 上中
+    PocketPos.{ x: TABLE_RIGHT, y: TABLE_TOP },                          // 右上
+    PocketPos.{ x: TABLE_LEFT, y: TABLE_BOTTOM },                       // 左下
+    PocketPos.{ x: (TABLE_LEFT + TABLE_RIGHT) / 2, y: TABLE_BOTTOM + 5 },// 下中
+    PocketPos.{ x: TABLE_RIGHT, y: TABLE_BOTTOM },                       // 右下
+];
+
+struct PocketPos {
+    x: i32,
+    y: i32,
+}
+
+// ==================== 球数据结构 ====================
+
+struct Ball {
+    x: i32,           // 球心X坐标
+    y: i32,           // 球心Y坐标
+    vx: i32,          // X方向速度
+    vy: i32,          // Y方向速度
+    radius: i32,      // 半径
+    color: Color,     // 颜色
+    number: i32,      // 球号 (0=白球, 1-15=红球, 16=黄, 17=绿, 18=棕, 19=蓝, 20=粉, 21=黑)
+    pocketed: bool,   // 是否已落袋
+    active: bool,     // 是否在场
+}
+
+// ==================== 游戏状态 ====================
+
+enum GameStatus {
+    Ready,      // 等待击球
+    Aiming,    // 瞄准中
+    Dragging,  // 拖拽蓄力
+    Moving,    // 球运动中
+    GameOver,  // 游戏结束
+}
+
+struct BilliardsState {
+    balls: [MAX_BALLS]Ball,
+    ballCount: i32,
+    cueBall: &Ball,      // 白色球引用
+    status: GameStatus,
+    score: i32,
+    shots: i32,           // 击球次数
+    mouseX: i32,
+    mouseY: i32,
+    dragStartX: i32,
+    dragStartY: i32,
+    power: i32,          // 蓄力值
+    width: i32,
+    height: i32,
+    aimX: i32;           // 瞄准方向X
+    aimY: i32;           // 瞄准方向Y
+}
+
+// ==================== 辅助函数 ====================
+
+fn abs(n: i32) -> i32 {
+    if n < 0 { -n } else { n }
+}
+
+fn min(a: i32, b: i32) -> i32 {
+    if a < b { a } else { b }
+}
+
+fn max(a: i32, b: i32) -> i32 {
+    if a > b { a } else { b }
+}
+
+// 计算两点距离的平方
+fn dist2(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    return dx * dx + dy * dy;
+}
+
+// 判断两球是否碰撞 (基于圆心距离)
+fn ballsColliding(b1: &Ball, b2: &Ball) -> bool {
+    if !b1.active || !b2.active || b1.pocketed || b2.pocketed {
+        return false;
+    }
+    let minDist = b1.radius + b2.radius;
+    return dist2(b1.x, b1.y, b2.x, b2.y) <= minDist * minDist;
+}
+
+// 判断球是否在口袋中
+fn isInPocket(ball: &Ball) -> bool {
+    if ball.pocketed {
+        return true;
+    }
+    for i in 0..6 {
+        let px = POCKET_POSITIONS[i].x;
+        let py = POCKET_POSITIONS[i].y;
+        let dist = dist2(ball.x, ball.y, px, py);
+        if dist <= (POCKET_RADIUS + ball.radius / 2) * (POCKET_RADIUS + ball.radius / 2) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// ==================== 球台物理 ====================
+
+// 边界碰撞检测
+fn checkWallCollision(ball: &mut Ball) {
+    if !ball.active || ball.pocketed {
+        return;
+    }
+
+    // 左边界
+    if ball.x - ball.radius <= TABLE_LEFT {
+        ball.x = TABLE_LEFT + ball.radius;
+        ball.vx = -ball.vx;
+    }
+    // 右边界
+    if ball.x + ball.radius >= TABLE_RIGHT {
+        ball.x = TABLE_RIGHT - ball.radius;
+        ball.vx = -ball.vx;
+    }
+    // 上边界
+    if ball.y - ball.radius <= TABLE_TOP {
+        ball.y = TABLE_TOP + ball.radius;
+        ball.vy = -ball.vy;
+    }
+    // 下边界
+    if ball.y + ball.radius >= TABLE_BOTTOM {
+        ball.y = TABLE_BOTTOM - ball.radius;
+        ball.vy = -ball.vy;
+    }
+}
+
+// 球球碰撞检测与响应
+fn checkBallCollision(balls: &[MAX_BALLS]Ball, ballCount: i32) {
+    for i in 0..ballCount {
+        if !balls[i].active || balls[i].pocketed {
+            continue;
+        }
+
+        for j in (i + 1)..ballCount {
+            if !balls[j].active || balls[j].pocketed {
+                continue;
+            }
+
+            if ballsColliding(&balls[i], &balls[j]) {
+                // 碰撞法向量
+                let dx = balls[j].x - balls[i].x;
+                let dy = balls[j].y - balls[i].y;
+                let dist = sqrt_int(dist2(balls[i].x, balls[i].y, balls[j].x, balls[j].y));
+
+                if dist == 0 {
+                    continue;
+                }
+
+                // 单位法向量
+                let nx = dx / dist;
+                let ny = dy / dist;
+
+                // 相对速度
+                let dvx = balls[i].vx - balls[j].vx;
+                let dvy = balls[i].vy - balls[j].vy;
+
+                // 法向相对速度
+                let dvn = dvx * nx + dvy * ny;
+
+                // 如果球正在分离，不处理
+                if dvn <= 0 {
+                    continue;
+                }
+
+                // 碰撞响应 (假设等质量)
+                balls[i].vx = balls[i].vx - dvn * nx;
+                balls[i].vy = balls[i].vy - dvn * ny;
+                balls[j].vx = balls[j].vx + dvn * nx;
+                balls[j].vy = balls[j].vy + dvn * ny;
+
+                // 分离重叠的球
+                let overlap = (balls[i].radius + balls[j].radius) - dist;
+                if overlap > 0 {
+                    balls[i].x = balls[i].x - nx * (overlap / 2 + 1);
+                    balls[i].y = balls[i].y - ny * (overlap / 2 + 1);
+                    balls[j].x = balls[j].x + nx * (overlap / 2 + 1);
+                    balls[j].y = balls[j].y + ny * (overlap / 2 + 1);
+                }
+            }
+        }
+    }
+}
+
+// 整数平方根
+fn sqrt_int(n: i32) -> i32 {
+    if n <= 0 {
+        return 0;
+    }
+    let x = n;
+    let y = 1;
+    while y < x {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    return x;
+}
+
+// ==================== 初始化 ====================
+
+// 初始化台球布局 (俯视斯诺克)
+fn initBalls(state: &mut BilliardsState) {
+    state.ballCount = 0;
+    state.score = 0;
+    state.shots = 0;
+
+    // 白球 (球号0)
+    state.balls[0] = Ball.{
+        x: TABLE_LEFT + 200,
+        y: (TABLE_TOP + TABLE_BOTTOM) / 2,
+        vx: 0,
+        vy: 0,
+        radius: BALL_RADIUS,
+        color: CUE_BALL_COLOR,
+        number: 0,
+        pocketed: false,
+        active: true,
+    };
+    state.ballCount = 1;
+    state.cueBall = &state.balls[0];
+
+    // 斯诺克三角形排列
+    // 顶点位置 (黑球后方)
+    let apexX = TABLE_RIGHT - 200;
+    let apexY = (TABLE_TOP + TABLE_BOTTOM) / 2;
+
+    // 球的间距 (半径*2)
+    let spacing = BALL_RADIUS * 2 + 1;
+
+    // 球号顺序 (斯诺克标准)
+    // 行1: 黑球(21) 在最前方
+    // 行2: 粉球(20), 蓝球(19)
+    // 行3: 绿球(17), 棕球(18)
+    // 行4: 黄球(16), 红球们...
+    // 三角形: 1黑, 2, 3, 4, 5个红球...
+
+    // 简化: 使用三角形排列
+    // 位置索引: 球号1-15为红球(三角形), 16=黄, 17=绿, 18=棕, 19=蓝, 20=粉, 21=黑
+
+    var ballIndex = 1;
+
+    // 放置彩色球 (接近顶岸)
+    // 黄球 (1)
+    state.balls[ballIndex] = Ball.{
+        x: TABLE_LEFT + 300,
+        y: (TABLE_TOP + TABLE_BOTTOM) / 2,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: BALL_YELLOW_COLOR,
+        number: 16,
+        pocketed: false,
+        active: true,
+    };
+    ballIndex = ballIndex + 1;
+
+    // 绿球 (2)
+    state.balls[ballIndex] = Ball.{
+        x: TABLE_LEFT + 350,
+        y: (TABLE_TOP + TABLE_BOTTOM) / 2,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: BALL_GREEN_COLOR,
+        number: 17,
+        pocketed: false,
+        active: true,
+    };
+    ballIndex = ballIndex + 1;
+
+    // 棕球 (3)
+    state.balls[ballIndex] = Ball.{
+        x: TABLE_LEFT + 400,
+        y: (TABLE_TOP + TABLE_BOTTOM) / 2,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: BALL_BROWN_COLOR,
+        number: 18,
+        pocketed: false,
+        active: true,
+    };
+    ballIndex = ballIndex + 1;
+
+    // 蓝球 (4) - 中心点
+    state.balls[ballIndex] = Ball.{
+        x: (TABLE_LEFT + TABLE_RIGHT) / 2,
+        y: (TABLE_TOP + TABLE_BOTTOM) / 2,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: BALL_BLUE_COLOR,
+        number: 19,
+        pocketed: false,
+        active: true,
+    };
+    ballIndex = ballIndex + 1;
+
+    // 粉球 (5)
+    state.balls[ballIndex] = Ball.{
+        x: TABLE_RIGHT - 250,
+        y: (TABLE_TOP + TABLE_BOTTOM) / 2,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: BALL_PINK_COLOR,
+        number: 20,
+        pocketed: false,
+        active: true,
+    };
+    ballIndex = ballIndex + 1;
+
+    // 黑球 (6)
+    state.balls[ballIndex] = Ball.{
+        x: TABLE_RIGHT - 150,
+        y: (TABLE_TOP + TABLE_BOTTOM) / 2,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: BALL_BLACK_COLOR,
+        number: 21,
+        pocketed: false,
+        active: true,
+    };
+    ballIndex = ballIndex + 1;
+
+    // 红球三角形 (1-15个)
+    // 行0: 1个红球
+    state.balls[ballIndex] = Ball.{
+        x: apexX,
+        y: apexY,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: BALL_RED_COLOR,
+        number: 1,
+        pocketed: false,
+        active: true,
+    };
+    ballIndex = ballIndex + 1;
+
+    // 行1: 2个红球
+    for i in 0..2 {
+        state.balls[ballIndex] = Ball.{
+            x: apexX - spacing,
+            y: apexY - spacing / 2 + i * spacing,
+            vx: 0, vy: 0,
+            radius: BALL_RADIUS,
+            color: BALL_RED_COLOR,
+            number: 1 + i + 1,
+            pocketed: false,
+            active: true,
+        };
+        ballIndex = ballIndex + 1;
+    }
+
+    // 行2: 3个红球
+    for i in 0..3 {
+        state.balls[ballIndex] = Ball.{
+            x: apexX - spacing * 2,
+            y: apexY - spacing + i * spacing,
+            vx: 0, vy: 0,
+            radius: BALL_RADIUS,
+            color: BALL_RED_COLOR,
+            number: 4 + i,
+            pocketed: false,
+            active: true,
+        };
+        ballIndex = ballIndex + 1;
+    }
+
+    // 行3: 4个红球
+    for i in 0..4 {
+        state.balls[ballIndex] = Ball.{
+            x: apexX - spacing * 3,
+            y: apexY - spacing * 3 / 2 + i * spacing,
+            vx: 0, vy: 0,
+            radius: BALL_RADIUS,
+            color: BALL_RED_COLOR,
+            number: 7 + i,
+            pocketed: false,
+            active: true,
+        };
+        ballIndex = ballIndex + 1;
+    }
+
+    // 行4: 5个红球
+    for i in 0..5 {
+        state.balls[ballIndex] = Ball.{
+            x: apexX - spacing * 4,
+            y: apexY - spacing * 2 + i * spacing,
+            vx: 0, vy: 0,
+            radius: BALL_RADIUS,
+            color: BALL_RED_COLOR,
+            number: 11 + i,
+            pocketed: false,
+            active: true,
+        };
+        ballIndex = ballIndex + 1;
+    }
+
+    state.ballCount = ballIndex;
+}
+
+// 初始化游戏
+fn init_game(state: &mut BilliardsState) {
+    state.width = GAME_WIDTH;
+    state.height = GAME_HEIGHT;
+    state.status = GameStatus.Ready;
+    state.mouseX = 0;
+    state.mouseY = 0;
+    state.power = 0;
+    state.aimX = 1;
+    state.aimY = 0;
+
+    initBalls(state);
+}
+
+// ==================== 更新逻辑 ====================
+
+// 更新所有球的物理状态
+fn updateBalls(state: &mut BilliardsState) -> bool {
+    var anyMoving = false;
+
+    for i in 0..state.ballCount {
+        let mut ball = state.balls[i];
+
+        if !ball.active || ball.pocketed {
+            continue;
+        }
+
+        // 移动球
+        ball.x = ball.x + ball.vx;
+        ball.y = ball.y + ball.vy;
+
+        // 应用摩擦力
+        if ball.vx != 0 || ball.vy != 0 {
+            if ball.vx > 0 {
+                ball.vx = max(0, ball.vx - FRICTION);
+            } else {
+                ball.vx = min(0, ball.vx + FRICTION);
+            }
+            if ball.vy > 0 {
+                ball.vy = max(0, ball.vy - FRICTION);
+            } else {
+                ball.vy = min(0, ball.vy + FRICTION);
+            }
+
+            // 检查是否停止
+            if abs(ball.vx) <= MIN_VELOCITY && abs(ball.vy) <= MIN_VELOCITY {
+                ball.vx = 0;
+                ball.vy = 0;
+            } else {
+                anyMoving = true;
+            }
+        }
+
+        // 边界碰撞
+        checkWallCollision(&mut ball);
+
+        // 检查落袋
+        if isInPocket(&ball) {
+            ball.pocketed = true;
+            ball.vx = 0;
+            ball.vy = 0;
+
+            // 白球落袋犯规
+            if ball.number == 0 {
+                // 重置白球
+                ball.pocketed = false;
+                ball.x = TABLE_LEFT + 200;
+                ball.y = (TABLE_TOP + TABLE_BOTTOM) / 2;
+                ball.vx = 0;
+                ball.vy = 0;
+                state.score = state.score - 4;  // 扣分
+            } else {
+                // 计分
+                if ball.number >= 1 && ball.number <= 15 {
+                    state.score = state.score + 1;  // 红球1分
+                } else {
+                    match ball.number {
+                        16 => state.score = state.score + 2,  // 黄
+                        17 => state.score = state.score + 3,  // 绿
+                        18 => state.score = state.score + 4,  // 棕
+                        19 => state.score = state.score + 5,  // 蓝
+                        20 => state.score = state.score + 6,  // 粉
+                        21 => state.score = state.score + 7,  // 黑
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        state.balls[i] = ball;
+    }
+
+    // 球球碰撞
+    checkBallCollision(&state.balls, state.ballCount);
+
+    return anyMoving;
+}
+
+// 检查所有球是否静止
+fn allBallsStopped(state: &BilliardsState) -> bool {
+    for i in 0..state.ballCount {
+        if state.balls[i].active && !state.balls[i].pocketed {
+            if state.balls[i].vx != 0 || state.balls[i].vy != 0 {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// 击球
+fn shoot(state: &mut BilliardsState, power: i32, dx: i32, dy: i32) {
+    if state.cueBall.pocketed {
+        return;
+    }
+
+    let dist = sqrt_int(dx * dx + dy * dy);
+    if dist == 0 {
+        return;
+    }
+
+    // 标准化方向
+    let nx = dx * 100 / dist;
+    let ny = dy * 100 / dist;
+
+    // 应用力度
+    let speed = power;
+    state.cueBall.vx = -nx * speed / 100;
+    state.cueBall.vy = -ny * speed / 100;
+
+    state.status = GameStatus.Moving;
+    state.shots = state.shots + 1;
+    state.power = 0;
+}
+
+// ==================== 鼠标处理 ====================
+
+fn onMouseDown(state: &mut BilliardsState, x: i32, y: i32) {
+    if state.status == GameStatus.Moving {
+        return;
+    }
+
+    if state.status == GameStatus.GameOver {
+        init_game(state);
+        state.status = GameStatus.Ready;
+        return;
+    }
+
+    state.status = GameStatus.Dragging;
+    state.dragStartX = x;
+    state.dragStartY = y;
+    state.mouseX = x;
+    state.mouseY = y;
+}
+
+fn onMouseMove(state: &mut BilliardsState, x: i32, y: i32) {
+    state.mouseX = x;
+    state.mouseY = y;
+
+    if state.status == GameStatus.Dragging || state.status == GameStatus.Aiming {
+        // 计算瞄准方向 (从白球到鼠标)
+        let cue = state.cueBall;
+        state.aimX = x - cue.x;
+        state.aimY = y - cue.y;
+
+        // 计算蓄力
+        let dragDist = sqrt_int(dist2(state.dragStartX, state.dragStartY, x, y));
+        state.power = min(dragDist / 5, MAX_POWER);
+    }
+}
+
+fn onMouseUp(state: &mut BilliardsState, x: i32, y: i32) {
+    if state.status == GameStatus.Dragging {
+        if state.power > 1 {
+            // 从拖拽起点到终点的方向就是击球方向
+            let dx = state.dragStartX - x;
+            let dy = state.dragStartY - y;
+            shoot(state, state.power, dx, dy);
+        } else {
+            state.status = GameStatus.Ready;
+        }
+    }
+}
+
+// ==================== 状态查询 ====================
+
+fn getStatusText(state: &BilliardsState) -> string {
+    match state.status {
+        GameStatus.Ready => return "点击并拖拽白球击球",
+        GameStatus.Aiming => return "瞄准中...",
+        GameStatus.Dragging => return "蓄力中: " ++ state.power.toString(),
+        GameStatus.Moving => return "球运动中...",
+        GameStatus.GameOver => return "游戏结束! 点击重新开始",
+    }
+}
+
+fn getControlsText() -> string {
+    "控制: 点击拖拽瞄准 | 松开击球 | ESC 退出"
+}
