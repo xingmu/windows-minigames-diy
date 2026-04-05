@@ -1,0 +1,549 @@
+// game_logic.zc - Zen-C Boxing（拳击）游戏核心逻辑
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 800;
+const GAME_HEIGHT: i32 = 600;
+
+// 擂台尺寸
+const RING_LEFT: i32 = 50;
+const RING_RIGHT: i32 = 750;
+const RING_TOP: i32 = 150;
+const RING_BOTTOM: i32 = 500;
+
+// 拳击手属性
+const BOXER_WIDTH: i32 = 60;
+const BOXER_HEIGHT: i32 = 80;
+const MOVE_SPEED: i32 = 4;
+const PUNCH_RANGE: i32 = 80;
+const JAB_DAMAGE: i32 = 5;
+const HOOK_DAMAGE: i32 = 12;
+const JAB_COOLDOWN: i32 = 300;   // 毫秒
+const HOOK_COOLDOWN: i32 = 800;   // 毫秒
+const MAX_HEALTH: i32 = 100;
+
+// AI属性
+const AI_REACTION_TIME: i32 = 400;
+const AI_PUNCH_CHANCE: i32 = 30;  // 百分比
+
+// ==================== 颜色定义 ====================
+
+const RING_COLOR = Color { r: 200, g: 150, b: 100 };
+const ROPE_COLOR = Color { r: 139, g: 69, b: 19 };
+const PLAYER_COLOR = Color { r: 220, g: 80, b: 60 };   // 红色拳手
+const AI_COLOR = Color { r: 80, g: 120, b: 220 };       // 蓝色拳手
+const HEALTH_GREEN = Color { r: 80, g: 200, b: 80 };
+const HEALTH_RED = Color { r: 220, g: 60, b: 60 };
+const BACKGROUND_COLOR = Color { r: 30, g: 30, b: 30 };
+const TEXT_COLOR = Color { r: 240, g: 240, b: 240 };
+const CORNER_COLOR = Color { r: 60, g: 60, b: 100 };
+
+// ==================== 动作枚举 ====================
+
+enum BoxerAction {
+    Idle,
+    Jab,
+    Hook,
+    MoveLeft,
+    MoveRight,
+    MoveForward,
+    MoveBackward,
+    Hit,
+    KO,
+}
+
+// ==================== 数据结构 ====================
+
+struct Boxer {
+    x: i32,
+    y: i32,
+    health: i32,
+    maxHealth: i32,
+    action: BoxerAction,
+    actionTimer: i32,
+    jabCooldown: i32,
+    hookCooldown: i32,
+    isHit: bool,
+    hitTimer: i32,
+    facingRight: bool,
+    color: Color,
+    name: str,
+}
+
+struct BoxingState {
+    player: Boxer,
+    ai: Boxer,
+    round: i32,
+    roundTime: i32,
+    status: GameStatus,
+    winner: Boxer mut,
+    punchEffectTimer: i32,
+    hitEffectTimer: i32,
+    message: str,
+    messageTimer: i32,
+}
+
+// ==================== 游戏状态枚举 ====================
+
+enum GameStatus {
+    Ready,
+    Playing,
+    RoundStart,
+    RoundEnd,
+    GameOver,
+}
+
+// ==================== 颜色结构 ====================
+
+struct Color {
+    r: u8,
+    g: u8,
+    b: u8,
+}
+
+impl Color {
+    pub static fn fromRGB(r: u8, g: u8, b: u8) -> Color {
+        return Color.{ r: r, g: g, b: b };
+    }
+}
+
+// ==================== 工具函数 ====================
+
+fn distance(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+    var dx = x2 - x1;
+    var dy = y2 - y1;
+    return sqrt(x2 - x1) + sqrt(y2 - y1);
+}
+
+fn abs(x: i32) -> i32 {
+    if x < 0 { return -x; }
+    return x;
+}
+
+fn min(a: i32, b: i32) -> i32 {
+    if a < b { return a; }
+    return b;
+}
+
+fn max(a: i32, b: i32) -> i32 {
+    if a > b { return a; }
+    return b;
+}
+
+fn clamp(val: i32, minVal: i32, maxVal: i32) -> i32 {
+    if val < minVal { return minVal; }
+    if val > maxVal { return maxVal; }
+    return val;
+}
+
+fn lerp(a: i32, b: i32, t: i32) -> i32 {
+    return a + (b - a) * t / 100;
+}
+
+// ==================== 拳击手逻辑函数 ====================
+
+fn createBoxer(x: i32, y: i32, color: Color, name: str, facingRight: bool) -> Boxer {
+    return Boxer {
+        x: x,
+        y: y,
+        health: MAX_HEALTH,
+        maxHealth: MAX_HEALTH,
+        action: BoxerAction.Idle,
+        actionTimer: 0,
+        jabCooldown: 0,
+        hookCooldown: 0,
+        isHit: false,
+        hitTimer: 0,
+        facingRight: facingRight,
+        color: color,
+        name: name,
+    };
+}
+
+fn updateBoxer(boxer: &mut Boxer, dt: i32) {
+    // 更新冷却时间
+    if boxer.jabCooldown > 0 {
+        boxer.jabCooldown = boxer.jabCooldown - dt;
+        if boxer.jabCooldown < 0 { boxer.jabCooldown = 0; }
+    }
+    if boxer.hookCooldown > 0 {
+        boxer.hookCooldown = boxer.hookCooldown - dt;
+        if boxer.hookCooldown < 0 { boxer.hookCooldown = 0; }
+    }
+    
+    // 更新受击状态
+    if boxer.isHit {
+        boxer.hitTimer = boxer.hitTimer - dt;
+        if boxer.hitTimer <= 0 {
+            boxer.isHit = false;
+            boxer.hitTimer = 0;
+        }
+    }
+    
+    // 更新动作状态
+    if boxer.actionTimer > 0 {
+        boxer.actionTimer = boxer.actionTimer - dt;
+        if boxer.actionTimer <= 0 {
+            boxer.action = BoxerAction.Idle;
+            boxer.actionTimer = 0;
+        }
+    }
+}
+
+fn boxerCanPunch(boxer: &Boxer) -> bool {
+    return boxer.action == BoxerAction.Idle && !boxer.isHit;
+}
+
+fn boxerPerformJab(boxer: &mut Boxer) -> bool {
+    if !boxerCanPunch(boxer) || boxer.jabCooldown > 0 {
+        return false;
+    }
+    boxer.action = BoxerAction.Jab;
+    boxer.actionTimer = 150;
+    boxer.jabCooldown = JAB_COOLDOWN;
+    return true;
+}
+
+fn boxerPerformHook(boxer: &mut Boxer) -> bool {
+    if !boxerCanPunch(boxer) || boxer.hookCooldown > 0 {
+        return false;
+    }
+    boxer.action = BoxerAction.Hook;
+    boxer.actionTimer = 250;
+    boxer.hookCooldown = HOOK_COOLDOWN;
+    return true;
+}
+
+fn boxerMove(boxer: &mut Boxer, dir: BoxerAction) {
+    if boxer.action != BoxerAction.Idle && boxer.action != BoxerAction.MoveLeft 
+        && boxer.action != BoxerAction.MoveRight {
+        return;
+    }
+    boxer.action = dir;
+}
+
+fn boxerStopMove(boxer: &mut Boxer) {
+    if boxer.action == BoxerAction.MoveLeft || boxer.action == BoxerAction.MoveRight
+        || boxer.action == BoxerAction.MoveForward || boxer.action == BoxerAction.MoveBackward {
+        boxer.action = BoxerAction.Idle;
+    }
+}
+
+fn boxerGetHit(boxer: &mut Boxer, damage: i32) {
+    boxer.health = boxer.health - damage;
+    if boxer.health < 0 { boxer.health = 0; }
+    boxer.isHit = true;
+    boxer.hitTimer = 200;
+    boxer.action = BoxerAction.Hit;
+    boxer.actionTimer = 150;
+}
+
+fn boxerInRange(attacker: &Boxer, defender: &Boxer) -> bool {
+    var dist = abs(attacker.x - defender.x);
+    return dist <= PUNCH_RANGE;
+}
+
+// ==================== AI逻辑 ====================
+
+fn updateAI(ai: &mut Boxer, player: &Boxer, dt: i32) {
+    // 如果正在执行动作，不做决策
+    if ai.action != BoxerAction.Idle {
+        updateBoxer(ai, dt);
+        return;
+    }
+    
+    // 随机性移动
+    var decision = randInt(0, 100);
+    var dist = abs(ai.x - player.x);
+    
+    // 距离太远，靠近
+    if dist > PUNCH_RANGE + 20 {
+        if ai.x > player.x {
+            ai.x = ai.x - MOVE_SPEED / 2;
+            ai.action = BoxerAction.MoveLeft;
+        } else {
+            ai.x = ai.x + MOVE_SPEED / 2;
+            ai.action = BoxerAction.MoveRight;
+        }
+        ai.actionTimer = 100;
+        return;
+    }
+    
+    // 距离太近，后退
+    if dist < PUNCH_RANGE - 30 {
+        if ai.x > player.x {
+            ai.x = ai.x + MOVE_SPEED / 2;
+            ai.action = BoxerAction.MoveRight;
+        } else {
+            ai.x = ai.x - MOVE_SPEED / 2;
+            ai.action = BoxerAction.MoveLeft;
+        }
+        ai.actionTimer = 100;
+        return;
+    }
+    
+    // 在攻击范围内，尝试出拳
+    if decision < AI_PUNCH_CHANCE && dist <= PUNCH_RANGE {
+        if decision < AI_PUNCH_CHANCE / 3 {
+            boxerPerformJab(ai);
+        } else {
+            boxerPerformHook(ai);
+        }
+        return;
+    }
+    
+    // 小幅左右移动
+    if decision < 50 {
+        var offset = randInt(1, 3) * MOVE_SPEED / 2;
+        if randInt(0, 1) == 0 {
+            ai.x = ai.x - offset;
+        } else {
+            ai.x = ai.x + offset;
+        }
+    }
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+fn initGame(game: &mut BoxingState) {
+    game.round = 1;
+    game.roundTime = 99000;  // 99秒
+    game.status = GameStatus.Ready;
+    game.punchEffectTimer = 0;
+    game.hitEffectTimer = 0;
+    game.message = "";
+    game.messageTimer = 0;
+    
+    initRound(game);
+}
+
+fn initRound(game: &mut BoxingState) {
+    // 玩家在左边，AI在右边
+    game.player = createBoxer(180, 340, PLAYER_COLOR, "PLAYER", true);
+    game.ai = createBoxer(550, 340, AI_COLOR, "CPU", false);
+    game.roundTime = 99000;
+    game.status = GameStatus.RoundStart;
+    game.message = "ROUND " ++ intToString(game.round);
+    game.messageTimer = 2000;
+}
+
+fn updateGame(game: &mut BoxingState, dt: i32) {
+    // 更新消息显示
+    if game.messageTimer > 0 {
+        game.messageTimer = game.messageTimer - dt;
+        if game.messageTimer <= 0 {
+            game.message = "";
+            game.messageTimer = 0;
+            if game.status == GameStatus.RoundStart {
+                game.status = GameStatus.Playing;
+                game.message = "FIGHT!";
+                game.messageTimer = 1000;
+            }
+        }
+    }
+    
+    // 更新特效
+    if game.punchEffectTimer > 0 {
+        game.punchEffectTimer = game.punchEffectTimer - dt;
+    }
+    if game.hitEffectTimer > 0 {
+        game.hitEffectTimer = game.hitEffectTimer - dt;
+    }
+    
+    // 根据状态更新
+    match game.status {
+        GameStatus.Ready => {
+            // 等待开始
+        },
+        GameStatus.RoundStart => {
+            // 回合开始倒计时
+        },
+        GameStatus.Playing => {
+            // 更新回合时间
+            game.roundTime = game.roundTime - dt;
+            if game.roundTime <= 0 {
+                game.roundTime = 0;
+                // 时间到，根据血量决定胜负
+                if game.player.health > game.ai.health {
+                    game.status = GameStatus.RoundEnd;
+                    game.winner = &game.player;
+                    game.message = "TIME! PLAYER WINS!";
+                    game.messageTimer = 3000;
+                } else if game.ai.health > game.player.health {
+                    game.status = GameStatus.RoundEnd;
+                    game.winner = &game.ai;
+                    game.message = "TIME! CPU WINS!";
+                    game.messageTimer = 3000;
+                } else {
+                    game.status = GameStatus.RoundEnd;
+                    game.message = "TIME! DRAW!";
+                    game.messageTimer = 3000;
+                }
+            }
+            
+            // 更新拳击手
+            updateBoxer(&mut game.player, dt);
+            updateBoxer(&mut game.ai, dt);
+            
+            // AI决策
+            updateAI(&mut game.ai, &game.player, dt);
+            
+            // 检测攻击命中
+            checkPunchHit(&mut game.player, &mut game.ai, &mut game.punchEffectTimer, &mut game.hitEffectTimer);
+            checkPunchHit(&mut game.ai, &mut game.player, &mut game.punchEffectTimer, &mut game.hitEffectTimer);
+            
+            // 限制移动范围
+            constrainBoxerPosition(&mut game.player);
+            constrainBoxerPosition(&mut game.ai);
+            
+            // 检查KO
+            if game.player.health <= 0 {
+                game.status = GameStatus.RoundEnd;
+                game.winner = &game.ai;
+                game.message = "KO! CPU WINS!";
+                game.messageTimer = 3000;
+                game.player.action = BoxerAction.KO;
+            } else if game.ai.health <= 0 {
+                game.status = GameStatus.RoundEnd;
+                game.winner = &game.player;
+                game.message = "KO! PLAYER WINS!";
+                game.messageTimer = 3000;
+                game.ai.action = BoxerAction.KO;
+            }
+        },
+        GameStatus.RoundEnd => {
+            // 回合结束，等待继续或重新开始
+            if game.messageTimer <= 0 {
+                // 自动开始下一回合
+                if game.round < 3 {
+                    game.round = game.round + 1;
+                    initRound(game);
+                } else {
+                    game.status = GameStatus.GameOver;
+                }
+            }
+        },
+        GameStatus.GameOver => {
+            // 游戏结束
+        },
+    }
+}
+
+fn checkPunchHit(attacker: &mut Boxer, defender: &mut Boxer, punchTimer: &mut i32, hitTimer: &mut i32) {
+    // Jab检测 - 在动作开始时检测
+    if attacker.action == BoxerAction.Jab && attacker.actionTimer > 100 {
+        if boxerInRange(attacker, defender) {
+            boxerGetHit(defender, JAB_DAMAGE);
+            *hitTimer = 200;
+        }
+        attacker.actionTimer = 100;  // 标记已检测
+    }
+    
+    // Hook检测 - 在动作中间检测
+    if attacker.action == BoxerAction.Hook && attacker.actionTimer > 150 && attacker.actionTimer < 200 {
+        if boxerInRange(attacker, defender) {
+            boxerGetHit(defender, HOOK_DAMAGE);
+            *hitTimer = 250;
+        }
+        attacker.actionTimer = 150;  // 标记已检测
+    }
+}
+
+fn constrainBoxerPosition(boxer: &mut Boxer) {
+    // 限制在擂台内
+    boxer.x = clamp(boxer.x, RING_LEFT + BOXER_WIDTH/2, RING_RIGHT - BOXER_WIDTH/2);
+    boxer.y = clamp(boxer.y, RING_TOP + BOXER_HEIGHT/2, RING_BOTTOM - BOXER_HEIGHT/2);
+}
+
+// ==================== 输入处理 ====================
+
+fn handleInput(game: &mut BoxingState, key: VirtualKey) {
+    if game.status == GameStatus.Ready {
+        game.status = GameStatus.RoundStart;
+        game.message = "ROUND " ++ intToString(game.round);
+        game.messageTimer = 2000;
+        return;
+    }
+    
+    if game.status == GameStatus.GameOver {
+        // 重新开始
+        initGame(game);
+        return;
+    }
+    
+    if game.status != GameStatus.Playing {
+        return;
+    }
+    
+    match key {
+        VirtualKey.KeyA, VirtualKey.Left => {
+            if game.player.x > RING_LEFT + BOXER_WIDTH/2 {
+                game.player.x = game.player.x - MOVE_SPEED;
+            }
+        },
+        VirtualKey.KeyD, VirtualKey.Right => {
+            if game.player.x < RING_RIGHT - BOXER_WIDTH/2 {
+                game.player.x = game.player.x + MOVE_SPEED;
+            }
+        },
+        VirtualKey.KeyW, VirtualKey.Up => {
+            if game.player.y > RING_TOP + BOXER_HEIGHT/2 {
+                game.player.y = game.player.y - MOVE_SPEED;
+            }
+        },
+        VirtualKey.KeyS, VirtualKey.Down => {
+            if game.player.y < RING_BOTTOM - BOXER_HEIGHT/2 {
+                game.player.y = game.player.y + MOVE_SPEED;
+            }
+        },
+        VirtualKey.KeyJ, VirtualKey.Space => {
+            boxerPerformJab(&mut game.player);
+        },
+        VirtualKey.KeyK, VirtualKey.Enter => {
+            boxerPerformHook(&mut game.player);
+        },
+        _ => {}
+    }
+}
+
+// ==================== 工具函数 ====================
+
+fn intToString(n: i32) -> str {
+    if n == 0 { return "0"; }
+    var result = "";
+    var negative = false;
+    var num = n;
+    if num < 0 {
+        negative = true;
+        num = -num;
+    }
+    while num > 0 {
+        var digit = num % 10;
+        result = chr(digit + 48) ++ result;
+        num = num / 10;
+    }
+    if negative {
+        result = "-" ++ result;
+    }
+    return result;
+}
+
+fn chr(n: i32) -> str {
+    if n == 0 { return "\0"; }
+    return str(n as u8);
+}
+
+// 随机数函数
+private var rng_seed: u32 = 12345;
+
+pub fn setRandomSeed(seed: u32) {
+    rng_seed = seed;
+}
+
+pub fn randInt(min: i32, max: i32) -> i32 {
+    rng_seed = rng_seed * 1103515245 + 12345;
+    var r = (rng_seed / 65536) % 32768;
+    return min + (r as i32) % (max - min + 1);
+}
