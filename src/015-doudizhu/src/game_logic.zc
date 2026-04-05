@@ -1,0 +1,996 @@
+// game_logic.zc - 斗地主游戏核心逻辑
+// 斗地主规则实现
+
+import std.io;
+import std.string;
+import "platform_api.zc";
+
+// ==================== 常量定义 ====================
+
+const MAX_PLAYER_CARDS = 20;
+const LANDLORD_CARDS_COUNT = 3;
+const TOTAL_CARDS = 54;
+const GAME_WIDTH = 900;
+const GAME_HEIGHT = 700;
+
+// ==================== 扑克牌定义 ====================
+
+// 卡牌花色: 0=黑桃, 1=红心, 2=梅花, 3=方块, 4=小王, 5=大王
+const SUIT_SPADES = 0;
+const SUIT_HEARTS = 1;
+const SUIT_CLUBS = 2;
+const SUIT_DIAMONDS = 3;
+const SUIT_SMALL_JOKER = 4;
+const SUIT_BIG_JOKER = 5;
+
+// 卡牌点数: 3-13=3-K, 14=A, 15=2, 16=小王, 17=大王
+const RANK_3 = 3;
+const RANK_4 = 4;
+const RANK_5 = 5;
+const RANK_6 = 6;
+const RANK_7 = 7;
+const RANK_8 = 8;
+const RANK_9 = 9;
+const RANK_10 = 10;
+const RANK_J = 11;
+const RANK_Q = 12;
+const RANK_K = 13;
+const RANK_A = 14;
+const RANK_2 = 15;
+const RANK_SMALL_JOKER = 16;
+const RANK_BIG_JOKER = 17;
+
+// ==================== 卡牌组合类型 ====================
+
+const CT_INVALID = 0;
+const CT_SINGLE = 1;        // 单张
+const CT_PAIR = 2;          // 对子
+const CT_TRIPLE = 3;        // 三张
+const CT_TRIPLE_ONE = 4;    // 三带一
+const CT_TRIPLE_TWO = 5;    // 三带一对
+const CT_STRAIGHT = 6;      // 顺子 (5+)
+const CT_STRAIGHT_PAIR = 7; // 连对 (3+)
+const CT_STRAIGHT_TRIPLE = 8; // 飞机 (2+)
+const CT_BOMB = 9;          // 炸弹
+const CT_ROCKET = 10;       // 火箭(王炸)
+const CT_QUAD_TWO = 11;     // 四带二
+const CT_QUAD_TWO_PAIR = 12; // 四带两对
+
+// ==================== 游戏阶段 ====================
+
+const PHASE_BIDDING = 0;
+const PHASE_PLAYING = 1;
+const PHASE_GAME_OVER = 2;
+
+// ==================== 卡牌结构 ====================
+
+struct Card {
+    suit: i32,   // 花色
+    rank: i32,   // 点数
+    value: i32,  // 编码值 0-53
+}
+
+struct CardUtils {
+    // 空实现，仅用于命名空间
+}
+
+// 获取卡牌的显示名称
+fn getCardName(card: Card) -> str {
+    if card.suit == SUIT_SMALL_JOKER {
+        return "joker";
+    }
+    if card.suit == SUIT_BIG_JOKER {
+        return "JOKER";
+    }
+    
+    var rankStr = "";
+    match card.rank {
+        3 => rankStr = "3",
+        4 => rankStr = "4",
+        5 => rankStr = "5",
+        6 => rankStr = "6",
+        7 => rankStr = "7",
+        8 => rankStr = "8",
+        9 => rankStr = "9",
+        10 => rankStr = "10",
+        11 => rankStr = "J",
+        12 => rankStr = "Q",
+        13 => rankStr = "K",
+        14 => rankStr = "A",
+        15 => rankStr = "2",
+        _ => rankStr = "?",
+    }
+    
+    var suitStr = "";
+    match card.suit {
+        SUIT_SPADES => suitStr = "♠",
+        SUIT_HEARTS => suitStr = "♥",
+        SUIT_CLUBS => suitStr = "♣",
+        SUIT_DIAMONDS => suitStr = "♦",
+        _ => suitStr = "?",
+    }
+    
+    return rankStr ++ suitStr;
+}
+
+// 获取卡牌排序优先级 (用于排序手牌)
+fn getCardPriority(card: Card) -> i32 {
+    // 大王 > 小王 > 2 > A > K > ... > 3
+    if card.suit == SUIT_BIG_JOKER { return 100; }
+    if card.suit == SUIT_SMALL_JOKER { return 99; }
+    if card.rank == RANK_2 { return 17; }
+    if card.rank == RANK_A { return 16; }
+    if card.rank == RANK_K { return 15; }
+    return card.rank - RANK_3;
+}
+
+// 创建卡牌
+fn makeCard(suit: i32, rank: i32) -> Card {
+    var value = 0;
+    if suit == SUIT_SMALL_JOKER {
+        value = 52;
+    } else if suit == SUIT_BIG_JOKER {
+        value = 53;
+    } else {
+        value = suit * 13 + (rank - RANK_3);
+    }
+    return Card.{ suit: suit, rank: rank, value: value };
+}
+
+// 从value创建卡牌
+fn cardFromValue(value: i32) -> Card {
+    if value == 52 {
+        return Card.{ suit: SUIT_SMALL_JOKER, rank: RANK_SMALL_JOKER, value: value };
+    }
+    if value == 53 {
+        return Card.{ suit: SUIT_BIG_JOKER, rank: RANK_BIG_JOKER, value: value };
+    }
+    var suit = value / 13;
+    var rank = (value % 13) + RANK_3;
+    return Card.{ suit: suit, rank: rank, value: value };
+}
+
+// 卡牌是否相同
+fn cardsEqual(a: Card, b: Card) -> bool {
+    return a.value == b.value;
+}
+
+// ==================== 卡牌组合结构 ====================
+
+struct CardGroup {
+    cards: [Card],        // 组合中的卡牌
+    count: i32,            // 数量
+    cardType: i32,         // 组合类型
+    mainRank: i32,         // 主牌点数
+    length: i32,           // 顺子/连对/飞机长度
+}
+
+fn createCardGroup() -> CardGroup {
+    return CardGroup.{ cards: [], count: 0, cardType: CT_INVALID, mainRank: 0, length: 0 };
+}
+
+// 评估卡牌组合
+fn evaluateGroup(cards: [Card], count: i32) -> CardGroup {
+    var group = createCardGroup();
+    
+    if count == 0 {
+        return group;
+    }
+    
+    // 复制卡牌并排序
+    var sorted = cards;
+    // 简单冒泡排序
+    for i in 0..count {
+        for j in (i+1)..count {
+            if getCardPriority(sorted[j]) > getCardPriority(sorted[i]) {
+                var tmp = sorted[i];
+                sorted[i] = sorted[j];
+                sorted[j] = tmp;
+            }
+        }
+    }
+    
+    group.cards = sorted;
+    group.count = count;
+    
+    // 分析组合类型
+    if count == 1 {
+        group.cardType = CT_SINGLE;
+        group.mainRank = sorted[0].rank;
+        if sorted[0].suit == SUIT_BIG_JOKER {
+            group.mainRank = RANK_BIG_JOKER;
+        } else if sorted[0].suit == SUIT_SMALL_JOKER {
+            group.mainRank = RANK_SMALL_JOKER;
+        }
+        return group;
+    }
+    
+    // 检查火箭(王炸)
+    if count == 2 {
+        var c0 = sorted[0];
+        var c1 = sorted[1];
+        if (c0.suit == SUIT_BIG_JOKER && c1.suit == SUIT_SMALL_JOKER) ||
+           (c0.suit == SUIT_SMALL_JOKER && c1.suit == SUIT_BIG_JOKER) {
+            group.cardType = CT_ROCKET;
+            group.mainRank = RANK_BIG_JOKER;
+            return group;
+        }
+    }
+    
+    // 检查炸弹(四带二/四带两对/四条)
+    if count == 4 {
+        if sorted[0].rank == sorted[3].rank {
+            group.cardType = CT_BOMB;
+            group.mainRank = sorted[0].rank;
+            return group;
+        }
+    }
+    
+    // 检查单、对、三
+    if count == 2 && sorted[0].rank == sorted[1].rank {
+        group.cardType = CT_PAIR;
+        group.mainRank = sorted[0].rank;
+        return group;
+    }
+    
+    if count == 3 && sorted[0].rank == sorted[2].rank {
+        group.cardType = CT_TRIPLE;
+        group.mainRank = sorted[0].rank;
+        return group;
+    }
+    
+    // 检查三带一/三带一对
+    if count == 4 {
+        // 找三张相同的
+        var tripleRank = -1;
+        var tripleIdx = -1;
+        
+        for i in 0..3 {
+            var found = 1;
+            for j in 0..4 {
+                if i != j && sorted[i].rank == sorted[j].rank {
+                    found = found + 1;
+                }
+            }
+            if found == 3 {
+                tripleRank = sorted[i].rank;
+                break;
+            }
+        }
+        
+        if tripleRank != -1 {
+            // 检查剩余一张
+            var otherRank = 0;
+            for i in 0..4 {
+                if sorted[i].rank != tripleRank {
+                    otherRank = sorted[i].rank;
+                    break;
+                }
+            }
+            
+            // 三带一对: 剩余那张和其他某张成对
+            if count == 4 {
+                var hasPair = false;
+                for i in 0..4 {
+                    if sorted[i].rank == otherRank && i != tripleIdx {
+                        hasPair = true;
+                        break;
+                    }
+                }
+                
+                if hasPair {
+                    group.cardType = CT_TRIPLE_TWO;
+                    group.mainRank = tripleRank;
+                    return group;
+                }
+            }
+            
+            group.cardType = CT_TRIPLE_ONE;
+            group.mainRank = tripleRank;
+            return group;
+        }
+    }
+    
+    // 检查四带二
+    if count == 6 {
+        var quadRank = -1;
+        var quadCount = 0;
+        for i in 0..count {
+            var sameCount = 0;
+            for j in 0..count {
+                if sorted[i].rank == sorted[j].rank {
+                    sameCount = sameCount + 1;
+                }
+            }
+            if sameCount == 4 {
+                quadRank = sorted[i].rank;
+                break;
+            }
+        }
+        if quadRank != -1 {
+            group.cardType = CT_QUAD_TWO;
+            group.mainRank = quadRank;
+            return group;
+        }
+    }
+    
+    // 检查四带两对
+    if count == 8 {
+        group.cardType = CT_QUAD_TWO_PAIR;
+        group.mainRank = sorted[0].rank;
+        return group;
+    }
+    
+    // 检查顺子
+    if count >= 5 {
+        var isStraight = true;
+        var minRank = sorted[0].rank;
+        
+        // 检查是否是连续点数
+        for i in 0..count {
+            if sorted[i].rank != minRank + i as i32 {
+                isStraight = false;
+                break;
+            }
+        }
+        
+        if isStraight && sorted[0].rank <= RANK_A {
+            // 不能包含2和王
+            var hasBad = false;
+            for i in 0..count {
+                if sorted[i].rank >= RANK_2 {
+                    hasBad = true;
+                    break;
+                }
+            }
+            if !hasBad {
+                group.cardType = CT_STRAIGHT;
+                group.mainRank = sorted[0].rank;
+                group.length = count;
+                return group;
+            }
+        }
+    }
+    
+    // 检查连对
+    if count >= 6 && count % 2 == 0 {
+        var isPairStraight = true;
+        for i in 0..(count/2) {
+            var pairRank = sorted[i*2].rank;
+            if sorted[i*2+1].rank != pairRank {
+                isPairStraight = false;
+                break;
+            }
+            if i > 0 {
+                if sorted[i*2].rank != sorted[(i-1)*2].rank + 1 {
+                    isPairStraight = false;
+                    break;
+                }
+            }
+        }
+        if isPairStraight && sorted[0].rank <= RANK_A {
+            var hasBad = false;
+            for i in 0..count {
+                if sorted[i].rank >= RANK_2 {
+                    hasBad = true;
+                    break;
+                }
+            }
+            if !hasBad {
+                group.cardType = CT_STRAIGHT_PAIR;
+                group.mainRank = sorted[0].rank;
+                group.length = count / 2;
+                return group;
+            }
+        }
+    }
+    
+    // 检查飞机
+    if count >= 6 && count % 3 == 0 {
+        var isTripleStraight = true;
+        var tripleCount = count / 3;
+        
+        for i in 0..tripleCount {
+            var tRank = sorted[i*3].rank;
+            if sorted[i*3+1].rank != tRank || sorted[i*3+2].rank != tRank {
+                isTripleStraight = false;
+                break;
+            }
+            if i > 0 {
+                var prevRank = sorted[(i-1)*3].rank;
+                if sorted[i*3].rank != prevRank + 1 {
+                    isTripleStraight = false;
+                    break;
+                }
+            }
+        }
+        if isTripleStraight && sorted[0].rank <= RANK_A {
+            var hasBad = false;
+            for i in 0..count {
+                if sorted[i].rank >= RANK_2 {
+                    hasBad = true;
+                    break;
+                }
+            }
+            if !hasBad {
+                group.cardType = CT_STRAIGHT_TRIPLE;
+                group.mainRank = sorted[0].rank;
+                group.length = tripleCount;
+                return group;
+            }
+        }
+    }
+    
+    return group;
+}
+
+// 比较两个卡牌组的大小 (能否打过另一个)
+fn canBeat(group: CardGroup, target: CardGroup) -> bool {
+    // 无牌可出
+    if group.cardType == CT_INVALID {
+        return false;
+    }
+    
+    // 火箭最大
+    if group.cardType == CT_ROCKET {
+        return true;
+    }
+    
+    // 王炸打不过火箭
+    if target.cardType == CT_ROCKET {
+        return false;
+    }
+    
+    // 炸弹vs非炸弹
+    if group.cardType == CT_BOMB && target.cardType != CT_BOMB {
+        return true;
+    }
+    
+    // 非炸弹打不过炸弹
+    if group.cardType != CT_BOMB && target.cardType == CT_BOMB {
+        return false;
+    }
+    
+    // 同类型比较
+    if group.cardType != target.cardType {
+        return false;
+    }
+    
+    // 单张比较
+    if group.cardType == CT_SINGLE {
+        // 王能打过任何牌
+        if group.mainRank >= RANK_SMALL_JOKER && group.mainRank > target.mainRank {
+            return true;
+        }
+        // A能打过2
+        if target.mainRank == RANK_2 && group.mainRank == RANK_A {
+            return true;
+        }
+        return group.mainRank > target.mainRank;
+    }
+    
+    // 对子比较
+    if group.cardType == CT_PAIR {
+        return group.mainRank > target.mainRank;
+    }
+    
+    // 三张比较
+    if group.cardType == CT_TRIPLE {
+        return group.mainRank > target.mainRank;
+    }
+    
+    // 三带一/三带一对
+    if group.cardType == CT_TRIPLE_ONE || group.cardType == CT_TRIPLE_TWO {
+        return group.mainRank > target.mainRank;
+    }
+    
+    // 炸弹比较
+    if group.cardType == CT_BOMB {
+        return group.mainRank > target.mainRank;
+    }
+    
+    // 顺子(长度相同)
+    if group.cardType == CT_STRAIGHT {
+        if group.length != target.length {
+            return false;
+        }
+        return group.mainRank > target.mainRank;
+    }
+    
+    // 连对(长度相同)
+    if group.cardType == CT_STRAIGHT_PAIR {
+        if group.length != target.length {
+            return false;
+        }
+        return group.mainRank > target.mainRank;
+    }
+    
+    // 飞机(长度相同)
+    if group.cardType == CT_STRAIGHT_TRIPLE {
+        if group.length != target.length {
+            return false;
+        }
+        return group.mainRank > target.mainRank;
+    }
+    
+    return false;
+}
+
+// ==================== 游戏状态 ====================
+
+struct Player {
+    name: str,
+    cards: [i32],       // 手牌value数组
+    cardCount: i32,
+    isLandlord: bool,
+    passed: bool,        // 本轮是否已过
+}
+
+struct GameState {
+    // 玩家手牌
+    player: Player,
+    cpu1: Player,        // 电脑1(左)
+    cpu2: Player,        // 电脑2(右)
+    
+    // 底牌
+    landlordCards: [i32],
+    landlordCardCount: i32,
+    
+    // 地主
+    landlordPlayer: i32,  // 0=玩家, 1=cpu1, 2=cpu2
+    landlordBid: i32,      // 叫分 1-3
+    
+    // 当前阶段
+    phase: i32,
+    
+    // 叫分阶段
+    currentBidder: i32,    // 当前叫分玩家 0-2
+    highestBid: i32,       // 当前最高叫分
+    highestBidder: i32,   // 最高叫分玩家
+    bidPassed: [bool],     // 玩家是否已放弃叫分
+    
+    // 出牌阶段
+    currentPlayer: i32,    // 当前出牌玩家 0-2
+    lastPlayPlayer: i32,  // 上次出牌玩家
+    lastPlayGroup: CardGroup, // 上次出的牌
+    playerPassed: [bool],  // 出牌阶段是否过
+    
+    // 游戏结果
+    winner: i32,           // 胜利玩家 0-2
+    landlordWon: bool,
+    
+    // 回合计数
+    roundCount: i32,
+}
+
+fn createGameState() -> GameState {
+    var gs = GameState.{
+        player: Player.{ name: "你", cards: [], cardCount: 0, isLandlord: false, passed: false },
+        cpu1: Player.{ name: "电脑1", cards: [], cardCount: 0, isLandlord: false, passed: false },
+        cpu2: Player.{ name: "电脑2", cards: [], cardCount: 0, isLandlord: false, passed: false },
+        landlordCards: [],
+        landlordCardCount: 0,
+        landlordPlayer: -1,
+        landlordBid: 0,
+        phase: PHASE_BIDDING,
+        currentBidder: 0,
+        highestBid: 0,
+        highestBidder: -1,
+        bidPassed: [false, false, false],
+        currentPlayer: 0,
+        lastPlayPlayer: -1,
+        lastPlayGroup: createCardGroup(),
+        playerPassed: [false, false, false],
+        winner: -1,
+        landlordWon: false,
+        roundCount: 0,
+    };
+    return gs;
+}
+
+// 获取玩家引用
+fn getPlayer(gs: &GameState, idx: i32) -> &Player {
+    match idx {
+        0 => return &gs.player,
+        1 => return &gs.cpu1,
+        2 => return &gs.cpu2,
+        _ => return &gs.player,
+    }
+}
+
+// ==================== 发牌与洗牌 ====================
+
+fn shuffleDeck(deck: &[i32] mut, deckCount: i32) {
+    // Fisher-Yates 洗牌
+    setRandomSeed(getTickCount() as u32);
+    
+    for i in (deckCount - 1)..0 {
+        var j = randInt(0, i);
+        var tmp = deck[i];
+        deck[i] = deck[j];
+        deck[j] = tmp;
+    }
+}
+
+fn dealCards(gs: &GameState) {
+    // 创建54张牌
+    var deck: [i32] = [];
+    for i in 0..TOTAL_CARDS {
+        deck[i] = i;
+    }
+    
+    // 洗牌
+    shuffleDeck(&deck, TOTAL_CARDS);
+    
+    // 发牌: 玩家17张, cpu1 17张, cpu2 17张, 底牌3张
+    var idx = 0;
+    
+    // 玩家
+    for i in 0..17 {
+        gs.player.cards[i] = deck[idx];
+        idx = idx + 1;
+    }
+    gs.player.cardCount = 17;
+    
+    // CPU1
+    for i in 0..17 {
+        gs.cpu1.cards[i] = deck[idx];
+        idx = idx + 1;
+    }
+    gs.cpu1.cardCount = 17;
+    
+    // CPU2
+    for i in 0..17 {
+        gs.cpu2.cards[i] = deck[idx];
+        idx = idx + 1;
+    }
+    gs.cpu2.cardCount = 17;
+    
+    // 底牌
+    for i in 0..3 {
+        gs.landlordCards[i] = deck[idx];
+        idx = idx + 1;
+    }
+    gs.landlordCardCount = 3;
+}
+
+// 排序手牌
+fn sortPlayerCards(gs: &GameState) {
+    // 排序三个玩家的手牌
+    sortCardsInPlace(&gs.player.cards, gs.player.cardCount);
+    sortCardsInPlace(&gs.cpu1.cards, gs.cpu1.cardCount);
+    sortCardsInPlace(&gs.cpu2.cards, gs.cpu2.cardCount);
+}
+
+fn sortCardsInPlace(cards: &[i32] mut, count: i32) {
+    // 冒泡排序
+    for i in 0..count {
+        for j in (i+1)..count {
+            var cardA = cardFromValue(cards[i]);
+            var cardB = cardFromValue(cards[j]);
+            if getCardPriority(cardA) < getCardPriority(cardB) {
+                var tmp = cards[i];
+                cards[i] = cards[j];
+                cards[j] = tmp;
+            }
+        }
+    }
+}
+
+// ==================== 叫分逻辑 ====================
+
+fn doBid(gs: &mut GameState, playerIdx: i32, bid: i32) {
+    if bid > gs.highestBid && bid <= 3 {
+        gs.highestBid = bid;
+        gs.highestBidder = playerIdx;
+    }
+    
+    // 下一个叫分玩家
+    gs.currentBidder = (gs.currentBidder + 1) % 3;
+    gs.roundCount = gs.roundCount + 1;
+    
+    // 检查叫分结束: 叫到3分 或 三人都叫过
+    if bid == 3 || gs.roundCount >= 3 {
+        // 叫分结束
+        if gs.highestBidder == -1 {
+            // 没人叫分, 重新发牌
+            gs.highestBidder = 0;
+            gs.highestBid = 1;
+        }
+        
+        gs.landlordPlayer = gs.highestBidder;
+        gs.landlordBid = gs.highestBid;
+        
+        var landlord = getPlayer(gs, gs.landlordPlayer);
+        landlord.isLandlord = true;
+        
+        // 把底牌给地主
+        for i in 0..3 {
+            landlord.cards[landlord.cardCount] = gs.landlordCards[i];
+            landlord.cardCount = landlord.cardCount + 1;
+        }
+        
+        // 重新排序
+        sortPlayerCards(gs);
+        
+        gs.phase = PHASE_PLAYING;
+        gs.currentPlayer = gs.landlordPlayer;
+        gs.roundCount = 0;
+        
+        println("地主: " ++ landlord.name ++ ", 叫分: " ++ gs.landlordBid.to_string());
+    }
+}
+
+// ==================== AI逻辑 ====================
+
+// AI叫分策略
+fn aiBid(gs: &GameState, playerIdx: i32) -> i32 {
+    var player = getPlayer(gs, playerIdx);
+    
+    // 数大牌: 大王2张, 小王2张, 2有4张
+    var bigCards = 0;
+    for i in 0..player.cardCount {
+        var card = cardFromValue(player.cards[i]);
+        if card.suit == SUIT_BIG_JOKER || card.suit == SUIT_SMALL_JOKER {
+            bigCards = bigCards + 1;
+        }
+        if card.rank == RANK_2 {
+            bigCards = bigCards + 1;
+        }
+        if card.rank == RANK_A {
+            bigCards = bigCards + 1;
+        }
+    }
+    
+    // 根据大牌数量决定叫分
+    if bigCards >= 10 {
+        return 3;
+    }
+    if bigCards >= 7 {
+        return 2;
+    }
+    if bigCards >= 4 {
+        return 1;
+    }
+    return 0; // 不叫
+}
+
+// AI出牌策略
+fn aiPlay(gs: &GameState, playerIdx: i32) -> CardGroup {
+    var player = getPlayer(gs, playerIdx);
+    
+    if player.cardCount == 0 {
+        return createCardGroup();
+    }
+    
+    // 如果是跟牌(有上次出的牌)
+    if gs.lastPlayPlayer != playerIdx && gs.lastPlayGroup.cardType != CT_INVALID {
+        // 找能打过的最小牌
+        return findSmallestBeatableGroup(gs, playerIdx);
+    } else {
+        // 主动出牌
+        return findBestPlayGroup(gs, playerIdx);
+    }
+}
+
+// 找能打过的最小牌组
+fn findSmallestBeatableGroup(gs: &GameState, playerIdx: i32) -> CardGroup {
+    var player = getPlayer(gs, playerIdx);
+    var target = gs.lastPlayGroup;
+    
+    // 遍历所有可能的手牌组合
+    var bestGroup = createCardGroup();
+    var bestPower = 999;
+    
+    // 单张
+    if target.cardType == CT_SINGLE || target.cardType == CT_INVALID {
+        for i in 0..player.cardCount {
+            var cards: [Card] = [cardFromValue(player.cards[i])];
+            var group = evaluateGroup(cards, 1);
+            if canBeat(group, target) {
+                var power = getCardPriority(cards[0]);
+                if group.cardType == CT_ROCKET {
+                    power = 200;
+                }
+                if power < bestPower {
+                    bestPower = power;
+                    bestGroup = group;
+                }
+            }
+        }
+    }
+    
+    // 对子
+    if target.cardType == CT_PAIR || target.cardType == CT_INVALID {
+        for i in 0..(player.cardCount-1) {
+            if cardFromValue(player.cards[i]).rank == cardFromValue(player.cards[i+1]).rank {
+                var cards: [Card] = [cardFromValue(player.cards[i]), cardFromValue(player.cards[i+1]))];
+                var group = evaluateGroup(cards, 2);
+                if canBeat(group, target) {
+                    var power = getCardPriority(cards[0]);
+                    if power < bestPower {
+                        bestPower = power;
+                        bestGroup = group;
+                    }
+                }
+            }
+        }
+    }
+    
+    // 三张
+    if target.cardType == CT_TRIPLE {
+        for i in 0..(player.cardCount-2) {
+            var r0 = cardFromValue(player.cards[i]).rank;
+            var r1 = cardFromValue(player.cards[i+1]).rank;
+            var r2 = cardFromValue(player.cards[i+2]).rank;
+            if r0 == r1 && r1 == r2 {
+                var cards: [Card] = [cardFromValue(player.cards[i]), cardFromValue(player.cards[i+1]), cardFromValue(player.cards[i+2]))];
+                var group = evaluateGroup(cards, 3);
+                if canBeat(group, target) {
+                    var power = getCardPriority(cards[0]);
+                    if power < bestPower {
+                        bestPower = power;
+                        bestGroup = group;
+                    }
+                }
+            }
+        }
+    }
+    
+    // 炸弹能打过大多数
+    if bestGroup.cardType == CT_INVALID {
+        // 检查是否有炸弹
+        for i in 0..(player.cardCount-3) {
+            var r0 = cardFromValue(player.cards[i]).rank;
+            var r1 = cardFromValue(player.cards[i+1]).rank;
+            var r2 = cardFromValue(player.cards[i+2]).rank;
+            var r3 = cardFromValue(player.cards[i+3]).rank;
+            if r0 == r1 && r1 == r2 && r2 == r3 {
+                var cards: [Card] = [cardFromValue(player.cards[i]), cardFromValue(player.cards[i+1]), cardFromValue(player.cards[i+2]), cardFromValue(player.cards[i+3]))];
+                var group = evaluateGroup(cards, 4);
+                if group.cardType == CT_BOMB {
+                    return group;
+                }
+            }
+        }
+        
+        // 检查王炸
+        var hasBig = false;
+        var hasSmall = false;
+        for i in 0..player.cardCount {
+            if player.cards[i] == 53 { hasBig = true; }
+            if player.cards[i] == 52 { hasSmall = true; }
+        }
+        if hasBig && hasSmall {
+            var cards: [Card] = [cardFromValue(53), cardFromValue(52)];
+            var group = evaluateGroup(cards, 2);
+            return group;
+        }
+    }
+    
+    // 找不到能打过的就过
+    return bestGroup;
+}
+
+// 找最佳出牌(主动出牌时)
+fn findBestPlayGroup(gs: &GameState, playerIdx: i32) -> CardGroup {
+    var player = getPlayer(gs, playerIdx);
+    
+    // 优先出三带一
+    if player.cardCount >= 4 {
+        for i in 0..(player.cardCount-3) {
+            var r0 = cardFromValue(player.cards[i]).rank;
+            var r1 = cardFromValue(player.cards[i+1]).rank;
+            var r2 = cardFromValue(player.cards[i+2]).rank;
+            if r0 == r1 && r1 == r2 {
+                var cards: [Card] = [cardFromValue(player.cards[i]), cardFromValue(player.cards[i+1]), cardFromValue(player.cards[i+2]), cardFromValue(player.cards[i+3]))];
+                var group = evaluateGroup(cards, 4);
+                if group.cardType == CT_TRIPLE_ONE {
+                    return group;
+                }
+            }
+        }
+    }
+    
+    // 出手中的最小单牌
+    if player.cardCount > 0 {
+        var minCard = cardFromValue(player.cards[0]);
+        var minIdx = 0;
+        for i in 1..player.cardCount {
+            var card = cardFromValue(player.cards[i]);
+            if getCardPriority(card) < getCardPriority(minCard) {
+                minCard = card;
+                minIdx = i;
+            }
+        }
+        var cards: [Card] = [minCard];
+        return evaluateGroup(cards, 1);
+    }
+    
+    return createCardGroup();
+}
+
+// ==================== 出牌逻辑 ====================
+
+fn playCards(gs: &mut GameState, playerIdx: i32, group: CardGroup) {
+    var player = getPlayer(gs, playerIdx);
+    
+    if group.cardType == CT_INVALID {
+        // 过
+        gs.playerPassed[playerIdx] = true;
+        println(player.name ++ " 过");
+    } else {
+        // 从手牌中移除
+        var removed = 0;
+        for i in 0..group.count {
+            var cardVal = group.cards[i].value;
+            for j in 0..player.cardCount {
+                if player.cards[j] == cardVal && removed < group.count {
+                    // 标记移除
+                    player.cards[j] = -1;
+                    removed = removed + 1;
+                    break;
+                }
+            }
+        }
+        
+        // 压缩手牌
+        var newCount = 0;
+        var newCards: [i32] = [];
+        for i in 0..player.cardCount {
+            if player.cards[i] != -1 {
+                newCards[newCount] = player.cards[i];
+                newCount = newCount + 1;
+            }
+        }
+        player.cards = newCards;
+        player.cardCount = newCount;
+        
+        gs.lastPlayPlayer = playerIdx;
+        gs.lastPlayGroup = group;
+        gs.playerPassed = [false, false, false];
+        
+        // 显示出的牌
+        var cardNames = "";
+        for i in 0..group.count {
+            cardNames = cardNames ++ getCardName(group.cards[i]) ++ " ";
+        }
+        println(player.name ++ " 出: " ++ cardNames);
+    }
+    
+    // 下一玩家
+    gs.currentPlayer = (gs.currentPlayer + 1) % 3;
+    
+    // 检查胜利
+    if player.cardCount == 0 {
+        gs.winner = playerIdx;
+        gs.phase = PHASE_GAME_OVER;
+        gs.landlordWon = (playerIdx == gs.landlordPlayer);
+        
+        if gs.landlordWon {
+            println("★★★ 地主(" ++ player.name ++ ")获胜! ★★★");
+        } else {
+            println("★★★ 农民(" ++ player.name ++ ")获胜! ★★★");
+        }
+    }
+}
+
+// 从玩家选中卡牌生成组合
+fn buildGroupFromSelection(gs: &GameState, selected: [i32], selCount: i32) -> CardGroup {
+    if selCount == 0 {
+        return createCardGroup();
+    }
+    
+    var cards: [Card] = [];
+    for i in 0..selCount {
+        cards[i] = cardFromValue(selected[i]);
+    }
+    
+    return evaluateGroup(cards, selCount);
+}
+
+// 检查玩家选中的牌能否打过上次的牌
+fn canPlayerBeatLast(gs: &GameState, selected: [i32], selCount: i32) -> bool {
+    var group = buildGroupFromSelection(gs, selected, selCount);
+    return canBeat(group, gs.lastPlayGroup);
+}

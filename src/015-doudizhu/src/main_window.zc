@@ -1,0 +1,868 @@
+// main_window.zc - 斗地主游戏主程序 (Zen-C Windows版)
+// 经典斗地主: 玩家 vs 电脑AI
+
+import std.io;
+import std.string;
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 游戏常量 ====================
+
+const WINDOW_WIDTH = 900;
+const WINDOW_HEIGHT = 700;
+const TITLE = "斗地主 v1.0";
+
+// 卡牌尺寸
+const CARD_WIDTH = 60;
+const CARD_HEIGHT = 85;
+const CARD_H_GAP = 5;  // 水平间距
+
+// 玩家手牌区域
+const PLAYER_CARD_Y = 520;
+const PLAYER_CARD_START_X = 50;
+
+// 玩家出牌区域
+const PLAYER_PLAY_Y = 430;
+
+// 电脑1区域 (左侧)
+const CPU1_CARD_X = 20;
+const CPU1_CARD_Y = 200;
+const CPU1_CARD_GAP = 20;
+
+// 电脑2区域 (右侧)
+const CPU2_CARD_X = 700;
+const CPU2_CARD_Y = 200;
+const CPU2_CARD_GAP = 20;
+
+// 地主牌显示
+const LANDLORD_CARD_X = 380;
+const LANDLORD_CARD_Y = 10;
+
+// 中央出牌区域
+const CENTER_PLAY_X = 350;
+const CENTER_PLAY_Y = 300;
+
+// 叫分按钮
+const BID_BUTTON_Y = 420;
+const BID_PASS_X = 600;
+const BID1_X = 650;
+const BID2_X = 720;
+const BID3_X = 790;
+
+// ==================== 颜色定义 ====================
+
+const C_BG = rgb(0, 100, 50);           // 桌面背景-绿色
+const C_TABLE = rgb(0, 80, 40);         // 牌桌颜色
+const C_CARD_BACK = rgb(30, 80, 200);   // 卡牌背面
+const C_CARD_FRONT = rgb(255, 255, 255); // 卡牌正面
+const C_CARD_SELECTED = rgb(255, 220, 0); // 选中高亮
+const C_TEXT = rgb(255, 255, 255);       // 白色文字
+const C_LANDLORD = rgb(255, 50, 50);    // 地主标记红色
+const C_PASS = rgb(200, 200, 200);      // 过-灰色
+const C_BUTTON = rgb(50, 150, 250);     // 按钮背景
+const C_BUTTON_TEXT = rgb(255, 255, 255);
+const C_PANEL = argb(200, 20, 60, 40);  // 信息面板背景
+
+// ==================== 游戏状态变量 ====================
+
+static mut g_game: GameState;
+static mut g_window: WindowHandle;
+static mut g_running: bool = true;
+static mut g_selected: [i32] = [];  // 玩家选中的卡牌
+static mut g_selectedCount: i32 = 0;
+static mut g_bidChoice: i32 = 0;     // 0=未选, 1-3=叫分, -1=跳过
+static mut g_lastCpuPlay: CardGroup; // 上次cpu出的牌
+static mut g_cpu1LastPlay: CardGroup;
+static mut g_cpu2LastPlay: CardGroup;
+static mut g_keySpaceHeld: bool = false;
+static mut g_keySpaceHandled: bool = false;
+static mut g_phaseText: str = "";
+static mut g_actionTimer: i32 = 0;  // CPU动作延迟计时
+
+// ==================== 鼠标悬停检测区域 ====================
+
+struct CardRect {
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
+    value: i32,
+}
+
+// ==================== 工具函数 ====================
+
+fn absVal(n: i32) -> i32 {
+    return if n < 0 { -n } else { n };
+}
+
+fn clamp(v: i32, minVal: i32, maxVal: i32) -> i32 {
+    return if v < minVal { minVal } else if v > maxVal { maxVal } else { v };
+}
+
+fn intToStr(n: i32) -> str {
+    if n == 0 { return "0"; }
+    if n == 1 { return "1"; }
+    if n == 2 { return "2"; }
+    if n == 3 { return "3"; }
+    return "?";
+}
+
+// ==================== 绘图函数 ====================
+
+// 绘制卡牌
+fn drawCard(ctx: GraphicsContext, x: i32, y: i32, cardValue: i32, selected: bool, faceUp: bool) {
+    // 卡牌边框
+    var borderColor = C_CARD_FRONT;
+    if selected {
+        borderColor = C_CARD_SELECTED;
+    }
+    
+    // 选中时上移
+    var drawY = y;
+    if selected {
+        drawY = y - 20;
+    }
+    
+    // 绘制卡牌背景
+    if faceUp {
+        draw_round_rect(ctx, x, drawY, CARD_WIDTH, CARD_HEIGHT, C_CARD_FRONT);
+        // 绘制卡牌内容
+        drawCardFace(ctx, x, drawY, cardValue);
+    } else {
+        // 背面
+        draw_round_rect(ctx, x, drawY, CARD_WIDTH, CARD_HEIGHT, C_CARD_BACK);
+        // 绘制背面花纹
+        drawCardBackPattern(ctx, x, drawY);
+    }
+    
+    // 选中高亮边框
+    if selected {
+        draw_rect(ctx, x, drawY, CARD_WIDTH, CARD_HEIGHT, C_CARD_SELECTED);
+    }
+}
+
+// 绘制卡牌正面
+fn drawCardFace(ctx: GraphicsContext, x: i32, y: i32, cardValue: i32) {
+    var card = cardFromValue(cardValue);
+    
+    var color: Color;
+    if card.suit == SUIT_HEARTS || card.suit == SUIT_DIAMONDS {
+        color = rgb(220, 30, 30);  // 红色
+    } else if card.suit == SUIT_SMALL_JOKER {
+        color = rgb(100, 100, 100); // 小王灰
+    } else if card.suit == SUIT_BIG_JOKER {
+        color = rgb(255, 200, 0);   // 大王金
+    } else {
+        color = rgb(30, 30, 30);    // 黑色
+    }
+    
+    // 绘制点数
+    var rankStr = "";
+    match card.rank {
+        3 => rankStr = "3",
+        4 => rankStr = "4",
+        5 => rankStr = "5",
+        6 => rankStr = "6",
+        7 => rankStr = "7",
+        8 => rankStr = "8",
+        9 => rankStr = "9",
+        10 => rankStr = "10",
+        11 => rankStr = "J",
+        12 => rankStr = "Q",
+        13 => rankStr = "K",
+        14 => rankStr = "A",
+        15 => rankStr = "2",
+        16 => rankStr = "joker",
+        17 => rankStr = "JOKER",
+        _ => rankStr = "?",
+    }
+    
+    // 花色符号
+    var suitStr = "";
+    match card.suit {
+        SUIT_SPADES => suitStr = "♠",
+        SUIT_HEARTS => suitStr = "♥",
+        SUIT_CLUBS => suitStr = "♣",
+        SUIT_DIAMONDS => suitStr = "♦",
+        SUIT_SMALL_JOKER => suitStr = "j",
+        SUIT_BIG_JOKER => suitStr = "J",
+        _ => suitStr = "?",
+    }
+    
+    // 绘制点数(左上角)
+    var textColor = color;
+    if card.suit == SUIT_SMALL_JOKER {
+        textColor = rgb(80, 80, 80);
+    } else if card.suit == SUIT_BIG_JOKER {
+        textColor = rgb(200, 150, 0);
+    }
+    
+    draw_text(ctx, x + 5, y + 5, rankStr, textColor);
+    
+    // 绘制花色(中间)
+    draw_text(ctx, x + CARD_WIDTH/2 - 5, y + CARD_HEIGHT/2 - 10, suitStr, color);
+    
+    // 绘制花色(右下角)
+    draw_text(ctx, x + CARD_WIDTH - 15, y + CARD_HEIGHT - 20, suitStr, color);
+}
+
+// 绘制卡牌背面花纹
+fn drawCardBackPattern(ctx: GraphicsContext, x: i32, y: i32) {
+    // 简单的背面样式
+    var patternColor = rgb(50, 100, 255);
+    // 中心圆
+    draw_circle(ctx, x + CARD_WIDTH/2, y + CARD_HEIGHT/2, 15, patternColor);
+    // 十字
+    draw_line(ctx, x + CARD_WIDTH/2, y + 10, x + CARD_WIDTH/2, y + CARD_HEIGHT - 10, patternColor);
+    draw_line(ctx, x + 10, y + CARD_HEIGHT/2, x + CARD_WIDTH - 10, y + CARD_HEIGHT/2, patternColor);
+}
+
+// 绘制玩家手牌
+fn drawPlayerCards(ctx: GraphicsContext, gs: &GameState) {
+    var startX = PLAYER_CARD_START_X;
+    var cardCount = gs.player.cardCount;
+    
+    // 计算总宽度，居中显示
+    var totalWidth = cardCount * (CARD_WIDTH + CARD_H_GAP) - CARD_H_GAP;
+    startX = (WINDOW_WIDTH - totalWidth) / 2;
+    if startX < 20 { startX = 20; }
+    
+    for i in 0..cardCount {
+        var cardX = startX + i * (CARD_WIDTH + CARD_H_GAP);
+        var isSelected = false;
+        
+        for j in 0..g_selectedCount {
+            if g_selected[j] == gs.player.cards[i] {
+                isSelected = true;
+                break;
+            }
+        }
+        
+        drawCard(ctx, cardX, PLAYER_CARD_Y, gs.player.cards[i], isSelected, true);
+    }
+}
+
+// 绘制CPU手牌(背面)
+fn drawCpuCards(ctx: GraphicsContext, gs: &GameState, cpuIdx: i32) {
+    var player: &Player;
+    var startX: i32;
+    
+    if cpuIdx == 1 {
+        player = &gs.cpu1;
+        startX = CPU1_CARD_X;
+    } else {
+        player = &gs.cpu2;
+        startX = CPU2_CARD_X;
+    }
+    
+    // 绘制卡牌背面
+    for i in 0..player.cardCount {
+        var x = startX;
+        var y = CPU1_CARD_Y;
+        
+        if cpuIdx == 2 {
+            y = CPU2_CARD_Y;
+        }
+        
+        var offsetX = i * CPU1_CARD_GAP;
+        drawCard(ctx, x + offsetX, y, 0, false, false);
+    }
+    
+    // 显示数量
+    var nameX = startX;
+    var nameY = CPU1_CARD_Y - 25;
+    if cpuIdx == 2 {
+        nameY = CPU2_CARD_Y - 25;
+    }
+    
+    var label = player.name;
+    if player.isLandlord {
+        label = label ++ " [地主]";
+    }
+    label = label ++ " (" ++ player.cardCount.to_string() ++ "张)";
+    
+    draw_text(ctx, nameX, nameY, label, C_TEXT);
+}
+
+// 绘制地主牌
+fn drawLandlordCards(ctx: GraphicsContext, gs: &GameState) {
+    // 显示谁是地主
+    var landlordName = "等待叫地主...";
+    if gs.phase == PHASE_PLAYING {
+        var landlord = getPlayer(gs, gs.landlordPlayer);
+        landlordName = "地主: " ++ landlord.name;
+    }
+    
+    draw_text(ctx, LANDLORD_CARD_X, LANDLORD_CARD_Y, landlordName, C_LANDLORD);
+    
+    // 绘制三张底牌
+    if gs.phase == PHASE_PLAYING || gs.phase == PHASE_GAME_OVER {
+        for i in 0..3 {
+            var x = LANDLORD_CARD_X + i * (CARD_WIDTH + 10);
+            var y = LANDLORD_CARD_Y + 25;
+            drawCard(ctx, x, y, gs.landlordCards[i], false, true);
+        }
+    }
+}
+
+// 绘制中央出牌区
+fn drawCenterPlayArea(ctx: GraphicsContext, gs: &GameState) {
+    // 当前出牌玩家
+    var label = "等待出牌...";
+    if gs.phase == PHASE_PLAYING {
+        var current = getPlayer(gs, gs.currentPlayer);
+        label = "出牌: " ++ current.name;
+    }
+    
+    draw_text(ctx, CENTER_PLAY_X, CENTER_PLAY_Y - 30, label, C_TEXT);
+    
+    // 显示上次出的牌
+    if gs.lastPlayGroup.cardType != CT_INVALID {
+        var lastPlayer = getPlayer(gs, gs.lastPlayPlayer);
+        var cardNames = "";
+        for i in 0..gs.lastPlayGroup.count {
+            cardNames = cardNames ++ getCardName(gs.lastPlayGroup.cards[i]) ++ " ";
+        }
+        
+        var cardX = CENTER_PLAY_X;
+        var cardY = CENTER_PLAY_Y;
+        
+        // 如果是玩家出的，显示正面；否则显示背面
+        var faceUp = (gs.lastPlayPlayer == 0);
+        
+        for i in 0..gs.lastPlayGroup.count {
+            drawCard(ctx, cardX + i * (CARD_WIDTH/2 + 2), cardY,
+                    gs.lastPlayGroup.cards[i].value, false, faceUp);
+        }
+    }
+}
+
+// 绘制叫分按钮
+fn drawBidUI(ctx: GraphicsContext, gs: &GameState) {
+    if gs.phase != PHASE_BIDDING {
+        return;
+    }
+    
+    // 显示当前叫分状态
+    var statusText = "当前最高: ";
+    if gs.highestBid == 0 {
+        statusText = statusText ++ "无人叫分";
+    } else {
+        var highest = getPlayer(gs, gs.highestBidder);
+        statusText = statusText ++ highest.name ++ " 叫 " ++ gs.highestBid.to_string() ++ " 分";
+    }
+    
+    draw_text(ctx, 300, 350, statusText, C_TEXT);
+    
+    // 地主牌提示
+    draw_text(ctx, 300, 370, "底牌: ", C_TEXT);
+    for i in 0..3 {
+        drawCard(ctx, 350 + i * 35, 365, gs.landlordCards[i], false, false);
+    }
+    
+    // 如果是玩家叫分，显示按钮
+    if gs.currentBidder == 0 {
+        var currentPlayer = getPlayer(gs, 0);
+        var prompt = currentPlayer.name ++ ", 请叫分:";
+        draw_text(ctx, BID_BUTTON_Y, BID_BUTTON_Y - 30, prompt, C_TEXT);
+        
+        // 不叫按钮
+        draw_rect(ctx, BID_PASS_X, BID_BUTTON_Y, 60, 35, C_PASS);
+        draw_text(ctx, BID_PASS_X + 10, BID_BUTTON_Y + 8, "不叫", C_TEXT);
+        
+        // 叫1分
+        if gs.highestBid < 1 {
+            draw_rect(ctx, BID1_X, BID_BUTTON_Y, 60, 35, C_BUTTON);
+            draw_text(ctx, BID1_X + 10, BID_BUTTON_Y + 8, "1分", C_BUTTON_TEXT);
+        }
+        
+        // 叫2分
+        if gs.highestBid < 2 {
+            draw_rect(ctx, BID2_X, BID_BUTTON_Y, 60, 35, C_BUTTON);
+            draw_text(ctx, BID2_X + 10, BID_BUTTON_Y + 8, "2分", C_BUTTON_TEXT);
+        }
+        
+        // 叫3分
+        if gs.highestBid < 3 {
+            draw_rect(ctx, BID3_X, BID_BUTTON_Y, 60, 35, C_BUTTON);
+            draw_text(ctx, BID3_X + 10, BID_BUTTON_Y + 8, "3分", C_BUTTON_TEXT);
+        }
+    } else {
+        var current = getPlayer(gs, gs.currentBidder);
+        draw_text(ctx, 300, BID_BUTTON_Y, current.name ++ " 正在叫分...", C_TEXT);
+    }
+}
+
+// 绘制玩家出牌提示
+fn drawPlayHint(ctx: GraphicsContext, gs: &GameState) {
+    if gs.phase != PHASE_PLAYING {
+        return;
+    }
+    
+    if gs.currentPlayer == 0 {
+        // 玩家出牌
+        if gs.lastPlayPlayer != 0 {
+            // 跟牌模式
+            if gs.lastPlayGroup.cardType != CT_INVALID {
+                var lastPlayer = getPlayer(gs, gs.lastPlayPlayer);
+                draw_text(ctx, 300, PLAYER_PLAY_Y - 10,
+                    "跟牌 - " ++ lastPlayer.name ++ " 出: " ++ cardTypeToString(gs.lastPlayGroup.cardType),
+                    C_TEXT);
+            }
+            
+            // 提示选中牌能否打过
+            if g_selectedCount > 0 {
+                var group = buildGroupFromSelection(gs, g_selected, g_selectedCount);
+                if canBeat(group, gs.lastPlayGroup) {
+                    draw_text(ctx, 300, PLAYER_PLAY_Y + 15, "✓ 可以打过", rgb(0, 255, 0));
+                } else {
+                    draw_text(ctx, 300, PLAYER_PLAY_Y + 15, "✗ 无法打过", rgb(255, 100, 100));
+                }
+            }
+        } else {
+            // 主动出牌
+            draw_text(ctx, 300, PLAYER_PLAY_Y - 10, "选择牌后按【空格】出牌", C_TEXT);
+        }
+        
+        // 提示按空格出牌
+        draw_text(ctx, 300, PLAYER_PLAY_Y + 40, "[空格]=出牌  [Q]=过", C_TEXT);
+        
+    } else {
+        // CPU正在出牌
+        var current = getPlayer(gs, gs.currentPlayer);
+        draw_text(ctx, 300, PLAYER_PLAY_Y, current.name ++ " 正在出牌...", C_TEXT);
+    }
+}
+
+// 绘制游戏结束信息
+fn drawGameOver(ctx: GraphicsContext, gs: &GameState) {
+    if gs.phase != PHASE_GAME_OVER {
+        return;
+    }
+    
+    var resultText = "";
+    if gs.landlordWon {
+        resultText = "★★★ 地主获胜! ★★★";
+    } else {
+        resultText = "★★★ 农民获胜! ★★★";
+    }
+    
+    // 大字显示
+    draw_rect(ctx, 200, 250, 500, 80, argb(220, 0, 0, 0));
+    draw_text(ctx, 220, 260, resultText, rgb(255, 255, 0));
+    
+    // 重新开始提示
+    draw_text(ctx, 320, 350, "按【R】重新开始", C_TEXT);
+}
+
+// 绘制游戏标题和基本信息
+fn drawInfo(ctx: GraphicsContext, gs: &GameState) {
+    var title = "斗地主 v1.0";
+    draw_text(ctx, 10, 10, title, C_TEXT);
+    
+    // 地主信息
+    if gs.landlordPlayer >= 0 {
+        var landlord = getPlayer(gs, gs.landlordPlayer);
+        var info = "地主: " ++ landlord.name;
+        draw_text(ctx, 700, 10, info, C_LANDLORD);
+    }
+    
+    // 叫分
+    if gs.phase == PHASE_BIDDING {
+        draw_text(ctx, 700, 35, "叫分: " ++ gs.highestBid.to_string(), C_TEXT);
+    }
+}
+
+// ==================== 辅助函数 ====================
+
+fn cardTypeToString(ct: i32) -> str {
+    match ct {
+        CT_SINGLE => return "单张",
+        CT_PAIR => return "对子",
+        CT_TRIPLE => return "三张",
+        CT_TRIPLE_ONE => return "三带一",
+        CT_TRIPLE_TWO => return "三带一对",
+        CT_STRAIGHT => return "顺子",
+        CT_STRAIGHT_PAIR => return "连对",
+        CT_STRAIGHT_TRIPLE => return "飞机",
+        CT_BOMB => return "炸弹",
+        CT_ROCKET => return "王炸",
+        CT_QUAD_TWO => return "四带二",
+        CT_QUAD_TWO_PAIR => return "四带两对",
+        _ => return "无效",
+    }
+}
+
+// ==================== 鼠标点击检测 ====================
+
+fn handleCardClick(x: i32, y: i32, gs: &GameState) {
+    if gs.phase != PHASE_PLAYING || gs.currentPlayer != 0 {
+        return;
+    }
+    
+    var cardCount = gs.player.cardCount;
+    var totalWidth = cardCount * (CARD_WIDTH + CARD_H_GAP) - CARD_H_GAP;
+    var startX = (WINDOW_WIDTH - totalWidth) / 2;
+    if startX < 20 { startX = 20; }
+    
+    // 检查点击了哪张卡
+    for i in 0..cardCount {
+        var cardX = startX + i * (CARD_WIDTH + CARD_H_GAP);
+        
+        if x >= cardX && x <= cardX + CARD_WIDTH &&
+           y >= PLAYER_CARD_Y && y <= PLAYER_CARD_Y + CARD_HEIGHT {
+            
+            var cardVal = gs.player.cards[i];
+            
+            // 切换选中状态
+            var found = false;
+            for j in 0..g_selectedCount {
+                if g_selected[j] == cardVal {
+                    // 取消选中
+                    for k in j..(g_selectedCount-1) {
+                        g_selected[k] = g_selected[k+1];
+                    }
+                    g_selectedCount = g_selectedCount - 1;
+                    found = true;
+                    break;
+                }
+            }
+            
+            if !found {
+                // 选中
+                if g_selectedCount < 20 {
+                    g_selected[g_selectedCount] = cardVal;
+                    g_selectedCount = g_selectedCount + 1;
+                }
+            }
+            break;
+        }
+    }
+}
+
+fn handleBidClick(x: i32, y: i32, gs: &mut GameState) {
+    if gs.phase != PHASE_BIDDING || gs.currentBidder != 0 {
+        return;
+    }
+    
+    // 不叫
+    if x >= BID_PASS_X && x <= BID_PASS_X + 60 &&
+       y >= BID_BUTTON_Y && y <= BID_BUTTON_Y + 35 {
+        g_bidChoice = -1;
+        doBid(gs, 0, 0);
+        g_bidChoice = 0;
+        return;
+    }
+    
+    // 叫1分
+    if gs.highestBid < 1 && x >= BID1_X && x <= BID1_X + 60 &&
+       y >= BID_BUTTON_Y && y <= BID_BUTTON_Y + 35 {
+        g_bidChoice = 1;
+        doBid(gs, 0, 1);
+        g_bidChoice = 0;
+        return;
+    }
+    
+    // 叫2分
+    if gs.highestBid < 2 && x >= BID2_X && x <= BID2_X + 60 &&
+       y >= BID_BUTTON_Y && y <= BID_BUTTON_Y + 35 {
+        g_bidChoice = 2;
+        doBid(gs, 0, 2);
+        g_bidChoice = 0;
+        return;
+    }
+    
+    // 叫3分
+    if gs.highestBid < 3 && x >= BID3_X && x <= BID3_X + 60 &&
+       y >= BID_BUTTON_Y && y <= BID_BUTTON_Y + 35 {
+        g_bidChoice = 3;
+        doBid(gs, 0, 3);
+        g_bidChoice = 0;
+        return;
+    }
+}
+
+// 处理空格键出牌
+fn handleSpaceKey(gs: &mut GameState) {
+    if gs.phase != PHASE_PLAYING || gs.currentPlayer != 0 {
+        return;
+    }
+    
+    if g_selectedCount == 0 {
+        return;
+    }
+    
+    var group = buildGroupFromSelection(gs, g_selected, g_selectedCount);
+    
+    if group.cardType == CT_INVALID {
+        return;
+    }
+    
+    // 检查能否打过上次的牌
+    if gs.lastPlayPlayer != 0 && gs.lastPlayGroup.cardType != CT_INVALID {
+        if !canBeat(group, gs.lastPlayGroup) {
+            return; // 打不过
+        }
+    }
+    
+    // 出牌
+    playCards(gs, 0, group);
+    
+    // 清空选中
+    g_selectedCount = 0;
+}
+
+// 处理Q键过
+fn handlePassKey(gs: &mut GameState) {
+    if gs.phase != PHASE_PLAYING || gs.currentPlayer != 0 {
+        return;
+    }
+    
+    // 如果是跟牌，可以过
+    if gs.lastPlayPlayer != 0 {
+        var passGroup = createCardGroup();
+        playCards(gs, 0, passGroup);
+        g_selectedCount = 0;
+    }
+}
+
+// ==================== 游戏重置 ====================
+
+fn resetGame() {
+    g_game = createGameState();
+    dealCards(&g_game);
+    sortPlayerCards(&g_game);
+    g_game.phase = PHASE_BIDDING;
+    g_game.currentBidder = 0;
+    g_game.highestBid = 0;
+    g_game.highestBidder = -1;
+    g_game.bidPassed = [false, false, false];
+    g_selectedCount = 0;
+    g_lastCpuPlay = createCardGroup();
+    g_cpu1LastPlay = createCardGroup();
+    g_cpu2LastPlay = createCardGroup();
+    g_phaseText = "叫地主阶段";
+    g_actionTimer = 0;
+    
+    println("========== 新游戏开始 ==========");
+    println("发牌完成，等待叫地主...");
+}
+
+// ==================== CPU自动行动 ====================
+
+fn updateCpuAction(gs: &mut GameState, dt: i32) {
+    if gs.phase == PHASE_BIDDING {
+        // CPU叫分
+        if gs.currentBidder != 0 {
+            g_actionTimer = g_actionTimer + dt;
+            if g_actionTimer > 1000 {  // 1秒延迟
+                var bid = aiBid(gs, gs.currentBidder);
+                if bid > 0 {
+                    doBid(gs, gs.currentBidder, bid);
+                } else {
+                    // 不叫
+                    gs.bidPassed[gs.currentBidder] = true;
+                    gs.roundCount = gs.roundCount + 1;
+                    
+                    // 检查是否都跳过
+                    var allPassed = true;
+                    for i in 0..3 {
+                        if !gs.bidPassed[i] && gs.highestBid == 0 {
+                            allPassed = false;
+                            break;
+                        }
+                    }
+                    
+                    if allPassed && gs.highestBid == 0 {
+                        // 重新发牌
+                        resetGame();
+                        return;
+                    }
+                    
+                    if gs.highestBid > 0 && gs.bidPassed[0] && gs.bidPassed[1] && gs.bidPassed[2] {
+                        // 叫分结束
+                        if gs.highestBidder == -1 {
+                            gs.highestBidder = 0;
+                            gs.highestBid = 1;
+                        }
+                        
+                        gs.landlordPlayer = gs.highestBidder;
+                        gs.landlordBid = gs.highestBid;
+                        
+                        var landlord = getPlayer(gs, gs.landlordPlayer);
+                        landlord.isLandlord = true;
+                        
+                        for i in 0..3 {
+                            landlord.cards[landlord.cardCount] = gs.landlordCards[i];
+                            landlord.cardCount = landlord.cardCount + 1;
+                        }
+                        
+                        sortPlayerCards(gs);
+                        
+                        gs.phase = PHASE_PLAYING;
+                        gs.currentPlayer = gs.landlordPlayer;
+                        gs.roundCount = 0;
+                        g_phaseText = "出牌阶段";
+                        
+                        println("地主: " ++ landlord.name ++ ", 叫分: " ++ gs.landlordBid.to_string());
+                    } else {
+                        gs.currentBidder = (gs.currentBidder + 1) % 3;
+                    }
+                }
+                g_actionTimer = 0;
+            }
+        }
+    } else if gs.phase == PHASE_PLAYING {
+        // CPU出牌
+        if gs.currentPlayer != 0 {
+            g_actionTimer = g_actionTimer + dt;
+            if g_actionTimer > 800 {  // 0.8秒延迟
+                var cpuGroup = aiPlay(gs, gs.currentPlayer);
+                playCards(gs, gs.currentPlayer, cpuGroup);
+                g_actionTimer = 0;
+            }
+        }
+    }
+}
+
+// ==================== 事件处理 ====================
+
+fn processInput() {
+    var event = Event.{};
+    
+    while pollEvent(g_window, &event) {
+        match event.msg {
+            EventType.EventKeyDown => {
+                match event.key {
+                    VirtualKey.Space => {
+                        if !g_keySpaceHeld {
+                            g_keySpaceHeld = true;
+                            handleSpaceKey(&g_game);
+                        }
+                    }
+                    VirtualKey.KeyQ => {
+                        handlePassKey(&g_game);
+                    }
+                    VirtualKey.KeyR => {
+                        if g_game.phase == PHASE_GAME_OVER {
+                            resetGame();
+                        }
+                    }
+                    VirtualKey.Escape => {
+                        g_running = false;
+                    }
+                    _ => {}
+                }
+            }
+            EventType.EventKeyUp => {
+                if event.key == VirtualKey.Space {
+                    g_keySpaceHeld = false;
+                }
+            }
+            EventType.EventMouseDown => {
+                if event.button == MouseButton.Left {
+                    handleCardClick(event.mouse_x, event.mouse_y, &g_game);
+                    handleBidClick(event.mouse_x, event.mouse_y, &g_game);
+                }
+            }
+            EventType.EventWindowClose => {
+                g_running = false;
+            }
+            _ => {}
+        }
+    }
+}
+
+// ==================== 主渲染函数 ====================
+
+fn render() {
+    var ctx = getBackBuffer();
+    
+    // 清屏
+    clear_screen(ctx, C_BG);
+    
+    // 绘制牌桌
+    draw_rect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, C_TABLE);
+    
+    // 绘制信息
+    drawInfo(ctx, &g_game);
+    
+    // 绘制地主牌
+    drawLandlordCards(ctx, &g_game);
+    
+    // 绘制CPU手牌(背面)
+    drawCpuCards(ctx, &g_game, 1);
+    drawCpuCards(ctx, &g_game, 2);
+    
+    // 绘制中央出牌区
+    drawCenterPlayArea(ctx, &g_game);
+    
+    // 绘制叫分UI
+    drawBidUI(ctx, &g_game);
+    
+    // 绘制出牌提示
+    drawPlayHint(ctx, &g_game);
+    
+    // 绘制玩家手牌
+    drawPlayerCards(ctx, &g_game);
+    
+    // 绘制游戏结束
+    drawGameOver(ctx, &g_game);
+    
+    // 显示画面
+    presentFrame(g_window);
+}
+
+// ==================== 主循环 ====================
+
+fn gameLoop() {
+    var lastTime = 0;
+    
+    while g_running {
+        // 处理输入
+        processInput();
+        
+        // CPU自动行动
+        updateCpuAction(&mut g_game, 16);
+        
+        // 渲染
+        render();
+        
+        // 帧率控制
+        sleep(16);
+    }
+}
+
+// ==================== 入口 ====================
+
+pub fn main() {
+    println("========================================");
+    println("  斗地主 v1.0");
+    println("  Zen-C + 003-framework");
+    println("========================================");
+    
+    // 初始化
+    initPlatform();
+    
+    // 创建窗口
+    g_window = createWindow(TITLE, WINDOW_WIDTH, WINDOW_HEIGHT);
+    if g_window == null {
+        println("错误: 无法创建窗口");
+        shutdownPlatform();
+        return;
+    }
+    
+    // 初始化随机数
+    setRandomSeed(12345);
+    
+    // 重置游戏
+    resetGame();
+    
+    // 进入主循环
+    gameLoop();
+    
+    // 清理
+    shutdownPlatform();
+    
+    println("游戏结束，感谢游玩!");
+}

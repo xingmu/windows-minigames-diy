@@ -1,0 +1,9 @@
+# Zen-C 斗地主 .gitignore
+build/
+*.exe
+*.o
+*.obj
+*.dll
+*.exe.stackdump
+*.log
+.DS_Store
