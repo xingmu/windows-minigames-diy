@@ -1,0 +1,328 @@
+// game_logic.zc - 纯Zen-C游戏逻辑模块
+// 汉诺塔游戏逻辑
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const MAX_DISKS: i32 = 8;
+const MIN_DISKS: i32 = 3;
+const DEFAULT_DISKS: i32 = 5;
+const MAX_PEGS: i32 = 3;
+
+// ==================== 数据结构 ====================
+
+// 杆子结构
+struct Peg {
+    disks: [MAX_DISKS]i32,  // 存储每层盘子的大小 (0表示空)
+    count: i32              // 盘子在杆子上的数量
+}
+
+// 游戏状态
+struct GameState {
+    pegs: [MAX_PEGS]Peg,
+    selected_peg: i32,       // 当前选中的杆子 (-1表示无)
+    disk_count: i32,        // 盘子数量
+    move_count: i32,        // 移动次数
+    game_over: bool,         // 游戏是否胜利
+    paused: bool,
+    min_moves: i32,          // 最少移动次数
+    window_width: i32,
+    window_height: i32,
+    animation_disk: i32,      // 动画中的盘子 (-1表示无动画)
+    animation_from: i32,     // 动画起始杆
+    animation_to: i32,       // 动画目标杆
+    animation_progress: f32   // 动画进度 0.0-1.0
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 计算最少移动次数
+fn calculate_min_moves(n: i32) -> i32 {
+    if n <= 0 { return 0; }
+    if n == 1 { return 1; }
+    return (1 << n) - 1  // 2^n - 1
+}
+
+// 初始化游戏
+fn init_game(game: &mut GameState, disk_count: i32) {
+    // 限制盘子数量在有效范围内
+    game.disk_count = if disk_count < MIN_DISKS { MIN_DISKS } 
+                 else if disk_count > MAX_DISKS { MAX_DISKS }
+                 else { disk_count };
+    
+    // 初始化随机数种子
+    let seed = time.now().nanos();
+    math.srand(seed);
+    
+    // 初始化所有杆子为空
+    for p in 0..MAX_PEGS {
+        game.pegs[p].count = 0;
+        for d in 0..MAX_DISKS {
+            game.pegs[p].disks[d] = 0;
+        }
+    }
+    
+    // 在第一个杆子上放置所有盘子 (大盘子在下面)
+    for i in 0..game.disk_count {
+        game.pegs[0].disks[i] = game.disk_count - i;  // 1=最小盘, disk_count=最大盘
+        game.pegs[0].count = game.disk_count;
+    }
+    
+    // 初始化游戏状态
+    game.selected_peg = -1;
+    game.move_count = 0;
+    game.game_over = false;
+    game.paused = false;
+    game.min_moves = calculate_min_moves(game.disk_count);
+    
+    // 动画状态
+    game.animation_disk = -1;
+    game.animation_from = -1;
+    game.animation_to = -1;
+    game.animation_progress = 0.0f;
+}
+
+// 重新开始游戏
+fn restart_game(game: &mut GameState) {
+    init_game(game, game.disk_count);
+}
+
+// 获取指定杆子顶部的盘子
+fn get_top_disk(game: &GameState, peg_index: i32) -> i32 {
+    if peg_index < 0 || peg_index >= MAX_PEGS {
+        return 0;
+    }
+    if game.pegs[peg_index].count <= 0 {
+        return 0;
+    }
+    return game.pegs[peg_index].disks[game.pegs[peg_index].count - 1];
+}
+
+// 检查是否可以移动
+fn can_move(game: &GameState, from_peg: i32, to_peg: i32) -> bool {
+    if from_peg < 0 || from_peg >= MAX_PEGS || to_peg < 0 || to_peg >= MAX_PEGS {
+        return false;
+    }
+    if from_peg == to_peg {
+        return false;
+    }
+    if game.pegs[from_peg].count <= 0 {
+        return false;  // 源杆为空
+    }
+    if game.pegs[to_peg].count >= MAX_DISKS {
+        return false;  // 目标杆已满
+    }
+    
+    // 检查目标杆顶部盘子是否比要移动的盘子大
+    let moving_disk = get_top_disk(game, from_peg);
+    let target_top = get_top_disk(game, to_peg);
+    
+    if target_top != 0 && target_top < moving_disk {
+        return false;  // 不能把大盘子放在小盘子上面
+    }
+    
+    return true;
+}
+
+// 执行移动
+fn execute_move(game: &mut GameState, from_peg: i32, to_peg: i32) -> bool {
+    if !can_move(game, from_peg, to_peg) {
+        return false;
+    }
+    
+    // 从源杆取出盘子
+    let disk = game.pegs[from_peg].disks[game.pegs[from_peg].count - 1];
+    game.pegs[from_peg].count -= 1;
+    game.pegs[from_peg].disks[game.pegs[from_peg].count] = 0;
+    
+    // 放到目标杆
+    game.pegs[to_peg].disks[game.pegs[to_peg].count] = disk;
+    game.pegs[to_peg].count += 1;
+    
+    game.move_count += 1;
+    
+    // 检查是否胜利
+    if game.pegs[2].count == game.disk_count {
+        game.game_over = true;
+    }
+    
+    return true;
+}
+
+// 处理输入
+fn handle_input(game: &mut GameState, key: i32) -> bool {
+    if game.game_over {
+        // 游戏结束后只响应重新开始
+        match key {
+            82 | 114 => { // R, r
+                restart_game(game);
+                return true;
+            },
+            _ => {}
+        }
+        return true;
+    }
+    
+    match key {
+        // 左方向 - 选择左边的杆子
+        37 | 65 | 97 => { // 左箭头, A, a
+            if game.selected_peg < 0 {
+                game.selected_peg = 0;
+            } else if game.selected_peg > 0 {
+                game.selected_peg -= 1;
+            }
+        },
+        
+        // 右方向 - 选择右边的杆子
+        39 | 68 | 100 => { // 右箭头, D, d
+            if game.selected_peg < 0 {
+                game.selected_peg = 0;
+            } else if game.selected_peg < MAX_PEGS - 1 {
+                game.selected_peg += 1;
+            }
+        },
+        
+        // 上方向/空格/回车 - 移动盘子
+        38 | 87 | 119 | 32 | 13 => { // 上箭头, W, w, 空格, 回车
+            if game.selected_peg < 0 {
+                game.selected_peg = 0;
+            } else {
+                // 尝试执行移动
+                // 如果没有选中源杆，选中它
+                // 否则尝试移动到目标杆
+                if game.selected_peg >= 0 {
+                    // 找到另一个可用的杆子作为目标
+                    let from = game.selected_peg;
+                    let mut to = -1;
+                    
+                    // 优先选择能移动的方向
+                    for t in 0..MAX_PEGS {
+                        if t != from && can_move(game, from, t) {
+                            to = t;
+                            break;
+                        }
+                    }
+                    
+                    if to >= 0 {
+                        execute_move(game, from, to);
+                    }
+                }
+            }
+        },
+        
+        // 数字键 1-3 - 直接选择杆子
+        49 | 50 | 51 => { // 1, 2, 3
+            game.selected_peg = key - 49;
+        },
+        
+        // N键 - 新游戏(更多盘子)
+        78 | 110 => { // N, n
+            let new_count = game.disk_count + 1;
+            if new_count <= MAX_DISKS {
+                init_game(game, new_count);
+                return true;
+            }
+        },
+        
+        // M键 - 新游戏(更少盘子)
+        77 | 109 => { // M, m
+            let new_count = game.disk_count - 1;
+            if new_count >= MIN_DISKS {
+                init_game(game, new_count);
+                return true;
+            }
+        },
+        
+        // R键 - 重新开始
+        82 | 114 => { // R, r
+            restart_game(game);
+            return true;
+        },
+        
+        // P键 - 暂停
+        80 | 112 => { // P, p
+            game.paused = !game.paused;
+        },
+        
+        // ESC键 - 退出
+        27 => {
+            return false;
+        },
+        
+        _ => {}
+    }
+    
+    return true;
+}
+
+// 更新游戏状态 (用于动画等)
+fn update_game(game: &mut GameState) -> bool {
+    // 更新动画进度
+    if game.animation_disk >= 0 {
+        game.animation_progress += 0.1f;
+        if game.animation_progress >= 1.0f {
+            game.animation_disk = -1;
+            game.animation_progress = 0.0f;
+        }
+        return true;
+    }
+    return false;
+}
+
+// 获取杆子信息
+fn get_peg_info(game: &GameState, peg_index: i32) -> Peg {
+    if peg_index >= 0 && peg_index < MAX_PEGS {
+        game.pegs[peg_index]
+    } else {
+        Peg { disks: [0; MAX_DISKS], count: 0 }
+    }
+}
+
+// 获取杆子上指定位置的盘子
+fn get_disk_at(game: &GameState, peg_index: i32, disk_index: i32) -> i32 {
+    if peg_index >= 0 && peg_index < MAX_PEGS {
+        if disk_index >= 0 && disk_index < game.pegs[peg_index].count {
+            return game.pegs[peg_index].disks[disk_index];
+        }
+    }
+    return 0;
+}
+
+// 检查游戏是否完成
+fn is_game_won(game: &GameState) -> bool {
+    game.pegs[2].count == game.disk_count
+}
+
+// 获取游戏状态文本
+fn get_game_status_text(game: &GameState) -> string {
+    if game.game_over {
+        return "恭喜通关! 按 R 键重新开始";
+    } else if game.paused {
+        return "游戏暂停 - 按 P 继续";
+    } else if game.selected_peg < 0 {
+        return "选择杆子: 按 1/2/3 或 A/D 键";
+    } else {
+        return "按 上箭头/W/空格 移动盘子";
+    }
+}
+
+// 获取控制说明文本
+fn get_controls_text() -> string {
+    "控制: 1/2/3 或 A/D 选择杆子, 上箭头/W/空格 移动, R 重新, N/M 增减盘子"
+}
+
+// 获取分数文本
+fn get_score_text(game: &GameState) -> string {
+    if game.game_over {
+        format("移动次数: {} (最优: {})", game.move_count, game.min_moves)
+    } else {
+        format("移动: {} | 目标: {} | 盘子: {}", game.move_count, game.min_moves, game.disk_count)
+    }
+}
+
+// 获取当前选中的杆子
+fn get_selected_peg(game: &GameState) -> i32 {
+    game.selected_peg
+}

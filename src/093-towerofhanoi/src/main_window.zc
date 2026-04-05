@@ -1,0 +1,331 @@
+// main_window.zc - Zen-C窗体版本主程序
+// 汉诺塔游戏 - 所有平台使用同一份Zen-C代码
+
+import std.io;
+import std.string;
+
+// 导入游戏逻辑和平台API
+import "game_logic.zc";
+import "platform_api.zc";
+
+// ==================== 常量 ====================
+
+const WINDOW_WIDTH: i32 = 800;
+const WINDOW_HEIGHT: i32 = 600;
+const PEG_COUNT: i32 = 3;
+const BASE_Y: i32 = 450;        // 底座Y位置
+const PEG_HEIGHT: i32 = 200;    // 杆子高度
+const DISK_HEIGHT: i32 = 30;     // 盘子高度
+const MIN_DISK_WIDTH: i32 = 50;  // 最小盘子宽度
+const MAX_DISK_WIDTH: i32 = 180; // 最大盘子宽度
+
+// ==================== 颜色定义 ====================
+
+const DISK_COLORS: [8]Color = [
+    rgb(231, 76, 60),   // 红色
+    rgb(230, 126, 34),  // 橙色
+    rgb(241, 196, 15),  // 黄色
+    rgb(46, 204, 113),  // 绿色
+    rgb(52, 152, 219),  // 蓝色
+    rgb(155, 89, 182),  // 紫色
+    rgb(22, 160, 133),  // 深绿色
+    rgb(212, 80, 80)    // 深红色
+];
+
+const PEG_COLOR = rgb(139, 90, 43);      // 木头棕色
+const BASE_COLOR = rgb(101, 67, 33);    // 深棕色
+const BACKGROUND_COLOR = rgb(44, 62, 80); // 深蓝色背景
+const SELECTED_COLOR = rgb(255, 215, 0); // 金色选中
+const TEXT_COLOR = rgb(236, 240, 241);   // 浅灰色
+
+// ==================== 全局变量 ====================
+
+static mut game: GameState;
+static mut window: WindowHandle;
+
+// ==================== 绘图函数 ====================
+
+// 绘制背景
+fn draw_background(ctx: GraphicsContext) {
+    draw_rect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, BACKGROUND_COLOR);
+}
+
+// 绘制标题
+fn draw_title(ctx: GraphicsContext, y: i32) {
+    // 标题栏背景
+    draw_rect(ctx, 0, 0, WINDOW_WIDTH, 60, rgb(30, 30, 40));
+    // 标题文字（在实际实现中需要文字绘制API，这里简化为矩形装饰）
+    let title_text_x = WINDOW_WIDTH / 2 - 80;
+    draw_rect(ctx, title_text_x, 20, 160, 25, rgb(255, 215, 0));
+}
+
+// 计算杆子X位置
+fn get_peg_x(peg_index: i32, total_width: i32) -> i32 {
+    let spacing = total_width / (PEG_COUNT + 1);
+    spacing * (peg_index + 1)
+}
+
+// 绘制杆子
+fn draw_peg(ctx: GraphicsContext, x: i32, y: i32, height: i32, is_selected: bool) {
+    let peg_width = 10;
+    let base_width = 60;
+    let base_height = 15;
+    
+    // 绘制底座
+    let base_color = if is_selected { SELECTED_COLOR } else { BASE_COLOR };
+    draw_rect(ctx, x - base_width / 2, y, base_width, base_height, base_color);
+    
+    // 绘制杆子
+    let peg_color = if is_selected { rgb(255, 235, 150) } else { PEG_COLOR };
+    draw_rect(ctx, x - peg_width / 2, y - height, peg_width, height, peg_color);
+}
+
+// 绘制盘子
+fn draw_disk(ctx: GraphicsContext, x: i32, y: i32, disk_size: i32, disk_index: i32) {
+    let disk_width = MIN_DISK_WIDTH + (disk_size - 1) * ((MAX_DISK_WIDTH - MIN_DISK_WIDTH) / (game.disk_count - 1));
+    let disk_height = DISK_HEIGHT;
+    
+    // 获取颜色
+    let color = DISK_COLORS[(disk_index - 1) as i32 % 8];
+    
+    // 绘制盘子主体 (圆角矩形效果用普通矩形模拟)
+    draw_rect(ctx, x - disk_width / 2, y, disk_width, disk_height, color);
+    
+    // 绘制高光效果
+    let highlight_height = 4;
+    draw_rect(ctx, x - disk_width / 2 + 3, y + 2, disk_width - 6, highlight_height, rgb(255, 255, 255));
+}
+
+// 绘制所有盘子
+fn draw_all_disks(ctx: GraphicsContext, peg_x: i32, base_y: i32) {
+    let peg_info = get_peg_info(&game, 0);  // This won't work, need a different approach
+    
+    // 绘制每个杆子上的盘子
+    for peg in 0..PEG_COUNT {
+        let px = get_peg_x(peg, WINDOW_WIDTH);
+        let peg_info = get_peg_info(&game, peg);
+        
+        // 从下往上绘制盘子
+        for i in 0..peg_info.count {
+            let disk_size = peg_info.disks[i];
+            let disk_y = base_y - DISK_HEIGHT - i * DISK_HEIGHT;
+            draw_disk(ctx, px, disk_y, disk_size, disk_size);
+        }
+    }
+}
+
+// 绘制状态信息
+fn draw_status(ctx: GraphicsContext) {
+    // 状态面板背景
+    let panel_y = WINDOW_HEIGHT - 80;
+    draw_rect(ctx, 0, panel_y, WINDOW_WIDTH, 80, rgb(30, 30, 40));
+    
+    // 绘制分隔线
+    draw_rect(ctx, 0, panel_y, WINDOW_WIDTH, 2, rgb(100, 100, 100));
+}
+
+// 绘制杆子标签
+fn draw_peg_labels(ctx: GraphicsContext, base_y: i32) {
+    let labels = ["A", "B", "C"];
+    for peg in 0..PEG_COUNT {
+        let px = get_peg_x(peg, WINDOW_WIDTH);
+        // 标签背景
+        let label_y = base_y + 25;
+        draw_rect(ctx, px - 15, label_y, 30, 25, rgb(60, 60, 80));
+    }
+}
+
+// 绘制游戏界面
+fn draw_game(ctx: GraphicsContext) {
+    // 绘制背景
+    draw_background(ctx);
+    
+    // 绘制标题
+    draw_title(ctx, 0);
+    
+    // 计算底座Y位置
+    let base_y = BASE_Y;
+    
+    // 绘制杆子
+    for peg in 0..PEG_COUNT {
+        let px = get_peg_x(peg, WINDOW_WIDTH);
+        let is_selected = (game.selected_peg == peg);
+        draw_peg(ctx, px, base_y, PEG_HEIGHT, is_selected);
+    }
+    
+    // 绘制盘子
+    draw_all_disks(ctx, 0, base_y);
+    
+    // 绘制标签
+    draw_peg_labels(ctx, base_y);
+    
+    // 绘制状态
+    draw_status(ctx);
+    
+    // 输出信息到控制台（调试用）
+    io.println("----------------------------------------");
+    io.println(get_score_text(&game));
+    io.println(get_game_status_text(&game));
+    io.println(get_controls_text());
+    io.println("----------------------------------------");
+}
+
+// ==================== 事件处理 ====================
+
+// 处理窗口绘制事件
+fn on_paint_event(ctx: GraphicsContext) {
+    draw_game(ctx);
+}
+
+// 处理键盘事件
+fn on_key_event(key_code: i32) -> bool {
+    return handle_input(&mut game, key_code);
+}
+
+// 处理定时器事件
+fn on_timer_event() -> bool {
+    return update_game(&mut game);
+}
+
+// ==================== 平台特定窗口过程 ====================
+
+#if IS_WINDOWS
+
+// Windows常量
+const WM_PAINT: u32 = 0x000F;
+const WM_KEYDOWN: u32 = 0x0100;
+const WM_TIMER: u32 = 0x0113;
+const WM_DESTROY: u32 = 0x0002;
+
+extern "user32.dll" fn BeginPaint(hwnd: WindowHandle, lpPaint: *void) -> GraphicsContext;
+extern "user32.dll" fn EndPaint(hwnd: WindowHandle, lpPaint: *void);
+extern "user32.dll" fn GetClientRect(hwnd: WindowHandle, lpRect: *void) -> bool;
+extern "user32.dll" fn InvalidateRect(hwnd: WindowHandle, lpRect: *void, bErase: bool) -> bool;
+extern "user32.dll" fn SetTimer(hwnd: WindowHandle, nIDEvent: u32, uElapse: u32, lpTimerFunc: *void) -> u32;
+extern "user32.dll" fn KillTimer(hwnd: WindowHandle, uIDEvent: u32) -> bool;
+extern "user32.dll" fn PostQuitMessage(nExitCode: i32);
+extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32;
+
+static mut running: bool = true;
+
+fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
+    match uMsg {
+        WM_PAINT => {
+            let mut ps: [64]u8 = [0; 64];
+            let hdc = BeginPaint(hwnd, &ps);
+            on_paint_event(hdc);
+            EndPaint(hwnd, &ps);
+            return 0;
+        },
+        
+        WM_KEYDOWN => {
+            let continue_game = on_key_event(wParam as i32);
+            if !continue_game {
+                running = false;
+                PostQuitMessage(0);
+            } else {
+                InvalidateRect(hwnd, null, true);
+            }
+            return 0;
+        },
+        
+        WM_TIMER => {
+            let needs_redraw = on_timer_event();
+            if needs_redraw {
+                InvalidateRect(hwnd, null, true);
+            }
+            return 0;
+        },
+        
+        WM_DESTROY => {
+            running = false;
+            PostQuitMessage(0);
+            return 0;
+        },
+        
+        _ => {
+            return DefWindowProcA(hwnd, uMsg, wParam, lParam);
+        }
+    }
+}
+
+#elif IS_LINUX || IS_MACOS
+
+// Linux/macOS事件处理
+
+#endif
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C 汉诺塔游戏 - Tower of Hanoi");
+    io.println("========================================");
+    io.println("平台: {}", 
+        #if IS_WINDOWS
+            "Windows"
+        #elif IS_LINUX
+            "Linux"
+        #elif IS_MACOS
+            "macOS"
+        #else
+            "未知"
+        #endif
+    );
+    io.println("========================================");
+    
+    // 初始化游戏
+    game = GameState {
+        pegs: [Peg { disks: [0; MAX_DISKS], count: 0 }; MAX_PEGS],
+        selected_peg: -1,
+        disk_count: DEFAULT_DISKS,
+        move_count: 0,
+        game_over: false,
+        paused: false,
+        min_moves: 0,
+        window_width: WINDOW_WIDTH,
+        window_height: WINDOW_HEIGHT,
+        animation_disk: -1,
+        animation_from: -1,
+        animation_to: -1,
+        animation_progress: 0.0f
+    };
+    
+    init_game(&mut game);
+    
+    // 创建窗口
+    let window_title = "Zen-C 汉诺塔游戏 - Tower of Hanoi";
+    window = create_window(window_title, WINDOW_WIDTH, WINDOW_HEIGHT);
+    
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+    
+    // 显示窗口
+    show_window(window);
+    
+    // 设置游戏定时器
+    set_game_timer(window, 16);  // ~60fps
+    
+    io.println("窗口创建成功!");
+    io.println("游戏已初始化，盘子数: {}", game.disk_count);
+    io.println("目标移动次数: {}", game.min_moves);
+    io.println("使用 1/2/3 或 A/D 选择杆子");
+    io.println("使用 上箭头/W/空格 移动盘子");
+    io.println("按 ESC 退出游戏");
+    io.println("========================================");
+    
+    // 运行事件循环
+    run_event_loop(window);
+    
+    io.println("游戏结束!");
+    io.println("总移动次数: {}", game.move_count);
+    io.println("谢谢游玩 Zen-C 汉诺塔游戏!");
+    io.println("========================================");
+    
+    // 退出应用程序
+    quit_application();
+    
+    0
+}
