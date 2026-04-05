@@ -1,0 +1,683 @@
+// game_logic.zc - Badminton Game Logic
+// 088-Badminton 羽毛球游戏
+
+import std.math;
+import std.time;
+
+// ==================== Game Constants ====================
+
+const WINDOW_WIDTH: int = 800;
+const WINDOW_HEIGHT: int = 600;
+
+const COURT_TOP: int = 50;
+const COURT_BOTTOM: int = 550;
+const COURT_LEFT: int = 50;
+const COURT_RIGHT: int = 750;
+const NET_Y: int = 300;
+const NET_HEIGHT: int = 5;
+
+const PLAYER_WIDTH: int = 60;
+const PLAYER_HEIGHT: int = 10;
+const PLAYER_SPEED: int = 8;
+
+const SHUTTLECOCK_SIZE: int = 8;
+const GRAVITY: float = 0.3;
+const BALL_DRAG: float = 0.99;
+const HIT_POWER: float = 12.0;
+const MAX_HIT_ANGLE: float = 60.0;
+
+const WINNING_SCORE: int = 11;
+const AI_REACTION_DELAY: int = 80;
+const AI_ERROR_RANGE: int = 25;
+
+// ==================== Player ====================
+
+struct Player {
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    score: int,
+    isAI: bool,
+}
+
+// ==================== Shuttlecock ====================
+
+struct Shuttlecock {
+    x: float,
+    y: float,
+    vx: float,
+    vy: float,
+    active: bool,
+    lastHitBy: int,
+}
+
+// ==================== BadmintonGame Class ====================
+
+pub class BadmintonGame extends Game {
+    // Player (left side)
+    playerX: int,
+    playerY: int,
+    playerWidth: int,
+    playerHeight: int,
+    playerScore: int,
+    playerSwinging: bool,
+    playerSwingTime: u32,
+
+    // AI Player (right side)
+    aiX: int,
+    aiY: int,
+    aiWidth: int,
+    aiHeight: int,
+    aiScore: int,
+    aiSwinging: bool,
+    aiSwingTime: u32,
+    aiTargetY: int,
+    aiLastUpdate: u32,
+    aiError: int,
+
+    // Shuttlecock
+    shuttleX: float,
+    shuttleY: float,
+    shuttleVX: float,
+    shuttleVY: float,
+    shuttleActive: bool,
+    lastHitBy: int,
+
+    // Game state
+    gameStarted: bool,
+    gameOver: bool,
+    winner: str,
+    servingPlayer: int,
+    rallyCount: int,
+
+    // Input state
+    keyLeft: bool,
+    keyRight: bool,
+    keyUp: bool,
+    keyDown: bool,
+    keySpace: bool,
+
+    // Visual
+    borderColor: Color,
+    courtColor: Color,
+    netColor: Color,
+
+    // onInit - Initialize game
+    pub fn onInit() {
+        self.setState(GameState.Playing);
+        self.gameStarted = false;
+        self.gameOver = false;
+        self.winner = "";
+        self.servingPlayer = 0;
+        self.rallyCount = 0;
+
+        self.borderColor = Color.White();
+        self.courtColor = Color.RGB(50 as u8, 100 as u8, 50 as u8);
+        self.netColor = Color.White();
+
+        // Initialize player (left side)
+        self.playerX = COURT_LEFT + 30;
+        self.playerY = NET_Y - 50;
+        self.playerWidth = PLAYER_WIDTH;
+        self.playerHeight = PLAYER_HEIGHT;
+        self.playerScore = 0;
+        self.playerSwinging = false;
+        self.playerSwingTime = 0;
+
+        // Initialize AI (right side)
+        self.aiX = COURT_RIGHT - 30 - PLAYER_WIDTH;
+        self.aiY = NET_Y - 50;
+        self.aiWidth = PLAYER_WIDTH;
+        self.aiHeight = PLAYER_HEIGHT;
+        self.aiScore = 0;
+        self.aiSwinging = false;
+        self.aiSwingTime = 0;
+        self.aiTargetY = NET_Y - 50;
+        self.aiLastUpdate = 0;
+        self.aiError = 0;
+
+        // Initialize input state
+        self.keyLeft = false;
+        self.keyRight = false;
+        self.keyUp = false;
+        self.keyDown = false;
+        self.keySpace = false;
+
+        // Reset shuttlecock
+        self.resetShuttlecock(0);
+    }
+
+    // onShutdown - Cleanup
+    pub fn onShutdown() {
+    }
+
+    // onUpdate - Frame update
+    pub fn onUpdate(dt: u32) {
+        if self.gameOver {
+            return;
+        }
+
+        // Update player movement
+        self.updatePlayerMovement();
+
+        // Update AI
+        self.updateAI(dt);
+
+        // Update shuttlecock
+        if self.shuttleActive {
+            self.updateShuttlecock();
+        }
+
+        // Check scoring
+        self.checkScore();
+
+        // Check win condition
+        self.checkWinCondition();
+    }
+
+    // Update player movement
+    private fn updatePlayerMovement() {
+        if self.keyLeft {
+            self.playerX = self.playerX - PLAYER_SPEED;
+        }
+        if self.keyRight {
+            self.playerX = self.playerX + PLAYER_SPEED;
+        }
+        if self.keyUp {
+            self.playerY = self.playerY - PLAYER_SPEED;
+        }
+        if self.keyDown {
+            self.playerY = self.playerY + PLAYER_SPEED;
+        }
+
+        // Keep player in bounds (left side only)
+        if self.playerX < COURT_LEFT {
+            self.playerX = COURT_LEFT;
+        }
+        if self.playerX + self.playerWidth > NET_Y - 10 {
+            self.playerX = NET_Y - 10 - self.playerWidth;
+        }
+        if self.playerY < COURT_TOP {
+            self.playerY = COURT_TOP;
+        }
+        if self.playerY + self.playerHeight > COURT_BOTTOM {
+            self.playerY = COURT_BOTTOM - self.playerHeight;
+        }
+
+        // Update swing animation
+        if self.playerSwinging {
+            var elapsed = getTickCount() - self.playerSwingTime;
+            if elapsed > 200 {
+                self.playerSwinging = false;
+            }
+        }
+    }
+
+    // Update AI
+    private fn updateAI(dt: u32) {
+        // Limit AI update frequency
+        var currentTime = getTickCount();
+        if currentTime - self.aiLastUpdate < AI_REACTION_DELAY as u32 {
+            return;
+        }
+        self.aiLastUpdate = currentTime;
+
+        // AI tracks shuttlecock when it's on the right side or coming towards AI
+        if self.shuttleActive && self.shuttleX > WINDOW_WIDTH / 2 {
+            // Predict where shuttlecock will be
+            var timeToReach = (self.aiX - self.shuttleX) / self.shuttleVX as float;
+            if timeToReach > 0.0 && timeToReach < 30.0 {
+                self.aiTargetY = self.shuttleY + self.shuttleVY * timeToReach as float;
+            } else {
+                self.aiTargetY = self.shuttleY;
+            }
+
+            // Add some error for imperfect play
+            if math.rand() % 4 == 0 {
+                self.aiError = math.rand() % (AI_ERROR_RANGE * 2) - AI_ERROR_RANGE;
+            }
+            self.aiTargetY = self.aiTargetY + self.aiError;
+        } else {
+            // Return to center-ish position
+            self.aiTargetY = NET_Y - 50 + math.rand() % 40 - 20;
+        }
+
+        // Move AI towards target
+        var aiCenter = self.aiY + self.aiHeight / 2;
+        var diff = self.aiTargetY - aiCenter;
+        var aiSpeed = PLAYER_SPEED - 1;
+
+        if diff > aiSpeed {
+            self.aiY = self.aiY + aiSpeed;
+        } else if diff < -aiSpeed {
+            self.aiY = self.aiY - aiSpeed;
+        }
+
+        // AI also moves forward/back slightly
+        if self.shuttleActive && self.shuttleVX > 0.0 && self.shuttleX > WINDOW_WIDTH / 2 {
+            // Move forward (up) to hit
+            self.aiY = self.aiY - 2;
+        } else {
+            // Return to neutral
+            var targetY = NET_Y - 50;
+            if self.aiY < targetY - 10 {
+                self.aiY = self.aiY + 2;
+            } else if self.aiY > targetY + 10 {
+                self.aiY = self.aiY - 2;
+            }
+        }
+
+        // Keep AI in bounds (right side only)
+        if self.aiX < NET_Y + 10 {
+            self.aiX = NET_Y + 10;
+        }
+        if self.aiX + self.aiWidth > COURT_RIGHT {
+            self.aiX = COURT_RIGHT - self.aiWidth;
+        }
+        if self.aiY < COURT_TOP {
+            self.aiY = COURT_TOP;
+        }
+        if self.aiY + self.aiHeight > COURT_BOTTOM {
+            self.aiY = COURT_BOTTOM - self.aiHeight;
+        }
+
+        // Update swing animation
+        if self.aiSwinging {
+            var elapsed = getTickCount() - self.aiSwingTime;
+            if elapsed > 200 {
+                self.aiSwinging = false;
+            }
+        }
+    }
+
+    // Update shuttlecock physics
+    private fn updateShuttlecock() {
+        // Apply gravity
+        self.shuttleVY = self.shuttleVY + GRAVITY;
+
+        // Apply drag
+        self.shuttleVX = self.shuttleVX * BALL_DRAG;
+        self.shuttleVY = self.shuttleVY * BALL_DRAG;
+
+        // Move shuttlecock
+        self.shuttleX = self.shuttleX + self.shuttleVX;
+        self.shuttleY = self.shuttleY + self.shuttleVY;
+
+        // Check ceiling bounce
+        if self.shuttleY <= COURT_TOP as float + SHUTTLECOCK_SIZE as float / 2.0 {
+            self.shuttleY = COURT_TOP as float + SHUTTLECOCK_SIZE as float / 2.0;
+            self.shuttleVY = -self.shuttleVY * 0.7;
+        }
+
+        // Check floor - score!
+        if self.shuttleY >= COURT_BOTTOM as float {
+            self.shuttleActive = false;
+            return;
+        }
+
+        // Side walls
+        if self.shuttleX <= COURT_LEFT as float + SHUTTLECOCK_SIZE as float / 2.0 {
+            self.shuttleX = COURT_LEFT as float + SHUTTLECOCK_SIZE as float / 2.0;
+            self.shuttleVX = -self.shuttleVX * 0.8;
+        }
+        if self.shuttleX >= COURT_RIGHT as float - SHUTTLECOCK_SIZE as float / 2.0 {
+            self.shuttleX = COURT_RIGHT as float - SHUTTLECOCK_SIZE as float / 2.0;
+            self.shuttleVX = -self.shuttleVX * 0.8;
+        }
+
+        // Net collision
+        if self.shuttleX >= NET_Y as float - SHUTTLECOCK_SIZE as float / 2.0 &&
+           self.shuttleX <= NET_Y as float + NET_HEIGHT as float + SHUTTLECOCK_SIZE as float / 2.0 {
+            if self.shuttleY >= NET_Y as float - SHUTTLECOCK_SIZE as float / 2.0 {
+                self.shuttleActive = false;
+                return;
+            }
+        }
+
+        // Player hit detection (left side)
+        if self.lastHitBy != 0 && self.checkPlayerHit(self.playerX, self.playerY, self.playerWidth, self.playerHeight) {
+            if self.shuttleVX < 0.0 {
+                self.hitShuttlecock(0);
+            }
+        }
+
+        // AI hit detection (right side)
+        if self.lastHitBy != 1 && self.checkPlayerHit(self.aiX, self.aiY, self.aiWidth, self.aiHeight) {
+            if self.shuttleVX > 0.0 {
+                self.hitShuttlecock(1);
+            }
+        }
+    }
+
+    // Check if shuttlecock hits a player's racket area
+    private fn checkPlayerHit(px: int, py: int, pw: int, ph: int) -> bool {
+        var shuttleRadius = SHUTTLECOCK_SIZE as float / 2.0;
+        var closestX = self.maxFloat(px as float, self.minFloat(self.shuttleX, (px + pw) as float));
+        var closestY = self.maxFloat(py as float, self.minFloat(self.shuttleY, (py + ph) as float));
+        var distX = self.shuttleX - closestX;
+        var distY = self.shuttleY - closestY;
+        var distSq = distX * distX + distY * distY;
+        return distSq < shuttleRadius * shuttleRadius;
+    }
+
+    // Hit shuttlecock
+    private fn hitShuttlecock(player: int) {
+        self.lastHitBy = player;
+
+        if player == 0 {
+            // Player hits - goes right
+            self.shuttleVX = HIT_POWER + (self.randFloat() * 3.0 - 1.5);
+            self.shuttleVY = -5.0 + (self.randFloat() * 4.0 - 2.0);
+            self.playerSwinging = true;
+            self.playerSwingTime = getTickCount();
+        } else {
+            // AI hits - goes left
+            self.shuttleVX = -HIT_POWER - (self.randFloat() * 3.0 - 1.5);
+            self.shuttleVY = -5.0 + (self.randFloat() * 4.0 - 2.0);
+            self.aiSwinging = true;
+            self.aiSwingTime = getTickCount();
+        }
+
+        self.rallyCount = self.rallyCount + 1;
+    }
+
+    // Check scoring
+    private fn checkScore() {
+        if !self.shuttleActive {
+            // Shuttlecock landed
+            if self.shuttleY >= COURT_BOTTOM as float {
+                // Determine which side it landed on
+                if self.lastHitBy == 0 {
+                    // Player hit it last, AI's fault
+                    self.aiScore = self.aiScore + 1;
+                    self.servingPlayer = 0;
+                } else {
+                    // AI hit it last, player's fault
+                    self.playerScore = self.playerScore + 1;
+                    self.servingPlayer = 1;
+                }
+                self.resetShuttlecock(self.servingPlayer);
+                self.rallyCount = 0;
+            }
+        }
+    }
+
+    // Reset shuttlecock to serving position
+    private fn resetShuttlecock(server: int) {
+        if server == 0 {
+            // Player serves from left
+            self.shuttleX = (self.playerX + self.playerWidth / 2) as float;
+            self.shuttleY = (self.playerY - 20) as float;
+        } else {
+            // AI serves from right
+            self.shuttleX = (self.aiX + self.aiWidth / 2) as float;
+            self.shuttleY = (self.aiY - 20) as float;
+        }
+        self.shuttleVX = 0.0;
+        self.shuttleVY = 0.0;
+        self.shuttleActive = true;
+        self.lastHitBy = -1;
+    }
+
+    // Check win condition
+    private fn checkWinCondition() {
+        if self.playerScore >= WINNING_SCORE {
+            self.gameOver = true;
+            self.winner = "Player";
+            self.setState(GameState.Won);
+        } else if self.aiScore >= WINNING_SCORE {
+            self.gameOver = true;
+            self.winner = "AI";
+            self.setState(GameState.Lost);
+        }
+    }
+
+    // onRender - Render game
+    pub fn onRender(canvas: Canvas) {
+        canvas.clear(self.courtColor);
+
+        self.drawCourt(canvas);
+        self.drawNet(canvas);
+        self.drawPlayers(canvas);
+        self.drawShuttlecock(canvas);
+        self.drawScore(canvas);
+        self.drawUI(canvas);
+
+        if !self.gameStarted && !self.gameOver {
+            self.drawStartMessage(canvas);
+        }
+
+        if self.gameOver {
+            self.drawGameOver(canvas);
+        }
+    }
+
+    // Draw court lines
+    private fn drawCourt(canvas: Canvas) {
+        var lineColor = Color.White();
+
+        // Court boundary
+        canvas.drawRect(COURT_LEFT, COURT_TOP, COURT_RIGHT - COURT_LEFT, COURT_BOTTOM - COURT_TOP, lineColor);
+
+        // Service lines
+        var serviceLineLeft = COURT_LEFT + 100;
+        var serviceLineRight = COURT_RIGHT - 100;
+        canvas.drawLine(serviceLineLeft, COURT_TOP, serviceLineLeft, COURT_BOTTOM, Color.Gray());
+        canvas.drawLine(serviceLineRight, COURT_TOP, serviceLineRight, COURT_BOTTOM, Color.Gray());
+    }
+
+    // Draw net
+    private fn drawNet(canvas: Canvas) {
+        // Net posts
+        canvas.fillRect(NET_Y - 3, COURT_TOP - 5, 6, COURT_BOTTOM - COURT_TOP + 10, Color.Brown());
+
+        // Net
+        canvas.fillRect(NET_Y, NET_Y, NET_HEIGHT, COURT_BOTTOM - NET_Y, self.netColor);
+
+        // Net top
+        canvas.fillRect(NET_Y - 2, NET_Y - 2, NET_HEIGHT + 4, 4, Color.Yellow());
+    }
+
+    // Draw players
+    private fn drawPlayers(canvas: Canvas) {
+        var playerColor = Color.Blue();
+        var aiColor = Color.Red();
+
+        // Draw player racket
+        self.drawRacket(canvas, self.playerX, self.playerY, self.playerWidth, self.playerHeight, playerColor, self.playerSwinging);
+
+        // Draw AI racket
+        self.drawRacket(canvas, self.aiX, self.aiY, self.aiWidth, self.aiHeight, aiColor, self.aiSwinging);
+    }
+
+    // Draw racket with swing effect
+    private fn drawRacket(canvas: Canvas, x: int, y: int, w: int, h: int, color: Color, swinging: bool) {
+        if swinging {
+            // Swing effect - slightly tilted
+            canvas.fillRect(x - 5, y - 3, w + 10, h + 6, color);
+        } else {
+            canvas.fillRect(x, y, w, h, color);
+        }
+
+        // Handle
+        var handleX = x + w / 2 - 3;
+        var handleY = y + h;
+        canvas.fillRect(handleX, handleY, 6, 15, Color.Brown());
+    }
+
+    // Draw shuttlecock
+    private fn drawShuttlecock(canvas: Canvas) {
+        if !self.shuttleActive {
+            return;
+        }
+
+        var sx = self.shuttleX as int;
+        var sy = self.shuttleY as int;
+
+        // Shuttlecock cork (white)
+        canvas.fillCircle(sx, sy, SHUTTLECOCK_SIZE / 2, Color.White());
+
+        // Shuttlecock skirt (gray feathers)
+        canvas.drawLine(sx, sy, sx - 3, sy + 8, Color.Gray());
+        canvas.drawLine(sx, sy, sx + 3, sy + 8, Color.Gray());
+        canvas.drawLine(sx, sy, sx, sy + 9, Color.Gray());
+    }
+
+    // Draw score
+    private fn drawScore(canvas: Canvas) {
+        var font = Font.("Arial", 36);
+
+        var playerText = self.intToString(self.playerScore);
+        canvas.drawText(WINDOW_WIDTH / 4 - 20, 15, playerText, Color.Blue(), font);
+
+        var aiText = self.intToString(self.aiScore);
+        canvas.drawText(WINDOW_WIDTH * 3 / 4 - 20, 15, aiText, Color.Red(), font);
+
+        canvas.drawText(WINDOW_WIDTH / 2 - 10, 15, "-", Color.White(), font);
+
+        var smallFont = Font.("Arial", 14);
+        canvas.drawText(WINDOW_WIDTH / 4 - 35, 2, "Player", Color.Blue(), smallFont);
+        canvas.drawText(WINDOW_WIDTH * 3 / 4 - 20, 2, "AI", Color.Red(), smallFont);
+    }
+
+    // Draw UI
+    private fn drawUI(canvas: Canvas) {
+        var smallFont = Font.("Arial", 12);
+
+        // Rally count
+        var rallyText = "Rally: " ++ self.intToString(self.rallyCount);
+        canvas.drawText(COURT_LEFT, 10, rallyText, Color.Yellow(), smallFont);
+
+        // Serving indicator
+        var serveText = if self.servingPlayer == 0 { "Your Serve" } else { "AI Serve" };
+        canvas.drawText(COURT_RIGHT - 80, 10, serveText, Color.Yellow(), smallFont);
+    }
+
+    // Draw start message
+    private fn drawStartMessage(canvas: Canvas) {
+        var font = Font.("Arial", 20);
+        var text = "Press SPACE to serve";
+        canvas.drawText(WINDOW_WIDTH / 2 - 110, WINDOW_HEIGHT / 2, text, Color.Yellow(), font);
+
+        var controls = Font.("Arial", 14);
+        canvas.drawText(WINDOW_WIDTH / 2 - 150, WINDOW_HEIGHT / 2 + 40, "W/S: Move Up/Down  A/D: Move Left/Right", Color.White(), controls);
+    }
+
+    // Draw game over
+    private fn drawGameOver(canvas: Canvas) {
+        canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(180, 0, 0, 0));
+
+        var font = Font.("Arial", 48);
+        var text = self.winner ++ " Wins!";
+        var textColor = if self.winner == "Player" { Color.Blue() } else { Color.Red() };
+        canvas.drawText(WINDOW_WIDTH / 2 - 130, WINDOW_HEIGHT / 2 - 50, text, textColor, font);
+
+        var smallFont = Font.("Arial", 20);
+        var scoreText = self.intToString(self.playerScore) ++ " - " ++ self.intToString(self.aiScore);
+        canvas.drawText(WINDOW_WIDTH / 2 - 40, WINDOW_HEIGHT / 2, scoreText, Color.White(), smallFont);
+
+        var restartText = "Press R to restart";
+        canvas.drawText(WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 + 40, restartText, Color.Yellow(), smallFont);
+    }
+
+    // onKeyDown - Key pressed
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.A => {
+                self.keyLeft = true;
+            }
+            VirtualKey.D => {
+                self.keyRight = true;
+            }
+            VirtualKey.W => {
+                self.keyUp = true;
+            }
+            VirtualKey.S => {
+                self.keyDown = true;
+            }
+            VirtualKey.Space => {
+                self.keySpace = true;
+                if !self.gameStarted && !self.gameOver && self.servingPlayer == 0 {
+                    self.gameStarted = true;
+                    self.shuttleVX = HIT_POWER * 0.7;
+                    self.shuttleVY = -4.0;
+                    self.lastHitBy = 0;
+                    self.rallyCount = 1;
+                }
+            }
+            VirtualKey.R => {
+                if self.gameOver {
+                    self.onInit();
+                }
+            }
+            VirtualKey.Escape => {
+                self.running = false;
+            }
+            _ => {}
+        }
+    }
+
+    // onKeyUp - Key released
+    pub fn onKeyUp(key: VirtualKey) {
+        match key {
+            VirtualKey.A => {
+                self.keyLeft = false;
+            }
+            VirtualKey.D => {
+                self.keyRight = false;
+            }
+            VirtualKey.W => {
+                self.keyUp = false;
+            }
+            VirtualKey.S => {
+                self.keyDown = false;
+            }
+            VirtualKey.Space => {
+                self.keySpace = false;
+            }
+            _ => {}
+        }
+    }
+
+    // onMouseDown - Mouse pressed
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+    }
+
+    // onMouseUp - Mouse released
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+    }
+
+    // ============ Helper Functions ============
+
+    fn maxFloat(a: float, b: float) -> float {
+        return if a > b { a } else { b };
+    }
+
+    fn minFloat(a: float, b: float) -> float {
+        return if a < b { a } else { b };
+    }
+
+    fn randFloat() -> float {
+        return (math.rand() % 1000) as float / 1000.0;
+    }
+
+    fn intToString(n: int) -> str {
+        if n == 0 {
+            return "0";
+        }
+        var result = "";
+        var negative = false;
+        var num = n;
+        if num < 0 {
+            negative = true;
+            num = -num;
+        }
+        while num > 0 {
+            var digit = num % 10;
+            result = (digit as char + "") ++ result;
+            num = num / 10;
+        }
+        return if negative { "-" ++ result } else { result };
+    }
+}

@@ -1,0 +1,34 @@
+// main_window.zc - Badminton Game Entry
+// 088-Badminton 羽毛球游戏
+
+import std.io;
+
+// Import framework and game
+import "platform_api.zc";
+import "game.zc";
+import "game_logic.zc";
+
+// Main function
+pub fn main() {
+    io.println("===========================================");
+    io.println("  Zen-C Badminton Game");
+    io.println("  羽毛球 - 一人对战AI");
+    io.println("===========================================");
+
+    // Initialize platform
+    initPlatform();
+
+    // Create game
+    var game = BadmintonGame.("Badminton - 羽毛球", 800, 600, 60);
+
+    // Run game
+    game.run();
+
+    // Cleanup
+    game.destroy();
+    shutdownPlatform();
+
+    io.println("Game exited, goodbye!");
+
+    0
+}
