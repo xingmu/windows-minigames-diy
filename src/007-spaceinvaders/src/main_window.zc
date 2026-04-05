@@ -1,0 +1,587 @@
+// main_window.zc - Space Invaders 太空侵略者游戏
+// Zen-C 游戏框架 v1.0.0
+
+import std.io;
+import std.string;
+
+import "platform_api.zc";
+import "game.zc";
+
+// ==================== 常量定义 ====================
+
+// 窗口尺寸
+const WINDOW_WIDTH = 640;
+const WINDOW_HEIGHT = 700;
+
+// 游戏区域
+const GAME_HEIGHT = 640;
+const UI_HEIGHT = 60;
+
+// 玩家飞船
+const PLAYER_WIDTH = 50;
+const PLAYER_HEIGHT = 30;
+const PLAYER_SPEED = 6;
+const PLAYER_Y = GAME_HEIGHT - 60;
+
+// 子弹
+const BULLET_WIDTH = 4;
+const BULLET_HEIGHT = 12;
+const BULLET_SPEED = 10;
+const MAX_BULLETS = 5;
+
+// 外星人编队
+const ALIEN_ROWS = 5;
+const ALIEN_COLS = 11;
+const ALIEN_WIDTH = 40;
+const ALIEN_HEIGHT = 30;
+const ALIEN_SPACING_X = 50;
+const ALIEN_SPACING_Y = 40;
+const ALIEN_START_Y = 60;
+
+// 外星人分数
+const ALIEN_TYPE_A_SCORE = 30;
+const ALIEN_TYPE_B_SCORE = 20;
+const ALIEN_TYPE_C_SCORE = 10;
+
+// ==================== 颜色辅助函数 ====================
+
+fn makeColor(r: u8, g: u8, b: u8) -> Color {
+    return Color.RGB(r, g, b);
+}
+
+// ==================== 颜色定义 ====================
+
+const PLAYER_COLOR = makeColor(0, 255, 0);
+const BULLET_COLOR = makeColor(255, 255, 0);
+const ALIEN_A_COLOR = makeColor(255, 0, 0);
+const ALIEN_B_COLOR = makeColor(0, 255, 0);
+const ALIEN_C_COLOR = makeColor(0, 150, 255);
+const STAR_COLOR = makeColor(200, 200, 200);
+const TEXT_COLOR = makeColor(255, 255, 255);
+
+// ==================== 数据结构 ====================
+
+// 玩家飞船
+struct Player {
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+}
+
+// 子弹
+struct Bullet {
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    active: bool,
+}
+
+// 外星人
+struct Alien {
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    alive: bool,
+    alienType: int,
+}
+
+// 星星
+struct Star {
+    x: int,
+    y: int,
+    brightness: u8,
+}
+
+// ==================== 太空侵略者游戏类 ====================
+
+class SpaceInvadersGame extends Game {
+    // 玩家
+    player: Player,
+    
+    // 子弹数组
+    bullets: [MAX_BULLETS]Bullet,
+    
+    // 外星人数组
+    aliens: [ALIEN_ROWS * ALIEN_COLS]Alien,
+    alienCount: int,
+    alienDirection: int,
+    alienMoveDown: bool,
+    alienMoveTimer: u32,
+    
+    // 星星背景
+    stars: [50]Star,
+    starCount: int,
+    
+    // 按键状态
+    keyLeft: bool,
+    keyRight: bool,
+    keySpace: bool,
+    canShoot: bool,
+    
+    // 帧计数
+    frameCount: u32,
+    
+    fn constructor() {
+        // 调用父类构造函数
+        self.create("Space Invaders", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    }
+    
+    fn onInit() {
+        // 初始化玩家
+        self.player.x = WINDOW_WIDTH / 2 - PLAYER_WIDTH / 2;
+        self.player.y = PLAYER_Y;
+        self.player.width = PLAYER_WIDTH;
+        self.player.height = PLAYER_HEIGHT;
+        
+        // 初始化子弹
+        for i in 0..MAX_BULLETS {
+            self.bullets[i].x = 0;
+            self.bullets[i].y = 0;
+            self.bullets[i].width = BULLET_WIDTH;
+            self.bullets[i].height = BULLET_HEIGHT;
+            self.bullets[i].active = false;
+        }
+        
+        // 初始化外星人
+        self.initAliens();
+        
+        // 初始化星星
+        self.initStars();
+        
+        // 初始化游戏状态
+        self.alienDirection = 1;
+        self.alienMoveDown = false;
+        self.alienMoveTimer = 0;
+        self.keyLeft = false;
+        self.keyRight = false;
+        self.keySpace = false;
+        self.canShoot = true;
+        self.frameCount = 0;
+        
+        self.setState(GameState.Playing);
+        
+        println("Space Invaders 游戏初始化完成!");
+        println("按 <- -> 移动，空格射击，ESC 退出");
+    }
+    
+    fn initAliens() {
+        self.alienCount = ALIEN_ROWS * ALIEN_COLS;
+        
+        var index = 0;
+        for row in 0..ALIEN_ROWS {
+            for col in 0..ALIEN_COLS {
+                var alienType = 0;
+                if row < 1 {
+                    alienType = 0;
+                } else if row < 3 {
+                    alienType = 1;
+                } else {
+                    alienType = 2;
+                }
+                
+                var startX = (WINDOW_WIDTH - ALIEN_COLS * ALIEN_SPACING_X) / 2;
+                var x = startX + col * ALIEN_SPACING_X;
+                var y = ALIEN_START_Y + row * ALIEN_SPACING_Y;
+                
+                self.aliens[index] = Alien.{
+                    x: x, y: y,
+                    width: ALIEN_WIDTH, height: ALIEN_HEIGHT,
+                    alive: true, alienType: alienType
+                };
+                
+                index = index + 1;
+            }
+        }
+    }
+    
+    fn initStars() {
+        self.starCount = 50;
+        
+        for i in 0..self.starCount {
+            self.stars[i].x = i * 13 % WINDOW_WIDTH;
+            self.stars[i].y = (i * 17) % GAME_HEIGHT;
+            self.stars[i].brightness = 100 + (i * 3 % 155) as u8;
+        }
+    }
+    
+    fn onShutdown() {
+        println("Space Invaders 游戏结束!");
+        println("最终分数: " ++ self.getScore().toString());
+    }
+    
+    fn onUpdate(dt: u32) {
+        if self.getState() != GameState.Playing {
+            return;
+        }
+        
+        self.frameCount = self.frameCount + 1;
+        
+        // 更新玩家
+        self.updatePlayer();
+        
+        // 更新子弹
+        self.updateBullets();
+        
+        // 更新外星人
+        self.updateAliens();
+        
+        // 碰撞检测
+        self.checkCollisions();
+        
+        // 检查胜负
+        self.checkWinLose();
+    }
+    
+    fn updatePlayer() {
+        if self.keyLeft {
+            self.player.x = self.player.x - PLAYER_SPEED;
+        }
+        if self.keyRight {
+            self.player.x = self.player.x + PLAYER_SPEED;
+        }
+        
+        if self.player.x < 0 {
+            self.player.x = 0;
+        }
+        if self.player.x > WINDOW_WIDTH - self.player.width {
+            self.player.x = WINDOW_WIDTH - self.player.width;
+        }
+        
+        if self.keySpace && self.canShoot {
+            self.shoot();
+            self.canShoot = false;
+        }
+        if !self.keySpace {
+            self.canShoot = true;
+        }
+    }
+    
+    fn shoot() {
+        for i in 0..MAX_BULLETS {
+            if !self.bullets[i].active {
+                self.bullets[i].x = self.player.x + self.player.width / 2 - BULLET_WIDTH / 2;
+                self.bullets[i].y = self.player.y - BULLET_HEIGHT;
+                self.bullets[i].active = true;
+                break;
+            }
+        }
+    }
+    
+    fn updateBullets() {
+        for i in 0..MAX_BULLETS {
+            if self.bullets[i].active {
+                self.bullets[i].y = self.bullets[i].y - BULLET_SPEED;
+                if self.bullets[i].y < 0 {
+                    self.bullets[i].active = false;
+                }
+            }
+        }
+    }
+    
+    fn updateAliens() {
+        self.alienMoveTimer = self.alienMoveTimer + 1;
+        
+        if self.alienMoveTimer >= 20 {
+            self.alienMoveTimer = 0;
+            
+            if self.alienMoveDown {
+                for i in 0..self.alienCount {
+                    if self.aliens[i].alive {
+                        self.aliens[i].y = self.aliens[i].y + 20;
+                    }
+                }
+                self.alienMoveDown = false;
+                self.alienDirection = -self.alienDirection;
+            } else {
+                var needMoveDown = false;
+                
+                for i in 0..self.alienCount {
+                    if self.aliens[i].alive {
+                        if self.alienDirection > 0 && self.aliens[i].x >= WINDOW_WIDTH - ALIEN_WIDTH - 10 {
+                            needMoveDown = true;
+                            break;
+                        }
+                        if self.alienDirection < 0 && self.aliens[i].x <= 10 {
+                            needMoveDown = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if needMoveDown {
+                    self.alienMoveDown = true;
+                } else {
+                    for i in 0..self.alienCount {
+                        if self.aliens[i].alive {
+                            self.aliens[i].x = self.aliens[i].x + self.alienDirection * 10;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    fn checkCollisions() {
+        for b in 0..MAX_BULLETS {
+            if !self.bullets[b].active {
+                continue;
+            }
+            
+            for a in 0..self.alienCount {
+                if !self.aliens[a].alive {
+                    continue;
+                }
+                
+                // 碰撞检测
+                if self.bullets[b].x < self.aliens[a].x + self.aliens[a].width &&
+                   self.bullets[b].x + self.bullets[b].width > self.aliens[a].x &&
+                   self.bullets[b].y < self.aliens[a].y + self.aliens[a].height &&
+                   self.bullets[b].y + self.bullets[b].height > self.aliens[a].y {
+                    
+                    self.bullets[b].active = false;
+                    self.aliens[a].alive = false;
+                    
+                    match self.aliens[a].alienType {
+                        0 => self.addScore(ALIEN_TYPE_A_SCORE);
+                        1 => self.addScore(ALIEN_TYPE_B_SCORE);
+                        2 => self.addScore(ALIEN_TYPE_C_SCORE);
+                        _ => {}
+                    }
+                    
+                    break;
+                }
+            }
+        }
+    }
+    
+    fn checkWinLose() {
+        var aliensAlive = 0;
+        for i in 0..self.alienCount {
+            if self.aliens[i].alive {
+                aliensAlive = aliensAlive + 1;
+            }
+        }
+        
+        if aliensAlive == 0 {
+            self.setState(GameState.Won);
+            return;
+        }
+        
+        for i in 0..self.alienCount {
+            if self.aliens[i].alive && self.aliens[i].y >= PLAYER_Y - ALIEN_HEIGHT {
+                self.setState(GameState.Lost);
+                return;
+            }
+        }
+    }
+    
+    fn onRender(canvas: &Canvas) {
+        // 清屏
+        canvas.clear(Color.Black());
+        
+        // 绘制星星
+        self.drawStars(canvas);
+        
+        // 绘制外星人
+        self.drawAliens(canvas);
+        
+        // 绘制子弹
+        self.drawBullets(canvas);
+        
+        // 绘制玩家
+        self.drawPlayer(canvas);
+        
+        // 绘制UI
+        self.drawUI(canvas);
+        
+        // 绘制游戏状态
+        self.drawGameState(canvas);
+    }
+    
+    fn drawStars(canvas: &Canvas) {
+        for i in 0..self.starCount {
+            var brightness = self.stars[i].brightness;
+            var color = Color.RGB(brightness, brightness, brightness);
+            canvas.setPixel(self.stars[i].x, self.stars[i].y, color);
+        }
+    }
+    
+    fn drawPlayer(canvas: &Canvas) {
+        var x = self.player.x;
+        var y = self.player.y;
+        var w = self.player.width;
+        var h = self.player.height;
+        
+        // 绘制飞船（三角形）
+        canvas.setPixel(x + w/2, y, PLAYER_COLOR);
+        canvas.setPixel(x + w/2 - 1, y + 1, PLAYER_COLOR);
+        canvas.setPixel(x + w/2 + 1, y + 1, PLAYER_COLOR);
+        canvas.setPixel(x + w/2 - 2, y + 2, PLAYER_COLOR);
+        canvas.setPixel(x + w/2 + 2, y + 2, PLAYER_COLOR);
+        canvas.fillRect(x + w/2 - w/3, y + 3, w * 2/3, h - 5, PLAYER_COLOR);
+        canvas.fillRect(x, y + h - 8, w, 6, PLAYER_COLOR);
+    }
+    
+    fn drawBullets(canvas: &Canvas) {
+        for i in 0..MAX_BULLETS {
+            if self.bullets[i].active {
+                canvas.fillRect(
+                    self.bullets[i].x,
+                    self.bullets[i].y,
+                    self.bullets[i].width,
+                    self.bullets[i].height,
+                    BULLET_COLOR
+                );
+            }
+        }
+    }
+    
+    fn drawAliens(canvas: &Canvas) {
+        for i in 0..self.alienCount {
+            if !self.aliens[i].alive {
+                continue;
+            }
+            
+            var x = self.aliens[i].x;
+            var y = self.aliens[i].y;
+            var w = self.aliens[i].width;
+            var h = self.aliens[i].height;
+            var alienType = self.aliens[i].alienType;
+            
+            var color: Color;
+            match alienType {
+                0 => color = ALIEN_A_COLOR;
+                1 => color = ALIEN_B_COLOR;
+                2 => color = ALIEN_C_COLOR;
+                _ => color = Color.White();
+            }
+            
+            // 绘制外星人
+            canvas.fillRect(x + w/4, y, w/2, h/3, color);
+            canvas.fillRect(x + w/6, y + h/3, w*2/3, h/3, color);
+            canvas.fillRect(x, y + h*2/3, w/4, h/3, color);
+            canvas.fillRect(x + w*3/4, y + h*2/3, w/4, h/3, color);
+            canvas.fillRect(x + w/6, y - h/6, w/6, h/6, color);
+            canvas.fillRect(x + w*2/3, y - h/6, w/6, h/6, color);
+        }
+    }
+    
+    fn drawUI(canvas: &Canvas) {
+        canvas.drawLine(0, GAME_HEIGHT, WINDOW_WIDTH, GAME_HEIGHT, Color.White());
+        
+        var scoreText = "SCORE: " ++ self.getScore().toString();
+        canvas.drawText(20, GAME_HEIGHT + 20, scoreText, TEXT_COLOR, Font.("Arial", 20));
+        
+        var aliensAlive = 0;
+        for i in 0..self.alienCount {
+            if self.aliens[i].alive {
+                aliensAlive = aliensAlive + 1;
+            }
+        }
+        var aliensText = "ALIENS: " ++ aliensAlive.toString();
+        canvas.drawText(WINDOW_WIDTH / 2 - 50, GAME_HEIGHT + 20, aliensText, TEXT_COLOR, Font.("Arial", 20));
+        
+        canvas.drawText(WINDOW_WIDTH - 220, GAME_HEIGHT + 20, "< > MOVE  SPACE FIRE", makeColor(150, 150, 150), Font.("Arial", 14));
+    }
+    
+    fn drawGameState(canvas: &Canvas) {
+        var state = self.getState();
+        
+        if state == GameState.Won {
+            canvas.drawText(WINDOW_WIDTH/2 - 100, GAME_HEIGHT/2 - 50, "YOU WIN!", Color.Yellow(), Font.("Arial", 48));
+            canvas.drawText(WINDOW_WIDTH/2 - 100, GAME_HEIGHT/2 + 20, "Final Score: " ++ self.getScore().toString(), Color.White(), Font.("Arial", 24));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 60, "Press ESC to exit", makeColor(200, 200, 200), Font.("Arial", 18));
+        }
+        
+        if state == GameState.Lost {
+            canvas.drawText(WINDOW_WIDTH/2 - 100, GAME_HEIGHT/2 - 50, "GAME OVER", Color.Red(), Font.("Arial", 48));
+            canvas.drawText(WINDOW_WIDTH/2 - 100, GAME_HEIGHT/2 + 20, "Final Score: " ++ self.getScore().toString(), Color.White(), Font.("Arial", 24));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 60, "Press ESC to exit", makeColor(200, 200, 200), Font.("Arial", 18));
+        }
+        
+        if state == GameState.Ready {
+            canvas.drawText(WINDOW_WIDTH/2 - 120, GAME_HEIGHT/2 - 80, "SPACE INVADERS", Color.Green(), Font.("Arial", 36));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2, "Red Aliens: 30 pts", ALIEN_A_COLOR, Font.("Arial", 20));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 35, "Green Aliens: 20 pts", ALIEN_B_COLOR, Font.("Arial", 20));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 70, "Blue Aliens: 10 pts", ALIEN_C_COLOR, Font.("Arial", 20));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 120, "Press SPACE to Start", Color.White(), Font.("Arial", 24));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 160, "ESC to Quit", makeColor(200, 200, 200), Font.("Arial", 18));
+        }
+    }
+    
+    fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.Left => {
+                self.keyLeft = true;
+            }
+            VirtualKey.Right => {
+                self.keyRight = true;
+            }
+            VirtualKey.Space => {
+                self.keySpace = true;
+                if self.getState() == GameState.Ready {
+                    self.setState(GameState.Playing);
+                }
+            }
+            VirtualKey.Escape => {
+                self.stop();
+            }
+            _ => {}
+        }
+    }
+    
+    fn onKeyUp(key: VirtualKey) {
+        match key {
+            VirtualKey.Left => {
+                self.keyLeft = false;
+            }
+            VirtualKey.Right => {
+                self.keyRight = false;
+            }
+            VirtualKey.Space => {
+                self.keySpace = false;
+            }
+            _ => {}
+        }
+    }
+    
+    fn onMouseDown(x: int, y: int, button: MouseButton) {
+        if self.getState() == GameState.Ready {
+            self.setState(GameState.Playing);
+        }
+    }
+    
+    fn onMouseUp(x: int, y: int, button: MouseButton) {
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() {
+    println("===========================================");
+    println("  Space Invaders - 太空侵略者");
+    println("  Zen-C 游戏框架 v1.0.0");
+    println("===========================================");
+    println("");
+    
+    // 初始化平台
+    initPlatform();
+    
+    // 创建游戏实例
+    var game = SpaceInvadersGame.();
+    
+    // 运行游戏
+    game.run();
+    
+    // 清理资源
+    game.destroy();
+    
+    // 关闭平台
+    shutdownPlatform();
+    
+    println("");
+    println("游戏已退出，谢谢游玩!");
+}
