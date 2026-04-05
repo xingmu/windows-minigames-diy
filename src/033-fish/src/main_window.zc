@@ -1,0 +1,482 @@
+// main_window.zc - 捕鱼达人主程序
+// FishGame - Zen-C 捕鱼达人风格游戏
+
+import std.io;
+
+import "platform_api.zc";
+import "game_logic.zc";
+import "fish_render.zc";
+
+// ==================== 常量 ====================
+
+const GAME_WIDTH = 900;
+const GAME_HEIGHT = 650;
+
+// ==================== 背景绘制 ====================
+
+// 绘制海底背景
+fn draw_background() {
+    // 深海背景渐变
+    for y in 0..GAME_HEIGHT {
+        var t = y as f32 / GAME_HEIGHT as f32;
+        var r = (15.0 + 20.0 * t) as u8;
+        var g = (50.0 + 40.0 * t) as u8;
+        var b = (100.0 + 60.0 * t) as u8;
+        fb_draw_rect(0, y, GAME_WIDTH, 1, Color.{r: r, g: g, b: b});
+    }
+    
+    // 海草
+    for i in 0..15 {
+        var baseX = 50 + i * 60;
+        var baseY = GAME_HEIGHT - 30;
+        draw_seaweed(baseX, baseY, 80 + (i * 17) % 40);
+    }
+    
+    // 石头/礁石
+    for i in 0..6 {
+        var x = 80 + i * 150;
+        draw_rock(x, GAME_HEIGHT - 20, 30 + (i * 23) % 20);
+    }
+    
+    // 气泡粒子
+    draw_bubbles();
+}
+
+// 绘制海草
+fn draw_seaweed(baseX: i32, baseY: i32, height: i32) {
+    var segments = 6;
+    var segHeight = height / segments;
+    var time = get_game_time();
+    
+    for i in 0..segments {
+        var y = baseY - i * segHeight;
+        var sway = ((time / 200 + i * 3) % 20 - 10) as i32;
+        var nextX = baseX + sway;
+        
+        var thickness = 4 - i / 2;
+        if thickness < 1 { thickness = 1; }
+        
+        fb_draw_rect(nextX - thickness / 2, y - segHeight, thickness, segHeight + 2, 
+                     Color.{r: 30 as u8, g: 120 as u8, b: 60 as u8});
+    }
+}
+
+// 绘制礁石
+fn draw_rock(x: i32, y: i32, size: i32) {
+    // 主体
+    fb_draw_ellipse(x, y, size * 2, size, Color.{r: 80 as u8, g: 70 as u8, b: 60 as u8});
+    fb_draw_ellipse(x, y - size / 3, size * 2, size * 2 / 3, Color.{r: 100 as u8, g: 90 as u8, b: 75 as u8});
+    
+    // 高光
+    fb_draw_ellipse(x - size / 3, y - size / 2, size / 2, size / 3, Color.{r: 120 as u8, g: 110 as u8, b: 90 as u8});
+}
+
+// 绘制气泡
+fn draw_bubbles() {
+    var time = get_game_time();
+    for i in 0..20 {
+        var baseX = (i * 47 + 23) % GAME_WIDTH;
+        var speed = 0.5 + (i % 5) as f32 * 0.2;
+        var y = GAME_HEIGHT - ((time * speed as i32 + i * 100) % (GAME_HEIGHT + 50));
+        var size = 3 + (i % 4);
+        
+        var alpha = 100 - (GAME_HEIGHT - y as i32) * 100 / GAME_HEIGHT;
+        if alpha > 100 { alpha = 100; }
+        if alpha < 20 { alpha = 20; }
+        
+        fb_draw_circle(baseX, y as i32, size, Color.{r: 200 as u8, g: 240 as u8, b: 255 as u8});
+        fb_draw_circle(baseX - size / 3, y as i32 - size / 3, size / 3, Color.{r: 255 as u8, g: 255 as u8, b: 255 as u8});
+    }
+}
+
+// 获取游戏时间 (供绘制使用)
+var gameTimeCounter: i32 = 0;
+fn get_game_time() -> i32 {
+    return gameTimeCounter;
+}
+
+// ==================== UI 绘制 ====================
+
+// 绘制分数UI
+fn draw_ui(state: &FishGameState) {
+    // 顶部信息栏背景
+    fb_draw_rect(0, 0, GAME_WIDTH, 50, Color.{r: 0 as u8, g: 0 as u8, b: 0 as u8});
+    fb_draw_rect(0, 50, GAME_WIDTH, 2, Color.{r: 100 as u8, g: 100 as u8, b: 100 as u8});
+    
+    // 分数
+    var scoreStr = "SCORE: " ++ state.score.toString();
+    fb_draw_text_size(20, 15, scoreStr, Color.{r: 255 as u8, g: 215 as u8, b: 0 as u8}, 20);
+    
+    // 金币
+    var coinsStr = "COINS: " ++ state.coins.toString();
+    fb_draw_text_size(200, 15, coinsStr, Color.{r: 255 as u8, g: 200 as u8, b: 50 as u8}, 18);
+    
+    // 炮台等级
+    var levelStr = "LEVEL " ++ state.cannon.level.toString();
+    fb_draw_text_size(GAME_WIDTH / 2 - 40, 15, levelStr, Color.{r: 100 as u8, g: 255 as u8, b: 100 as u8}, 18);
+    
+    // 冷却条
+    if state.cannon.cooldown > 0 {
+        var cooldownRatio = state.cannon.cooldown as f32 / 200.0;
+        var barWidth = (cooldownRatio * 60.0) as i32;
+        fb_draw_rect(GAME_WIDTH / 2 - 30, 38, 60, 6, Color.{r: 50 as u8, g: 50 as u8, b: 50 as u8});
+        fb_draw_rect(GAME_WIDTH / 2 - 30, 38, 60 - barWidth, 6, Color.{r: 0 as u8, g: 200 as u8, b: 100 as u8});
+    }
+    
+    // 鱼的数量
+    var fishStr = "FISH: " ++ state.fishCount.toString();
+    fb_draw_text_size(GAME_WIDTH - 150, 15, fishStr, Color.{r: 100 as u8, g: 200 as u8, b: 255 as u8}, 16);
+    
+    // 底部信息栏
+    fb_draw_rect(0, GAME_HEIGHT - 30, GAME_WIDTH, 30, Color.{r: 0 as u8, g: 0 as u8, b: 0 as u8});
+    fb_draw_rect(0, GAME_HEIGHT - 30, GAME_WIDTH, 2, Color.{r: 80 as u8, g: 80 as u8, b: 80 as u8});
+    
+    // 提示
+    fb_draw_text_size(20, GAME_HEIGHT - 20, "MOUSE to aim | CLICK to shoot | ESC to quit", 
+                       Color.{r: 150 as u8, g: 150 as u8, b: 150 as u8}, 14);
+    
+    // 鱼种说明
+    fb_draw_text_size(GAME_WIDTH - 380, GAME_HEIGHT - 20, 
+                       "GREEN=10 BLUE=25 GOLD=50 RED=100 RAINBOW=200",
+                       Color.{r: 150 as u8, g: 150 as u8, b: 150 as u8}, 12);
+}
+
+// 绘制击中效果
+fn draw_effects(state: &FishGameState) {
+    for i in 0..20 {
+        if !state.hitEffects[i].active { continue; }
+        
+        var effect = &state.hitEffects[i];
+        var alpha = effect.timer * 8;
+        if alpha > 200 { alpha = 200; }
+        
+        // 分数文字
+        var scoreStr = "+" ++ effect.score.toString();
+        var color = Color.{r: 255 as u8, g: (200 + alpha / 3) as u8, b: 50 as u8};
+        fb_draw_text_size(effect.x - 15, effect.y, scoreStr, color, 18);
+        
+        // 爆炸圈
+        var radius = (30 - effect.timer) * 2;
+        fb_draw_circle(effect.x, effect.y, radius, 
+                       Color.{r: 255 as u8, g: 200 as u8, b: 100 as u8});
+    }
+}
+
+// ==================== 开始/结束画面 ====================
+
+// 绘制开始画面
+fn draw_ready_screen() {
+    // 背景
+    fb_clear(Color.{r: 10 as u8, g: 30 as u8, b: 80 as u8});
+    
+    // 海浪效果
+    for i in 0..5 {
+        var y = 300 + i * 20;
+        var waveOffset = ((get_game_time() / 100 + i * 50) % 100 - 50);
+        fb_draw_rect(100 + waveOffset, y, GAME_WIDTH - 200, 3, 
+                     Color.{r: 50 as u8, g: 150 as u8, b: 200 as u8});
+    }
+    
+    // 标题
+    fb_draw_text_size(GAME_WIDTH / 2 - 140, 100, "FISH HUNTER", 
+                       Color.{r: 255 as u8, g: 215 as u8, b: 0 as u8}, 48);
+    fb_draw_text_size(GAME_WIDTH / 2 - 100, 160, "捕鱼达人", 
+                       Color.{r: 255 as u8, g: 255 as u8, b: 200 as u8}, 28);
+    
+    // 分隔线
+    fb_draw_rect(GAME_WIDTH / 2 - 180, 200, 360, 3, Color.{r: 100 as u8, g: 100 as u8, b: 100 as u8});
+    
+    // 鱼种说明
+    fb_draw_text_size(GAME_WIDTH / 2 - 150, 240, "FISH TYPES:", 
+                       Color.{r: 255 as u8, g: 255 as u8, b: 255 as u8}, 18);
+    
+    // 绘制各种鱼的示例
+    draw_fish_preview(150, 280, FishType.SmallFish, "= 10 points", Color.{r: 80 as u8, g: 200 as u8, b: 80 as u8});
+    draw_fish_preview(150, 320, FishType.MediumFish, "= 25 points", Color.{r: 60 as u8, g: 140 as u8, b: 220 as u8});
+    draw_fish_preview(150, 360, FishType.LargeFish, "= 50 points", Color.{r: 255 as u8, g: 215 as u8, b: 0 as u8});
+    draw_fish_preview(350, 280, FishType.Shark, "= 100 points", Color.{r: 200 as u8, g: 60 as u8, b: 60 as u8});
+    draw_fish_preview(350, 320, FishType.GoldFish, "= 200 points", Color.{r: 255 as u8, g: 100 as u8, b: 255 as u8});
+    
+    // 分隔线
+    fb_draw_rect(GAME_WIDTH / 2 - 180, 410, 360, 2, Color.{r: 100 as u8, g: 100 as u8, b: 100 as u8});
+    
+    // 操作说明
+    fb_draw_text_size(GAME_WIDTH / 2 - 120, 440, "CONTROLS:", 
+                       Color.{r: 255 as u8, g: 255 as u8, b: 255 as u8}, 18);
+    fb_draw_text_size(GAME_WIDTH / 2 - 80, 475, "Move Mouse - Aim Cannon", 
+                       Color.{r: 180 as u8, g: 180 as u8, b: 180 as u8}, 16);
+    fb_draw_text_size(GAME_WIDTH / 2 - 80, 500, "Left Click - Shoot", 
+                       Color.{r: 180 as u8, g: 180 as u8, b: 180 as u8}, 16);
+    fb_draw_text_size(GAME_WIDTH / 2 - 80, 525, "ESC - Quit Game", 
+                       Color.{r: 180 as u8, g: 180 as u8, b: 180 as u8}, 16);
+    
+    // 开始提示
+    var blink = (get_game_time() / 500) % 2;
+    if blink == 0 {
+        fb_draw_text_size(GAME_WIDTH / 2 - 100, 570, "CLICK TO START", 
+                           Color.{r: 255 as u8, g: 255 as u8, b: 255 as u8}, 24);
+    }
+}
+
+// 绘制鱼预览 (用于开始画面)
+fn draw_fish_preview(x: i32, y: i32, fishType: FishType, label: str, color: Color) {
+    var size = get_fish_size(fishType);
+    
+    // 绘制一个示例鱼
+    var tempFish = Fish.{
+        x: x as f32,
+        y: y as f32,
+        vx: 0.0,
+        vy: 0.0,
+        fishType: fishType,
+        size: size,
+        alive: true,
+        angle: 0.0,
+        animFrame: (get_game_time() / 100) % 360,
+        wobble: 0.0
+    };
+    
+    draw_fish(&tempFish);
+    
+    // 标签
+    fb_draw_text_size(x + size + 10, y - 5, label, color, 14);
+}
+
+// 绘制游戏结束画面
+fn draw_gameover_screen(state: &FishGameState) {
+    // 半透明遮罩
+    fb_draw_rect(0, 0, GAME_WIDTH, GAME_HEIGHT, Color.{r: 0 as u8, g: 0 as u8, b: 0 as u8, a: 180 as u8});
+    
+    // 结束面板
+    var panelX = GAME_WIDTH / 2 - 180;
+    var panelY = 150;
+    fb_draw_rect(panelX, panelY, 360, 350, Color.{r: 20 as u8, g: 40 as u8, b: 80 as u8});
+    fb_draw_rect(panelX, panelY, 360, 3, Color.{r: 255 as u8, g: 215 as u8, b: 0 as u8});
+    fb_draw_rect(panelX, panelY + 347, 360, 3, Color.{r: 255 as u8, g: 215 as u8, b: 0 as u8});
+    
+    // 标题
+    fb_draw_text_size(GAME_WIDTH / 2 - 80, panelY + 30, "GAME OVER", 
+                       Color.{r: 255 as u8, g: 80 as u8, b: 80 as u8}, 36);
+    
+    // 分隔线
+    fb_draw_rect(GAME_WIDTH / 2 - 150, panelY + 80, 300, 2, Color.{r: 100 as u8, g: 100 as u8, b: 100 as u8});
+    
+    // 最终分数
+    var scoreStr = "FINAL SCORE: " ++ state.score.toString();
+    fb_draw_text_size(GAME_WIDTH / 2 - 90, panelY + 110, scoreStr, 
+                       Color.{r: 255 as u8, g: 215 as u8, b: 0 as u8}, 28);
+    
+    // 金币
+    var coinsStr = "COINS EARNED: " ++ state.coins.toString();
+    fb_draw_text_size(GAME_WIDTH / 2 - 80, panelY + 155, coinsStr, 
+                       Color.{r: 255 as u8, g: 200 as u8, b: 50 as u8}, 20);
+    
+    // 分隔线
+    fb_draw_rect(GAME_WIDTH / 2 - 150, panelY + 200, 300, 2, Color.{r: 100 as u8, g: 100 as u8, b: 100 as u8});
+    
+    // 等级
+    var levelStr = "CANNON LEVEL: " ++ state.cannon.level.toString() ++ " / 5";
+    fb_draw_text_size(GAME_WIDTH / 2 - 85, panelY + 220, levelStr, 
+                       Color.{r: 100 as u8, g: 255 as u8, b: 100 as u8}, 18);
+    
+    // 重新开始提示
+    var blink = (get_game_time() / 500) % 2;
+    if blink == 0 {
+        fb_draw_text_size(GAME_WIDTH / 2 - 110, panelY + 290, "CLICK TO PLAY AGAIN", 
+                           Color.{r: 200 as u8, g: 200 as u8, b: 200 as u8}, 20);
+    }
+}
+
+// ==================== 事件处理 ====================
+
+// 鼠标点击
+fn on_mouse_click(x: i32, y: i32) {
+    start_game(&mut game);
+    if game.status == GameStatus.Playing {
+        shoot(&mut game);
+    }
+}
+
+// 鼠标移动
+fn on_mouse_move(x: i32, y: i32) {
+    game.mouseX = x;
+    game.mouseY = y;
+}
+
+// 键盘事件
+fn on_key(key: KeyCode) -> bool {
+    match key {
+        KeyCode.KeyEscape => {
+            quit_application();
+            return false;
+        }
+        KeyCode.KeyP => {
+            pause_game(&mut game);
+        }
+        _ => {}
+    }
+    return true;
+}
+
+// 定时器更新
+fn on_timer() -> bool {
+    gameTimeCounter = gameTimeCounter + 16;
+    return update_game(&mut game, 16);
+}
+
+// 绘制
+fn on_paint(w: i32, h: i32) {
+    if !fb_data.valid {
+        return;
+    }
+    
+    match game.status {
+        GameStatus.Ready => {
+            draw_ready_screen();
+        }
+        GameStatus.Playing => {
+            draw_background();
+            
+            // 绘制所有鱼
+            for i in 0..MAX_FISH {
+                if game.fishes[i].alive {
+                    draw_fish(&game.fishes[i]);
+                }
+            }
+            
+            // 绘制所有炮弹
+            for i in 0..MAX_BULLETS {
+                if game.bullets[i].active {
+                    draw_bullet(&game.bullets[i]);
+                }
+            }
+            
+            // 绘制效果
+            draw_effects(&game);
+            
+            // 绘制瞄准线
+            draw_aim_line(&game.cannon, game.mouseX, game.mouseY);
+            
+            // 绘制炮台
+            draw_cannon(&game.cannon);
+            
+            // 绘制UI
+            draw_ui(&game);
+        }
+        GameStatus.Paused => {
+            draw_background();
+            
+            // 绘制所有鱼
+            for i in 0..MAX_FISH {
+                if game.fishes[i].alive {
+                    draw_fish(&game.fishes[i]);
+                }
+            }
+            
+            draw_cannon(&game.cannon);
+            draw_ui(&game);
+            
+            // 暂停遮罩
+            fb_draw_rect(0, 0, GAME_WIDTH, GAME_HEIGHT, Color.{r: 0 as u8, g: 0 as u8, b: 0 as u8, a: 120 as u8});
+            fb_draw_text_size(GAME_WIDTH / 2 - 50, GAME_HEIGHT / 2 - 20, "PAUSED", 
+                               Color.{r: 255 as u8, g: 255 as u8, b: 255 as u8}, 32);
+            fb_draw_text_size(GAME_WIDTH / 2 - 70, GAME_HEIGHT / 2 + 20, "Press P to Resume", 
+                               Color.{r: 180 as u8, g: 180 as u8, b: 180 as u8}, 16);
+        }
+        GameStatus.GameOver => {
+            draw_background();
+            
+            // 绘制所有鱼
+            for i in 0..MAX_FISH {
+                if game.fishes[i].alive {
+                    draw_fish(&game.fishes[i]);
+                }
+            }
+            
+            draw_cannon(&game.cannon);
+            draw_gameover_screen(&game);
+        }
+    }
+    
+    fb_present();
+}
+
+// 销毁
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 全局变量 ====================
+
+static mut game: FishGameState;
+static mut window: WindowHandle;
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("===========================================");
+    io.println("   Zen-C Fish Game 捕鱼达人");
+    io.println("   Mouse Aim & Shoot");
+    io.println("===========================================");
+    
+    // 初始化游戏
+    init_game(&mut game, GAME_WIDTH, GAME_HEIGHT);
+    
+    // 创建窗口
+    var title = "Fish Hunter - 捕鱼达人";
+    window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
+    
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+    
+    // 获取客户区大小
+    var mut cw = 0;
+    var mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        game.width = cw;
+        game.height = ch;
+        set_client_size(cw, ch);
+    }
+    
+    // 初始化帧缓冲
+    if !fb_init(window, GAME_WIDTH, GAME_HEIGHT) {
+        io.println("错误: 无法初始化帧缓冲");
+        return 1;
+    }
+    
+    // 设置事件处理器
+    set_mouse_handler(on_mouse_click);
+    set_mouse_move_handler(on_mouse_move);
+    set_key_handler(on_key);
+    set_timer_handler(on_timer);
+    set_paint_handler(on_paint);
+    set_destroy_handler(on_destroy);
+    
+    // 显示窗口
+    show_window(window);
+    
+    // 设置游戏定时器 (16ms ~60fps)
+    set_game_timer(window, 16);
+    
+    io.println("窗口创建成功!");
+    io.println("操作说明:");
+    io.println("  - 鼠标移动: 调整炮台方向");
+    io.println("  - 左键点击: 发射炮弹");
+    io.println("  - ESC: 退出游戏");
+    io.println("  - P: 暂停/继续");
+    io.println("===========================================");
+    
+    // 初始绘制
+    redraw_window(window);
+    
+    // 运行事件循环
+    run_event_loop(window, &mut game);
+    
+    io.println("游戏结束!");
+    io.println("===========================================");
+    
+    0
+}

@@ -1,0 +1,310 @@
+// main_window.zc - Zen-C Pinball（弹球机）游戏主程序
+
+import std.io;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: PinballState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut game_speed: u32 = 16;  // ~60 FPS
+
+// ==================== 绘制辅助函数 ====================
+
+fn draw_flipper(flipper: &Flipper) {
+    let end_x = flipper.pivot_x + (math.cos(flipper.angle) * flipper.length as f32) as i32;
+    let end_y = flipper.pivot_y + (math.sin(flipper.angle) * flipper.length as f32) as i32;
+    fb_draw_line(flipper.pivot_x, flipper.pivot_y, end_x, end_y, rgb(220, 220, 220), flipper.width);
+}
+
+fn draw_bumper(bumper: &Bumper) {
+    let color = if bumper.hit || bumper.hit_timer > 0 {
+        rgb(255, 200, 50)
+    } else {
+        rgb(255, 80, 80)
+    };
+    fb_draw_circle(bumper.x, bumper.y, bumper.radius, color);
+    // 内圈高亮
+    fb_draw_circle(bumper.x, bumper.y, bumper.radius - 6, rgb(255, 150, 150));
+}
+
+fn draw_target(target: &Target) {
+    if target.hit {
+        // 被击中后的灰色
+        fb_draw_rect(target.x, target.y, target.width, target.height, rgb(80, 80, 80));
+    } else {
+        fb_draw_rect(target.x, target.y, target.width, target.height, rgb(255, 50, 50));
+    }
+}
+
+fn draw_slingshot(sling: &Slingshot) {
+    let color = if sling.hit_timer > 0 {
+        rgb(255, 200, 50)
+    } else {
+        rgb(150, 150, 200)
+    };
+    // 画三角形三条边
+    fb_draw_line(sling.x1, sling.y1, sling.x2, sling.y2, color, 4);
+    fb_draw_line(sling.x2, sling.y2, sling.x3, sling.y3, color, 4);
+    fb_draw_line(sling.x3, sling.y3, sling.x1, sling.y1, color, 4);
+}
+
+fn draw_spinner(spinner: &Spinner) {
+    let len = 20;
+    let x1 = spinner.x as f32 - math.cos(spinner.angle) * len as f32;
+    let y1 = spinner.y as f32 - math.sin(spinner.angle) * len as f32;
+    let x2 = spinner.x as f32 + math.cos(spinner.angle) * len as f32;
+    let y2 = spinner.y as f32 + math.sin(spinner.angle) * len as f32;
+
+    fb_draw_circle(spinner.x, spinner.y, 6, rgb(100, 200, 255));
+    fb_draw_line(x1 as i32, y1 as i32, x2 as i32, y2 as i32, rgb(200, 240, 255), 3);
+}
+
+// 绘制弹球机台面边框
+fn draw_table_border() {
+    // 左墙
+    fb_draw_line(0, 0, 0, GAME_HEIGHT - 80, rgb(180, 180, 180), 8);
+    // 右墙
+    fb_draw_line(GAME_WIDTH, 0, GAME_WIDTH, GAME_HEIGHT - 80, rgb(180, 180, 180), 8);
+    // 顶部（分两部分，中间留口）
+    fb_draw_line(0, 0, GAME_WIDTH / 2 - 60, 0, rgb(180, 180, 180), 8);
+    fb_draw_line(GAME_WIDTH / 2 + 60, 0, GAME_WIDTH, 0, rgb(180, 180, 180), 8);
+    // 顶部拱形装饰
+    fb_draw_line(GAME_WIDTH / 2 - 60, 0, GAME_WIDTH / 2 - 30, 30, rgb(150, 150, 150), 4);
+    fb_draw_line(GAME_WIDTH / 2 + 60, 0, GAME_WIDTH / 2 + 30, 30, rgb(150, 150, 150), 4);
+
+    // 左下角导向
+    fb_draw_line(0, FLIPPER_Y - 20, FLIPPER_PIVOT_LEFT - FLIPPER_LENGTH, FLIPPER_Y + 40, rgb(160, 160, 160), 5);
+    // 右下角导向
+    fb_draw_line(GAME_WIDTH, FLIPPER_Y - 20, FLIPPER_PIVOT_RIGHT + FLIPPER_LENGTH, FLIPPER_Y + 40, rgb(160, 160, 160), 5);
+
+    // 翻转器区域底线
+    fb_draw_line(FLIPPER_PIVOT_LEFT - FLIPPER_LENGTH, FLIPPER_Y + 50,
+                  FLIPPER_PIVOT_RIGHT + FLIPPER_LENGTH, FLIPPER_Y + 50, rgb(100, 100, 100), 2);
+}
+
+// 绘制发射通道
+fn draw_launch_lane() {
+    // 发射通道右墙
+    fb_draw_line(GAME_WIDTH - 15, FLIPPER_Y - 20, GAME_WIDTH - 15, GAME_HEIGHT, rgb(180, 180, 180), 6);
+}
+
+// 绘制弹簧发射器
+fn draw_plunger(plunger: &Plunger) {
+    // 发射管
+    fb_draw_rect(plunger.x - 5, plunger.y, plunger.width + 10, plunger.height, rgb(80, 80, 120));
+    // 弹簧
+    let spring_top = plunger.y + plunger.height - plunger.pull;
+    let spring_color = if plunger.pull > PLUNGER_PULL_MAX / 2 {
+        rgb(255, 100, 100)
+    } else {
+        rgb(200, 200, 200)
+    };
+    // 画弹簧效果（锯齿）
+    let segments = 6;
+    let seg_height = (plunger.height - 10) / segments;
+    for i in 0..segments {
+        let y_base = plunger.y + 5 + i * seg_height;
+        let x_off = if i % 2 == 0 { 5 } else { -5 };
+        let y_end = if i == segments - 1 { spring_top } else { y_base + seg_height };
+        fb_draw_line(plunger.x + plunger.width / 2 + x_off, y_base,
+                      plunger.x + plunger.width / 2 - x_off, y_end, spring_color, 3);
+    }
+    // 柱塞头
+    fb_draw_rect(plunger.x + 4, spring_top - 8, plunger.width - 8, 10, rgb(255, 180, 50));
+    // 力度条
+    let bar_height = plunger.pull * 2;
+    fb_draw_rect(plunger.x, plunger.y + plunger.height + 5, plunger.width, 8, rgb(50, 50, 50));
+    fb_draw_rect(plunger.x, plunger.y + plunger.height + 5, plunger.width * plunger.pull / PLUNGER_PULL_MAX, 8, rgb(255, 80, 80));
+}
+
+// ==================== 事件处理 ====================
+
+fn on_key(key: KeyCode) -> bool {
+    return handle_input(&mut game, key);
+}
+
+fn on_key_up(key: KeyCode) {
+    handle_key_up(&mut game, key);
+}
+
+fn on_timer() -> bool {
+    if game.status == GameStatus.Playing || game.plunger.pulling {
+        return update_game(&mut game);
+    }
+    return false;
+}
+
+fn on_paint(w: i32, h: i32) {
+    // 确保帧缓冲初始化
+    if !fb_data.valid {
+        fb_init(window, w, h);
+    }
+
+    // 清屏 - 深蓝色台面
+    fb_clear(rgb(20, 30, 70));
+
+    // 绘制台面边框
+    draw_table_border();
+    draw_launch_lane();
+
+    // 绘制分数显示
+    let score_str = "分数: " ++ game.score.toString();
+    fb_draw_text_size(10, 10, score_str, rgb(255, 255, 100), 22);
+
+    // 倍数
+    let mult_str = "x" ++ game.multiplier.toString();
+    fb_draw_text_size(10, 38, mult_str, rgb(255, 200, 50), 18);
+
+    // 剩余球数
+    let balls_str = "球: " ++ game.balls_remaining.toString();
+    fb_draw_text_size(GAME_WIDTH - 80, 10, balls_str, rgb(200, 200, 200), 18);
+
+    // Spinner
+    draw_spinner(&game.spinner);
+
+    // 目标区域分隔线
+    fb_draw_line(50, 395, GAME_WIDTH - 50, 395, rgb(100, 100, 150), 1);
+
+    // 绘制目标
+    for i in 0..TARGET_COUNT {
+        draw_target(&game.targets[i]);
+    }
+
+    // 绘制挡板
+    for i in 0..BUMPER_COUNT {
+        draw_bumper(&game.bumpers[i]);
+    }
+
+    // 绘制弹弓
+    for i in 0..2 {
+        draw_slingshot(&game.slingshots[i]);
+    }
+
+    // 绘制翻转器
+    for i in 0..2 {
+        draw_flipper(&game.flippers[i]);
+    }
+
+    // 绘制翻转器支点
+    fb_draw_circle(FLIPPER_PIVOT_LEFT, FLIPPER_Y, 8, rgb(180, 180, 180));
+    fb_draw_circle(FLIPPER_PIVOT_RIGHT, FLIPPER_Y, 8, rgb(180, 180, 180));
+
+    // 绘制弹珠
+    for i in 0..MAX_BALLS {
+        if game.balls[i].active {
+            let ball = &game.balls[i];
+            // 轨迹效果
+            if ball.trail_count > 3 && ball.trail_count % 4 == 0 {
+                let trail_alpha = (ball.trail_count / 4) as i32;
+                if trail_alpha < 6 {
+                    let trail_color = rgb(255, 220, 100);
+                    fb_draw_circle(ball.x as i32, (ball.y + trail_alpha * 3) as i32, ball.radius - trail_alpha, trail_color);
+                }
+            }
+            // 球体（外圈高光）
+            fb_draw_circle(ball.x as i32, ball.y as i32, ball.radius, rgb(220, 220, 220));
+            fb_draw_circle(ball.x as i32 - 2, ball.y as i32 - 2, ball.radius - 3, rgb(255, 255, 255));
+        }
+    }
+
+    // 绘制弹簧发射器
+    draw_plunger(&game.plunger);
+
+    // 发射口指示
+    fb_draw_line(GAME_WIDTH - 15, FLIPPER_Y - 20, GAME_WIDTH - 5, PLUNGER_Y, rgb(100, 100, 100), 3);
+
+    // 绘制状态文本
+    let status = get_status_text(&game);
+    if status.len() > 0 {
+        fb_draw_text_size(GAME_WIDTH / 2 - 120, GAME_HEIGHT / 2 + 50, status, rgb(255, 255, 0), 18);
+    }
+
+    // 绘制控制说明
+    fb_draw_text_size(10, GAME_HEIGHT - 25, get_controls_text(), rgb(120, 120, 120), 14);
+
+    // 呈现画面
+    fb_present();
+}
+
+fn on_mouse(x: i32, y: i32) {
+    // 点击发射
+    if game.status == GameStatus.Ready || game.status == GameStatus.Aiming {
+        if x > GAME_WIDTH / 2 {
+            // 右侧弹簧发射区
+            start_plunger_pull(&mut game);
+        }
+    } else if game.status == GameStatus.GameOver {
+        init_game(&mut game);
+    }
+}
+
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C Pinball 弹球机游戏");
+    io.println("========================================");
+
+    // 初始化游戏状态
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "Pinball - 弹球机游戏";
+    window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 获取实际客户区大小
+    let mut cw = 0;
+    let mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        game.width = cw;
+        game.height = ch;
+        set_client_size(cw, ch);
+    }
+
+    // 设置事件处理器
+    set_key_handler(on_key);
+    set_key_up_handler(on_key_up);
+    set_timer_handler(on_timer);
+    set_paint_handler(on_paint);
+    set_mouse_handler(on_mouse);
+    set_destroy_handler(on_destroy);
+
+    // 显示窗口
+    show_window(window);
+
+    // 设置游戏定时器
+    set_game_timer(window, game_speed);
+
+    io.println("窗口创建成功!");
+    io.println("按空格键拉弹簧发射弹珠");
+    io.println("使用 ↑ ↓ 调整发射力度");
+    io.println("使用 ← → 控制左右翻转器");
+    io.println("========================================");
+
+    // 初始绘制
+    redraw_window(window);
+
+    // 运行事件循环
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("最终得分: " ++ game.score.toString());
+    io.println("========================================");
+
+    0
+}

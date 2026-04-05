@@ -1,0 +1,468 @@
+// game_logic.zc - 捕鱼达人游戏逻辑
+// Zen-C 游戏框架
+
+import std.io;
+import "fish_render.zc";
+
+// ==================== 常量 ====================
+
+const WINDOW_WIDTH = 900;
+const WINDOW_HEIGHT = 650;
+const MAX_FISH = 30;
+const MAX_BULLETS = 15;
+const FISH_SPAWN_INTERVAL = 500;  // 毫秒
+const CANNON_COOLDOWN = 200;       // 毫秒
+
+// 游戏状态
+pub type GameStatus = enum {
+    Ready,      // 等待开始
+    Playing,    // 游戏中
+    Paused,     // 暂停
+    GameOver,   // 游戏结束
+};
+
+// 游戏状态结构
+pub struct FishGameState {
+    status: GameStatus,
+    score: i32,
+    coins: i32,           // 金币/能量
+    width: i32,
+    height: i32,
+    
+    // 炮台
+    cannon: Cannon,
+    
+    // 鼠标位置
+    mouseX: i32,
+    mouseY: i32,
+    
+    // 鱼群
+    fishes: [Fish; MAX_FISH],
+    fishCount: i32,
+    
+    // 炮弹
+    bullets: [Bullet; MAX_BULLETS],
+    bulletCount: i32,
+    
+    // 计时
+    lastFishSpawn: i32,
+    lastCannonShot: i32,
+    gameTime: i32,
+    
+    // 特效
+    hitEffects: [HitEffect; 20],
+    effectCount: i32,
+}
+
+// 击中效果
+pub struct HitEffect {
+    x: i32,
+    y: i32,
+    timer: i32,
+    score: i32,
+    active: bool,
+}
+
+// ==================== 初始化 ====================
+
+// 初始化游戏
+pub fn init_game(state: &mut FishGameState, width: i32, height: i32) {
+    state.status = GameStatus.Ready;
+    state.score = 0;
+    state.coins = 100;
+    state.width = width;
+    state.height = height;
+    
+    // 初始化炮台
+    state.cannon.x = width / 2;
+    state.cannon.y = height - 50;
+    state.cannon.angle = -3.14159 / 2.0;  // 朝上
+    state.cannon.level = 1;
+    state.cannon.cooldown = 0;
+    
+    // 初始化鼠标位置
+    state.mouseX = width / 2;
+    state.mouseY = height / 3;
+    
+    // 初始化鱼群
+    state.fishCount = 0;
+    for i in 0..MAX_FISH {
+        state.fishes[i].alive = false;
+    }
+    
+    // 初始化炮弹
+    state.bulletCount = 0;
+    for i in 0..MAX_BULLETS {
+        state.bullets[i].active = false;
+    }
+    
+    // 初始化效果
+    state.effectCount = 0;
+    for i in 0..20 {
+        state.hitEffects[i].active = false;
+    }
+    
+    state.lastFishSpawn = 0;
+    state.lastCannonShot = 0;
+    state.gameTime = 0;
+    
+    io.println("FishGame 初始化完成");
+}
+
+// ==================== 游戏逻辑更新 ====================
+
+// 更新游戏
+pub fn update_game(state: &mut FishGameState, dt: i32) -> bool {
+    if state.status != GameStatus.Playing {
+        return true;
+    }
+    
+    state.gameTime = state.gameTime + dt;
+    
+    // 更新炮台角度 (朝向鼠标)
+    update_cannon_angle(state);
+    
+    // 生成鱼
+    update_fish_spawn(state, dt);
+    
+    // 更新鱼位置
+    update_fishes(state, dt);
+    
+    // 更新炮弹
+    update_bullets(state, dt);
+    
+    // 碰撞检测
+    check_collisions(state);
+    
+    // 更新特效
+    update_effects(state, dt);
+    
+    // 冷却时间
+    if state.cannon.cooldown > 0 {
+        state.cannon.cooldown = state.cannon.cooldown - dt;
+    }
+    
+    return true;
+}
+
+// 更新炮台角度
+fn update_cannon_angle(state: &mut FishGameState) {
+    var dx = state.mouseX - state.cannon.x;
+    var dy = state.mouseY - state.cannon.y;
+    
+    // 计算角度 (朝向鼠标)
+    state.cannon.angle = atan2f(dy as f32, dx as f32);
+    
+    // 限制角度范围 (只能向上半圆射击)
+    if state.cannon.angle > 0.0 {
+        if state.cannon.angle > 3.14159 / 2.0 {
+            state.cannon.angle = 3.14159 / 2.0;
+        } else {
+            state.cannon.angle = -3.14159 / 2.0;
+        }
+    }
+}
+
+// 生成鱼
+fn update_fish_spawn(state: &mut FishGameState, dt: i32) {
+    state.lastFishSpawn = state.lastFishSpawn + dt;
+    
+    if state.lastFishSpawn >= FISH_SPAWN_INTERVAL && state.fishCount < MAX_FISH {
+        spawn_fish(state);
+        state.lastFishSpawn = 0;
+    }
+}
+
+// 生成一条鱼
+fn spawn_fish(state: &mut FishGameState) {
+    // 找到空闲的鱼槽
+    var slot = -1;
+    for i in 0..MAX_FISH {
+        if !state.fishes[i].alive {
+            slot = i;
+            break;
+        }
+    }
+    
+    if slot < 0 { return; }
+    
+    // 随机决定鱼类型 (加权概率)
+    var rand = (state.gameTime % 100) as i32;
+    var fishType: FishType;
+    
+    if rand < 40 {
+        fishType = FishType.SmallFish;
+    } else if rand < 70 {
+        fishType = FishType.MediumFish;
+    } else if rand < 85 {
+        fishType = FishType.LargeFish;
+    } else if rand < 95 {
+        fishType = FishType.Shark;
+    } else {
+        fishType = FishType.GoldFish;
+    }
+    
+    // 设置鱼的初始位置 (从屏幕边缘)
+    var fish = &state.fishes[slot];
+    fish.fishType = fishType;
+    fish.size = get_fish_size(fishType);
+    fish.alive = true;
+    fish.animFrame = 0;
+    fish.wobble = 0.0;
+    
+    // 速度
+    var speed = get_fish_speed(fishType);
+    
+    // 随机出生边: 0=左边, 1=右边, 2=下边
+    var side = state.gameTime % 3;
+    
+    if side == 0 {
+        // 从左边出生
+        fish.x = -fish.size as f32;
+        fish.y = (50 + (state.gameTime % (state.height - 150))) as f32;
+        fish.vx = speed;
+        fish.vy = (state.gameTime % 20 - 10) as f32 * 0.1;
+    } else if side == 1 {
+        // 从右边出生
+        fish.x = (state.width + fish.size) as f32;
+        fish.y = (50 + (state.gameTime % (state.height - 150))) as f32;
+        fish.vx = -speed;
+        fish.vy = (state.gameTime % 20 - 10) as f32 * 0.1;
+    } else {
+        // 从下边出生
+        fish.x = (50 + (state.gameTime % (state.width - 100))) as f32;
+        fish.y = (state.height + fish.size) as f32;
+        fish.vx = (state.gameTime % 20 - 10) as f32 * 0.1;
+        fish.vy = -speed;
+    }
+    
+    // 计算游动角度
+    fish.angle = atan2f(fish.vy, fish.vx);
+    
+    state.fishCount = state.fishCount + 1;
+}
+
+// 更新所有鱼
+fn update_fishes(state: &mut FishGameState, dt: i32) {
+    for i in 0..MAX_FISH {
+        var fish = &state.fishes[i];
+        if !fish.alive { continue; }
+        
+        // 更新位置
+        fish.x = fish.x + fish.vx * dt as f32 * 0.05;
+        fish.y = fish.y + fish.vy * dt as f32 * 0.05;
+        
+        // 轻微摇摆
+        fish.wobble = fish.wobble + 0.1;
+        fish.vy = fish.vy + sini(fish.wobble) * 0.02;
+        
+        // 更新角度
+        fish.angle = atan2f(fish.vy, fish.vx);
+        
+        // 动画帧
+        fish.animFrame = fish.animFrame + 1;
+        
+        // 检查是否离开屏幕
+        if fish.x < -100 || fish.x > state.width + 100 ||
+           fish.y < -100 || fish.y > state.height + 100 {
+            fish.alive = false;
+            state.fishCount = state.fishCount - 1;
+        }
+    }
+}
+
+// 更新炮弹
+fn update_bullets(state: &mut FishGameState, dt: i32) {
+    for i in 0..MAX_BULLETS {
+        var bullet = &state.bullets[i];
+        if !bullet.active { continue; }
+        
+        // 更新位置
+        bullet.x = bullet.x + bullet.vx * dt as f32 * 0.3;
+        bullet.y = bullet.y + bullet.vy * dt as f32 * 0.3;
+        
+        // 拖尾
+        bullet.trail = bullet.trail + 1;
+        if bullet.trail > 10 { bullet.trail = 10; }
+        
+        // 检查是否离开屏幕
+        if bullet.x < 0 || bullet.x > state.width as f32 ||
+           bullet.y < 0 || bullet.y > state.height as f32 {
+            bullet.active = false;
+        }
+    }
+}
+
+// 碰撞检测
+fn check_collisions(state: &mut FishGameState) {
+    for i in 0..MAX_BULLETS {
+        var bullet = &state.bullets[i];
+        if !bullet.active { continue; }
+        
+        for j in 0..MAX_FISH {
+            var fish = &state.fishes[j];
+            if !fish.alive { continue; }
+            
+            // 圆形碰撞检测
+            var dx = (bullet.x - fish.x) as i32;
+            var dy = (bullet.y - fish.y) as i32;
+            var dist = sqrti(dx * dx + dy * dy);
+            
+            if dist < fish.size + 5 {
+                // 击中!
+                bullet.active = false;
+                fish.alive = false;
+                state.fishCount = state.fishCount - 1;
+                
+                // 加分
+                var score = get_fish_score(fish.fishType);
+                state.score = state.score + score;
+                
+                // 添加击中效果
+                add_hit_effect(state, fish.x as i32, fish.y as i32, score);
+                
+                // 增加金币
+                state.coins = state.coins + score / 2;
+                
+                // 升级炮台
+                if state.score > 0 && state.score % 500 < score {
+                    if state.cannon.level < 5 {
+                        state.cannon.level = state.cannon.level + 1;
+                    }
+                }
+                
+                break;
+            }
+        }
+    }
+}
+
+// 添加击中效果
+fn add_hit_effect(state: &mut FishGameState, x: i32, y: i32, score: i32) {
+    for i in 0..20 {
+        if !state.hitEffects[i].active {
+            state.hitEffects[i].x = x;
+            state.hitEffects[i].y = y;
+            state.hitEffects[i].score = score;
+            state.hitEffects[i].timer = 30;
+            state.hitEffects[i].active = true;
+            state.effectCount = state.effectCount + 1;
+            break;
+        }
+    }
+}
+
+// 更新特效
+fn update_effects(state: &mut FishGameState, dt: i32) {
+    for i in 0..20 {
+        if !state.hitEffects[i].active { continue; }
+        
+        state.hitEffects[i].timer = state.hitEffects[i].timer - 1;
+        state.hitEffects[i].y = state.hitEffects[i].y - 1;  // 向上飘
+        
+        if state.hitEffects[i].timer <= 0 {
+            state.hitEffects[i].active = false;
+            state.effectCount = state.effectCount - 1;
+        }
+    }
+}
+
+// ==================== 射击 ====================
+
+// 发射炮弹
+pub fn shoot(state: &mut FishGameState) {
+    if state.status != GameStatus.Playing { return; }
+    if state.cannon.cooldown > 0 { return; }
+    
+    // 找到空闲的炮弹槽
+    var slot = -1;
+    for i in 0..MAX_BULLETS {
+        if !state.bullets[i].active {
+            slot = i;
+            break;
+        }
+    }
+    
+    if slot < 0 { return; }
+    
+    var bullet = &state.bullets[slot];
+    bullet.active = true;
+    bullet.x = state.cannon.x as f32;
+    bullet.y = state.cannon.y as f32;
+    
+    // 根据炮台等级调整速度和威力
+    var speed = 12.0 + state.cannon.level as f32 * 2.0;
+    bullet.vx = cosi(state.cannon.angle) * speed;
+    bullet.vy = sini(state.cannon.angle) * speed;
+    bullet.power = state.cannon.level;
+    bullet.trail = 0;
+    
+    // 设置冷却
+    state.cannon.cooldown = CANNON_COOLDOWN - state.cannon.level * 20;
+    if state.cannon.cooldown < 80 {
+        state.cannon.cooldown = 80;
+    }
+}
+
+// 开始游戏
+pub fn start_game(state: &mut FishGameState) {
+    if state.status == GameStatus.Ready || state.status == GameStatus.GameOver {
+        state.status = GameStatus.Playing;
+        state.score = 0;
+        state.coins = 100;
+        state.gameTime = 0;
+        
+        // 重置鱼和炮弹
+        for i in 0..MAX_FISH {
+            state.fishes[i].alive = false;
+        }
+        for i in 0..MAX_BULLETS {
+            state.bullets[i].active = false;
+        }
+        for i in 0..20 {
+            state.hitEffects[i].active = false;
+        }
+        
+        state.fishCount = 0;
+        state.bulletCount = 0;
+        state.cannon.level = 1;
+        
+        io.println("游戏开始!");
+    }
+}
+
+// 暂停游戏
+pub fn pause_game(state: &mut FishGameState) {
+    if state.status == GameStatus.Playing {
+        state.status = GameStatus.Paused;
+    } else if state.status == GameStatus.Paused {
+        state.status = GameStatus.Playing;
+    }
+}
+
+// ==================== 数学辅助 ====================
+
+fn atan2f(y: f32, x: f32) -> f32 {
+    if x > 0.0 {
+        return atanf(y / x);
+    } else if x < 0.0 {
+        if y >= 0.0 {
+            return atanf(y / x) + 3.14159;
+        } else {
+            return atanf(y / x) - 3.14159;
+        }
+    } else {
+        if y > 0.0 {
+            return 3.14159 / 2.0;
+        } else if y < 0.0 {
+            return -3.14159 / 2.0;
+        } else {
+            return 0.0;
+        }
+    }
+}
+
+fn atanf(x: f32) -> f32 {
+    // 简化的atan近似
+    return x - (x * x * x) / 3.0 + (x * x * x * x * x) / 5.0;
+}

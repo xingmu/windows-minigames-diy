@@ -1,0 +1,864 @@
+// game_logic.zc - Zen-C Pinball（弹球机）游戏核心逻辑
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 540;
+const GAME_HEIGHT: i32 = 700;
+const BALL_RADIUS: i32 = 8;
+const GRAVITY: f32 = 0.25;
+const FRICTION: f32 = 0.998;
+const BOUNCE_WALL: f32 = 0.75;
+const BOUNCE_BUMPER: f32 = 1.2;
+const MAX_BALLS: i32 = 3;
+
+// 翻转器参数
+const FLIPPER_LENGTH: i32 = 55;
+const FLIPPER_WIDTH: i32 = 10;
+const FLIPPER_Y: i32 = GAME_HEIGHT - 100;
+const FLIPPER_PIVOT_LEFT: i32 = 120;
+const FLIPPER_PIVOT_RIGHT: i32 = GAME_WIDTH - 120;
+const FLIPPER_ANGLE_REST_LEFT: f32 = 0.4;
+const FLIPPER_ANGLE_REST_RIGHT: f32 = 3.14 - 0.4;
+const FLIPPER_ANGLE_ACTIVE: f32 = -0.4;
+const FLIPPER_ANGLE_ACTIVE_RIGHT: f32 = 3.14 + 0.4;
+const FLIPPER_ANGLE_SPEED: f32 = 0.35;
+
+// 发射器（ plunger）参数
+const PLUNGER_X: i32 = GAME_WIDTH - 40;
+const PLUNGER_Y: i32 = GAME_HEIGHT - 150;
+const PLUNGER_WIDTH: i32 = 24;
+const PLUNGER_HEIGHT: i32 = 60;
+const PLUNGER_PULL_MAX: i32 = 40;
+const PLUNGER_LAUNCH_POWER: f32 = 18.0;
+
+// 挡板（ bumper）参数
+const BUMPER_RADIUS: i32 = 20;
+const BUMPER_COUNT: i32 = 5;
+
+// 目标（ target）参数
+const TARGET_COUNT: i32 = 6;
+const TARGET_WIDTH: i32 = 30;
+const TARGET_HEIGHT: i32 = 12;
+
+// 得分区域
+const SCORE_AREA_Y: i32 = 50;
+
+// ==================== 得分表 ====================
+
+const BUMPER_SCORE: i32 = 100;
+const TARGET_SCORE: i32 = 500;
+const SLINGSHOT_SCORE: i32 = 50;
+const SPINNER_SCORE: i32 = 25;
+const BONUS_MULTIPLIER: i32 = 2;
+
+// ==================== 游戏状态 ====================
+
+enum GameStatus {
+    Ready,         // 等待发射
+    Aiming,        // 正在拉弹簧
+    Playing,        // 球在运动中
+    BallLost,       // 球丢失
+    GameOver,       // 游戏结束
+}
+
+// ==================== 数据结构 ====================
+
+struct Ball {
+    x: f32,
+    y: f32,
+    vx: f32,
+    vy: f32,
+    radius: i32,
+    active: bool,
+    trail_count: i32,
+}
+
+struct Flipper {
+    pivot_x: i32,
+    pivot_y: i32,
+    length: i32,
+    width: i32,
+    angle: f32,
+    target_angle: f32,
+    rest_angle: f32,
+    active_angle: f32,
+    is_left: bool,
+}
+
+struct Plunger {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    pull: i32,
+    pulling: bool,
+}
+
+struct Bumper {
+    x: i32,
+    y: i32,
+    radius: i32,
+    hit: bool,
+    hit_timer: i32,
+}
+
+struct Target {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    hit: bool,
+    hit_timer: i32,
+}
+
+struct Slingshot {
+    x1: i32,
+    y1: i32,
+    x2: i32,
+    y2: i32,
+    x3: i32,
+    y3: i32,
+    hit: bool,
+    hit_timer: i32,
+}
+
+struct Spinner {
+    x: i32,
+    y: i32,
+    angle: f32,
+    spins: i32,
+    active: bool,
+}
+
+struct PinballState {
+    balls: [MAX_BALLS]Ball,
+    flippers: [2]Flipper,
+    plunger: Plunger,
+    bumpers: [BUMPER_COUNT]Bumper,
+    targets: [TARGET_COUNT]Target,
+    slingshots: [2]Slingshot,
+    spinner: Spinner,
+    score: i32,
+    balls_remaining: i32,
+    multiplier: i32,
+    status: GameStatus,
+    width: i32,
+    height: i32,
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut PinballState) {
+    game.width = GAME_WIDTH;
+    game.height = GAME_HEIGHT;
+    game.score = 0;
+    game.balls_remaining = MAX_BALLS;
+    game.multiplier = 1;
+    game.status = GameStatus.Ready;
+
+    // 初始化发射器
+    game.plunger = Plunger {
+        x: PLUNGER_X,
+        y: PLUNGER_Y,
+        width: PLUNGER_WIDTH,
+        height: PLUNGER_HEIGHT,
+        pull: 0,
+        pulling: false,
+    };
+
+    // 初始化弹珠
+    for i in 0..MAX_BALLS {
+        game.balls[i] = Ball {
+            x: 0 as f32,
+            y: 0 as f32,
+            vx: 0 as f32,
+            vy: 0 as f32,
+            radius: BALL_RADIUS,
+            active: false,
+            trail_count: 0,
+        };
+    }
+
+    // 初始化翻转器
+    game.flippers[0] = Flipper {
+        pivot_x: FLIPPER_PIVOT_LEFT,
+        pivot_y: FLIPPER_Y,
+        length: FLIPPER_LENGTH,
+        width: FLIPPER_WIDTH,
+        angle: FLIPPER_ANGLE_REST_LEFT,
+        target_angle: FLIPPER_ANGLE_REST_LEFT,
+        rest_angle: FLIPPER_ANGLE_REST_LEFT,
+        active_angle: FLIPPER_ANGLE_ACTIVE,
+        is_left: true,
+    };
+    game.flippers[1] = Flipper {
+        pivot_x: FLIPPER_PIVOT_RIGHT,
+        pivot_y: FLIPPER_Y,
+        length: FLIPPER_LENGTH,
+        width: FLIPPER_WIDTH,
+        angle: FLIPPER_ANGLE_REST_RIGHT,
+        target_angle: FLIPPER_ANGLE_REST_RIGHT,
+        rest_angle: FLIPPER_ANGLE_REST_RIGHT,
+        active_angle: FLIPPER_ANGLE_ACTIVE_RIGHT,
+        is_left: false,
+    };
+
+    // 初始化挡板（ bumper）- 排列成三角形
+    init_bumpers(game);
+
+    // 初始化目标（ targets）
+    init_targets(game);
+
+    // 初始化弹弓（ slingshots）
+    init_slingshots(game);
+
+    // 初始化旋转器（ spinner）
+    game.spinner = Spinner {
+        x: GAME_WIDTH / 2,
+        y: 280,
+        angle: 0.0,
+        spins: 0,
+        active: false,
+    };
+}
+
+// 初始化挡板
+fn init_bumpers(game: &mut PinballState) {
+    // 三角形排列
+    let positions: [BUMPER_COUNT * 2]i32 = [
+        GAME_WIDTH / 2, 180,           // 顶部中间
+        GAME_WIDTH / 2 - 70, 230,      // 左
+        GAME_WIDTH / 2 + 70, 230,      // 右
+        GAME_WIDTH / 2 - 35, 290,      // 中左
+        GAME_WIDTH / 2 + 35, 290,      // 中右
+    ];
+
+    for i in 0..BUMPER_COUNT {
+        game.bumpers[i] = Bumper {
+            x: positions[i * 2],
+            y: positions[i * 2 + 1],
+            radius: BUMPER_RADIUS,
+            hit: false,
+            hit_timer: 0,
+        };
+    }
+}
+
+// 初始化目标
+fn init_targets(game: &mut PinballState) {
+    let start_x = GAME_WIDTH / 2 - (TARGET_COUNT * TARGET_WIDTH) / 2;
+    for i in 0..TARGET_COUNT {
+        game.targets[i] = Target {
+            x: start_x + i * (TARGET_WIDTH + 5),
+            y: 380,
+            width: TARGET_WIDTH,
+            height: TARGET_HEIGHT,
+            hit: false,
+            hit_timer: 0,
+        };
+    }
+}
+
+// 初始化弹弓
+fn init_slingshots(game: &mut PinballState) {
+    // 左弹弓
+    game.slingshots[0] = Slingshot {
+        x1: 30, y1: FLIPPER_Y - 30,
+        x2: 30, y2: FLIPPER_Y + 30,
+        x3: 80, y3: FLIPPER_Y,
+        hit: false,
+        hit_timer: 0,
+    };
+    // 右弹弓
+    game.slingshots[1] = Slingshot {
+        x1: GAME_WIDTH - 30, y1: FLIPPER_Y - 30,
+        x2: GAME_WIDTH - 30, y2: FLIPPER_Y + 30,
+        x3: GAME_WIDTH - 80, y3: FLIPPER_Y,
+        hit: false,
+        hit_timer: 0,
+    };
+}
+
+// 获取空闲弹珠
+fn get_free_ball(game: &PinballState) -> i32 {
+    for i in 0..MAX_BALLS {
+        if !game.balls[i].active {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// 获取球的位置索引（用于多球）
+fn get_active_ball(game: &PinballState) -> i32 {
+    for i in 0..MAX_BALLS {
+        if game.balls[i].active {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// 重置所有目标
+fn reset_targets(game: &mut PinballState) {
+    for i in 0..TARGET_COUNT {
+        game.targets[i].hit = false;
+        game.targets[i].hit_timer = 0;
+    }
+    // 每重置一次增加倍数
+    if game.multiplier < 5 {
+        game.multiplier = game.multiplier + 1;
+    }
+}
+
+// 重置挡板状态
+fn reset_bumpers(game: &mut PinballState) {
+    for i in 0..BUMPER_COUNT {
+        game.bumpers[i].hit = false;
+        game.bumpers[i].hit_timer = 0;
+    }
+}
+
+// 发射弹珠
+fn launch_ball(game: &mut PinballState) -> bool {
+    if game.status == GameStatus.Ready || game.status == GameStatus.Aiming {
+        let ball_idx = get_free_ball(game);
+        if ball_idx >= 0 {
+            let power = game.plunger.pull as f32 / PLUNGER_PULL_MAX as f32;
+            let launch_v = PLUNGER_LAUNCH_POWER * (0.5 + power * 0.8);
+
+            game.balls[ball_idx].x = PLUNGER_X as f32 + (PLUNGER_WIDTH / 2) as f32;
+            game.balls[ball_idx].y = PLUNGER_Y as f32 - 10.0;
+            game.balls[ball_idx].vx = 0.0;
+            game.balls[ball_idx].vy = -launch_v;
+            game.balls[ball_idx].active = true;
+            game.balls[ball_idx].trail_count = 0;
+            game.balls[ball_idx].radius = BALL_RADIUS;
+
+            game.plunger.pull = 0;
+            game.plunger.pulling = false;
+            game.status = GameStatus.Playing;
+
+            reset_targets(game);
+            reset_bumpers(game);
+
+            return true;
+        }
+    }
+    return false;
+}
+
+// 开始拉弹簧
+fn start_plunger_pull(game: &mut PinballState) {
+    if game.status == GameStatus.Ready {
+        game.plunger.pulling = true;
+        game.plunger.pull = 0;
+        game.status = GameStatus.Aiming;
+    }
+}
+
+// 更新弹簧拉动
+fn update_plunger_pull(game: &mut PinballState) {
+    if game.plunger.pulling && game.plunger.pull < PLUNGER_PULL_MAX {
+        game.plunger.pull = game.plunger.pull + 2;
+    }
+}
+
+// 停止拉弹簧
+fn release_plunger(game: &mut PinballState) {
+    if game.plunger.pulling {
+        game.plunger.pulling = false;
+        launch_ball(game);
+    }
+}
+
+// 球与圆形障碍物碰撞
+fn ball_circle_collision(ball: &mut Ball, cx: i32, cy: i32, radius: i32, bounce: f32) -> bool {
+    let dx = ball.x - cx as f32;
+    let dy = ball.y - cy as f32;
+    let dist_sq = dx * dx + dy * dy;
+    let min_dist = (ball.radius + radius) as f32;
+    let min_dist_sq = min_dist * min_dist;
+
+    if dist_sq < min_dist_sq && dist_sq > 0.0001 {
+        let dist = math.sqrt(dist_sq) as f32;
+        let nx = dx / dist;
+        let ny = dy / dist;
+
+        // 分离
+        let overlap = min_dist - dist;
+        ball.x = ball.x + nx * overlap;
+        ball.y = ball.y + ny * overlap;
+
+        // 反弹
+        let dot = ball.vx * nx + ball.vy * ny;
+        ball.vx = (ball.vx - 2.0 * dot * nx) * bounce;
+        ball.vy = (ball.vy - 2.0 * dot * ny) * bounce;
+
+        return true;
+    }
+    return false;
+}
+
+// 球与线段碰撞
+fn ball_segment_collision(ball: &mut Ball, x1: i32, y1: i32, x2: i32, y2: i32, bounce: f32) -> bool {
+    let ax = ball.x - x1 as f32;
+    let ay = ball.y - y1 as f32;
+    let bx = (x2 - x1) as f32;
+    let by = (y2 - y1) as f32;
+
+    let t_num = ax * bx + ay * by;
+    let t_den = bx * bx + by * by;
+    if t_den == 0.0 { return false; }
+    let mut t = t_num / t_den;
+    if t < 0.0 { t = 0.0; }
+    if t > 1.0 { t = 1.0; }
+
+    let closest_x = x1 as f32 + t * bx;
+    let closest_y = y1 as f32 + t * by;
+
+    let dx = ball.x - closest_x;
+    let dy = ball.y - closest_y;
+    let dist_sq = dx * dx + dy * dy;
+    let min_dist = ball.radius as f32;
+    let min_dist_sq = min_dist * min_dist;
+
+    if dist_sq < min_dist_sq && dist_sq > 0.0001 {
+        let dist = math.sqrt(dist_sq) as f32;
+        let nx = dx / dist;
+        let ny = dy / dist;
+
+        // 分离
+        let overlap = min_dist - dist;
+        ball.x = ball.x + nx * overlap;
+        ball.y = ball.y + ny * overlap;
+
+        // 反弹
+        let dot = ball.vx * nx + ball.vy * ny;
+        ball.vx = (ball.vx - 2.0 * dot * nx) * bounce;
+        ball.vy = (ball.vy - 2.0 * dot * ny) * bounce;
+
+        return true;
+    }
+    return false;
+}
+
+// 球与翻转器碰撞
+fn ball_flipper_collision(ball: &mut Ball, flipper: &Flipper) -> bool {
+    let end_x = flipper.pivot_x as f32 + math.cos(flipper.angle) * flipper.length as f32;
+    let end_y = flipper.pivot_y as f32 + math.sin(flipper.angle) * flipper.length as f32;
+
+    let ax = ball.x - flipper.pivot_x as f32;
+    let ay = ball.y - flipper.pivot_y as f32;
+    let bx = end_x - flipper.pivot_x as f32;
+    let by = end_y - flipper.pivot_y as f32;
+
+    let t_num = ax * bx + ay * by;
+    let t_den = bx * bx + by * by;
+    if t_den == 0.0 { return false; }
+    let mut t = t_num / t_den;
+    if t < 0.0 { t = 0.0; }
+    if t > 1.0 { t = 1.0; }
+
+    let closest_x = flipper.pivot_x as f32 + t * bx;
+    let closest_y = flipper.pivot_y as f32 + t * by;
+
+    let dx = ball.x - closest_x;
+    let dy = ball.y - closest_y;
+    let dist_sq = dx * dx + dy * dy;
+    let min_dist = (ball.radius + flipper.width / 2) as f32;
+    let min_dist_sq = min_dist * min_dist;
+
+    if dist_sq < min_dist_sq && dist_sq > 0.0001 {
+        let dist = math.sqrt(dist_sq) as f32;
+        let nx = dx / dist;
+        let ny = dy / dist;
+
+        // 分离
+        let overlap = min_dist - dist;
+        ball.x = ball.x + nx * overlap;
+        ball.y = ball.y + ny * overlap;
+
+        // 反弹
+        let dot = ball.vx * nx + ball.vy * ny;
+        ball.vx = ball.vx - 2.0 * dot * nx;
+        ball.vy = ball.vy - 2.0 * dot * ny;
+
+        // 翻转器正在向上挥动？给予额外力量
+        let is_moving_up = if flipper.is_left {
+            flipper.angle < flipper.target_angle - 0.05
+        } else {
+            flipper.angle > flipper.target_angle + 0.05
+        };
+
+        if is_moving_up && ball.vy > 0.0 {
+            ball.vy = -(ball.vy.abs()) - 6.0;
+            ball.vx = ball.vx + if flipper.is_left { 4.0 } else { -4.0 };
+            // 限制速度
+            let speed = math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+            if speed > 15.0 {
+                ball.vx = ball.vx * 15.0 / speed;
+                ball.vy = ball.vy * 15.0 / speed;
+            }
+        }
+
+        return true;
+    }
+    return false;
+}
+
+// 球与弹弓三角形碰撞
+fn ball_slingshot_collision(ball: &mut Ball, sling: &Slingshot) -> bool {
+    // 检查三条边
+    let hit1 = ball_segment_collision(ball, sling.x1, sling.y1, sling.x2, sling.y2, 1.1);
+    let hit2 = ball_segment_collision(ball, sling.x2, sling.y2, sling.x3, sling.y3, 1.1);
+    let hit3 = ball_segment_collision(ball, sling.x3, sling.y3, sling.x1, sling.y1, 1.1);
+    return hit1 || hit2 || hit3;
+}
+
+// 球与矩形目标碰撞
+fn ball_target_collision(ball: &mut Ball, target: &Target) -> bool {
+    let left = target.x as f32;
+    let right = (target.x + target.width) as f32;
+    let top = target.y as f32;
+    let bottom = (target.y + target.height) as f32;
+
+    // 找到球心到矩形最近的点
+    let closest_x = if ball.x < left { left } else if ball.x > right { right } else { ball.x };
+    let closest_y = if ball.y < top { top } else if ball.y > bottom { bottom } else { ball.y };
+
+    let dx = ball.x - closest_x;
+    let dy = ball.y - closest_y;
+    let dist_sq = dx * dx + dy * dy;
+
+    if dist_sq < (ball.radius as f32) * (ball.radius as f32) {
+        // 碰撞！反弹
+        if ball.x < left || ball.x > right {
+            ball.vx = -ball.vx * BOUNCE_WALL;
+        }
+        if ball.y < top || ball.y > bottom {
+            ball.vy = -ball.vy * BOUNCE_WALL;
+        }
+        return true;
+    }
+    return false;
+}
+
+// 球与墙壁碰撞
+fn ball_wall_collision(ball: &mut Ball) {
+    // 左墙
+    if ball.x - ball.radius as f32 < 0.0 {
+        ball.x = ball.radius as f32;
+        ball.vx = -ball.vx * BOUNCE_WALL;
+    }
+    // 右墙
+    if ball.x + ball.radius as f32 > GAME_WIDTH as f32 {
+        ball.x = (GAME_WIDTH - ball.radius) as f32;
+        ball.vx = -ball.vx * BOUNCE_WALL;
+    }
+    // 顶部（弧形区域）
+    if ball.y - ball.radius as f32 < 0.0 {
+        ball.y = ball.radius as f32;
+        ball.vy = -ball.vy * BOUNCE_WALL;
+    }
+}
+
+// 特殊弹球机顶部弧形墙
+fn ball_top_curve_collision(ball: &mut Ball) {
+    // 顶部中心的圆拱
+    let arch_cx = GAME_WIDTH / 2;
+    let arch_cy = -50;
+    let arch_radius = 150;
+
+    let dx = ball.x - arch_cx as f32;
+    let dy = ball.y - arch_cy as f32;
+    let dist_sq = dx * dx + dy * dy;
+    let min_dist_sq = (arch_radius - ball.radius) as f32;
+    let min_dist_sq_val = min_dist_sq * min_dist_sq;
+
+    if dist_sq < min_dist_sq_val {
+        let dist = math.sqrt(dist_sq) as f32;
+        let nx = dx / dist;
+        let ny = dy / dist;
+
+        // 分离
+        let overlap = min_dist - dist;
+        ball.x = ball.x + nx * overlap;
+        ball.y = ball.y + ny * overlap;
+
+        // 反弹
+        let dot = ball.vx * nx + ball.vy * ny;
+        ball.vx = (ball.vx - 2.0 * dot * nx) * BOUNCE_WALL;
+        ball.vy = (ball.vy - 2.0 * dot * ny) * BOUNCE_WALL;
+    }
+}
+
+// 更新翻转器
+fn update_flippers(game: &mut PinballState) {
+    for i in 0..2 {
+        let diff = game.flippers[i].target_angle - game.flippers[i].angle;
+        let abs_diff = if diff < 0.0 { -diff } else { diff };
+        if abs_diff > 0.01 {
+            if diff > 0.0 {
+                game.flippers[i].angle = game.flippers[i].angle + FLIPPER_ANGLE_SPEED;
+            } else {
+                game.flippers[i].angle = game.flippers[i].angle - FLIPPER_ANGLE_SPEED;
+            }
+        }
+    }
+}
+
+// 更新游戏逻辑
+fn update_game(game: &mut PinballState) -> bool {
+    // 更新翻转器
+    update_flippers(game);
+
+    // 更新弹簧拉动
+    if game.plunger.pulling {
+        update_plunger_pull(game);
+    }
+
+    // 更新 spinner
+    if game.spinner.active {
+        let decay = 0.98;
+        game.spinner.angle = game.spinner.angle * decay;
+        if game.spinner.angle.abs() < 0.01 {
+            game.spinner.active = false;
+            game.spinner.angle = 0.0;
+        }
+    }
+
+    // 更新 bumpers 的 hit_timer
+    for i in 0..BUMPER_COUNT {
+        if game.bumpers[i].hit_timer > 0 {
+            game.bumpers[i].hit_timer = game.bumpers[i].hit_timer - 1;
+        }
+    }
+
+    // 更新 targets 的 hit_timer
+    for i in 0..TARGET_COUNT {
+        if game.targets[i].hit_timer > 0 {
+            game.targets[i].hit_timer = game.targets[i].hit_timer - 1;
+        }
+    }
+
+    // 更新 slingshots 的 hit_timer
+    for i in 0..2 {
+        if game.slingshots[i].hit_timer > 0 {
+            game.slingshots[i].hit_timer = game.slingshots[i].hit_timer - 1;
+        }
+    }
+
+    // 更新每个活跃的球
+    for ball_idx in 0..MAX_BALLS {
+        if !game.balls[ball_idx].active {
+            continue;
+        }
+
+        let ball = &mut game.balls[ball_idx];
+
+        // 重力
+        ball.vy = ball.vy + GRAVITY;
+
+        // 摩擦力
+        ball.vx = ball.vx * FRICTION;
+        ball.vy = ball.vy * FRICTION;
+
+        // 速度限制
+        let speed = math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+        if speed > 18.0 {
+            ball.vx = ball.vx * 18.0 / speed;
+            ball.vy = ball.vy * 18.0 / speed;
+        }
+
+        // 移动
+        ball.x = ball.x + ball.vx;
+        ball.y = ball.y + ball.vy;
+
+        // 更新轨迹计数
+        ball.trail_count = ball.trail_count + 1;
+
+        // 墙壁碰撞
+        ball_wall_collision(ball);
+        ball_top_curve_collision(ball);
+
+        // 翻转器碰撞
+        for i in 0..2 {
+            ball_flipper_collision(ball, &game.flippers[i]);
+        }
+
+        // 挡板（ bumper）碰撞
+        for i in 0..BUMPER_COUNT {
+            if ball_circle_collision(ball, game.bumpers[i].x, game.bumpers[i].y, game.bumpers[i].radius, BOUNCE_BUMPER) {
+                if !game.bumpers[i].hit {
+                    game.bumpers[i].hit = true;
+                    game.bumpers[i].hit_timer = 10;
+                    game.score = game.score + BUMPER_SCORE * game.multiplier;
+                }
+            }
+        }
+
+        // 目标（ target）碰撞
+        for i in 0..TARGET_COUNT {
+            if !game.targets[i].hit && ball_target_collision(ball, &game.targets[i]) {
+                game.targets[i].hit = true;
+                game.targets[i].hit_timer = 20;
+                game.score = game.score + TARGET_SCORE * game.multiplier;
+            }
+        }
+
+        // 弹弓（ slingshot）碰撞
+        for i in 0..2 {
+            if ball_slingshot_collision(ball, &game.slingshots[i]) {
+                if game.slingshots[i].hit_timer == 0 {
+                    game.slingshots[i].hit = true;
+                    game.slingshots[i].hit_timer = 8;
+                    game.score = game.score + SLINGSHOT_SCORE * game.multiplier;
+                }
+            }
+        }
+
+        // Spinner 碰撞（经过时加分并旋转）
+        let spinner_dist = math.sqrt(
+            (ball.x - game.spinner.x as f32) * (ball.x - game.spinner.x as f32) +
+            (ball.y - game.spinner.y as f32) * (ball.y - game.spinner.y as f32)
+        );
+        if spinner_dist < (ball.radius + 15) as f32 {
+            game.spinner.active = true;
+            game.spinner.angle = if ball.vx > 0.0 { 0.5 } else { -0.5 };
+            game.spinner.spins = game.spinner.spins + 1;
+            if game.spinner.spins % 5 == 0 {
+                game.score = game.score + SPINNER_SCORE * game.multiplier;
+            }
+        }
+
+        // 检查是否掉出底部（球丢失）
+        if ball.y > GAME_HEIGHT as f32 + 50.0 {
+            ball.active = false;
+        }
+
+        // 球在底部区域（翻转器下方）被翻转器反弹
+        if ball.y > (FLIPPER_Y - 20) as f32 && ball.y < (FLIPPER_Y + 50) as f32 {
+            // 左翻转器和右翻转器之间的区域检测
+            let left_flipper_end = FLIPPER_PIVOT_LEFT + FLIPPER_LENGTH;
+            let right_flipper_start = FLIPPER_PIVOT_RIGHT - FLIPPER_LENGTH;
+
+            // 如果球在翻转器端点附近，确保翻转器能碰到
+            if ball.x < left_flipper_end as f32 && ball.x > 50.0 {
+                ball_flipper_collision(ball, &game.flippers[0]);
+            }
+            if ball.x > right_flipper_start as f32 && ball.x < (GAME_WIDTH - 50) as f32 {
+                ball_flipper_collision(ball, &game.flippers[1]);
+            }
+        }
+    }
+
+    // 检查球丢失
+    if game.status == GameStatus.Playing {
+        let any_active = get_active_ball(game);
+        if any_active < 0 {
+            game.balls_remaining = game.balls_remaining - 1;
+            if game.balls_remaining <= 0 {
+                game.status = GameStatus.GameOver;
+            } else {
+                game.status = GameStatus.Ready;
+                game.multiplier = 1;
+                reset_targets(game);
+                reset_bumpers(game);
+            }
+        }
+    }
+
+    return true;
+}
+
+// 处理键盘按下
+fn handle_input(game: &mut PinballState, key: KeyCode) -> bool {
+    match key {
+        KeyCode.KeySpace => {
+            if game.status == GameStatus.GameOver {
+                init_game(game);
+            } else if game.status == GameStatus.Playing {
+                // 游戏中空格无效
+            } else {
+                // 开始拉弹簧
+                start_plunger_pull(game);
+            }
+        },
+        KeyCode.KeyUp => {
+            if game.plunger.pulling && game.plunger.pull < PLUNGER_PULL_MAX {
+                game.plunger.pull = game.plunger.pull + 3;
+            }
+        },
+        KeyCode.KeyDown => {
+            if game.plunger.pulling && game.plunger.pull > 0 {
+                game.plunger.pull = game.plunger.pull - 3;
+            }
+        },
+        KeyCode.KeyLeft => {
+            if game.status == GameStatus.Playing {
+                game.flippers[0].target_angle = game.flippers[0].active_angle;
+            }
+        },
+        KeyCode.KeyRight => {
+            if game.status == GameStatus.Playing {
+                game.flippers[1].target_angle = game.flippers[1].active_angle;
+            }
+        },
+        KeyCode.KeyEscape => {
+            return false;
+        },
+        KeyCode.KeyR => {
+            if game.status == GameStatus.GameOver {
+                init_game(game);
+            }
+        },
+        _ => {}
+    }
+    return true;
+}
+
+// 处理键盘释放
+fn handle_key_up(game: &mut PinballState, key: KeyCode) {
+    match key {
+        KeyCode.KeySpace => {
+            release_plunger(game);
+        },
+        KeyCode.KeyLeft => {
+            game.flippers[0].target_angle = game.flippers[0].rest_angle;
+        },
+        KeyCode.KeyRight => {
+            game.flippers[1].target_angle = game.flippers[1].rest_angle;
+        },
+        _ => {}
+    }
+}
+
+// 获取分数
+fn get_score(game: &PinballState) -> i32 {
+    game.score
+}
+
+// 获取剩余球数
+fn get_balls_remaining(game: &PinballState) -> i32 {
+    game.balls_remaining
+}
+
+// 获取状态文本
+fn get_status_text(game: &PinballState) -> string {
+    match game.status {
+        GameStatus.Ready => return "按空格键拉弹簧发射",
+        GameStatus.Aiming => return "↑↓调整力度  松开空格发射",
+        GameStatus.Playing => return "",
+        GameStatus.GameOver => return "游戏结束! 按R重新开始",
+        _ => return "",
+    }
+}
+
+// 获取控制说明
+fn get_controls_text() -> string {
+    "空格:拉弹簧  ←→:翻转器  R:重开"
+}
