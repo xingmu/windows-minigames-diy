@@ -1,0 +1,263 @@
+// platform_api.zc - Zen-C Windows GUI 平台 API 封装
+// 框架版本: 1.0.0
+// 提供跨游戏的统一平台接口
+
+// 窗口句柄类型
+pub type WindowHandle = rawptr;
+
+// 消息类型
+pub type MessageType = enum {
+    None = 0,
+    Quit = 1,
+    MouseMove = 2,
+    MouseDown = 3,
+    MouseUp = 4,
+    KeyDown = 5,
+    KeyUp = 6,
+    Resize = 7,
+    Paint = 8,
+};
+
+// 鼠标按钮
+pub type MouseButton = enum {
+    None = 0,
+    Left = 1,
+    Right = 2,
+    Middle = 3,
+};
+
+// 虚拟键码
+pub type VirtualKey = enum {
+    None = 0,
+    Escape = 0x1B,
+    Space = 0x20,
+    Enter = 0x0D,
+    Tab = 0x09,
+    Backspace = 0x08,
+    
+    // 方向键
+    Left = 0x25,
+    Up = 0x26,
+    Right = 0x27,
+    Down = 0x28,
+    
+    // 数字键
+    Key0 = 0x30,
+    Key1 = 0x31,
+    Key2 = 0x32,
+    Key3 = 0x33,
+    Key4 = 0x34,
+    Key5 = 0x35,
+    Key6 = 0x36,
+    Key7 = 0x37,
+    Key8 = 0x38,
+    Key9 = 0x39,
+    
+    // 功能键
+    F1 = 0x70,
+    F2 = 0x71,
+    F3 = 0x72,
+    F4 = 0x73,
+    F5 = 0x74,
+    F6 = 0x75,
+    F7 = 0x76,
+    F8 = 0x77,
+    F9 = 0x78,
+    F10 = 0x79,
+    F11 = 0x7A,
+    F12 = 0x7B,
+    
+    // 额外键
+    KeyA = 0x41,
+    KeyB = 0x42,
+    KeyC = 0x43,
+    KeyD = 0x44,
+    KeyE = 0x45,
+    KeyF = 0x46,
+    KeyG = 0x47,
+    KeyH = 0x48,
+    KeyI = 0x49,
+    KeyJ = 0x4A,
+    KeyK = 0x4B,
+    KeyL = 0x4C,
+    KeyM = 0x4D,
+    KeyN = 0x4E,
+    KeyO = 0x4F,
+    KeyP = 0x50,
+    KeyQ = 0x51,
+    KeyR = 0x52,
+    KeyS = 0x53,
+    KeyT = 0x54,
+    KeyU = 0x55,
+    KeyV = 0x56,
+    KeyW = 0x57,
+    KeyX = 0x58,
+    KeyY = 0x59,
+    KeyZ = 0x5A,
+    
+    // 小键盘
+    Numpad0 = 0x60,
+    Numpad1 = 0x61,
+    Numpad2 = 0x62,
+    Numpad3 = 0x63,
+    Numpad4 = 0x64,
+    Numpad5 = 0x65,
+    Numpad6 = 0x66,
+    Numpad7 = 0x67,
+    Numpad8 = 0x68,
+    Numpad9 = 0x69,
+};
+
+// 事件结构
+pub struct MouseEvent {
+    x: int,
+    y: int,
+    button: MouseButton,
+}
+
+pub struct KeyEvent {
+    key: VirtualKey,
+    pressed: bool,
+}
+
+pub struct Event {
+    msg: MessageType,
+    mouse: MouseEvent,
+    key: KeyEvent,
+    width: int,
+    height: int,
+}
+
+// 颜色类型 (ARGB)
+pub type Color = u32;
+
+pub impl Color {
+    // 常用颜色工厂方法
+    pub static fn Black() -> Color { return 0xFF000000; }
+    pub static fn White() -> Color { return 0xFFFFFFFF; }
+    pub static fn Red() -> Color { return 0xFFFF0000; }
+    pub static fn Green() -> Color { return 0xFF00FF00; }
+    pub static fn Blue() -> Color { return 0xFF0000FF; }
+    pub static fn Yellow() -> Color { return 0xFFFFFF00; }
+    pub static fn Cyan() -> Color { return 0xFF00FFFF; }
+    pub static fn Magenta() -> Color { return 0xFFFF00FF; }
+    pub static fn Gray() -> Color { return 0xFF808080; }
+    pub static fn LightGray() -> Color { return 0xFFD0D0D0; }
+    pub static fn DarkGray() -> Color { return 0xFF404040; }
+    pub static fn Orange() -> Color { return 0xFFFF8000; }
+    pub static fn Purple() -> Color { return 0xFF800080; }
+    pub static fn Brown() -> Color { return 0xFF800000; }
+    pub static fn Pink() -> Color { return 0xFFFFC0CB; }
+    
+    pub static fn RGB(r: u8, g: u8, b: u8) -> Color {
+        return 0xFF000000 as Color | (r as Color << 16) | (g as Color << 8) | b as Color;
+    }
+    
+    pub static fn ARGB(a: u8, r: u8, g: u8, b: u8) -> Color {
+        return (a as Color << 24) | (r as Color << 16) | (g as Color << 8) | b as Color;
+    }
+}
+
+// 字体样式
+pub struct Font {
+    name: str,
+    size: int,
+    bold: bool,
+}
+
+pub impl Font {
+    pub fn new(name: str, size: int) -> Font {
+        return Font.{ name: name, size: size, bold: false };
+    }
+    
+    pub fn withBold(self, bold: bool) -> Font {
+        self.bold = bold;
+        return self;
+    }
+}
+
+// 矩形区域
+pub struct Rect {
+    pub x: int,
+    pub y: int,
+    pub width: int,
+    pub height: int,
+}
+
+pub impl Rect {
+    pub fn new(x: int, y: int, w: int, h: int) -> Rect {
+        return Rect.{ x: x, y: y, width: w, height: h };
+    }
+    
+    pub fn contains(self, px: int, py: int) -> bool {
+        return px >= self.x && px < self.x + self.width &&
+               py >= self.y && py < self.y + self.height;
+    }
+}
+
+// 绘图接口 - 游戏需要实现这个接口来绘制内容
+pub interface GameRenderer {
+    // 绘制回调 - 每次重绘时调用
+    fn onDraw(canvas: Canvas);
+    
+    // 尺寸变化回调
+    fn onResize(width: int, height: int);
+}
+
+// 画布 - 提供基本绘图操作
+pub interface Canvas {
+    // 清除整个窗口
+    fn clear(color: Color);
+    
+    // 绘制像素点
+    fn setPixel(x: int, y: int, color: Color);
+    fn getPixel(x: int, y: int) -> Color;
+    
+    // 绘制线条
+    fn drawLine(x1: int, y1: int, x2: int, y2: int, color: Color);
+    
+    // 绘制矩形（描边）
+    fn drawRect(x: int, y: int, w: int, h: int, color: Color);
+    
+    // 填充矩形
+    fn fillRect(x: int, y: int, w: int, h: int, color: Color);
+    
+    // 绘制圆形（描边）
+    fn drawCircle(cx: int, cy: int, radius: int, color: Color);
+    
+    // 填充圆形
+    fn fillCircle(cx: int, cy: int, radius: int, color: Color);
+    
+    // 绘制文字
+    fn drawText(x: int, y: int, text: str, color: Color, font: Font);
+    
+    // 获取画布尺寸
+    fn getWidth() -> int;
+    fn getHeight() -> int;
+}
+
+// 平台 API 函数声明
+// 这些函数由 platform_api_windows.zc 或 platform_api_linux.zc 实现
+
+// 窗口管理
+pub fn createWindow(title: str, width: int, height: int) -> WindowHandle;
+pub fn closeWindow(handle: WindowHandle);
+pub fn setWindowTitle(handle: WindowHandle, title: str);
+pub fn getWindowSize(handle: WindowHandle) -> (int, int);
+
+// 消息循环
+pub fn pollEvent(handle: WindowHandle, event: &Event) -> bool;
+pub fn waitEvent(handle: WindowHandle, event: &Event);
+pub fn postQuitMessage(handle: WindowHandle);
+
+// 计时器
+pub fn getTickCount() -> u32;
+pub fn sleep(ms: u32);
+
+// 键盘状态
+pub fn isKeyDown(key: VirtualKey) -> bool;
+
+// 显存/双缓冲 - 返回直接访问的像素数据指针和pitch
+pub fn getFrameBuffer(handle: WindowHandle) -> rawptr;
+pub fn getFrameBufferPitch(handle: WindowHandle) -> int;
+pub fn presentFrame(handle: WindowHandle);

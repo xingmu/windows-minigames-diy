@@ -1,0 +1,452 @@
+// game_logic.zc - Zen-C Surfing（冲浪）游戏核心逻辑
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 480;
+const GAME_HEIGHT: i32 = 720;
+const SURFER_WIDTH: i32 = 40;
+const SURFER_HEIGHT: i32 = 60;
+const OBSTACLE_SIZE: i32 = 30;
+const MAX_OBSTACLES: i32 = 15;
+const MAX_WAVES: i32 = 5;
+const INITIAL_SPEED: i32 = 4;
+const SPEED_INCREMENT: i32 = 1;
+const SURFER_SPEED: i32 = 8;
+const OBSTACLE_SPAWN_RATE: i32 = 40;
+const POINTS_PER_DISTANCE: i32 = 1;
+const MAX_LIVES: i32 = 3;
+const INVINCIBLE_FRAMES: i32 = 90;
+
+// ==================== 障碍物/收集物类型 ====================
+
+enum ObstacleType {
+    Rock,       // 礁石
+    Buoy,       // 浮标
+    SeaUrchin,  // 海胆
+    Starfish,   // 海星（收集物）
+    Shell,      // 贝壳（收集物）
+}
+
+// ==================== 游戏状态 ====================
+
+enum GameStatus {
+    Ready,
+    Playing,
+    Paused,
+    GameOver,
+}
+
+// ==================== 数据结构 ====================
+
+struct Surfer {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    velocity_x: i32,
+    velocity_y: i32,
+    on_wave: bool,
+    frame: i32,
+}
+
+struct Obstacle {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    type: ObstacleType,
+    active: bool,
+    collected: bool,
+}
+
+struct Wave {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    offset: i32,
+    speed: i32,
+}
+
+struct SurfingState {
+    surfer: Surfer,
+    obstacles: [MAX_OBSTACLES]Obstacle,
+    waves: [MAX_WAVES]Wave,
+    obstacle_count: i32,
+    score: i32,
+    distance: i32,
+    speed: i32,
+    status: GameStatus,
+    frame_count: i32,
+    lives: i32,
+    invincible_timer: i32,
+    width: i32,
+    height: i32,
+    wave_offset: i32,
+}
+
+// ==================== 颜色定义 ====================
+
+struct RGB {
+    r: u8,
+    g: u8,
+    b: u8,
+}
+
+fn rgb(r: u8, g: u8, b: u8) -> RGB {
+    RGB { r, g, b }
+}
+
+// 游戏颜色
+const COLOR_SKY: RGB = rgb(135, 206, 235);           // 浅蓝色天空
+const COLOR_WATER_DEEP: RGB = rgb(0, 105, 148);      // 深海蓝
+const COLOR_WATER_LIGHT: RGB = rgb(0, 150, 209);     // 浅海蓝
+const COLOR_WAVE: RGB = rgb(255, 255, 255);          // 白色浪花
+const COLOR_WAVE_FOAM: RGB = rgb(240, 248, 255);     // 浪花白
+const COLOR_SURFER: RGB = rgb(255, 140, 0);          // 橙色冲浪服
+const COLOR_SURFER_SKIN: RGB = rgb(255, 218, 185);  // 肤色
+const COLOR_SURFBOARD: RGB = rgb(255, 255, 240);     // 白色冲浪板
+const COLOR_ROCK: RGB = rgb(105, 105, 105);         // 深灰色礁石
+const COLOR_BUOY_RED: RGB = rgb(255, 69, 0);        // 红色浮标
+const COLOR_BUOY_WHITE: RGB = rgb(255, 255, 255);    // 白色浮标
+const COLOR_SEA_URCHIN: RGB = rgb(139, 0, 0);       // 深红色海胆
+const COLOR_STARFISH: RGB = rgb(255, 165, 0);       // 橙色海星
+const COLOR_SHELL: RGB = rgb(255, 228, 196);        // 贝壳色
+const COLOR_UI_BG: RGB = rgb(0, 139, 139);           // 青色UI背景
+const COLOR_TEXT: RGB = rgb(255, 255, 255);          // 白色文字
+const COLOR_DANGER: RGB = rgb(255, 0, 0);           // 红色警告
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut SurfingState) {
+    game.width = GAME_WIDTH;
+    game.height = GAME_HEIGHT;
+    game.score = 0;
+    game.distance = 0;
+    game.speed = INITIAL_SPEED;
+    game.status = GameStatus.Ready;
+    game.frame_count = 0;
+    game.obstacle_count = 0;
+    game.lives = MAX_LIVES;
+    game.invincible_timer = 0;
+    game.wave_offset = 0;
+
+    // 初始化冲浪者
+    game.surfer = Surfer {
+        x: (GAME_WIDTH - SURFER_WIDTH) / 2,
+        y: GAME_HEIGHT - 150,
+        width: SURFER_WIDTH,
+        height: SURFER_HEIGHT,
+        velocity_x: 0,
+        velocity_y: 0,
+        on_wave: true,
+        frame: 0,
+    };
+
+    // 初始化障碍物数组
+    for i in 0..MAX_OBSTACLES {
+        game.obstacles[i] = Obstacle {
+            x: 0,
+            y: 0,
+            width: OBSTACLE_SIZE,
+            height: OBSTACLE_SIZE,
+            type: ObstacleType.Rock,
+            active: false,
+            collected: false,
+        };
+    }
+
+    // 初始化波浪
+    for i in 0..MAX_WAVES {
+        game.waves[i] = Wave {
+            x: 0,
+            y: 200 + i * 100 as i32,
+            width: GAME_WIDTH + 100,
+            height: 30,
+            offset: i * 50 as i32,
+            speed: INITIAL_SPEED + i * 2 as i32,
+        };
+    }
+}
+
+// 处理键盘输入
+fn handle_input(game: &mut SurfingState, key: VirtualKey) -> bool {
+    match key {
+        VirtualKey.Left => {
+            game.surfer.velocity_x = -SURFER_SPEED;
+        },
+        VirtualKey.Right => {
+            game.surfer.velocity_x = SURFER_SPEED;
+        },
+        VirtualKey.Up => {
+            game.surfer.velocity_y = -SURFER_SPEED;
+        },
+        VirtualKey.Down => {
+            game.surfer.velocity_y = SURFER_SPEED;
+        },
+        VirtualKey.Space => {
+            if game.status == GameStatus.Ready || game.status == GameStatus.GameOver {
+                game.status = GameStatus.Playing;
+                game.score = 0;
+                game.distance = 0;
+                game.speed = INITIAL_SPEED;
+                game.frame_count = 0;
+                game.lives = MAX_LIVES;
+                game.invincible_timer = 0;
+                // 重置冲浪者位置
+                game.surfer.x = (GAME_WIDTH - SURFER_WIDTH) / 2;
+                game.surfer.y = GAME_HEIGHT - 150;
+            } else if game.status == GameStatus.Playing {
+                // 在游戏中空格暂停
+                game.status = GameStatus.Paused;
+            } else if game.status == GameStatus.Paused {
+                game.status = GameStatus.Playing;
+            }
+        },
+        VirtualKey.KeyR => {
+            if game.status == GameStatus.GameOver {
+                game.status = GameStatus.Playing;
+                game.score = 0;
+                game.distance = 0;
+                game.speed = INITIAL_SPEED;
+                game.frame_count = 0;
+                game.lives = MAX_LIVES;
+                game.invincible_timer = 0;
+                // 清空所有障碍物
+                for i in 0..MAX_OBSTACLES {
+                    game.obstacles[i].active = false;
+                }
+                // 重置冲浪者位置
+                game.surfer.x = (GAME_WIDTH - SURFER_WIDTH) / 2;
+                game.surfer.y = GAME_HEIGHT - 150;
+            }
+        },
+        VirtualKey.Escape => {
+            if game.status == GameStatus.Playing {
+                game.status = GameStatus.Paused;
+            }
+        },
+        _ => {}
+    }
+    return true;
+}
+
+// 键盘释放
+fn handle_key_up(game: &mut SurfingState, key: VirtualKey) {
+    match key {
+        VirtualKey.Left => {
+            if game.surfer.velocity_x < 0 {
+                game.surfer.velocity_x = 0;
+            }
+        },
+        VirtualKey.Right => {
+            if game.surfer.velocity_x > 0 {
+                game.surfer.velocity_x = 0;
+            }
+        },
+        VirtualKey.Up => {
+            if game.surfer.velocity_y < 0 {
+                game.surfer.velocity_y = 0;
+            }
+        },
+        VirtualKey.Down => {
+            if game.surfer.velocity_y > 0 {
+                game.surfer.velocity_y = 0;
+            }
+        },
+        _ => {}
+    }
+}
+
+// 更新游戏
+fn update_game(game: &mut SurfingState) -> bool {
+    if game.status != GameStatus.Playing {
+        return false;
+    }
+
+    game.frame_count = game.frame_count + 1;
+    game.distance = game.distance + game.speed;
+    game.wave_offset = game.wave_offset + game.speed;
+
+    // 每隔一段时间增加速度
+    if game.frame_count % 600 == 0 {
+        game.speed = game.speed + SPEED_INCREMENT;
+    }
+
+    // 更新分数
+    game.score = game.score + POINTS_PER_DISTANCE;
+
+    // 无敌时间递减
+    if game.invincible_timer > 0 {
+        game.invincible_timer = game.invincible_timer - 1;
+    }
+
+    // 移动冲浪者
+    game.surfer.x = game.surfer.x + game.surfer.velocity_x;
+    game.surfer.y = game.surfer.y + game.surfer.velocity_y;
+
+    // 边界检测
+    if game.surfer.x < 0 {
+        game.surfer.x = 0;
+    }
+    if game.surfer.x > GAME_WIDTH - game.surfer.width {
+        game.surfer.x = GAME_WIDTH - game.surfer.width;
+    }
+    if game.surfer.y < 100 {
+        game.surfer.y = 100;
+    }
+    if game.surfer.y > GAME_HEIGHT - game.surfer.height - 20 {
+        game.surfer.y = GAME_HEIGHT - game.surfer.height - 20;
+    }
+
+    // 更新动画帧
+    if game.frame_count % 8 == 0 {
+        game.surfer.frame = (game.surfer.frame + 1) % 4;
+    }
+
+    // 生成障碍物
+    if game.frame_count % OBSTACLE_SPAWN_RATE == 0 {
+        spawn_obstacle(game);
+    }
+
+    // 更新障碍物
+    for i in 0..MAX_OBSTACLES {
+        if game.obstacles[i].active {
+            game.obstacles[i].y = game.obstacles[i].y + game.speed;
+
+            // 移出屏幕
+            if game.obstacles[i].y > GAME_HEIGHT {
+                game.obstacles[i].active = false;
+                continue;
+            }
+
+            // 碰撞检测
+            if game.invincible_timer == 0 {
+                if check_collision(game.surfer, game.obstacles[i]) {
+                    handle_collision(game, i);
+                }
+            }
+        }
+    }
+
+    // 更新波浪
+    for i in 0..MAX_WAVES {
+        game.waves[i].y = game.waves[i].y + game.speed;
+        if game.waves[i].y > GAME_HEIGHT {
+            game.waves[i].y = -game.waves[i].height;
+        }
+    }
+
+    return false;
+}
+
+// 生成障碍物
+fn spawn_obstacle(game: &mut SurfingState) {
+    // 找到空闲槽位
+    var slot = -1;
+    for i in 0..MAX_OBSTACLES {
+        if !game.obstacles[i].active {
+            slot = i;
+            break;
+        }
+    }
+
+    if slot < 0 {
+        return;
+    }
+
+    // 随机类型
+    var obs_type: ObstacleType;
+    var rand_val = (game.frame_count % 10) as i32;
+    
+    if rand_val < 2 {
+        obs_type = ObstacleType.Starfish;  // 收集物
+    } else if rand_val < 4 {
+        obs_type = ObstacleType.Shell;     // 收集物
+    } else if rand_val < 6 {
+        obs_type = ObstacleType.Buoy;      // 障碍物
+    } else if rand_val < 8 {
+        obs_type = ObstacleType.Rock;      // 障碍物
+    } else {
+        obs_type = ObstacleType.SeaUrchin; // 障碍物
+    }
+
+    // 设置尺寸
+    var obs_w: i32 = OBSTACLE_SIZE;
+    var obs_h: i32 = OBSTACLE_SIZE;
+    
+    if obs_type == ObstacleType.Starfish {
+        obs_w = 28;
+        obs_h = 28;
+    } else if obs_type == ObstacleType.Shell {
+        obs_w = 24;
+        obs_h = 20;
+    } else if obs_type == ObstacleType.Buoy {
+        obs_w = 25;
+        obs_h = 35;
+    }
+
+    game.obstacles[slot] = Obstacle {
+        x: randInt(20, GAME_WIDTH - 50) as i32,
+        y: -OBSTACLE_SIZE,
+        width: obs_w,
+        height: obs_h,
+        type: obs_type,
+        active: true,
+        collected: false,
+    };
+}
+
+// 碰撞检测
+fn check_collision(surfer: Surfer, obs: Obstacle) -> bool {
+    // 简化的矩形碰撞
+    return surfer.x < obs.x + obs.width &&
+           surfer.x + surfer.width > obs.x &&
+           surfer.y < obs.y + obs.height &&
+           surfer.y + surfer.height > obs.y;
+}
+
+// 处理碰撞
+fn handle_collision(game: &mut SurfingState, obs_idx: i32) {
+    var obs = game.obstacles[obs_idx];
+
+    // 收集物
+    if obs.type == ObstacleType.Starfish {
+        game.score = game.score + 50;
+        game.obstacles[obs_idx].active = false;
+        return;
+    }
+    if obs.type == ObstacleType.Shell {
+        game.score = game.score + 30;
+        game.obstacles[obs_idx].active = false;
+        return;
+    }
+
+    // 障碍物 - 损失生命
+    game.lives = game.lives - 1;
+    game.invincible_timer = INVINCIBLE_FRAMES;
+    game.obstacles[obs_idx].active = false;
+
+    if game.lives <= 0 {
+        game.status = GameStatus.GameOver;
+    }
+}
+
+// 获取障碍物信息
+fn get_obstacle_info(game: &SurfingState, idx: i32) -> (i32, i32, i32, i32, ObstacleType) {
+    var obs = game.obstacles[idx];
+    return (obs.x, obs.y, obs.width, obs.height, obs.type);
+}
+
+// 检查障碍物是否活跃
+fn is_obstacle_active(game: &SurfingState, idx: i32) -> bool {
+    return game.obstacles[idx].active;
+}
+
+// 获取浪花偏移
+fn get_wave_offset(game: &SurfingState) -> i32 {
+    return game.wave_offset;
+}
