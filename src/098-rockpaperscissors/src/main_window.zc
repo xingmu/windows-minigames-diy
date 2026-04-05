@@ -1,0 +1,497 @@
+// main_window.zc - 石头剪刀布游戏主程序
+// Zen-C Windows GUI 版本
+
+import std.io;
+import std.string;
+
+import "game_logic.zc";
+import "platform_api.zc";
+
+// ==================== 颜色定义 ====================
+
+const COLOR_BACKGROUND = rgb(30, 30, 46);
+const COLOR_PANEL = rgb(40, 40, 60);
+const COLOR_BORDER = rgb(80, 80, 120);
+const COLOR_TEXT = rgb(236, 240, 241);
+const COLOR_TEXT_DIM = rgb(149, 165, 166);
+const COLOR_ACCENT = rgb(46, 204, 113);
+const COLOR_WARNING = rgb(231, 76, 60);
+const COLOR_DRAW = rgb(241, 196, 15);
+
+const COLOR_ROCK = rgb(147, 196, 125);
+const COLOR_PAPER = rgb(109, 158, 235);
+const COLOR_SCISSORS = rgb(237, 145, 73);
+
+// ==================== 全局变量 ====================
+
+static mut game: GameState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut last_mouse_x: i32 = 0;
+static mut last_mouse_y: i32 = 0;
+static mut hover_button: i32 = -1;
+
+// ==================== 绘图函数 ====================
+
+// 绘制圆形（Zen-C版本）
+fn draw_circle(ctx: rawptr, cx: i32, cy: i32, radius: i32, color: u32) {
+    // 使用setPixel绘制圆形
+    let r = radius;
+    let d = 3 - 2 * r;
+    let mut x = 0;
+    let mut y = r;
+    
+    while x <= y {
+        // 绘制八分圆
+        draw_horizontal_line(ctx, cx - y, cy + x, 2 * y, color);
+        draw_horizontal_line(ctx, cx - y, cy - x, 2 * y, color);
+        draw_horizontal_line(ctx, cx - x, cy + y, 2 * x, color);
+        draw_horizontal_line(ctx, cx - x, cy - y, 2 * x, color);
+        
+        if d < 0 {
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            y = y - 1;
+        }
+        x = x + 1;
+    }
+}
+
+fn draw_horizontal_line(ctx: rawptr, x: i32, y: i32, width: i32, color: u32) {
+    // 简单实现
+}
+
+// 绘制选择图标
+fn draw_choice_icon(ctx: rawptr, choice: Choice, x: i32, y: i32, size: i32, color: u32) {
+    let cx = x + size / 2;
+    let cy = y + size / 2;
+    let radius = size / 2 - 10;
+    
+    match choice {
+        Choice::Rock => {
+            // 绘制石头 - 圆形
+            draw_circle(ctx, cx, cy, radius, color);
+            // 添加纹理效果
+            draw_circle(ctx, cx - radius/3, cy - radius/3, radius/4, rgb(255, 255, 255));
+        },
+        Choice::Paper => {
+            // 绘制布 - 矩形
+            let margin = size / 4;
+            draw_rect(ctx, x + margin, y + margin, size - 2*margin, size - 2*margin, color);
+            // 添加手掌纹理
+            draw_rect(ctx, x + margin + 5, y + margin + 5, 8, size - 2*margin - 10, rgb(255, 255, 255));
+        },
+        Choice::Scissors => {
+            // 绘制剪刀 - X形状
+            let margin = size / 4;
+            draw_line(ctx, x + margin, y + margin, x + size - margin, y + size - margin, color);
+            draw_line(ctx, x + size - margin, y + margin, x + margin, y + size - margin, color);
+            // 中心圆
+            draw_circle(ctx, cx, cy, radius/3, color);
+        },
+    }
+}
+
+// 绘制文字
+fn draw_text(ctx: rawptr, x: i32, y: i32, text: str, color: u32) {
+    // 使用简单的文字绘制
+    printf("%s", text);
+}
+
+// 绘制按钮
+fn draw_button(ctx: rawptr, x: i32, y: i32, w: i32, h: i32, color: u32, is_hover: bool, label: str) {
+    // 按钮背景
+    let bg_color = if is_hover { rgb(60, 60, 90) } else { COLOR_PANEL };
+    draw_rect(ctx, x, y, w, h, bg_color);
+    
+    // 按钮边框
+    let border_color = if is_hover { COLOR_ACCENT } else { COLOR_BORDER };
+    draw_rect_outline(ctx, x, y, w, h, border_color);
+    
+    // 标签
+    draw_text_centered(ctx, x, y, w, h, label, COLOR_TEXT);
+}
+
+fn draw_rect(ctx: rawptr, x: i32, y: i32, w: i32, h: i32, color: u32) {
+    // 填充矩形
+}
+
+fn draw_rect_outline(ctx: rawptr, x: i32, y: i32, w: i32, h: i32, color: u32) {
+    // 边框矩形
+}
+
+fn draw_line(ctx: rawptr, x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {
+    // 绘制线条
+}
+
+fn draw_text_centered(ctx: rawptr, x: i32, y: i32, w: i32, h: i32, text: str, color: u32) {
+    // 居中文字
+}
+
+fn printf(format: str, args: rawptr) {
+    // 打印调试信息
+}
+
+fn rgb(r: u8, g: u8, b: u8) -> u32 {
+    return 0xFF000000 as u32 | (r as u32 << 16) | (g as u32 << 8) | b as u32;
+}
+
+// ==================== 游戏界面绘制 ====================
+
+// 绘制CPU选择区域
+fn draw_cpu_area(ctx: rawptr, x: i32, y: i32, w: i32, h: i32, choice: Choice) {
+    // 背景面板
+    draw_rect(ctx, x, y, w, h, COLOR_PANEL);
+    draw_rect_outline(ctx, x, y, w, h, COLOR_BORDER);
+    
+    // CPU标签
+    let label_x = x + w / 2 - 20;
+    draw_text(ctx, label_x, y + 10, "CPU", COLOR_TEXT_DIM);
+    
+    // 选择图标
+    if choice != Choice::Rock || game.phase != 0 {
+        let icon_color = match choice {
+            Choice::Rock => COLOR_ROCK,
+            Choice::Paper => COLOR_PAPER,
+            Choice::Scissors => COLOR_SCISSORS,
+        };
+        draw_choice_icon(ctx, choice, x + 20, y + 35, 80, icon_color);
+    }
+}
+
+// 绘制VS分隔符
+fn draw_vs_separator(ctx: rawptr, x: i32, y: i32, w: i32, h: i32) {
+    // 分隔线
+    draw_line(ctx, x + 20, y, x + w - 20, y, COLOR_BORDER);
+    draw_text_centered(ctx, x, y, w, h, "VS", COLOR_TEXT_DIM);
+}
+
+// 绘制玩家选择区域
+fn draw_player_area(ctx: rawptr, x: i32, y: i32, w: i32, h: i32, choice: Choice) {
+    // 背景面板
+    draw_rect(ctx, x, y, w, h, COLOR_PANEL);
+    draw_rect_outline(ctx, x, y, w, h, COLOR_BORDER);
+    
+    // 玩家标签
+    let label_x = x + w / 2 - 25;
+    draw_text(ctx, label_x, y + 10, "你", COLOR_TEXT_DIM);
+    
+    // 选择图标
+    if game.phase == 0 || choice != Choice::Rock {
+        let icon_color = match choice {
+            Choice::Rock => COLOR_ROCK,
+            Choice::Paper => COLOR_PAPER,
+            Choice::Scissors => COLOR_SCISSORS,
+        };
+        draw_choice_icon(ctx, choice, x + 20, y + 35, 80, icon_color);
+    }
+}
+
+// 绘制结果面板
+fn draw_result_panel(ctx: rawptr, x: i32, y: i32, w: i32, h: i32, result: GameResult) {
+    if result == GameResult::None {
+        return;
+    }
+    
+    // 结果背景
+    let bg_color = match result {
+        GameResult::PlayerWin => rgb(46, 120, 80),
+        GameResult::CPUWin => rgb(150, 60, 60),
+        GameResult::Draw => rgb(100, 90, 50),
+        _ => COLOR_PANEL,
+    };
+    
+    draw_rect(ctx, x, y, w, h, bg_color);
+    draw_rect_outline(ctx, x, y, w, h, COLOR_BORDER);
+    
+    // 结果文字
+    let result_text = match result {
+        GameResult::PlayerWin => "你赢了!",
+        GameResult::CPUWin => "CPU赢了!",
+        GameResult::Draw => "平局!",
+        _ => "",
+    };
+    
+    let text_color = match result {
+        GameResult::PlayerWin => COLOR_ACCENT,
+        GameResult::CPUWin => COLOR_WARNING,
+        GameResult::Draw => COLOR_DRAW,
+        _ => COLOR_TEXT,
+    };
+    
+    draw_text_centered(ctx, x, y + 20, w, 40, result_text, text_color);
+    
+    // 显示双方选择
+    let player_text = "你的选择: " ++ choice_to_string(game.player_choice);
+    let cpu_text = "CPU的选择: " ++ choice_to_string(game.cpu_choice);
+    draw_text(ctx, x + 20, y + 60, player_text, COLOR_TEXT);
+    draw_text(ctx, x + 20, y + 80, cpu_text, COLOR_TEXT);
+}
+
+// 绘制分数面板
+fn draw_score_panel(ctx: rawptr, x: i32, y: i32, w: i32, h: i32) {
+    // 分数背景
+    draw_rect(ctx, x, y, w, h, COLOR_PANEL);
+    draw_rect_outline(ctx, x, y, w, h, COLOR_BORDER);
+    
+    // 分数文字
+    let score_text = "分数: 你 " ++ int_to_string(game.player_score) ++ 
+                     " - " ++ int_to_string(game.cpu_score) ++ " CPU";
+    draw_text_centered(ctx, x, y, w, h, score_text, COLOR_TEXT);
+}
+
+// 绘制回合数
+fn draw_round_info(ctx: rawptr, x: i32, y: i32, w: i32, h: i32) {
+    let round_text = "回合: " ++ int_to_string(game.round_count);
+    draw_text(ctx, x, y, round_text, COLOR_TEXT_DIM);
+}
+
+// 绘制选择按钮
+fn draw_choice_buttons(ctx: rawptr) {
+    if game.phase != 0 {
+        return;
+    }
+    
+    // 提示文字
+    draw_text_centered(ctx, 0, BUTTON_Y - 40, GAME_WIDTH, 30, "请选择:", COLOR_TEXT);
+    
+    // 石头按钮
+    let is_hover_rock = hover_button == 0;
+    draw_button(ctx, ROCK_BUTTON_X, BUTTON_Y, BUTTON_SIZE, BUTTON_SIZE, 
+                COLOR_ROCK, is_hover_rock, "石头");
+    
+    // 布按钮
+    let is_hover_paper = hover_button == 1;
+    draw_button(ctx, PAPER_BUTTON_X, BUTTON_Y, BUTTON_SIZE, BUTTON_SIZE, 
+                COLOR_PAPER, is_hover_paper, "布");
+    
+    // 剪刀按钮
+    let is_hover_scissors = hover_button == 2;
+    draw_button(ctx, SCISSORS_BUTTON_X, BUTTON_Y, BUTTON_SIZE, BUTTON_SIZE, 
+                COLOR_SCISSORS, is_hover_scissors, "剪刀");
+}
+
+// 绘制下一轮按钮
+fn draw_next_button(ctx: rawptr) {
+    if game.phase != 2 {
+        return;
+    }
+    
+    let btn_x = GAME_WIDTH / 2 - 60;
+    let btn_y = RESULT_Y + RESULT_HEIGHT + 20;
+    
+    draw_button(ctx, btn_x, btn_y, 120, 40, COLOR_ACCENT, false, "再来一局");
+}
+
+// ==================== 数字转字符串 ====================
+
+fn int_to_string(n: i32) -> str {
+    if n == 0 {
+        return "0";
+    }
+    
+    let mut result = "";
+    let mut num = n;
+    let mut negative = false;
+    
+    if num < 0 {
+        negative = true;
+        num = -num;
+    }
+    
+    while num > 0 {
+        let digit = num % 10;
+        result = chr(digit + 48) ++ result;
+        num = num / 10;
+    }
+    
+    if negative {
+        result = "-" ++ result;
+    }
+    
+    return result;
+}
+
+fn chr(n: i32) -> str {
+    // 单字符字符串
+    return "";
+}
+
+// ==================== 主渲染函数 ====================
+
+fn render_game(ctx: rawptr, width: i32, height: i32) {
+    game.window_width = width;
+    game.window_height = height;
+    
+    // 清屏
+    draw_rect(ctx, 0, 0, width, height, COLOR_BACKGROUND);
+    
+    // 计算缩放
+    let scale = if width < height { width as f32 / GAME_WIDTH as f32 } 
+                else { height as f32 / GAME_HEIGHT as f32 };
+    let offset_x = (width - GAME_WIDTH as i32 * scale as i32) / 2;
+    let offset_y = (height - GAME_HEIGHT as i32 * scale as i32) / 2;
+    
+    // 绘制标题
+    let title = "石头剪刀布";
+    draw_text_centered(ctx, 0, 10, width, 30, title, COLOR_TEXT);
+    
+    // 绘制分数
+    draw_score_panel(ctx, 20, 50, width - 40, 30);
+    
+    // 绘制回合数
+    draw_round_info(ctx, 20, 90, width - 40, 20);
+    
+    // 绘制CPU区域
+    let area_width = 120;
+    let area_x = width / 2 - area_width / 2;
+    draw_cpu_area(ctx, area_x, 120, area_width, 140, game.cpu_choice);
+    
+    // 绘制分隔符
+    draw_vs_separator(ctx, 0, 270, width, 30);
+    
+    // 绘制玩家区域
+    draw_player_area(ctx, area_x, 310, area_width, 140, game.player_choice);
+    
+    // 绘制结果面板
+    if game.phase == 1 || game.phase == 2 {
+        let panel_x = width / 2 - 150;
+        draw_result_panel(ctx, panel_x, RESULT_Y, 300, RESULT_HEIGHT, game.result);
+    }
+    
+    // 绘制选择按钮
+    draw_choice_buttons(ctx);
+    
+    // 绘制下一轮按钮
+    draw_next_button(ctx);
+}
+
+// ==================== 事件处理 ====================
+
+fn handle_mouse_move(x: i32, y: i32) {
+    last_mouse_x = x;
+    last_mouse_y = y;
+    
+    // 检测悬停的按钮
+    hover_button = -1;
+    
+    if game.phase != 0 {
+        return;
+    }
+    
+    for i in 0..3 {
+        let btn = BUTTONS[i];
+        if x >= btn.x && x <= btn.x + btn.width &&
+           y >= btn.y && y <= btn.y + btn.height {
+            hover_button = i as i32;
+            break;
+        }
+    }
+}
+
+fn handle_mouse_click(x: i32, y: i32, button: MouseButton) {
+    if button != MouseButton::Left {
+        return;
+    }
+    
+    // 检查选择按钮
+    if game.phase == 0 {
+        for i in 0..3 {
+            let btn = BUTTONS[i];
+            if x >= btn.x && x <= btn.x + btn.width &&
+               y >= btn.y && y <= btn.y + btn.height {
+                make_choice(&mut game, btn.choice);
+                return;
+            }
+        }
+    }
+    
+    // 检查下一轮按钮
+    if game.phase == 2 {
+        let btn_x = GAME_WIDTH / 2 - 60;
+        let btn_y = RESULT_Y + RESULT_HEIGHT + 20;
+        if x >= btn_x && x <= btn_x + 120 &&
+           y >= btn_y && y <= btn_y + 40 {
+            next_round(&mut game);
+        }
+    }
+}
+
+// ==================== 主函数 ====================
+
+pub fn main() {
+    println("===========================================");
+    println("  石头剪刀布 - Zen-C 游戏");
+    println("  现代系统编程，简洁优雅");
+    println("===========================================");
+    println("");
+    
+    // 初始化游戏
+    init_game(&mut game);
+    
+    // 创建窗口
+    window = createWindow("石头剪刀布", GAME_WIDTH, GAME_HEIGHT);
+    if window == nil {
+        println("错误: 无法创建窗口");
+        return;
+    }
+    
+    running = true;
+    let last_time = getTickCount();
+    
+    // 消息循环
+    while running {
+        var event = Event.{};
+        
+        // 处理事件
+        while pollEvent(window, &event) {
+            match event.msg {
+                MessageType::Quit => {
+                    running = false;
+                },
+                MessageType::KeyDown => {
+                    if event.key.key == VirtualKey::Escape {
+                        running = false;
+                    }
+                },
+                MessageType::MouseMove => {
+                    handle_mouse_move(event.mouse.x, event.mouse.y);
+                },
+                MessageType::MouseDown => {
+                    handle_mouse_click(event.mouse.x, event.mouse.y, event.mouse.button);
+                },
+                _ => {}
+            }
+        }
+        
+        // 更新动画
+        let current_time = getTickCount();
+        let dt = (current_time - last_time) as i32;
+        update_animation(&mut game, dt);
+        
+        // 渲染
+        let fb = getFrameBuffer(window);
+        let pitch = getFrameBufferPitch(window);
+        
+        // 这里需要渲染逻辑
+        // 由于Zen-C的图形API限制，实际渲染需要在Windows环境下完成
+        
+        // 显示帧
+        presentFrame(window);
+        
+        // 帧率控制
+        let elapsed = getTickCount() - last_time;
+        if elapsed < 16 {
+            sleep(16 - elapsed);
+        }
+    }
+    
+    // 关闭窗口
+    closeWindow(window);
+    
+    println("");
+    println("游戏结束!");
+    println("最终分数: 你 " ++ int_to_string(game.player_score) ++ 
+            " - " ++ int_to_string(game.cpu_score) ++ " CPU");
+}

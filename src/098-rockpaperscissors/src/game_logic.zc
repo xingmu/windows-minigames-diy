@@ -1,0 +1,252 @@
+// game_logic.zc - 石头剪刀布游戏逻辑
+// Zen-C 纯游戏逻辑模块
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 480;
+const GAME_HEIGHT: i32 = 640;
+
+// 按钮尺寸和位置
+const BUTTON_SIZE: i32 = 100;
+const BUTTON_Y: i32 = 480;
+const BUTTON_SPACING: i32 = 20;
+const ROCK_BUTTON_X: i32 = 60;
+const PAPER_BUTTON_X: i32 = ROCK_BUTTON_X + BUTTON_SIZE + BUTTON_SPACING;
+const SCISSORS_BUTTON_X: i32 = PAPER_BUTTON_X + BUTTON_SIZE + BUTTON_SPACING;
+
+// 结果显示区域
+const RESULT_Y: i32 = 320;
+const RESULT_HEIGHT: i32 = 120;
+
+// 玩家选择区域
+const PLAYER_CHOICE_Y: i32 = 180;
+const CPU_CHOICE_Y: i32 = 40;
+
+// ==================== 枚举定义 ====================
+
+// 石头剪刀布选项
+pub enum Choice {
+    Rock,      // 石头
+    Paper,     // 布
+    Scissors,  // 剪刀
+}
+
+// 游戏结果
+pub enum GameResult {
+    None,      // 无结果（等待选择）
+    PlayerWin, // 玩家赢
+    CPUWin,    // CPU赢
+    Draw,      // 平局
+}
+
+// ==================== 数据结构 ====================
+
+// 选择按钮区域
+pub struct Button {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    choice: Choice,
+}
+
+// 游戏状态
+pub struct GameState {
+    // 游戏阶段
+    phase: i32,  // 0=等待选择, 1=显示结果, 2=等待下一轮
+    
+    // 玩家和CPU的选择
+    player_choice: Choice,
+    cpu_choice: Choice,
+    
+    // 游戏结果
+    result: GameResult,
+    
+    // 分数
+    player_score: i32,
+    cpu_score: i32,
+    round_count: i32,
+    
+    // 动画计时
+    animation_timer: i32,
+    animation_phase: i32,
+    
+    // 窗口尺寸
+    window_width: i32,
+    window_height: i32,
+}
+
+// ==================== 按钮区域 ====================
+
+// 按钮数组
+const BUTTONS: [3]Button = [
+    Button { x: ROCK_BUTTON_X, y: BUTTON_Y, width: BUTTON_SIZE, height: BUTTON_SIZE, choice: Choice::Rock },
+    Button { x: PAPER_BUTTON_X, y: BUTTON_Y, width: BUTTON_SIZE, height: BUTTON_SIZE, choice: Choice::Paper },
+    Button { x: SCISSORS_BUTTON_X, y: BUTTON_Y, width: BUTTON_SIZE, height: BUTTON_SIZE, choice: Choice::Scissors },
+];
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+pub fn init_game(game: &mut GameState) {
+    // 初始化随机数种子
+    let seed = time.now().nanos();
+    math.srand(seed);
+    
+    // 初始化游戏状态
+    game.phase = 0;
+    game.player_choice = Choice::Rock;
+    game.cpu_choice = Choice::Rock;
+    game.result = GameResult::None;
+    game.player_score = 0;
+    game.cpu_score = 0;
+    game.round_count = 0;
+    game.animation_timer = 0;
+    game.animation_phase = 0;
+    game.window_width = GAME_WIDTH;
+    game.window_height = GAME_HEIGHT;
+}
+
+// 生成CPU的选择
+pub fn generate_cpu_choice() -> Choice {
+    let rand_val = math.rand() % 3;
+    match rand_val {
+        0 => return Choice::Rock,
+        1 => return Choice::Paper,
+        2 => return Choice::Scissors,
+        _ => return Choice::Rock,
+    }
+}
+
+// 判断胜负
+pub fn determine_winner(player: Choice, cpu: Choice) -> GameResult {
+    if player == cpu {
+        return GameResult::Draw;
+    }
+    
+    match player {
+        Choice::Rock => {
+            if cpu == Choice::Scissors {
+                return GameResult::PlayerWin;
+            } else {
+                return GameResult::CPUWin;
+            }
+        },
+        Choice::Paper => {
+            if cpu == Choice::Rock {
+                return GameResult::PlayerWin;
+            } else {
+                return GameResult::CPUWin;
+            }
+        },
+        Choice::Scissors => {
+            if cpu == Choice::Paper {
+                return GameResult::PlayerWin;
+            } else {
+                return GameResult::CPUWin;
+            }
+        },
+    }
+}
+
+// 处理玩家选择
+pub fn make_choice(game: &mut GameState, choice: Choice) {
+    if game.phase != 0 {
+        return;  // 只有在等待选择阶段才能选择
+    }
+    
+    game.player_choice = choice;
+    game.cpu_choice = generate_cpu_choice();
+    game.result = determine_winner(choice, game.cpu_choice);
+    game.round_count = game.round_count + 1;
+    
+    // 更新分数
+    match game.result {
+        GameResult::PlayerWin => {
+            game.player_score = game.player_score + 1;
+        },
+        GameResult::CPUWin => {
+            game.cpu_score = game.cpu_score + 1;
+        },
+        _ => {},
+    }
+    
+    // 开始动画
+    game.phase = 1;
+    game.animation_timer = 0;
+    game.animation_phase = 0;
+}
+
+// 继续下一轮
+pub fn next_round(game: &mut GameState) {
+    if game.phase != 2 {
+        return;
+    }
+    game.phase = 0;
+    game.result = GameResult::None;
+}
+
+// 更新动画
+pub fn update_animation(game: &mut GameState, dt: i32) {
+    if game.phase == 1 {
+        game.animation_timer = game.animation_timer + dt;
+        // 动画持续1秒，然后进入等待下一轮阶段
+        if game.animation_timer > 1000 {
+            game.phase = 2;
+            game.animation_timer = 0;
+        }
+    }
+}
+
+// 检查是否点击了按钮
+pub fn check_button_click(game: &GameState, x: i32, y: i32) -> Choice {
+    // 根据窗口大小计算按钮位置
+    let scale_x = game.window_width as f32 / GAME_WIDTH as f32;
+    let scale_y = game.window_height as f32 / GAME_HEIGHT as f32;
+    
+    let scaled_x = (x as f32 / scale_x) as i32;
+    let scaled_y = (y as f32 / scale_y) as i32;
+    
+    for i in 0..3 {
+        let btn = BUTTONS[i];
+        if scaled_x >= btn.x && scaled_x <= btn.x + btn.width &&
+           scaled_y >= btn.y && scaled_y <= btn.y + btn.height {
+            return btn.choice;
+        }
+    }
+    
+    // 检查重新开始按钮（在整个UI下方）
+    if game.phase == 2 {
+        let restart_btn_x = GAME_WIDTH / 2 - 60;
+        let restart_btn_y = RESULT_Y + RESULT_HEIGHT + 20;
+        if scaled_x >= restart_btn_x && scaled_x <= restart_btn_x + 120 &&
+           scaled_y >= restart_btn_y && scaled_y <= restart_btn_y + 40 {
+            // 这里返回一个特殊值表示重新开始
+            // 但由于Choice枚举限制，我们在main_window中特殊处理
+        }
+    }
+    
+    return Choice::Rock;  // 默认值，实际不会使用
+}
+
+// 获取选择对应的文字
+pub fn choice_to_string(choice: Choice) -> str {
+    match choice {
+        Choice::Rock => return "石头",
+        Choice::Paper => return "布",
+        Choice::Scissors => return "剪刀",
+    }
+}
+
+// 获取结果对应的文字
+pub fn result_to_string(result: GameResult) -> str {
+    match result {
+        GameResult::PlayerWin => return "你赢了!",
+        GameResult::CPUWin => return "CPU赢了!",
+        GameResult::Draw => return "平局!",
+        GameResult::None => return "",
+    }
+}
