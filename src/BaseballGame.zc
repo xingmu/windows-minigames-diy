@@ -1,0 +1,486 @@
+// BaseballGame.zc - 棒球游戏核心逻辑
+// Zen-C 棒球游戏 v1.0.0
+
+import std.io;
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+// 场地尺寸
+const FIELD_WIDTH = 800;
+const FIELD_HEIGHT = 600;
+
+// 投手丘位置
+const PITCHER_X = 400;
+const PITCHER_Y = 200;
+
+// 本垒板位置
+const HOME_X = 400;
+const HOME_Y = 480;
+
+// 场地颜色
+const FIELD_COLOR = rgb(46, 139, 87);       // 草坪绿
+const DIRT_COLOR = rgb(139, 119, 101);       // 泥土色
+const BASE_COLOR = rgb(255, 255, 255);       // 白色
+const FOUL_LINE_COLOR = rgb(255, 255, 255);
+
+// 球颜色
+const BALL_COLOR = rgb(255, 255, 255);
+const BALL_OUTLINE = rgb(200, 200, 200);
+
+// 球员颜色
+const PITCHER_COLOR = rgb(0, 0, 139);        // 深蓝
+const BATTER_COLOR = rgb(139, 0, 0);         // 深红
+const FIELDER_COLOR = rgb(0, 100, 0);       // 深绿
+
+// UI颜色
+const UI_BG = rgb(25, 25, 25);
+const UI_TEXT = rgb(255, 255, 255);
+const STRIKE_COLOR = rgb(255, 0, 0);
+const BALL_COLOR_UI = rgb(0, 255, 0);
+const OUT_COLOR = rgb(255, 165, 0);
+
+// ==================== 游戏状态枚举 ====================
+
+pub type GamePhase = enum {
+    Title,          // 标题画面
+    Pitching,       // 投球阶段
+    BallInFlight,   // 球飞行中
+    Batting,        // 击球阶段
+    Fielding,       // 守备阶段
+    HalfInning,     // 换局
+    GameOver,       // 游戏结束
+};
+
+pub type PitchType = enum {
+    FastBall,       // 快速球
+    CurveBall,      // 曲球
+    ChangeUp,       // 变速球
+};
+
+// ==================== 游戏数据结构 ====================
+
+// 球的状态
+pub struct Ball {
+    x: f32,
+    y: f32,
+    z: f32,             // 高度
+    vx: f32,
+    vy: f32,
+    vz: f32,
+    in_play: bool,
+    hit_type: HitType,
+}
+
+pub type HitType = enum {
+    None,
+    Foul,
+    GroundBall,
+    FlyBall,
+    LineDrive,
+};
+
+// 球员位置
+pub struct Player {
+    x: int,
+    y: int,
+    has_ball: bool,
+}
+
+// 击球手
+pub struct Batter {
+    stance: int,       // 0=左打, 1=右打
+    swinging: bool,
+    swing_timer: f32,
+    power: f32,         // 0-100
+    timing: f32,        // -1 到 1, 0 为最佳时机
+}
+
+// 游戏状态
+pub struct BaseballState {
+    phase: GamePhase,
+    balls: int,
+    strikes: int,
+    outs: int,
+    inning: int,        // 第几局
+    top_inning: bool,   // true=上半局, false=下半局
+    home_score: int,
+    away_score: int,
+    
+    ball: Ball,
+    pitcher: Player,
+    batter: Batter,
+    pitcher_target_x: f32,
+    pitcher_target_y: f32,
+    
+    pitch_type: PitchType,
+    pitch_timer: f32,
+    
+    hit_result: HitType,
+    hit_result_timer: f32,
+    
+    // 飞球轨迹点
+    hit_trajectory: [128]Position,
+    hit_trajectory_len: int,
+    ball_land_x: int,
+    ball_land_y: int,
+}
+
+pub struct Position {
+    x: f32,
+    y: f32,
+}
+
+// ==================== 初始化函数 ====================
+
+pub fn init_baseball(state: &mut BaseballState) {
+    state.phase = GamePhase.Title;
+    state.balls = 0;
+    state.strikes = 0;
+    state.outs = 0;
+    state.inning = 1;
+    state.top_inning = true;
+    state.home_score = 0;
+    state.away_score = 0;
+    
+    state.pitcher.x = PITCHER_X;
+    state.pitcher.y = PITCHER_Y;
+    state.pitcher.has_ball = true;
+    
+    state.batter.stance = 0;
+    state.batter.swinging = false;
+    state.batter.swing_timer = 0.0;
+    state.batter.power = 0.0;
+    state.batter.timing = 0.0;
+    
+    state.ball.in_play = false;
+    
+    state.pitch_timer = 0.0;
+    state.hit_result_timer = 0.0;
+    state.hit_trajectory_len = 0;
+}
+
+// ==================== 投球函数 ====================
+
+pub fn start_pitch(state: &mut BaseballState) {
+    state.phase = GamePhase.Pitching;
+    state.pitcher.has_ball = false;
+    state.ball.in_play = false;
+    
+    // 随机选择球种
+    let r = rand() % 3;
+    state.pitch_type = match r {
+        0 => PitchType.FastBall,
+        1 => PitchType.CurveBall,
+        _ => PitchType.ChangeUp,
+    };
+    
+    // 设定投球目标 (本垒板附近)
+    state.pitcher_target_x = HOME_X as f32 + (rand() % 41 - 20) as f32;  // -20 到 +20
+    state.pitcher_target_y = HOME_Y as f32;
+    
+    state.pitch_timer = 0.0;
+}
+
+// ==================== 更新函数 ====================
+
+pub fn update_pitch(state: &mut BaseballState, dt: f32) {
+    if state.phase != GamePhase.Pitching {
+        return;
+    }
+    
+    state.pitch_timer = state.pitch_timer + dt;
+    
+    let progress = state.pitch_timer / 1000.0;  // 毫秒转秒
+    
+    // 球速: 快速球 1.2秒, 曲球 1.8秒, 变速球 2.0秒
+    let pitch_duration = match state.pitch_type {
+        PitchType.FastBall => 1.2,
+        PitchType.CurveBall => 1.8,
+        PitchType.ChangeUp => 2.0,
+    };
+    
+    // 球的位置 (从投手到本垒的抛物线)
+    let t = min(progress / pitch_duration, 1.0);
+    
+    state.ball.x = PITCHER_X as f32 + (state.pitcher_target_x - PITCHER_X as f32) * t;
+    state.ball.y = PITCHER_Y as f32 + (state.pitcher_target_y - PITCHER_Y as f32) * t;
+    
+    // 抛物线高度
+    let arc_height = match state.pitch_type {
+        PitchType.FastBall => 30.0,
+        PitchType.CurveBall => 80.0,
+        PitchType.ChangeUp => 20.0,
+    };
+    state.ball.z = arc_height * 4.0 * t * (1.0 - t);
+    
+    // 球到达本垒
+    if t >= 1.0 {
+        // 检查是否被击打
+        if state.batter.swinging && state.batter.swing_timer > 0.3 && state.batter.swing_timer < 0.7 {
+            // 击中!
+            calculate_hit(state);
+        } else {
+            // 没击打 - 检查好坏球
+            check_ball_or_strike(state);
+        }
+    }
+}
+
+fn check_ball_or_strike(state: &mut BaseballState) {
+    // 球落在好球区 (本垒板周围)
+    let dx = abs(state.ball.x - HOME_X as f32);
+    let dy = abs(state.ball.y - HOME_Y as f32);
+    
+    // 好球区: 宽度约30像素, 高度约20像素
+    if dx < 20.0 && dy < 15.0 && state.ball.z < 25.0 {
+        // 好球
+        state.strikes = state.strikes + 1;
+        state.hit_result = HitType.None;
+        
+        if state.strikes >= 3 {
+            state.outs = state.outs + 1;
+            state.strikes = 0;
+            state.balls = 0;
+            
+            if state.outs >= 3 {
+                switch_inning(state);
+            }
+        }
+    } else {
+        // 坏球
+        state.balls = state.balls + 1;
+        state.hit_result = HitType.None;
+        
+        if state.balls >= 4 {
+            // 保送, reset count
+            state.balls = 0;
+            state.strikes = 0;
+        }
+    }
+    
+    state.ball.in_play = false;
+    state.phase = GamePhase.Batting;
+    state.hit_result_timer = 1.0;
+}
+
+fn calculate_hit(state: &mut BaseballState) {
+    // 基于击球时机和力量计算结果
+    let timing = state.batter.timing;  // -1 到 1
+    let power = state.batter.power;    // 0 到 100
+    
+    // 击中判定
+    if power < 30.0 || abs(timing) > 0.8 {
+        // 擦棒球或界外
+        if rand() % 2 == 0 && abs(timing) < 0.9 {
+            state.hit_result = HitType.Foul;
+            state.strikes = min(state.strikes + 1, 2);  // 界外球计好球但不记三振
+        } else {
+            state.hit_result = HitType.GroundBall;
+        }
+    } else if abs(timing) < 0.3 {
+        // 扎实的击球
+        if power > 70.0 {
+            state.hit_result = HitType.FlyBall;
+        } else {
+            state.hit_result = HitType.LineDrive;
+        }
+    } else {
+        state.hit_result = HitType.GroundBall;
+    }
+    
+    state.ball.in_play = true;
+    state.phase = GamePhase.BallInFlight;
+    
+    // 计算球的飞行轨迹
+    calculate_trajectory(state);
+    
+    state.hit_result_timer = 2.0;
+}
+
+fn calculate_trajectory(state: &mut BaseballState) {
+    // 击球方向: 基于时机
+    let hit_angle = -90.0 + state.batter.timing * 60.0;  // -150 到 -30 度
+    
+    // 击球力量: 影响距离
+    let hit_power = 200.0 + state.batter.power * 4.0;
+    
+    // 初始速度
+    let v0 = hit_power;
+    let angle_rad = hit_angle * PI / 180.0;
+    
+    state.ball.vx = cos(angle_rad) * v0 * 0.5;
+    state.ball.vy = sin(angle_rad) * v0 * 0.3;
+    state.ball.vz = abs(state.batter.power) * 0.5 + 100.0;
+    
+    state.hit_trajectory_len = 0;
+    
+    // 模拟飞行轨迹
+    var x = state.ball.x;
+    var y = state.ball.y;
+    var z = state.ball.z;
+    var vx = state.ball.vx;
+    var vy = state.ball.vy;
+    var vz = state.ball.vz;
+    
+    for i in 0..128 {
+        let dt = 0.05;
+        
+        x = x + vx * dt;
+        y = y + vy * dt;
+        z = z + vz * dt;
+        
+        vz = vz - 500.0 * dt;  // 重力
+        
+        state.hit_trajectory[i].x = x;
+        state.hit_trajectory[i].y = y;
+        
+        state.hit_trajectory_len = i + 1;
+        
+        if z <= 0.0 || x < 0.0 || x > 800.0 || y < 0.0 || y > 600.0 {
+            break;
+        }
+    }
+    
+    // 记录落点
+    state.ball_land_x = x as int;
+    state.ball_land_y = y as int;
+}
+
+pub fn update_ball_flight(state: &mut BaseballState, dt: f32) {
+    if state.phase != GamePhase.BallInFlight {
+        return;
+    }
+    
+    state.hit_result_timer = state.hit_result_timer - dt;
+    
+    if state.hit_result_timer <= 0.0 {
+        // 处理击球结果
+        handle_hit_result(state);
+    }
+}
+
+fn handle_hit_result(state: &mut BaseballState) {
+    match state.hit_result {
+        HitType.Foul => {
+            state.strikes = min(state.strikes + 1, 2);
+        }
+        HitType.GroundBall => {
+            // 地滚球, 50%概率出局
+            if rand() % 2 == 0 {
+                state.outs = state.outs + 1;
+            }
+        }
+        HitType.FlyBall => {
+            // 高飞球, 检查是否接杀
+            // 简化: 如果飞行距离远则是全垒打, 否则可能接杀
+            if state.ball_land_y < 50 {
+                // 全垒打!
+                if state.top_inning {
+                    state.away_score = state.away_score + 1;
+                } else {
+                    state.home_score = state.home_score + 1;
+                }
+            } else {
+                // 50%接杀
+                if rand() % 2 == 0 {
+                    state.outs = state.outs + 1;
+                }
+            }
+        }
+        HitType.LineDrive => {
+            // 直线球, 通常是安打
+            // 简化: 必定上垒
+        }
+        _ => {}
+    }
+    
+    // 检查出局
+    if state.outs >= 3 {
+        switch_inning(state);
+    } else {
+        state.phase = GamePhase.Batting;
+        state.balls = 0;
+        state.strikes = 0;
+    }
+    
+    state.ball.in_play = false;
+}
+
+fn switch_inning(state: &mut BaseballState) {
+    state.outs = 0;
+    state.balls = 0;
+    state.strikes = 0;
+    state.top_inning = !state.top_inning;
+    
+    if !state.top_inning {
+        state.inning = state.inning + 1;
+    }
+    
+    if state.inning > 9 && state.home_score != state.away_score {
+        // 比赛结束
+        state.phase = GamePhase.GameOver;
+    } else if state.inning > 9 {
+        // 延长赛
+        state.phase = GamePhase.Batting;
+    } else {
+        state.phase = GamePhase.HalfInning;
+        state.hit_result_timer = 2.0;
+    }
+}
+
+pub fn update_half_inning(state: &mut BaseballState, dt: f32) {
+    if state.phase != GamePhase.HalfInning {
+        return;
+    }
+    
+    state.hit_result_timer = state.hit_result_timer - dt;
+    
+    if state.hit_result_timer <= 0.0 {
+        state.phase = GamePhase.Batting;
+    }
+}
+
+pub fn swing(state: &mut BaseballState, power: f32, timing: f32) {
+    if state.phase == GamePhase.Batting || state.phase == GamePhase.Pitching {
+        state.batter.swinging = true;
+        state.batter.swing_timer = 0.0;
+        state.batter.power = power;
+        state.batter.timing = timing;
+    }
+}
+
+pub fn update_batter_swing(state: &mut BaseballState, dt: f32) {
+    if state.batter.swinging {
+        state.batter.swing_timer = state.batter.swing_timer + dt;
+        
+        if state.batter.swing_timer > 1.0 {
+            state.batter.swinging = false;
+            state.batter.swing_timer = 0.0;
+        }
+    }
+}
+
+// ==================== 辅助函数 ====================
+
+fn abs(x: f32) -> f32 {
+    return if x < 0.0 { -x } else { x };
+}
+
+fn min(a: f32, b: f32) -> f32 {
+    return if a < b { a } else { b };
+}
+
+fn max(a: f32, b: f32) -> f32 {
+    return if a > b { a } else { b };
+}
+
+fn rand() -> i32 {
+    static mut seed: i32 = 12345;
+    seed = seed * 1103515245 + 12345;
+    return (seed >> 16) & 0x7FFF;
+}
+
+const PI: f32 = 3.14159265;
+const cos = f32::cos;
+const sin = f32::sin;

@@ -1,0 +1,31 @@
+# Zen-C Baseball Game .gitignore
+
+# 编译输出
+*.exe
+*.o
+*.obj
+*.dll
+*.a
+*.lib
+
+# 构建目录
+build/
+dist/
+
+# 临时文件
+*.tmp
+*.bak
+*.swp
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# 日志
+*.log
+
+# 系统文件
+Thumbs.db
+.DS_Store

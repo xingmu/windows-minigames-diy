@@ -1,0 +1,375 @@
+// main_window.zc - Zen-C 棒球游戏主程序
+// Zen-C 棒球游戏 v1.0.0
+
+import std.io;
+import std.string;
+
+// 导入游戏逻辑和平台API
+import "BaseballGame.zc";
+import "platform_api.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: BaseballState;
+static mut mouse_x: i32;
+static mut mouse_y: i32;
+static mut last_time: u32;
+static mut auto_play: bool = false;
+static mut auto_swing_timer: f32 = 0.0;
+
+// ==================== 绘图函数 ====================
+
+// 绘制场地
+fn draw_field(ctx: GraphicsContext) {
+    // 草地背景
+    draw_rect(ctx, 0, 80, 800, 520, rgb(46, 139, 87));
+    
+    // 投手丘
+    draw_circle(ctx, 400, 200, 40, rgb(139, 119, 101));
+    draw_circle(ctx, 400, 200, 35, rgb(160, 120, 100));
+    
+    // 本垒板
+    draw_rect(ctx, 385, 460, 30, 30, rgb(255, 255, 255));
+    
+    // 内场 (泥土)
+    draw_triangle(ctx, 400, 200, 250, 500, 550, 500, rgb(139, 119, 101));
+    
+    // 垒包
+    // 一垒
+    draw_rect(ctx, 500, 380, 25, 25, rgb(255, 255, 255));
+    // 二垒
+    draw_rect(ctx, 380, 280, 25, 25, rgb(255, 255, 255));
+    // 三垒
+    draw_rect(ctx, 275, 380, 25, 25, rgb(255, 255, 255));
+    
+    // 边线
+    draw_line(ctx, 250, 500, 400, 200, rgb(255, 255, 255));
+    draw_line(ctx, 550, 500, 400, 200, rgb(255, 255, 255));
+    
+    // 外场围栏 (简化)
+    draw_arc(ctx, 400, 600, 300, 180, 0, rgb(100, 100, 100));
+}
+
+// 绘制投手
+fn draw_pitcher(ctx: GraphicsContext) {
+    let px = game.pitcher.x;
+    let py = game.pitcher.y;
+    
+    // 身体
+    draw_circle(ctx, px, py, 15, rgb(0, 0, 139));
+    // 头
+    draw_circle(ctx, px, py - 20, 10, rgb(255, 200, 150));
+}
+
+// 绘制击球手
+fn draw_batter(ctx: GraphicsContext) {
+    let bx = HOME_X;
+    let by = HOME_Y + 30;
+    
+    // 身体
+    draw_circle(ctx, bx, by, 15, rgb(139, 0, 0));
+    // 头
+    draw_circle(ctx, bx, by - 20, 10, rgb(255, 200, 150));
+    
+    // 球棒
+    if game.batter.swinging {
+        let swing_angle = game.batter.swing_timer * 180.0;
+        let end_x = bx + 40 + (swing_angle as i32 % 90) * 2;
+        let end_y = by - 10 - (swing_angle as i32 % 90);
+        draw_line(ctx, bx + 15, by - 5, end_x, end_y, rgb(139, 90, 43));
+    } else {
+        draw_line(ctx, bx + 15, by - 5, bx + 55, by - 20, rgb(139, 90, 43));
+    }
+}
+
+// 绘制球
+fn draw_ball(ctx: GraphicsContext) {
+    if game.phase == GamePhase.Pitching || game.phase == GamePhase.BallInFlight {
+        let bx = game.ball.x as i32;
+        let by = game.ball.y as i32;
+        
+        // 阴影
+        if game.ball.z > 0 {
+            let shadow_size = max(5, 10 - (game.ball.z as i32 / 5));
+            draw_circle(ctx, bx, by + (game.ball.z as i32), shadow_size, rgb(0, 0, 0));
+        }
+        
+        // 球
+        let size = max(3, 8 - (game.ball.z as i32 / 10));
+        draw_circle(ctx, bx, by, size, rgb(255, 255, 255));
+        draw_circle(ctx, bx, by, size + 1, rgb(200, 200, 200));
+    }
+}
+
+// 绘制击球轨迹
+fn draw_hit_trajectory(ctx: GraphicsContext) {
+    if game.phase == GamePhase.BallInFlight && game.hit_trajectory_len > 0 {
+        for i in 0..game.hit_trajectory_len {
+            let x = game.hit_trajectory[i].x as i32;
+            let y = game.hit_trajectory[i].y as i32;
+            draw_circle(ctx, x, y, 2, rgb(255, 255, 0));
+        }
+    }
+}
+
+// 绘制好球区
+fn draw_strike_zone(ctx: GraphicsContext) {
+    // 好球区 (击球手前方)
+    let x = HOME_X - 15;
+    let y = HOME_Y - 10;
+    let w = 30;
+    let h = 40;
+    
+    // 只在投球时显示
+    if game.phase == GamePhase.Pitching {
+        let alpha = (game.pitch_timer as i32 % 10) * 25;
+        if alpha > 128 {
+            draw_rect(ctx, x, y, w, h, rgb(255, 0, 0));
+        }
+    }
+}
+
+// 绘制UI
+fn draw_ui(ctx: GraphicsContext) {
+    // 顶部状态栏
+    draw_rect(ctx, 0, 0, 800, 80, rgb(25, 25, 25));
+    
+    // 局数
+    let inning_text = if game.top_inning { "▲ " } else { "▼ " };
+    let full_inning = inning_text ++ game.inning.toString();
+    draw_text(ctx, 20, 20, full_inning, rgb(255, 255, 255));
+    
+    // 分数
+    let score_text = "客队: " ++ game.away_score.toString() ++ "  主队: " ++ game.home_score.toString();
+    draw_text(ctx, 300, 20, score_text, rgb(255, 255, 255));
+    
+    // 出局
+    draw_text(ctx, 20, 50, "OUTS: " ++ game.outs.toString(), rgb(255, 165, 0));
+    
+    // 好坏球
+    let ball_text = "BALL: " ++ game.balls.toString();
+    let strike_text = "STRIKE: " ++ game.strikes.toString();
+    draw_text(ctx, 550, 20, ball_text, rgb(0, 255, 0));
+    draw_text(ctx, 550, 50, strike_text, rgb(255, 0, 0));
+    
+    // 球数显示 (小圆点)
+    for i in 0..4 {
+        let color = if i < game.balls { rgb(0, 255, 0) } else { rgb(50, 50, 50) };
+        draw_circle(ctx, 650 + i * 20, 30, 6, color);
+    }
+    
+    for i in 0..3 {
+        let color = if i < game.strikes { rgb(255, 0, 0) } else { rgb(50, 50, 50) };
+        draw_circle(ctx, 650 + i * 20, 55, 6, color);
+    }
+}
+
+// 绘制击球结果提示
+fn draw_hit_result(ctx: GraphicsContext) {
+    if game.hit_result_timer > 0.0 && game.hit_result != HitType.None {
+        let text = match game.hit_result {
+            HitType.Foul => "FOUL BALL!",
+            HitType.GroundBall => "GROUND BALL!",
+            HitType.FlyBall => "FLY BALL!",
+            HitType.LineDrive => "LINE DRIVE!",
+            _ => "",
+        };
+        
+        let y = 300 + (1.0 - game.hit_result_timer) * 50;
+        draw_text(ctx, 300, y, text, rgb(255, 255, 0));
+    }
+}
+
+// 绘制半局提示
+fn draw_half_inning_text(ctx: GraphicsContext) {
+    if game.phase == GamePhase.HalfInning {
+        let text = if game.top_inning { "TOP " } else { "BOTTOM " };
+        let full_text = text ++ game.inning.toString() ++ " 回 合";
+        draw_text(ctx, 300, 300, full_text, rgb(255, 255, 255));
+        draw_text(ctx, 280, 340, "PRESS SPACE TO CONTINUE", rgb(200, 200, 200));
+    }
+}
+
+// 绘制游戏结束画面
+fn draw_game_over(ctx: GraphicsContext) {
+    draw_rect(ctx, 0, 0, 800, 600, rgb(0, 0, 0));
+    
+    let winner = if game.home_score > game.away_score { "HOME TEAM" } else { "AWAY TEAM" };
+    draw_text(ctx, 200, 200, "GAME OVER", rgb(255, 255, 255));
+    draw_text(ctx, 200, 250, winner ++ " WINS!", rgb(255, 255, 0));
+    
+    let final_score = game.away_score.toString() ++ " - " ++ game.home_score.toString();
+    draw_text(ctx, 300, 300, final_score, rgb(255, 255, 255));
+    draw_text(ctx, 250, 400, "PRESS SPACE TO RESTART", rgb(200, 200, 200));
+}
+
+// 绘制标题画面
+fn draw_title(ctx: GraphicsContext) {
+    draw_rect(ctx, 0, 0, 800, 600, rgb(0, 50, 100));
+    
+    draw_text(ctx, 280, 150, "ZEN-C BASEBALL", rgb(255, 255, 255));
+    draw_text(ctx, 220, 200, "BASEBALL GAME v1.0.0", rgb(200, 200, 200));
+    
+    draw_text(ctx, 150, 300, "CONTROLS:", rgb(255, 255, 0));
+    draw_text(ctx, 150, 340, "LEFT CLICK - SWING BAT", rgb(255, 255, 255));
+    draw_text(ctx, 150, 380, "AUTO PLAY - PRESS 'A'", rgb(255, 255, 255));
+    draw_text(ctx, 150, 420, "START GAME - PRESS SPACE", rgb(0, 255, 0));
+    
+    draw_text(ctx, 200, 500, "Zen-C 现代系统编程语言", rgb(150, 150, 150));
+}
+
+// 绘制力量条 (基于鼠标位置)
+fn draw_power_bar(ctx: GraphicsContext) {
+    if game.phase == GamePhase.Pitching || game.phase == GamePhase.Batting {
+        // 力量条背景
+        draw_rect(ctx, 700, 400, 20, 150, rgb(50, 50, 50));
+        
+        // 力量条填充
+        let power = game.batter.power;
+        let bar_height = (power * 1.5) as i32;
+        for i in 0..bar_height {
+            let y = 548 - i;
+            let color = if i > 120 { rgb(255, 0, 0) } else if i > 80 { rgb(255, 255, 0) } else { rgb(0, 255, 0) };
+            draw_rect(ctx, 700, y, 20, 1, color);
+        }
+        
+        // 时机指示器
+        let timing = game.batter.timing;
+        let indicator_y = 475 + (timing * 75.0) as i32;
+        draw_rect(ctx, 698, indicator_y - 2, 24, 4, rgb(255, 255, 255));
+    }
+}
+
+// ==================== 游戏事件处理 ====================
+
+fn on_mouse_move(x: i32, y: i32) {
+    mouse_x = x;
+    mouse_y = y;
+}
+
+fn on_mouse_down(button: i32) {
+    if game.phase == GamePhase.Batting || game.phase == GamePhase.Pitching {
+        if button == 0 {  // 左键
+            // 开始挥棒
+            // 力量基于鼠标Y位置, 时机基于鼠标X位置
+            let power = max(0.0, min(100.0, 100.0 - (mouse_y as f32 * 100.0 / 600.0)));
+            let timing = ((mouse_x as f32 - 400.0) / 100.0);
+            
+            swing(&mut game, power, timing);
+        }
+    }
+}
+
+fn on_key_down(key: i32) {
+    match key {
+        0x20 => {  // 空格
+            if game.phase == GamePhase.Title {
+                game.phase = GamePhase.Batting;
+            } else if game.phase == GamePhase.HalfInning {
+                game.phase = GamePhase.Batting;
+            } else if game.phase == GamePhase.GameOver {
+                init_baseball(&mut game);
+                game.phase = GamePhase.Batting;
+            }
+        }
+        0x41 => {  // A键 - 自动模式
+            auto_play = !auto_play;
+        }
+        _ => {}
+    }
+}
+
+// ==================== 自动游玩逻辑 ====================
+
+fn update_auto_play(dt: f32) {
+    if !auto_play {
+        return;
+    }
+    
+    auto_swing_timer = auto_swing_timer + dt;
+    
+    match game.phase {
+        GamePhase.Batting => {
+            // 随机时间后自动投球
+            if auto_swing_timer > 1.0 {
+                start_pitch(&mut game);
+                auto_swing_timer = 0.0;
+            }
+        }
+        GamePhase.Pitching => {
+            // 在适当时机挥棒
+            if auto_swing_timer > 1.2 {
+                // 模拟击中
+                let power = 50.0 + (rand() % 50) as f32;
+                let timing = (rand() % 100 - 50) as f32 / 100.0;
+                swing(&mut game, power, timing);
+                auto_swing_timer = 0.0;
+            }
+        }
+        GamePhase.HalfInning => {
+            if auto_swing_timer > 2.0 {
+                game.phase = GamePhase.Batting;
+                auto_swing_timer = 0.0;
+            }
+        }
+        GamePhase.GameOver => {
+            if auto_swing_timer > 3.0 {
+                init_baseball(&mut game);
+                game.phase = GamePhase.Batting;
+                auto_swing_timer = 0.0;
+            }
+        }
+        _ => {
+            auto_swing_timer = 0.0;
+        }
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() {
+    io.println("========================================");
+    io.println("  Zen-C 棒球游戏 v1.0.0");
+    io.println("  现代系统编程，零开销");
+    io.println("========================================");
+    
+    // 初始化游戏
+    init_baseball(&mut game);
+    
+    io.println("游戏已初始化!");
+    io.println("按空格键开始游戏");
+    io.println("左键点击挥棒");
+    io.println("按 'A' 键切换自动模式");
+    io.println("========================================");
+    
+    last_time = get_time();
+    
+    // 消息循环 (在C代码中实现)
+    // 这里只是占位
+    
+    0
+}
+
+// ==================== 辅助函数 ====================
+
+fn abs(x: i32) -> i32 {
+    return if x < 0 { -x } else { x };
+}
+
+fn max(a: i32, b: i32) -> i32 {
+    return if a > b { a } else { b };
+}
+
+fn min(a: f32, b: f32) -> f32 {
+    return if a < b { a } else { b };
+}
+
+fn max_f32(a: f32, b: f32) -> f32 {
+    return if a > b { a } else { b };
+}
+
+fn rand() -> i32 {
+    static mut seed: i32 = 12345;
+    seed = seed * 1103515245 + 12345;
+    return (seed >> 16) & 0x7FFF;
+}
