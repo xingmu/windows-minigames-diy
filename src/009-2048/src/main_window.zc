@@ -1,0 +1,455 @@
+// main_window.zc - 2048游戏主窗口
+// 继承自Game类，框架版本: 1.0.0
+
+import std.io;
+import std.string;
+import std.time;
+
+// 导入框架和游戏逻辑
+import "platform_api.zc";
+import "game.zc";
+import "game2048.zc";
+
+// ==================== 常量定义 ====================
+
+// 窗口尺寸
+const WINDOW_WIDTH = 480;
+const WINDOW_HEIGHT = 640;
+
+// 游戏区域
+const GRID_OFFSET_X = 40;
+const GRID_OFFSET_Y = 120;
+const CELL_SIZE = 100;
+const CELL_GAP = 10;
+const GRID_SIZE = 4;
+
+// ==================== 颜色定义 ====================
+
+// 方块颜色
+const TILE_2 = 0xFFEEE4DA;      // 2 - 米白
+const TILE_4 = 0xFFEDE0C8;      // 4 - 浅黄
+const TILE_8 = 0xFFF2B179;      // 8 - 橙色
+const TILE_16 = 0xFFF59563;    // 16 - 深橙
+const TILE_32 = 0xFFF67C5F;     // 32 - 红色橙
+const TILE_64 = 0xFFF65E3B;     // 64 - 红色
+const TILE_128 = 0xFFEDCF72;    // 128 - 金色
+const TILE_256 = 0xFFEDCC61;   // 256 - 深金
+const TILE_512 = 0xFFEDC850;   // 512 - 更深金
+const TILE_1024 = 0xFFEDC53F;  // 1024 - 橙金
+const TILE_2048 = 0xFFEDC22E;  // 2048 - 亮金
+const TILE_SUPER = 0xFF3C3A32; // 4096+ - 深色
+
+// 背景和网格
+const BACKGROUND_COLOR = 0xFFBBADA0;
+const GRID_BACKGROUND = 0xFFCDC1B4;
+const CELL_EMPTY = 0xFFCCC0B4;
+
+// 文字颜色
+const TEXT_DARK = 0xFF776E65;   // 深色文字
+const TEXT_LIGHT = 0xFFF9F6F2;  // 浅色文字
+
+// ==================== 游戏类 ====================
+
+class Game2048 extends Game {
+    game_data: GameData;
+    
+    // 构造函数
+    pub fn create(title: str, width: int, height: int, fps: int) {
+        super.create(title, width, height, fps);
+        self.game_data = GameData.{ board: Board.{ cells: [0; 16] }, score: 0, won: false, game_over: false, moved: false };
+    }
+    
+    fn onInit() {
+        self.state = GameState.Playing;
+        self.score = 0;
+        init_game(&mut self.game_data);
+        
+        io.println("[2048] Game initialized!");
+        io.println("[2048] Use arrow keys to move tiles");
+        io.println("[2048] Press R to restart, ESC to exit");
+    }
+    
+    fn onShutdown() {
+        io.println("[2048] Game exited!");
+    }
+    
+    fn onUpdate(dt: u32) {
+        // 游戏逻辑在输入时处理
+    }
+    
+    fn onRender(canvas: &Canvas) {
+        // 绘制背景
+        canvas.clear(BACKGROUND_COLOR);
+        
+        // 绘制标题区域
+        draw_title(canvas);
+        
+        // 绘制分数
+        draw_score(canvas);
+        
+        // 绘制游戏网格
+        draw_grid(canvas);
+        
+        // 绘制所有方块
+        draw_tiles(canvas);
+        
+        // 绘制提示信息
+        draw_hints(canvas);
+        
+        // 绘制游戏结束或获胜信息
+        if self.game_data.won {
+            draw_win_message(canvas);
+        } else if self.game_data.game_over {
+            draw_gameover_message(canvas);
+        }
+    }
+    
+    fn onKeyDown(key: VirtualKey) {
+        // R键重新开始
+        if key == VirtualKey.Enter {
+            init_game(&mut self.game_data);
+            self.score = 0;
+            return;
+        }
+        
+        // 如果游戏结束或获胜，任意键重新开始
+        if self.game_data.won || self.game_data.game_over {
+            init_game(&mut self.game_data);
+            self.score = 0;
+            return;
+        }
+        
+        var key_code: int = 0;
+        
+        match key {
+            VirtualKey.Left => key_code = 37,
+            VirtualKey.Up => key_code = 38,
+            VirtualKey.Right => key_code = 39,
+            VirtualKey.Down => key_code = 40,
+            _ => key_code = 0
+        }
+        
+        if key_code != 0 {
+            handle_input(&mut self.game_data, key_code);
+            self.score = get_score(&self.game_data);
+        }
+    }
+    
+    fn onKeyUp(key: VirtualKey) {}
+    
+    fn onMouseDown(x: int, y: int, button: MouseButton) {}
+    
+    fn onMouseUp(x: int, y: int, button: MouseButton) {}
+}
+
+// ==================== 绘图函数 ====================
+
+fn draw_title(canvas: &Canvas) {
+    // 绘制标题背景
+    canvas.fillRect(GRID_OFFSET_X, 20, CELL_SIZE * 4 + CELL_GAP * 3, 80, 0xFFEDC22E);
+    
+    // 绘制 "2048" 标题 - 使用方块模拟
+    let text_x = GRID_OFFSET_X + 50;
+    let text_y = 30;
+    
+    // 2
+    canvas.fillRect(text_x, text_y, 20, 50, TEXT_LIGHT);
+    canvas.fillRect(text_x + 20, text_y, 20, 20, TEXT_LIGHT);
+    canvas.fillRect(text_x + 20, text_y + 30, 20, 20, TEXT_LIGHT);
+    canvas.fillRect(text_x + 40, text_y + 50, 20, 10, TEXT_LIGHT);
+    
+    // 0
+    let offset_x = text_x + 70;
+    canvas.fillRect(offset_x, text_y, 20, 10, TEXT_DARK);
+    canvas.fillRect(offset_x, text_y + 50, 20, 10, TEXT_DARK);
+    canvas.fillRect(offset_x, text_y, 10, 60, TEXT_DARK);
+    canvas.fillRect(offset_x + 10, text_y, 10, 60, TEXT_DARK);
+    
+    // 4
+    offset_x = text_x + 140;
+    canvas.fillRect(offset_x, text_y, 10, 30, TEXT_LIGHT);
+    canvas.fillRect(offset_x + 10, text_y + 20, 20, 10, TEXT_LIGHT);
+    canvas.fillRect(offset_x + 30, text_y + 20, 10, 40, TEXT_LIGHT);
+    
+    // 8
+    offset_x = text_x + 190;
+    canvas.fillRect(offset_x, text_y, 20, 10, TEXT_LIGHT);
+    canvas.fillRect(offset_x, text_y + 50, 20, 10, TEXT_LIGHT);
+    canvas.fillRect(offset_x, text_y, 10, 60, TEXT_LIGHT);
+    canvas.fillRect(offset_x + 10, text_y + 20, 10, 20, TEXT_LIGHT);
+    canvas.fillRect(offset_x + 10, text_y + 30, 10, 10, TEXT_DARK);
+    canvas.fillRect(offset_x + 20, text_y, 10, 60, TEXT_LIGHT);
+}
+
+fn draw_score(canvas: &Canvas) {
+    // 分数背景
+    let score_bg_x = GRID_OFFSET_X + CELL_SIZE * 2 + CELL_GAP * 2 + 20;
+    canvas.fillRect(score_bg_x, 25, 140, 70, GRID_BACKGROUND);
+    
+    // 分数标签 SCORE
+    let label_y = 30;
+    let label_x = score_bg_x + 20;
+    // S
+    canvas.fillRect(label_x, label_y, 15, 3, TEXT_LIGHT);
+    canvas.fillRect(label_x, label_y + 3, 10, 3, TEXT_LIGHT);
+    canvas.fillRect(label_x + 5, label_y + 6, 10, 3, TEXT_LIGHT);
+    canvas.fillRect(label_x + 10, label_y + 9, 10, 3, TEXT_LIGHT);
+    canvas.fillRect(label_x + 10, label_y + 12, 5, 3, TEXT_LIGHT);
+    
+    // C
+    let cx = label_x + 25;
+    canvas.fillRect(cx, label_y, 15, 3, TEXT_LIGHT);
+    canvas.fillRect(cx, label_y + 12, 15, 3, TEXT_LIGHT);
+    canvas.fillRect(cx, label_y, 3, 15, TEXT_LIGHT);
+    
+    // O
+    let ox = label_x + 50;
+    canvas.fillRect(ox, label_y, 12, 3, TEXT_LIGHT);
+    canvas.fillRect(ox, label_y + 12, 12, 3, TEXT_LIGHT);
+    canvas.fillRect(ox, label_y, 3, 15, TEXT_LIGHT);
+    canvas.fillRect(ox + 9, label_y, 3, 15, TEXT_LIGHT);
+    
+    // R
+    let rx = label_x + 70;
+    canvas.fillRect(rx, label_y, 3, 15, TEXT_LIGHT);
+    canvas.fillRect(rx + 3, label_y, 12, 3, TEXT_LIGHT);
+    canvas.fillRect(rx + 12, label_y, 3, 6, TEXT_LIGHT);
+    canvas.fillRect(rx + 3, label_y + 6, 9, 3, TEXT_LIGHT);
+    canvas.fillRect(rx + 6, label_y + 9, 6, 3, TEXT_LIGHT);
+    canvas.fillRect(rx + 9, label_y + 12, 3, 3, TEXT_LIGHT);
+    
+    // E
+    let ex = label_x + 90;
+    canvas.fillRect(ex, label_y, 15, 3, TEXT_LIGHT);
+    canvas.fillRect(ex, label_y + 6, 10, 3, TEXT_LIGHT);
+    canvas.fillRect(ex, label_y + 12, 15, 3, TEXT_LIGHT);
+    canvas.fillRect(ex, label_y, 3, 15, TEXT_LIGHT);
+    
+    // 分数值
+    let score_str = int_to_string(self.score);
+    let value_y = 55;
+    let start_x = score_bg_x + 70 - len(score_str) * 6;
+    
+    for i in 0..len(score_str) {
+        // 绘制数字方块
+        let dx = start_x + i * 12;
+        canvas.fillRect(dx, value_y, 10, 25, TEXT_LIGHT);
+    }
+}
+
+fn draw_grid(canvas: &Canvas) {
+    // 绘制网格背景
+    let grid_x = GRID_OFFSET_X;
+    let grid_y = GRID_OFFSET_Y;
+    let grid_w = CELL_SIZE * 4 + CELL_GAP * 3;
+    let grid_h = CELL_SIZE * 4 + CELL_GAP * 3;
+    
+    canvas.fillRect(grid_x, grid_y, grid_w, grid_h, GRID_BACKGROUND);
+    
+    // 绘制每个格子的背景
+    for row in 0..GRID_SIZE {
+        for col in 0..GRID_SIZE {
+            let x = grid_x + col * (CELL_SIZE + CELL_GAP);
+            let y = grid_y + row * (CELL_SIZE + CELL_GAP);
+            canvas.fillRect(x, y, CELL_SIZE, CELL_SIZE, CELL_EMPTY);
+        }
+    }
+}
+
+fn draw_tiles(canvas: &Canvas) {
+    let grid_x = GRID_OFFSET_X;
+    let grid_y = GRID_OFFSET_Y;
+    
+    for row in 0..GRID_SIZE {
+        for col in 0..GRID_SIZE {
+            let value = get_tile_value(&self.game_data, row * GRID_SIZE + col);
+            if value != 0 {
+                let x = grid_x + col * (CELL_SIZE + CELL_GAP);
+                let y = grid_y + row * (CELL_SIZE + CELL_GAP);
+                
+                // 获取颜色
+                let tile_color = get_tile_color(value);
+                
+                // 绘制方块
+                canvas.fillRect(x, y, CELL_SIZE, CELL_SIZE, tile_color);
+                
+                // 绘制数字
+                let text_color = if value <= 4 { TEXT_DARK } else { TEXT_LIGHT };
+                let text = int_to_string(value);
+                
+                // 数字居中绘制
+                let font_size = get_font_size(value);
+                let text_w = len(text) * font_size / 2;
+                let text_x = x + CELL_SIZE / 2 - text_w / 2;
+                let text_y = y + CELL_SIZE / 2 - font_size / 2;
+                
+                // 绘制文字（用矩形模拟）
+                for i in 0..len(text) {
+                    canvas.fillRect(text_x + i * font_size / 2, text_y, font_size / 2 - 2, font_size, text_color);
+                }
+            }
+        }
+    }
+}
+
+fn get_tile_color(value: i32) -> Color {
+    match value {
+        2 => TILE_2,
+        4 => TILE_4,
+        8 => TILE_8,
+        16 => TILE_16,
+        32 => TILE_32,
+        64 => TILE_64,
+        128 => TILE_128,
+        256 => TILE_256,
+        512 => TILE_512,
+        1024 => TILE_1024,
+        2048 => TILE_2048,
+        _ => TILE_SUPER
+    }
+}
+
+fn get_font_size(value: i32) -> i32 {
+    if value >= 1000 {
+        return 32;
+    } else if value >= 100 {
+        return 40;
+    } else {
+        return 48;
+    }
+}
+
+fn draw_hints(canvas: &Canvas) {
+    let hint_y = GRID_OFFSET_Y + CELL_SIZE * 4 + CELL_GAP * 4 + 20;
+    
+    // 提示：按方向键移动
+    // 简化：画一些方块提示
+    let x = GRID_OFFSET_X;
+    
+    // 绘制操作说明区域
+    canvas.fillRect(x, hint_y, 400, 60, GRID_BACKGROUND);
+    
+    // 绘制箭头提示
+    // 上箭头
+    let arrow_x = x + 50;
+    canvas.fillRect(arrow_x, hint_y + 10, 20, 5, TEXT_DARK);
+    canvas.fillRect(arrow_x + 5, hint_y + 15, 10, 10, TEXT_DARK);
+    
+    // 下箭头
+    let arrow_x2 = arrow_x + 40;
+    canvas.fillRect(arrow_x2, hint_y + 25, 20, 5, TEXT_DARK);
+    canvas.fillRect(arrow_x2 + 5, hint_y + 15, 10, 10, TEXT_DARK);
+    
+    // 左箭头
+    let arrow_x3 = arrow_x2 + 40;
+    canvas.fillRect(arrow_x3, hint_y + 17, 5, 20, TEXT_DARK);
+    canvas.fillRect(arrow_x3 + 5, hint_y + 22, 10, 10, TEXT_DARK);
+    
+    // 右箭头
+    let arrow_x4 = arrow_x3 + 40;
+    canvas.fillRect(arrow_x4 + 15, hint_y + 17, 5, 20, TEXT_DARK);
+    canvas.fillRect(arrow_x4 + 5, hint_y + 22, 10, 10, TEXT_DARK);
+}
+
+fn draw_win_message(canvas: &Canvas) {
+    // 半透明覆盖
+    for py in 0..WINDOW_HEIGHT {
+        for px in 0..WINDOW_WIDTH {
+            canvas.setPixel(px, py, 0x80FFFFFF);
+        }
+    }
+    
+    // 获胜消息框
+    let msg_w = 300;
+    let msg_h = 150;
+    let msg_x = (WINDOW_WIDTH - msg_w) / 2;
+    let msg_y = (WINDOW_HEIGHT - msg_h) / 2;
+    
+    canvas.fillRect(msg_x, msg_y, msg_w, msg_h, 0xFFEDC22E);
+    canvas.drawRect(msg_x, msg_y, msg_w, msg_h, TEXT_LIGHT);
+    
+    // YOU WIN! 文字
+    let text_y = msg_y + 50;
+    // Y
+    let tx = msg_x + 50;
+    canvas.fillRect(tx, text_y, 5, 30, TEXT_LIGHT);
+    canvas.fillRect(tx + 25, text_y, 5, 30, TEXT_LIGHT);
+    canvas.fillRect(tx + 5, text_y + 15, 20, 5, TEXT_LIGHT);
+}
+
+fn draw_gameover_message(canvas: &Canvas) {
+    // 半透明覆盖
+    for py in 0..WINDOW_HEIGHT {
+        for px in 0..WINDOW_WIDTH {
+            canvas.setPixel(px, py, 0x80AAAAAA);
+        }
+    }
+    
+    // 游戏结束消息框
+    let msg_w = 300;
+    let msg_h = 150;
+    let msg_x = (WINDOW_WIDTH - msg_w) / 2;
+    let msg_y = (WINDOW_HEIGHT - msg_h) / 2;
+    
+    canvas.fillRect(msg_x, msg_y, msg_w, msg_h, 0xFF646F77);
+    canvas.drawRect(msg_x, msg_y, msg_w, msg_h, TEXT_LIGHT);
+    
+    // GAME OVER 文字
+    let text_y = msg_y + 50;
+    // G
+    let tx = msg_x + 30;
+    canvas.fillRect(tx, text_y, 25, 5, TEXT_LIGHT);
+    canvas.fillRect(tx, text_y + 30, 25, 5, TEXT_LIGHT);
+    canvas.fillRect(tx, text_y, 5, 35, TEXT_LIGHT);
+    canvas.fillRect(tx + 20, text_y + 15, 5, 20, TEXT_LIGHT);
+}
+
+// 整数转字符串
+fn int_to_string(n: i32) -> string {
+    if n == 0 {
+        return "0";
+    }
+    
+    var num = n;
+    if num < 0 {
+        num = -num;
+    }
+    
+    var digits: [20]u8;
+    var count = 0;
+    
+    while num > 0 {
+        digits[count] = (num % 10 + '0') as u8;
+        count = count + 1;
+        num = num / 10;
+    }
+    
+    var s = "";
+    for i in 0..count {
+        let d = digits[count - 1 - i];
+        s = s ++ string(1, d as char);
+    }
+    
+    if n < 0 {
+        s = "-" ++ s;
+    }
+    
+    return s;
+}
+
+// ==================== 主函数入口 ====================
+
+// Zen-C程序入口点
+pub fn main() {
+    io.println("===========================================");
+    io.println("  Zen-C 2048 Game");
+    io.println("  Framework v1.0.0");
+    io.println("===========================================");
+    
+    // 创建并运行游戏
+    var game = Game2048.("2048 Game", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    game.run();
+    game.destroy();
+    
+    io.println("Goodbye!");
+}
