@@ -1,0 +1,575 @@
+// main_window.zc - Zen-C 9-Ball Pool 台球游戏主程序
+// 经典美式9球玩法
+
+import std.io;
+import std.math;
+
+// 导入平台API
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: NineBallState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+
+// 帧缓冲数据
+static mut fb_buffer: rawptr = null;
+static mut fb_pitch: i32 = 0;
+static mut fb_width: i32 = GAME_WIDTH;
+static mut fb_height: i32 = GAME_HEIGHT;
+
+// ==================== 帧缓冲画布 ====================
+
+fn fb_set_pixel(x: i32, y: i32, color: Color) {
+    if x < 0 || x >= fb_width || y < 0 || y >= fb_height {
+        return;
+    }
+    let offset = y * (fb_pitch / 4) + x;
+    let pixels = fb_buffer as u32 mut;
+    pixels[offset] = color;
+}
+
+fn fb_get_pixel(x: i32, y: i32) -> Color {
+    if x < 0 || x >= fb_width || y < 0 || y >= fb_height {
+        return Color.Black();
+    }
+    let offset = y * (fb_pitch / 4) + x;
+    let pixels = fb_buffer as u32;
+    return pixels[offset];
+}
+
+fn abs(n: i32) -> i32 {
+    if n < 0 { -n } else { n }
+}
+
+fn fb_draw_line(x1: i32, y1: i32, x2: i32, y2: i32, color: Color) {
+    let dx = abs(x2 - x1);
+    let dy = abs(y2 - y1);
+    let sx = if x1 < x2 { 1 } else { -1 };
+    let sy = if y1 < y2 { 1 } else { -1 };
+    let mut err = dx - dy;
+
+    let mut x = x1;
+    let mut y = y1;
+
+    loop {
+        fb_set_pixel(x, y, color);
+
+        if x == x2 && y == y2 {
+            break;
+        }
+
+        let e2 = 2 * err;
+        if e2 > -dy {
+            err = err - dy;
+            x = x + sx;
+        }
+        if e2 < dx {
+            err = err + dx;
+            y = y + sy;
+        }
+    }
+}
+
+fn fb_draw_rect(x: i32, y: i32, w: i32, h: i32, color: Color) {
+    fb_draw_line(x, y, x + w, y, color);
+    fb_draw_line(x + w, y, x + w, y + h, color);
+    fb_draw_line(x + w, y + h, x, y + h, color);
+    fb_draw_line(x, y + h, x, y, color);
+}
+
+fn fb_fill_rect(x: i32, y: i32, w: i32, h: i32, color: Color) {
+    for py in y..(y + h) {
+        for px in x..(x + w) {
+            fb_set_pixel(px, py, color);
+        }
+    }
+}
+
+fn fb_draw_circle(cx: i32, cy: i32, radius: i32, color: Color) {
+    let mut d = 3 - 2 * radius;
+    let mut x = 0;
+    let mut y = radius;
+
+    loop {
+        fb_set_pixel(cx + x, cy + y, color);
+        fb_set_pixel(cx - x, cy + y, color);
+        fb_set_pixel(cx + x, cy - y, color);
+        fb_set_pixel(cx - x, cy - y, color);
+        fb_set_pixel(cx + y, cy + x, color);
+        fb_set_pixel(cx - y, cy + x, color);
+        fb_set_pixel(cx + y, cy - x, color);
+        fb_set_pixel(cx - y, cy - x, color);
+
+        if d < 0 {
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            y = y - 1;
+        }
+
+        x = x + 1;
+        if x > y {
+            break;
+        }
+    }
+}
+
+fn fb_fill_circle(cx: i32, cy: i32, radius: i32, color: Color) {
+    for py in (cy - radius)..(cy + radius + 1) {
+        for px in (cx - radius)..(cx + radius + 1) {
+            if (px - cx) * (px - cx) + (py - cy) * (py - cy) <= radius * radius {
+                fb_set_pixel(px, py, color);
+            }
+        }
+    }
+}
+
+fn fb_draw_arc(cx: i32, cy: i32, radius: i32, startAngle: i32, endAngle: i32, color: Color) {
+    // 简化的弧形绘制
+    let mut angle = startAngle;
+    let step = 3;
+    let mut prevX = 0;
+    let mut prevY = 0;
+    
+    while angle <= endAngle {
+        let rad = angle * 3 / 100; // 简化角度转换
+        let px = cx + (radius * cos(rad)) / 1000;
+        let py = cy + (radius * sin(rad)) / 1000;
+        
+        if angle != startAngle {
+            fb_draw_line(prevX, prevY, px, py, color);
+        }
+        prevX = px;
+        prevY = py;
+        angle = angle + step;
+    }
+}
+
+fn cos(angle: i32) -> i32 {
+    // 简化的cos近似
+    // 使用256度角度制
+    let mut a = angle % 256;
+    if a < 0 { a = a + 256; }
+    
+    if a < 64 { return 1000 * (64 - a) / 64; }
+    if a < 128 { return -1000 * (a - 64) / 64; }
+    if a < 192 { return -1000 * (128 - a) / 64; }
+    return 1000 * (a - 192) / 64;
+}
+
+fn sin(angle: i32) -> i32 {
+    return cos(angle - 64);
+}
+
+fn fb_clear(color: Color) {
+    let count = fb_pitch * fb_height / 4;
+    let pixels = fb_buffer as u32 mut;
+    for i in 0..count {
+        pixels[i] = color;
+    }
+}
+
+fn fb_present() {
+    if window != null {
+        presentFrame(window);
+    }
+}
+
+// ==================== 绘制函数 ====================
+
+fn drawBall(ball: &Ball) {
+    if !ball.active || ball.pocketed {
+        return;
+    }
+
+    let x = ball.x;
+    let y = ball.y;
+    let r = ball.radius;
+
+    // 球体阴影
+    fb_fill_circle(x + 3, y + 3, r, Color.RGB(30, 30, 30));
+
+    // 球体主体
+    if ball.number == 0 {
+        // 白球
+        fb_fill_circle(x, y, r, CUE_BALL_COLOR);
+        // 白球高光
+        fb_fill_circle(x - r/3, y - r/3, r/3, Color.RGB(255, 255, 255));
+    } else if ball.number == 9 && ball.striped {
+        // 9号球 - 条纹
+        fb_fill_circle(x, y, r, Color.White());
+        // 条纹
+        fb_fill_rect(x - r, y - r/3, r * 2, r * 2 / 3 + 1, getBallColor(9));
+        // 边缘
+        fb_draw_circle(x, y, r, Color.RGB(80, 80, 80));
+    } else {
+        // 实心球
+        fb_fill_circle(x, y, r, ball.color);
+        
+        // 高光
+        fb_fill_circle(x - r/3, y - r/3, r/4, Color.RGB(255, 255, 255, 180));
+    }
+
+    // 球号 (中心白点)
+    if ball.number > 0 {
+        fb_fill_circle(x, y, r / 3, Color.White());
+        // 球号数字用小圆表示
+        fb_draw_circle(x, y, r / 3, ball.color);
+    }
+}
+
+fn draw_table() {
+    // 外框 (深木色)
+    let woodDark = Color.RGB(60, 30, 10);
+    let woodLight = Color.RGB(100, 55, 25);
+    
+    fb_fill_rect(0, 0, GAME_WIDTH, TABLE_TOP - 5, woodDark);
+    fb_fill_rect(0, TABLE_BOTTOM + 5, GAME_WIDTH, GAME_HEIGHT - TABLE_BOTTOM - 5, woodDark);
+    fb_fill_rect(0, TABLE_TOP - 5, TABLE_LEFT - 5, TABLE_BOTTOM - TABLE_TOP + 10, woodDark);
+    fb_fill_rect(TABLE_RIGHT + 5, TABLE_TOP - 5, GAME_WIDTH - TABLE_RIGHT - 5, TABLE_BOTTOM - TABLE_TOP + 10, woodDark);
+
+    // 台面 (绿色台布)
+    fb_fill_rect(TABLE_LEFT, TABLE_TOP, TABLE_WIDTH, TABLE_HEIGHT, FELT_COLOR);
+    
+    // 台布纹理 - 细微深浅变化
+    for i in 0..10 {
+        let shade = if i % 2 == 0 { FELT_COLOR } else { FELT_DARK_COLOR };
+        fb_fill_rect(TABLE_LEFT, TABLE_TOP + i * (TABLE_HEIGHT / 10), TABLE_WIDTH, TABLE_HEIGHT / 10 + 1, shade);
+    }
+
+    // 边框装饰线
+    let cushionColor = Color.RGB(30, 100, 45);
+    fb_draw_rect(TABLE_LEFT + 15, TABLE_TOP + 15, TABLE_WIDTH - 30, TABLE_HEIGHT - 30, cushionColor);
+
+    // 发球区标记
+    let footSpot = TABLE_LEFT + TABLE_WIDTH * 3 / 4;
+    let midY = (TABLE_TOP + TABLE_BOTTOM) / 2;
+    
+    fb_fill_circle(footSpot, midY, 3, Color.RGB(200, 200, 200));
+    
+    // 圆形标记
+    fb_draw_circle(footSpot, midY, 30, Color.RGB(180, 180, 180));
+
+    // 开球线
+    let headString = TABLE_LEFT + TABLE_WIDTH / 4;
+    fb_draw_line(headString, TABLE_TOP + 20, headString, TABLE_BOTTOM - 20, Color.RGB(150, 150, 150));
+
+    // 发球区
+    fb_draw_circle(headString, midY, 40, Color.RGB(180, 180, 180));
+
+    // 袋口 (6个)
+    for i in 0..6 {
+        let px = POCKET_POSITIONS[i].x;
+        let py = POCKET_POSITIONS[i].y;
+        
+        // 袋口黑洞
+        fb_fill_circle(px, py, POCKET_RADIUS + 3, Color.RGB(10, 10, 10));
+        fb_fill_circle(px, py, POCKET_RADIUS, Color.RGB(5, 5, 5));
+        
+        // 袋口边缘
+        fb_draw_circle(px, py, POCKET_RADIUS + 4, Color.RGB(40, 25, 10));
+    }
+
+    // 边框高光
+    fb_draw_rect(0, 0, GAME_WIDTH - 1, TABLE_TOP - 6, woodLight);
+    fb_draw_rect(0, TABLE_BOTTOM + 5, GAME_WIDTH - 1, GAME_HEIGHT - TABLE_BOTTOM - 6, woodLight);
+}
+
+fn drawAimLine(state: &NineBallState) {
+    if !state.cueBall.pocketed && (state.phase == GamePhase.Dragging || state.phase == GamePhase.Aiming) {
+        let cue = state.cueBall;
+        
+        if state.power > 1 {
+            // 瞄准方向线
+            let aimDist = sqrt_int(dist2(0, 0, state.aimX, state.aimY));
+            if aimDist > 0 {
+                let aimLen = 120;
+                let aimEndX = cue.x + state.aimX * aimLen / aimDist;
+                let aimEndY = cue.y + state.aimY * aimLen / aimDist;
+                
+                // 虚线
+                for i in 0..12 {
+                    let t1 = i as f32 / 12 as f32;
+                    let t2 = (i + 1) as f32 / 12 as f32;
+                    if i % 2 == 0 {
+                        fb_draw_line(
+                            cue.x + (aimEndX - cue.x) * t1,
+                            cue.y + (aimEndY - cue.y) * t1,
+                            cue.x + (aimEndX - cue.x) * t2,
+                            cue.y + (aimEndY - cue.y) * t2,
+                            Color.RGB(255, 255, 200)
+                        );
+                    }
+                }
+            }
+
+            // 球杆
+            let stickLen = 50 + state.power * 2;
+            let aimDist = sqrt_int(dist2(0, 0, state.aimX, state.aimY));
+            if aimDist > 0 {
+                let stickEndX = cue.x - state.aimX * stickLen / aimDist;
+                let stickEndY = cue.y - state.aimY * stickLen / aimDist;
+                
+                // 球杆主体
+                let stickColor = Color.RGB(139, 90, 43);
+                fb_draw_line(stickEndX, stickEndY, cue.x, cue.y, stickColor);
+                
+                // 球杆尖端
+                fb_draw_line(cue.x, cue.y, 
+                    cue.x - state.aimX * 5 / aimDist,
+                    cue.y - state.aimY * 5 / aimDist,
+                    Color.RGB(200, 200, 200));
+            }
+
+            // 力度条
+            let barW = 80;
+            let barH = 8;
+            let barX = cue.x - barW / 2;
+            let barY = cue.y - 35;
+            
+            fb_draw_rect(barX - 1, barY - 1, barW + 2, barH + 2, Color.RGB(100, 100, 100));
+            fb_fill_rect(barX, barY, barW, barH, Color.RGB(30, 30, 30));
+            
+            let fillW = (state.power as f32 / MAX_POWER as f32 * barW as f32) as i32;
+            let powerColor = if state.power < 10 {
+                Color.Green()
+            } else if state.power < 20 {
+                Color.Yellow()
+            } else {
+                Color.Red()
+            };
+            fb_fill_rect(barX, barY, fillW, barH, powerColor);
+        }
+    }
+}
+
+fn draw_text(x: i32, y: i32, text: string, color: Color, size: i32) {
+    let charW = size * 3 / 4;
+    let charH = size;
+
+    var px = x;
+    var py = y;
+
+    for i in 0..len(text) {
+        if text[i] == ' ' {
+            px = px + charW;
+            continue;
+        }
+        if text[i] == '\n' {
+            py = py + charH;
+            px = x;
+            continue;
+        }
+
+        // 简化字符绘制
+        fb_fill_rect(px + 1, py + 1, charW - 2, charH - 2, Color.RGB(30, 30, 30));
+        fb_draw_rect(px, py, charW, charH, color);
+
+        px = px + charW + 2;
+        if px > GAME_WIDTH - charW {
+            py = py + charH;
+            px = x;
+        }
+    }
+}
+
+fn render_game() {
+    // 清屏
+    fb_clear(Color.RGB(50, 50, 50));
+
+    // 绘制球台
+    draw_table();
+
+    // 绘制所有球
+    for i in 0..game.ballCount {
+        drawBall(&game.balls[i]);
+    }
+
+    // 绘制瞄准线
+    drawAimLine(&game);
+
+    // 绘制UI
+    let info = "分数: " ++ game.score.toString() ++ "  击球: " ++ game.shots.toString() ++ "  连击: " ++ game.combo.toString();
+    draw_text(10, 8, info, Color.Yellow(), 16);
+
+    let title = "9-Ball Pool";
+    draw_text(GAME_WIDTH / 2 - 60, 8, title, Color.Cyan(), 18);
+
+    let status = getPhaseText(&game);
+    let statusColor = if game.phase == GamePhase.Foul {
+        Color.Red()
+    } else if game.phase == GamePhase.Win {
+        Color.Green()
+    } else {
+        Color.White()
+    };
+    draw_text(10, GAME_HEIGHT - 28, status, statusColor, 15);
+
+    let controls = getControlsText();
+    draw_text(GAME_WIDTH - 380, GAME_HEIGHT - 28, controls, Color.RGB(150, 150, 150), 13);
+
+    // 绘制球号说明
+    draw_text(10, 30, "目标: 依次打入1-9号球", Color.RGB(200, 200, 200), 13);
+    draw_text(10, GAME_HEIGHT - 50, "打入9号球获胜!", Color.RGB(255, 215, 0), 13);
+
+    // 显示
+    fb_present();
+}
+
+// ==================== 事件处理 ====================
+
+fn handle_key(key: VirtualKey) {
+    if key == VirtualKey.Escape {
+        running = false;
+    }
+    if key == VirtualKey.KeyR {
+        // 重新开始
+        init_game(&mut game);
+        game.phase = GamePhase.Setup;
+    }
+}
+
+fn handle_mouse_down(x: i32, y: i32, button: MouseButton) {
+    onMouseDown(&mut game, x, y);
+}
+
+fn handle_mouse_up(x: i32, y: i32, button: MouseButton) {
+    onMouseUp(&mut game, x, y);
+}
+
+fn handle_mouse_move(x: i32, y: i32) {
+    onMouseMove(&mut game, x, y);
+}
+
+fn handle_timer() {
+    if game.phase == GamePhase.Moving {
+        let stillMoving = updateBalls(&mut game);
+        if !stillMoving && allBallsStopped(&game) {
+            // 检查是否有进球或犯规
+            if game.phase == GamePhase.Foul {
+                // 犯规状态保持
+            } else if game.combo > 0 {
+                game.phase = GamePhase.Setup;
+            } else if game.firstHit == 0 || game.firstHit > 0) {
+                // 没碰到球或没进球
+                if game.firstHit != 0 {
+                    // 碰到了球但没进
+                    game.phase = GamePhase.Setup;
+                } else {
+                    // 什么都没碰到 - 犯规
+                    game.foulType = "白球空击";
+                    game.phase = GamePhase.Foul;
+                }
+            } else {
+                game.phase = GamePhase.Setup;
+            }
+        }
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C 9-Ball Pool 台球游戏");
+    io.println("========================================");
+
+    // 初始化游戏
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "9-Ball Pool - Zen-C 台球";
+    window = createWindow(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 获取帧缓冲
+    fb_buffer = getFrameBuffer(window);
+    fb_pitch = getFrameBufferPitch(window);
+
+    io.println("窗口创建成功!");
+    io.println("目标: 按顺序打入1-9号球");
+    io.println("9号球进袋即获胜!");
+    io.println("按R重新开始, ESC退出");
+    io.println("========================================");
+
+    // 游戏主循环
+    var lastTick: u32 = 0;
+    let frameTime: u32 = 16;  // ~60 FPS
+
+    while running {
+        // 处理事件
+        var event = Event.{};
+        while pollEvent(window, &event) {
+            match event.msg {
+                MessageType.Quit => {
+                    running = false;
+                }
+                MessageType.KeyDown => {
+                    if event.key.key == VirtualKey.Escape {
+                        running = false;
+                    } else if event.key.key == VirtualKey.KeyR {
+                        init_game(&mut game);
+                        game.phase = GamePhase.Setup;
+                    } else if event.key.key == VirtualKey.Space {
+                        if game.phase == GamePhase.Setup && game.power > 0 {
+                            let dx = game.dragStartX - game.mouseX;
+                            let dy = game.dragStartY - game.mouseY;
+                            shoot(&mut game, game.power, dx, dy);
+                        }
+                    }
+                    handle_key(event.key.key);
+                }
+                MessageType.KeyUp => {
+                    // handle_key_up(event.key.key);
+                }
+                MessageType.MouseDown => {
+                    handle_mouse_down(event.mouse.x, event.mouse.y, event.mouse.button);
+                }
+                MessageType.MouseUp => {
+                    handle_mouse_up(event.mouse.x, event.mouse.y, event.mouse.button);
+                }
+                MessageType.MouseMove => {
+                    handle_mouse_move(event.mouse.x, event.mouse.y);
+                }
+                MessageType.Resize => {
+                    fb_width = event.width;
+                    fb_height = event.height;
+                }
+                _ => {}
+            }
+        }
+
+        // 更新
+        handle_timer();
+
+        // 渲染
+        render_game();
+
+        // 帧率控制
+        let elapsed = getTickCount() - lastTick;
+        if elapsed < frameTime {
+            sleep(frameTime - elapsed);
+        }
+        lastTick = getTickCount();
+    }
+
+    // 清理
+    if window != null {
+        closeWindow(window);
+    }
+
+    io.println("游戏结束!");
+    return 0;
+}
+
+// 框架入口
+pub fn gameMain() {
+    main();
+}

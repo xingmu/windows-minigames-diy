@@ -1,0 +1,661 @@
+// game_logic.zc - Zen-C 9-Ball Pool 台球游戏核心逻辑
+// 经典美式9球玩法，不同于016的斯诺克
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 900;
+const GAME_HEIGHT: i32 = 520;
+
+// 台球桌尺寸 (16尺标准台)
+const TABLE_LEFT: i32 = 40;
+const TABLE_TOP: i32 = 35;
+const TABLE_RIGHT: i32 = 860;
+const TABLE_BOTTOM: i32 = 485;
+const TABLE_WIDTH: i32 = TABLE_RIGHT - TABLE_LEFT;
+const TABLE_HEIGHT: i32 = TABLE_BOTTOM - TABLE_TOP;
+
+// 边岸厚度
+const CUSHION_SIZE: i32 = 25;
+
+// 球半径 (9球用稍大的球)
+const BALL_RADIUS: i32 = 14;
+
+// 球的数量 (1-9号球 + 白球 = 10个)
+const MAX_BALLS: i32 = 10;
+
+// 口袋半径
+const POCKET_RADIUS: i32 = 22;
+
+// 摩擦系数
+const FRICTION: i32 = 1;
+
+// 最大击球力度
+const MAX_POWER: i32 = 30;
+
+// 最小速度阈值
+const MIN_VELOCITY: i32 = 1;
+
+// 9球飞碟灵敏度
+const KICK_POWER: i32 = 8;
+
+// ==================== 颜色定义 ====================
+
+const CUE_BALL_COLOR: Color = Color.RGB(255, 255, 245);
+
+// 9球颜色 (标准配色)
+const BALL_1_COLOR: Color = Color.RGB(255, 215, 0);    // 黄色
+const BALL_2_COLOR: Color = Color.RGB(30, 144, 255);  // 蓝色
+const BALL_3_COLOR: Color = Color.RGB(255, 69, 0);     // 红色
+const BALL_4_COLOR: Color = Color.RGB(128, 0, 128);    // 紫色
+const BALL_5_COLOR: Color = Color.RGB(255, 127, 0);    // 橙色
+const BALL_6_COLOR: Color = Color.RGB(0, 139, 0);       // 绿色
+const BALL_7_COLOR: Color = Color.RGB(139, 0, 0);      // 栗色
+const BALL_8_COLOR: Color = Color.RGB(0, 0, 0);        // 黑色
+const BALL_9_COLOR: Color = Color.RGB(255, 215, 0);     // 黄色带条纹
+
+// 台布颜色
+const FELT_COLOR: Color = Color.RGB(28, 95, 45);
+const FELT_DARK_COLOR: Color = Color.RGB(22, 75, 35);
+
+// 袋口位置 (6个)
+const POCKET_POSITIONS: [6]PocketPos = [
+    PocketPos.{ x: TABLE_LEFT + 5, y: TABLE_TOP + 5 },                      // 左上
+    PocketPos.{ x: (TABLE_LEFT + TABLE_RIGHT) / 2, y: TABLE_TOP - 3 },       // 上中
+    PocketPos.{ x: TABLE_RIGHT - 5, y: TABLE_TOP + 5 },                      // 右上
+    PocketPos.{ x: TABLE_LEFT + 5, y: TABLE_BOTTOM - 5 },                    // 左下
+    PocketPos.{ x: (TABLE_LEFT + TABLE_RIGHT) / 2, y: TABLE_BOTTOM + 3 },   // 下中
+    PocketPos.{ x: TABLE_RIGHT - 5, y: TABLE_BOTTOM - 5 },                   // 右下
+];
+
+struct PocketPos {
+    x: i32,
+    y: i32,
+}
+
+// ==================== 球数据结构 ====================
+
+struct Ball {
+    x: i32,           // 球心X坐标
+    y: i32,           // 球心Y坐标
+    vx: i32,          // X方向速度 (扩大100倍存储)
+    vy: i32,          // Y方向速度
+    radius: i32,      // 半径
+    color: Color,     // 颜色
+    number: i32,      // 球号 (0=白球, 1-9=目标球)
+    pocketed: bool,   // 是否已落袋
+    active: bool,     // 是否在场
+    striped: bool,    // 是否有条纹 (9号球)
+}
+
+// ==================== 9球游戏状态 ====================
+
+enum GamePhase {
+    Setup,        // 等待开球
+    Aiming,       // 瞄准中
+    Dragging,     // 拖拽蓄力
+    Moving,       // 球运动中
+    Scoring,      // 进球判定
+    Foul,         // 犯规
+    Win,          // 胜利
+}
+
+struct NineBallState {
+    balls: [MAX_BALLS]Ball,
+    ballCount: i32,
+    cueBall: &Ball,
+    phase: GamePhase,
+    score: i32,
+    shots: i32,
+    combo: i32,        // 连击数
+    mouseX: i32,
+    mouseY: i32,
+    dragStartX: i32,
+    dragStartY: i32,
+    power: i32,
+    width: i32,
+    height: i32,
+    aimX: i32,
+    aimY: i32,
+    foulType: str,     // 犯规类型
+    firstHit: i32,     // 首次碰触的球号
+}
+
+// ==================== 辅助函数 ====================
+
+fn abs(n: i32) -> i32 {
+    if n < 0 { -n } else { n }
+}
+
+fn min(a: i32, b: i32) -> i32 {
+    if a < b { a } else { b }
+}
+
+fn max(a: i32, b: i32) -> i32 {
+    if a > b { a } else { b }
+}
+
+// 计算两点距离的平方
+fn dist2(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    return dx * dx + dy * dy;
+}
+
+// 整数平方根
+fn sqrt_int(n: i32) -> i32 {
+    if n <= 0 {
+        return 0;
+    }
+    let mut x = n;
+    let mut y = 1;
+    while y < x {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    return x;
+}
+
+// 两球碰撞检测
+fn ballsColliding(b1: &Ball, b2: &Ball) -> bool {
+    if !b1.active || !b2.active || b1.pocketed || b2.pocketed {
+        return false;
+    }
+    let minDist = b1.radius + b2.radius;
+    return dist2(b1.x, b1.y, b2.x, b2.y) <= minDist * minDist;
+}
+
+// 球是否进袋
+fn isInPocket(ball: &Ball) -> bool {
+    if ball.pocketed {
+        return true;
+    }
+    for i in 0..6 {
+        let px = POCKET_POSITIONS[i].x;
+        let py = POCKET_POSITIONS[i].y;
+        let dist = dist2(ball.x, ball.y, px, py);
+        if dist <= POCKET_RADIUS * POCKET_RADIUS {
+            return true;
+        }
+    }
+    return false;
+}
+
+// ==================== 物理引擎 ====================
+
+// 边界碰撞
+fn checkWallCollision(ball: &mut Ball) {
+    if !ball.active || ball.pocketed {
+        return;
+    }
+
+    // 左边界
+    if ball.x - ball.radius <= TABLE_LEFT + CUSHION_SIZE {
+        ball.x = TABLE_LEFT + CUSHION_SIZE + ball.radius;
+        ball.vx = -ball.vx * 80 / 100;  // 反弹衰减
+    }
+    // 右边界
+    if ball.x + ball.radius >= TABLE_RIGHT - CUSHION_SIZE {
+        ball.x = TABLE_RIGHT - CUSHION_SIZE - ball.radius;
+        ball.vx = -ball.vx * 80 / 100;
+    }
+    // 上边界
+    if ball.y - ball.radius <= TABLE_TOP + CUSHION_SIZE {
+        ball.y = TABLE_TOP + CUSHION_SIZE + ball.radius;
+        ball.vy = -ball.vy * 80 / 100;
+    }
+    // 下边界
+    if ball.y + ball.radius >= TABLE_BOTTOM - CUSHION_SIZE {
+        ball.y = TABLE_BOTTOM - CUSHION_SIZE - ball.radius;
+        ball.vy = -ball.vy * 80 / 100;
+    }
+}
+
+// 球球碰撞
+fn checkBallCollision(balls: &[MAX_BALLS]Ball, ballCount: i32, state: &mut NineBallState) {
+    for i in 0..ballCount {
+        if !balls[i].active || balls[i].pocketed {
+            continue;
+        }
+
+        for j in (i + 1)..ballCount {
+            if !balls[j].active || balls[j].pocketed {
+                continue;
+            }
+
+            if ballsColliding(&balls[i], &balls[j]) {
+                let dx = balls[j].x - balls[i].x;
+                let dy = balls[j].y - balls[i].y;
+                let dist = sqrt_int(dist2(balls[i].x, balls[i].y, balls[j].x, balls[j].y));
+
+                if dist == 0 {
+                    continue;
+                }
+
+                // 单位法向量
+                let nx = dx * 100 / dist;
+                let ny = dy * 100 / dist;
+
+                // 相对速度
+                let dvx = balls[i].vx - balls[j].vx;
+                let dvy = balls[i].vy - balls[j].vy;
+
+                // 法向相对速度
+                let dvn = (dvx * nx + dvy * ny) / 100;
+
+                if dvn <= 0 {
+                    continue;
+                }
+
+                // 记录首次碰触
+                if balls[i].number == 0 && state.firstHit == 0 {
+                    state.firstHit = balls[j].number;
+                } else if balls[j].number == 0 && state.firstHit == 0 {
+                    state.firstHit = balls[i].number;
+                }
+
+                // 碰撞响应 (等质量)
+                balls[i].vx = balls[i].vx - (dvn * nx) / 100;
+                balls[i].vy = balls[i].vy - (dvn * ny) / 100;
+                balls[j].vx = balls[j].vx + (dvn * nx) / 100;
+                balls[j].vy = balls[j].vy + (dvn * ny) / 100;
+
+                // 分离重叠
+                let overlap = balls[i].radius + balls[j].radius - dist;
+                if overlap > 0 {
+                    let sep = overlap / 2 + 1;
+                    balls[i].x = balls[i].x - (nx * sep) / 100;
+                    balls[i].y = balls[i].y - (ny * sep) / 100;
+                    balls[j].x = balls[j].x + (nx * sep) / 100;
+                    balls[j].y = balls[j].y + (ny * sep) / 100;
+                }
+            }
+        }
+    }
+}
+
+// ==================== 球台布局 ====================
+
+fn getBallColor(num: i32) -> Color {
+    match num {
+        1 => return BALL_1_COLOR,
+        2 => return BALL_2_COLOR,
+        3 => return BALL_3_COLOR,
+        4 => return BALL_4_COLOR,
+        5 => return BALL_5_COLOR,
+        6 => return BALL_6_COLOR,
+        7 => return BALL_7_COLOR,
+        8 => return BALL_8_COLOR,
+        9 => return BALL_9_COLOR,
+        _ => return CUE_BALL_COLOR,
+    }
+}
+
+fn initBalls(state: &mut NineBallState) {
+    state.ballCount = 0;
+    state.score = 0;
+    state.shots = 0;
+    state.combo = 0;
+
+    // 白球位置 (左侧1/4处)
+    state.balls[0] = Ball.{
+        x: TABLE_LEFT + TABLE_WIDTH / 4,
+        y: (TABLE_TOP + TABLE_BOTTOM) / 2,
+        vx: 0,
+        vy: 0,
+        radius: BALL_RADIUS,
+        color: CUE_BALL_COLOR,
+        number: 0,
+        pocketed: false,
+        active: true,
+        striped: false,
+    };
+    state.ballCount = 1;
+    state.cueBall = &state.balls[0];
+
+    // 9球三角形排列 (顶角朝向白球)
+    let apexX = TABLE_RIGHT - TABLE_WIDTH / 4;
+    let apexY = (TABLE_TOP + TABLE_BOTTOM) / 2;
+    let spacing = BALL_RADIUS * 2 + 2;
+
+    // 9球标准排列: 
+    //     9
+    //    1 2
+    //   3 8 4
+    //  5 6 7
+
+    var ballIndex = 1;
+
+    // 球1 (顶部)
+    state.balls[ballIndex] = Ball.{
+        x: apexX, y: apexY,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: getBallColor(1),
+        number: 1,
+        pocketed: false,
+        active: true,
+        striped: false,
+    };
+    ballIndex = ballIndex + 1;
+
+    // 球2, 球3
+    state.balls[ballIndex] = Ball.{
+        x: apexX - spacing, y: apexY - spacing,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: getBallColor(2),
+        number: 2,
+        pocketed: false,
+        active: true,
+        striped: false,
+    };
+    ballIndex = ballIndex + 1;
+
+    state.balls[ballIndex] = Ball.{
+        x: apexX - spacing, y: apexY + spacing,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: getBallColor(3),
+        number: 3,
+        pocketed: false,
+        active: true,
+        striped: false,
+    };
+    ballIndex = ballIndex + 1;
+
+    // 球4, 球8 (8号球放中心)
+    state.balls[ballIndex] = Ball.{
+        x: apexX - spacing * 2, y: apexY - spacing * 2,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: getBallColor(4),
+        number: 4,
+        pocketed: false,
+        active: true,
+        striped: false,
+    };
+    ballIndex = ballIndex + 1;
+
+    state.balls[ballIndex] = Ball.{
+        x: apexX - spacing * 2, y: apexY,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: getBallColor(8),
+        number: 8,
+        pocketed: false,
+        active: true,
+        striped: false,
+    };
+    ballIndex = ballIndex + 1;
+
+    // 球5, 球6, 球7
+    state.balls[ballIndex] = Ball.{
+        x: apexX - spacing * 3, y: apexY - spacing * 3,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: getBallColor(5),
+        number: 5,
+        pocketed: false,
+        active: true,
+        striped: false,
+    };
+    ballIndex = ballIndex + 1;
+
+    state.balls[ballIndex] = Ball.{
+        x: apexX - spacing * 3, y: apexY - spacing,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: getBallColor(6),
+        number: 6,
+        pocketed: false,
+        active: true,
+        striped: false,
+    };
+    ballIndex = ballIndex + 1;
+
+    state.balls[ballIndex] = Ball.{
+        x: apexX - spacing * 3, y: apexY + spacing,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: getBallColor(7),
+        number: 7,
+        pocketed: false,
+        active: true,
+        striped: false,
+    };
+    ballIndex = ballIndex + 1;
+
+    // 球9 (底部)
+    state.balls[ballIndex] = Ball.{
+        x: apexX - spacing * 2, y: apexY + spacing * 2,
+        vx: 0, vy: 0,
+        radius: BALL_RADIUS,
+        color: getBallColor(9),
+        number: 9,
+        pocketed: false,
+        active: true,
+        striped: true,  // 9号球是条纹
+    };
+    ballIndex = ballIndex + 1;
+
+    state.ballCount = ballIndex;
+}
+
+// 初始化游戏
+fn init_game(state: &mut NineBallState) {
+    state.width = GAME_WIDTH;
+    state.height = GAME_HEIGHT;
+    state.phase = GamePhase.Setup;
+    state.mouseX = 0;
+    state.mouseY = 0;
+    state.power = 0;
+    state.aimX = 1;
+    state.aimY = 0;
+    state.foulType = "";
+    state.firstHit = 0;
+
+    initBalls(state);
+}
+
+// ==================== 更新逻辑 ====================
+
+fn updateBalls(state: &mut NineBallState) -> bool {
+    var anyMoving = false;
+    var pocketedThisFrame: [MAX_BALLS]bool;
+    
+    for i in 0..MAX_BALLS {
+        pocketedThisFrame[i] = false;
+    }
+
+    for i in 0..state.ballCount {
+        var ball = state.balls[i];
+
+        if !ball.active || ball.pocketed {
+            continue;
+        }
+
+        // 移动
+        ball.x = ball.x + ball.vx / 100;
+        ball.y = ball.y + ball.vy / 100;
+
+        // 摩擦
+        if ball.vx != 0 || ball.vy != 0 {
+            if ball.vx > 0 {
+                ball.vx = max(0, ball.vx - FRICTION * 100);
+            } else {
+                ball.vx = min(0, ball.vx + FRICTION * 100);
+            }
+            if ball.vy > 0 {
+                ball.vy = max(0, ball.vy - FRICTION * 100);
+            } else {
+                ball.vy = min(0, ball.vy + FRICTION * 100);
+            }
+
+            if abs(ball.vx) <= MIN_VELOCITY * 100 && abs(ball.vy) <= MIN_VELOCITY * 100 {
+                ball.vx = 0;
+                ball.vy = 0;
+            } else {
+                anyMoving = true;
+            }
+        }
+
+        // 边界
+        checkWallCollision(&mut ball);
+
+        // 进袋检测
+        if isInPocket(&ball) {
+            pocketedThisFrame[i] = true;
+            ball.pocketed = true;
+            ball.vx = 0;
+            ball.vy = 0;
+        }
+
+        state.balls[i] = ball;
+    }
+
+    // 球球碰撞
+    checkBallCollision(&state.balls, state.ballCount, state);
+
+    // 处理进袋
+    for i in 0..state.ballCount {
+        if pocketedThisFrame[i] {
+            let ball = state.balls[i];
+            
+            if ball.number == 0 {
+                // 白球落袋 - 犯规
+                ball.pocketed = false;
+                ball.x = TABLE_LEFT + TABLE_WIDTH / 4;
+                ball.y = (TABLE_TOP + TABLE_BOTTOM) / 2;
+                ball.vx = 0;
+                ball.vy = 0;
+                state.foulType = "白球落袋";
+                state.phase = GamePhase.Foul;
+            } else {
+                // 进球
+                if ball.number == 9 {
+                    // 9号球进袋 - 胜利!
+                    state.score = state.score + 9;
+                    state.phase = GamePhase.Win;
+                } else {
+                    state.score = state.score + ball.number;
+                    state.combo = state.combo + 1;
+                }
+            }
+        }
+    }
+
+    return anyMoving;
+}
+
+// 检查所有球是否静止
+fn allBallsStopped(state: &NineBallState) -> bool {
+    for i in 0..state.ballCount {
+        if state.balls[i].active && !state.balls[i].pocketed {
+            if state.balls[i].vx != 0 || state.balls[i].vy != 0 {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// 击球
+fn shoot(state: &mut NineBallState, power: i32, dx: i32, dy: i32) {
+    if state.cueBall.pocketed {
+        return;
+    }
+
+    let dist = sqrt_int(dx * dx + dy * dy);
+    if dist == 0 {
+        return;
+    }
+
+    // 标准化方向
+    let nx = dx * 100 / dist;
+    let ny = dy * 100 / dist;
+
+    // 应用力度
+    state.cueBall.vx = -nx * power;
+    state.cueBall.vy = -ny * power;
+
+    state.phase = GamePhase.Moving;
+    state.shots = state.shots + 1;
+    state.power = 0;
+    state.firstHit = 0;
+    state.combo = 0;
+}
+
+// ==================== 鼠标处理 ====================
+
+fn onMouseDown(state: &mut NineBallState, x: i32, y: i32) {
+    if state.phase == GamePhase.Moving {
+        return;
+    }
+
+    if state.phase == GamePhase.Win || state.phase == GamePhase.Foul {
+        // 重新开始
+        if state.phase == GamePhase.Win {
+            init_game(state);
+            state.phase = GamePhase.Setup;
+        } else {
+            // 犯规后重置白球
+            if state.cueBall.pocketed {
+                state.cueBall.pocketed = false;
+                state.cueBall.x = TABLE_LEFT + TABLE_WIDTH / 4;
+                state.cueBall.y = (TABLE_TOP + TABLE_BOTTOM) / 2;
+            }
+            state.phase = GamePhase.Setup;
+        }
+        return;
+    }
+
+    state.phase = GamePhase.Dragging;
+    state.dragStartX = x;
+    state.dragStartY = y;
+    state.mouseX = x;
+    state.mouseY = y;
+}
+
+fn onMouseMove(state: &mut NineBallState, x: i32, y: i32) {
+    state.mouseX = x;
+    state.mouseY = y;
+
+    if state.phase == GamePhase.Dragging || state.phase == GamePhase.Aiming {
+        let cue = state.cueBall;
+        state.aimX = x - cue.x;
+        state.aimY = y - cue.y;
+
+        let dragDist = sqrt_int(dist2(state.dragStartX, state.dragStartY, x, y));
+        state.power = min(dragDist / 4, MAX_POWER);
+    }
+}
+
+fn onMouseUp(state: &mut NineBallState, x: i32, y: i32) {
+    if state.phase == GamePhase.Dragging {
+        if state.power > 2 {
+            let dx = state.dragStartX - x;
+            let dy = state.dragStartY - y;
+            shoot(state, state.power, dx, dy);
+        } else {
+            state.phase = GamePhase.Setup;
+        }
+    }
+}
+
+// ==================== 状态查询 ====================
+
+fn getPhaseText(state: &NineBallState) -> string {
+    match state.phase {
+        GamePhase.Setup => return "点击拖拽白球击球",
+        GamePhase.Aiming => return "瞄准中...",
+        GamePhase.Dragging => return "蓄力: " ++ state.power.toString(),
+        GamePhase.Moving => return "球运动中...",
+        GamePhase.Scoring => return "进球!",
+        GamePhase.Foul => return "犯规! " ++ state.foulType,
+        GamePhase.Win => return "胜利! 9号球进袋!",
+    }
+}
+
+fn getControlsText() -> string {
+    "控制: 点击拖拽瞄准 | 松开击球 | R 重开 | ESC 退出"
+}
