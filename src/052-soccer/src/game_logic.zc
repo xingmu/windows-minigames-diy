@@ -1,0 +1,390 @@
+// game_logic.zc - 足球点球游戏逻辑模块
+// 纯Zen-C代码，所有平台共用
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+// 球门尺寸
+const GOAL_WIDTH: i32 = 300;
+const GOAL_HEIGHT: i32 = 100;
+const GOAL_Y: i32 = 50;  // 球门在游戏区域的Y位置
+
+// 球参数
+const BALL_RADIUS: i32 = 12;
+const BALL_START_X: i32 = 400;
+const BALL_START_Y: i32 = 500;
+const BALL_SPEED: f64 = 15.0;
+
+// 守门员参数
+const KEEPER_WIDTH: i32 = 50;
+const KEEPER_HEIGHT: i32 = 70;
+const KEEPER_Y: i32 = GOAL_Y + GOAL_HEIGHT - KEEPER_HEIGHT;
+const KEEPER_SPEED: i32 = 8;
+
+// 游戏区域
+const FIELD_WIDTH: i32 = 800;
+const FIELD_HEIGHT: i32 = 600;
+
+// 射门次数
+const MAX_SHOTS: i32 = 5;
+
+// ==================== 数据结构 ====================
+
+// 球门结构
+struct Goal {
+    x: i32,           // 左上角X
+    y: i32,           // 左上角Y
+    width: i32,
+    height: i32,
+    post_color: i32,  // 门柱颜色
+    net_color: i32,   // 球网颜色
+}
+
+// 球结构
+struct Ball {
+    x: f64,           // 浮点位置，用于平滑移动
+    y: f64,
+    radius: i32,
+    vx: f64,          // 速度分量
+    vy: f64,
+    active: bool,     // 球是否在运动
+    shot_power: f64,  // 射门力度
+    shot_angle: f64,  // 射门角度（弧度）
+}
+
+// 守门员结构
+struct Keeper {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    vx: i32,           // 水平移动速度
+    target_x: i32,    // 目标位置（AI预测）
+    diving: bool,      // 是否在扑救
+    dive_direction: i32; // 扑救方向：-1左，0中，1右
+}
+
+// 射门目标结构
+struct Target {
+    x: i32,           // 目标X位置
+    y: i32,           // 目标Y位置
+    visible: bool,   // 是否显示瞄准点
+}
+
+// 游戏状态
+struct GameState {
+    ball: Ball,
+    keeper: Keeper,
+    goal: Goal,
+    target: Target,
+    score: i32,           // 进球数
+    shots: i32,           // 已射门次数
+    total_shots: i32,     // 总射门次数
+    game_over: bool,
+    scored: bool,         // 本次是否进球
+    phase: GamePhase,     // 游戏阶段
+    keeper_reaction_time: i32, // 守门员反应时间
+    window_width: i32,
+    window_height: i32,
+    aim_x: i32,           // 当前鼠标瞄准X
+    aim_y: i32,           // 当前鼠标瞄准Y
+}
+
+// 游戏阶段
+enum GamePhase {
+    Aiming,      // 瞄准阶段
+    Shooting,    // 射门阶段
+    Result,      // 结果展示
+    GameEnd,     // 游戏结束
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut GameState) {
+    // 初始化随机数种子
+    let seed = time.now().nanos();
+    math.srand(seed);
+    
+    // 初始化球门
+    game.goal = Goal {
+        x: (FIELD_WIDTH - GOAL_WIDTH) / 2,
+        y: GOAL_Y,
+        width: GOAL_WIDTH,
+        height: GOAL_HEIGHT,
+        post_color: 0xFFFFFFFF,  // 白色
+        net_color: 0x80FFFFFF,   // 半透明白
+    };
+    
+    // 初始化球
+    game.ball = Ball {
+        x: BALL_START_X as f64,
+        y: BALL_START_Y as f64,
+        radius: BALL_RADIUS,
+        vx: 0.0,
+        vy: 0.0,
+        active: false,
+        shot_power: 0.0,
+        shot_angle: 0.0,
+    };
+    
+    // 初始化守门员
+    game.keeper = Keeper {
+        x: (FIELD_WIDTH - KEEPER_WIDTH) / 2,
+        y: KEEPER_Y,
+        width: KEEPER_WIDTH,
+        height: KEEPER_HEIGHT,
+        vx: 0,
+        target_x: (FIELD_WIDTH - KEEPER_WIDTH) / 2,
+        diving: false,
+        dive_direction: 0,
+    };
+    
+    // 初始化目标
+    game.target = Target {
+        x: BALL_START_X,
+        y: BALL_START_Y,
+        visible: true,
+    };
+    
+    // 初始化游戏状态
+    game.score = 0;
+    game.shots = 0;
+    game.total_shots = MAX_SHOTS;
+    game.game_over = false;
+    game.scored = false;
+    game.phase = GamePhase.Aiming;
+    game.keeper_reaction_time = 0;
+    game.aim_x = FIELD_WIDTH / 2;
+    game.aim_y = GOAL_Y + GOAL_HEIGHT / 2;
+}
+
+// 设置瞄准位置
+fn set_aim(game: &mut GameState, x: i32, y: i32) {
+    game.aim_x = x;
+    game.aim_y = y;
+    
+    // 限制瞄准范围在球门区域内
+    let min_x = game.goal.x + 20;
+    let max_x = game.goal.x + game.goal.width - 20;
+    let min_y = game.goal.y + 10;
+    let max_y = game.goal.y + game.goal.height - 10;
+    
+    if x < min_x { game.aim_x = min_x; }
+    if x > max_x { game.aim_x = max_x; }
+    if y < min_y { game.aim_y = min_y; }
+    if y > max_y { game.aim_y = max_y; }
+    
+    game.target.x = game.aim_x;
+    game.target.y = game.aim_y;
+}
+
+// 开始射门
+fn shoot(game: &mut GameState) {
+    if game.phase != GamePhase.Aiming || game.ball.active {
+        return;
+    }
+    
+    // 计算射门方向
+    let dx = game.target.x as f64 - game.ball.x;
+    let dy = game.target.y as f64 - game.ball.y;
+    let dist = math.sqrt(dx * dx + dy * dy);
+    
+    if dist < 1.0 {
+        return;
+    }
+    
+    // 标准化方向向量并乘以力量
+    game.ball.vx = (dx / dist) * BALL_SPEED;
+    game.ball.vy = (dy / dist) * BALL_SPEED;
+    game.ball.active = true;
+    
+    game.phase = GamePhase.Shooting;
+    
+    // 守门员开始反应（延迟扑救）
+    game.keeper_reaction_time = 10 + math.rand() % 20;
+}
+
+// 更新守门员AI
+fn update_keeper(game: &mut GameState) {
+    if game.phase != GamePhase.Shooting {
+        return;
+    }
+    
+    // 反应时间倒计时
+    if game.keeper_reaction_time > 0 {
+        game.keeper_reaction_time -= 1;
+        return;
+    }
+    
+    // 守门员预测球的位置并扑救
+    // 简化AI：根据球的速度预测落点
+    if game.ball.active && game.ball.vy < 0.0 {
+        // 球正在飞向球门
+        let predict_time = (KEEPER_Y - game.ball.y as i32) as f64 / (-game.ball.vy);
+        let predict_x = game.ball.x as i32 + (game.ball.vx * predict_time) as i32;
+        
+        // 守门员向左或向右扑救
+        let keeper_center = game.keeper.x + game.keeper.width / 2;
+        
+        if predict_x < keeper_center - 30 {
+            game.keeper.dive_direction = -1; // 扑向左侧
+            game.keeper.target_x = game.goal.x;
+        } else if predict_x > keeper_center + 30 {
+            game.keeper.dive_direction = 1;  // 扑向右侧
+            game.keeper.target_x = game.goal.x + game.goal.width - game.keeper.width;
+        } else {
+            game.keeper.dive_direction = 0;  // 站在中间
+            game.keeper.target_x = predict_x - game.keeper.width / 2;
+        }
+        
+        // 确保目标在球门范围内
+        if game.keeper.target_x < game.goal.x {
+            game.keeper.target_x = game.goal.x;
+        }
+        if game.keeper.target_x > game.goal.x + game.goal.width - game.keeper.width {
+            game.keeper.target_x = game.goal.x + game.goal.width - game.keeper.width;
+        }
+        
+        game.keeper.diving = true;
+    }
+    
+    // 移动守门员向目标位置
+    if game.keeper.diving {
+        let diff = game.keeper.target_x - game.keeper.x;
+        if diff > KEEPER_SPEED {
+            game.keeper.x += KEEPER_SPEED;
+        } else if diff < -KEEPER_SPEED {
+            game.keeper.x -= KEEPER_SPEED;
+        } else {
+            game.keeper.x = game.keeper.target_x;
+        }
+    }
+}
+
+// 更新球的位置
+fn update_ball(game: &mut GameState) {
+    if !game.ball.active {
+        return;
+    }
+    
+    // 更新位置
+    game.ball.x += game.ball.vx;
+    game.ball.y += game.ball.vy;
+    
+    // 添加少量空气阻力
+    game.ball.vx *= 0.99;
+    game.ball.vy *= 0.99;
+    
+    // 检查是否到达球门线
+    if game.ball.y <= game.goal.y + game.goal.height {
+        // 检查是否进球
+        let ball_center_x = game.ball.x as i32;
+        let ball_top = game.ball.y as i32 - game.ball.radius;
+        
+        // 球必须完全越过球门线
+        if ball_top <= game.goal.y + game.goal.height && ball_top >= game.goal.y {
+            // 检查是否在球门范围内（而不是门柱外）
+            if ball_center_x > game.goal.x + game.ball.radius && 
+               ball_center_x < game.goal.x + game.goal.width - game.ball.radius {
+                
+                // 检查是否被守门员扑出
+                let keeper_rect = rect_make(game.keeper.x - 10, game.keeper.y - 10, 
+                                           game.keeper.width + 20, game.keeper.height + 20);
+                let ball_rect = rect_make(game.ball.x as i32 - game.ball.radius,
+                                          game.ball.y as i32 - game.ball.radius,
+                                          game.ball.radius * 2, game.ball.radius * 2);
+                
+                if !rect_intersect(keeper_rect, ball_rect) {
+                    // 进球！
+                    game.scored = true;
+                    game.score += 1;
+                }
+            }
+        }
+        
+        // 球到达球门线附近，停止
+        if game.ball.y < game.goal.y + game.goal.height + 50 {
+            game.ball.active = false;
+            game.phase = GamePhase.Result;
+        }
+    }
+    
+    // 球出界检查
+    if game.ball.y < 0 || game.ball.x < 0 || game.ball.x > FIELD_WIDTH as f64 {
+        game.ball.active = false;
+        game.phase = GamePhase.Result;
+    }
+}
+
+// 矩形创建辅助
+fn rect_make(x: i32, y: i32, w: i32, h: i32) -> Rect {
+    Rect { x: x, y: y, w: w, h: h }
+}
+
+// 矩形碰撞检测
+fn rect_intersect(a: Rect, b: Rect) -> bool {
+    a.x < b.x + b.w && a.x + a.w > b.x &&
+    a.y < b.y + b.h && a.y + a.h > b.y
+}
+
+// 矩形结构
+struct Rect {
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
+}
+
+// 进入下一轮
+fn next_round(game: &mut GameState) {
+    game.shots += 1;
+    
+    if game.shots >= game.total_shots {
+        game.phase = GamePhase.GameEnd;
+        game.game_over = true;
+    } else {
+        // 重置球和守门员
+        game.ball.x = BALL_START_X as f64;
+        game.ball.y = BALL_START_Y as f64;
+        game.ball.vx = 0.0;
+        game.ball.vy = 0.0;
+        game.ball.active = false;
+        
+        game.keeper.x = (FIELD_WIDTH - KEEPER_WIDTH) / 2;
+        game.keeper.target_x = game.keeper.x;
+        game.keeper.diving = false;
+        game.keeper.dive_direction = 0;
+        
+        game.scored = false;
+        game.phase = GamePhase.Aiming;
+    }
+}
+
+// 重新开始游戏
+fn restart_game(game: &mut GameState) {
+    init_game(game);
+}
+
+// 获取当前状态文本
+fn get_status_text(game: &GameState) -> string {
+    match game.phase {
+        GamePhase.Aiming => "瞄准目标，点击射门！",
+        GamePhase.Shooting => "球飞行中...",
+        GamePhase.Result => if game.scored { "进球！🎉" } else { "扑出来了！守门员好样的！" },
+        GamePhase.GameEnd => "游戏结束！",
+    }
+}
+
+// 获取比分文本
+fn get_score_text(game: &GameState) -> string {
+    format("进球: {} / 射门: {} ({}/{})", 
+           game.score, game.shots, game.score, game.total_shots)
+}
+
+// 获取控制说明
+fn get_controls_text() -> string {
+    "控制: 移动鼠标瞄准 -> 点击射门 -> 空格键继续"
+}
