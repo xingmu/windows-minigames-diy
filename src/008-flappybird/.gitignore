@@ -1,0 +1,21 @@
+# Zen-C FlappyBird
+
+# Build output
+build/
+*.exe
+*.o
+*.obj
+*.dll
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
