@@ -1,0 +1,328 @@
+// game_logic.zc - Zen-C Breakout（打砖块）游戏核心逻辑
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 800;
+const GAME_HEIGHT: i32 = 600;
+const PADDLE_WIDTH: i32 = 100;
+const PADDLE_HEIGHT: i32 = 15;
+const PADDLE_Y: i32 = GAME_HEIGHT - 40;
+const BALL_RADIUS: i32 = 8;
+const BALL_SPEED: i32 = 5;
+const BRICK_ROWS: i32 = 5;
+const BRICK_COLS: i32 = 10;
+const BRICK_WIDTH: i32 = 70;
+const BRICK_HEIGHT: i32 = 25;
+const BRICK_PADDING: i32 = 5;
+const BRICK_TOP_OFFSET: i32 = 60;
+const BRICK_LEFT_OFFSET: i32 = 30;
+const POINTS_PER_BRICK: i32 = 10;
+const INITIAL_LIVES: i32 = 3;
+
+// ==================== 砖块颜色 ====================
+
+const BRICK_COLORS: [BRICK_ROWS]Color = [
+    Color { r: 255, g: 107, b: 107 },  // 红色
+    Color { r: 255, g: 224, b: 102 },  // 黄色
+    Color { r: 107, g: 203, b: 119 },  // 绿色
+    Color { r: 77, g: 150, b: 255 },   // 蓝色
+    Color { r: 199, g: 125, b: 255 },  // 紫色
+];
+
+// ==================== 游戏状态 ====================
+
+// 游戏状态枚举
+enum GameStatus {
+    Ready,
+    Playing,
+    Lost,
+    Won,
+}
+
+// ==================== 数据结构 ====================
+
+struct Paddle {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    speed: i32,
+}
+
+struct Ball {
+    x: i32,
+    y: i32,
+    vx: i32,
+    vy: i32,
+    radius: i32,
+}
+
+struct Brick {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    alive: bool,
+    color: Color,
+}
+
+struct BrickGrid {
+    bricks: [BRICK_ROWS * BRICK_COLS]Brick,
+    rows: i32,
+    cols: i32,
+}
+
+struct BreakoutState {
+    paddle: Paddle,
+    ball: Ball,
+    bricks: BrickGrid,
+    score: i32,
+    lives: i32,
+    status: GameStatus,
+    width: i32,
+    height: i32,
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut BreakoutState) {
+    game.width = GAME_WIDTH;
+    game.height = GAME_HEIGHT;
+    game.score = 0;
+    game.lives = INITIAL_LIVES;
+    game.status = GameStatus.Ready;
+
+    // 初始化挡板
+    game.paddle = Paddle {
+        x: (GAME_WIDTH - PADDLE_WIDTH) / 2,
+        y: PADDLE_Y,
+        width: PADDLE_WIDTH,
+        height: PADDLE_HEIGHT,
+        speed: 8,
+    };
+
+    // 初始化球
+    reset_ball(game);
+
+    // 初始化砖块
+    init_bricks(game);
+}
+
+// 重置球
+fn reset_ball(game: &mut BreakoutState) {
+    game.ball.x = GAME_WIDTH / 2;
+    game.ball.y = GAME_HEIGHT / 2 + 100;
+    game.ball.vx = BALL_SPEED;
+    game.ball.vy = -BALL_SPEED;
+    game.ball.radius = BALL_RADIUS;
+}
+
+// 初始化砖块
+fn init_bricks(game: &mut BreakoutState) {
+    game.bricks.rows = BRICK_ROWS;
+    game.bricks.cols = BRICK_COLS;
+
+    for row in 0..BRICK_ROWS {
+        for col in 0..BRICK_COLS {
+            let index = row * BRICK_COLS + col;
+            let brick_x = BRICK_LEFT_OFFSET + col * (BRICK_WIDTH + BRICK_PADDING);
+            let brick_y = BRICK_TOP_OFFSET + row * (BRICK_HEIGHT + BRICK_PADDING);
+
+            game.bricks.bricks[index] = Brick {
+                x: brick_x,
+                y: brick_y,
+                width: BRICK_WIDTH,
+                height: BRICK_HEIGHT,
+                alive: true,
+                color: BRICK_COLORS[row],
+            };
+        }
+    }
+}
+
+// 处理键盘输入
+fn handle_input(game: &mut BreakoutState, key: KeyCode) -> bool {
+    match key {
+        KeyCode.KeyLeft => {
+            game.paddle.x = game.paddle.x - game.paddle.speed;
+            if game.paddle.x < 0 {
+                game.paddle.x = 0;
+            }
+        },
+        KeyCode.KeyRight => {
+            game.paddle.x = game.paddle.x + game.paddle.speed;
+            if game.paddle.x > GAME_WIDTH - game.paddle.width {
+                game.paddle.x = GAME_WIDTH - game.paddle.width;
+            }
+        },
+        KeyCode.KeySpace => {
+            if game.status == GameStatus.Ready || 
+               game.status == GameStatus.Lost || 
+               game.status == GameStatus.Won {
+                game.status = GameStatus.Playing;
+                reset_ball(game);
+                // 随机角度
+                let angle = (math.rand() % 50 - 25) as i32;  // -25 to 25 degrees
+                let rad = angle as f32 * 3.14159 / 180.0;
+                game.ball.vx = (BALL_SPEED as f32 * math.sin(rad)) as i32;
+                game.ball.vy = -BALL_SPEED;
+            }
+        },
+        KeyCode.KeyR => {
+            if game.status == GameStatus.Lost || game.status == GameStatus.Won {
+                init_game(game);
+            }
+        },
+        KeyCode.KeyEscape => {
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+// 更新游戏逻辑
+fn update_game(game: &mut BreakoutState) -> bool {
+    if game.status != GameStatus.Playing {
+        return false;
+    }
+
+    // 移动球
+    game.ball.x = game.ball.x + game.ball.vx;
+    game.ball.y = game.ball.y + game.ball.vy;
+
+    // 左右墙壁碰撞
+    if game.ball.x - game.ball.radius <= 0 {
+        game.ball.x = game.ball.radius;
+        game.ball.vx = -game.ball.vx;
+    }
+    if game.ball.x + game.ball.radius >= GAME_WIDTH {
+        game.ball.x = GAME_WIDTH - game.ball.radius;
+        game.ball.vx = -game.ball.vx;
+    }
+    // 顶部墙壁
+    if game.ball.y - game.ball.radius <= 0 {
+        game.ball.y = game.ball.radius;
+        game.ball.vy = -game.ball.vy;
+    }
+
+    // 球落底
+    if game.ball.y + game.ball.radius >= GAME_HEIGHT {
+        game.lives = game.lives - 1;
+        if game.lives <= 0 {
+            game.status = GameStatus.Lost;
+        } else {
+            reset_ball(game);
+            game.status = GameStatus.Ready;
+        }
+        return true;
+    }
+
+    // 挡板碰撞
+    if game.ball.vy > 0 {
+        let ball_left = game.ball.x - game.ball.radius;
+        let ball_right = game.ball.x + game.ball.radius;
+        let ball_bottom = game.ball.y + game.ball.radius;
+
+        let paddle_left = game.paddle.x;
+        let paddle_right = game.paddle.x + game.paddle.width;
+        let paddle_top = game.paddle.y;
+
+        if ball_right >= paddle_left && ball_left <= paddle_right &&
+           ball_bottom >= paddle_top && ball_bottom <= paddle_top + game.paddle.height + abs(game.ball.vy) {
+            game.ball.y = paddle_top - game.ball.radius;
+
+            // 根据击中位置改变角度
+            let hit_pos = (game.ball.x - game.paddle.x) as f32 / game.paddle.width as f32;
+            let angle = (hit_pos - 0.5) * 2.0 * 60.0;
+            let rad = angle * 3.14159 / 180.0;
+            let speed = math.sqrt(game.ball.vx * game.ball.vx + game.ball.vy * game.ball.vy) as i32;
+            if speed < BALL_SPEED {
+                speed = BALL_SPEED;
+            }
+
+            game.ball.vx = (speed as f32 * math.sin(rad)) as i32;
+            game.ball.vy = -(speed as f32 * math.cos(rad)) as i32;
+
+            if game.ball.vy > -3 {
+                game.ball.vy = -3;
+            }
+        }
+    }
+
+    // 砖块碰撞
+    let mut bricks_remaining = 0;
+    for i in 0..(BRICK_ROWS * BRICK_COLS) {
+        if game.bricks.bricks[i].alive {
+            bricks_remaining = bricks_remaining + 1;
+
+            let brick = game.bricks.bricks[i];
+            let ball_left = game.ball.x - game.ball.radius;
+            let ball_right = game.ball.x + game.ball.radius;
+            let ball_top = game.ball.y - game.ball.radius;
+            let ball_bottom = game.ball.y + game.ball.radius;
+
+            let brick_right = brick.x + brick.width;
+            let brick_bottom = brick.y + brick.height;
+
+            if ball_right >= brick.x && ball_left <= brick_right &&
+               ball_bottom >= brick.y && ball_top <= brick_bottom {
+                game.bricks.bricks[i].alive = false;
+                game.score = game.score + POINTS_PER_BRICK;
+                bricks_remaining = bricks_remaining - 1;
+
+                let overlap_left = ball_right - brick.x;
+                let overlap_right = brick_right - ball_left;
+                let overlap_top = ball_bottom - brick.y;
+                let overlap_bottom = brick_bottom - ball_top;
+
+                let min_overlap_x = if overlap_left < overlap_right { overlap_left } else { overlap_right };
+                let min_overlap_y = if overlap_top < overlap_bottom { overlap_top } else { overlap_bottom };
+
+                if min_overlap_x < min_overlap_y {
+                    game.ball.vx = -game.ball.vx;
+                } else {
+                    game.ball.vy = -game.ball.vy;
+                }
+
+                break;
+            }
+        }
+    }
+
+    // 胜利检测
+    if bricks_remaining == 0 {
+        game.status = GameStatus.Won;
+        return true;
+    }
+
+    return true;
+}
+
+// 获取分数
+fn get_score(game: &BreakoutState) -> i32 {
+    game.score
+}
+
+// 获取状态文本
+fn get_status_text(game: &BreakoutState) -> string {
+    match game.status {
+        GameStatus.Ready => return "按空格键开始游戏",
+        GameStatus.Playing => return "游戏中...",
+        GameStatus.Lost => return "游戏结束! 按 R 重新开始",
+        GameStatus.Won => return "恭喜通关! 按 R 重新开始",
+    }
+}
+
+// 获取控制说明
+fn get_controls_text() -> string {
+    "控制: ← → 移动挡板 | 空格 开始 | ESC 退出"
+}
+
+// 绝对值
+fn abs(n: i32) -> i32 {
+    if n < 0 { -n } else { n }
+}

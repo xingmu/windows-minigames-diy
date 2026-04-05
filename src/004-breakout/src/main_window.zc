@@ -1,0 +1,151 @@
+// main_window.zc - Zen-C Breakout（打砖块）游戏主程序
+
+import std.io;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: BreakoutState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut game_speed: u32 = 16;  // ~60 FPS
+
+// ==================== 事件处理 ====================
+
+fn on_key(key: KeyCode) -> bool {
+    return handle_input(&mut game, key);
+}
+
+fn on_timer() -> bool {
+    if game.status == GameStatus.Playing {
+        return update_game(&mut game);
+    }
+    return false;
+}
+
+fn on_paint(w: i32, h: i32) {
+    // 确保帧缓冲初始化
+    if !fb_data.valid {
+        fb_init(window, w, h);
+    }
+
+    // 清屏
+    fb_clear(rgb(0, 0, 0));
+
+    // 绘制砖块
+    for i in 0..(BRICK_ROWS * BRICK_COLS) {
+        let brick = game.bricks.bricks[i];
+        if brick.alive {
+            fb_draw_rect(brick.x, brick.y, brick.width, brick.height, brick.color);
+        }
+    }
+
+    // 绘制挡板
+    fb_draw_rect(
+        game.paddle.x,
+        game.paddle.y,
+        game.paddle.width,
+        game.paddle.height,
+        rgb(255, 255, 255)
+    );
+
+    // 绘制球
+    fb_draw_circle(
+        game.ball.x,
+        game.ball.y,
+        game.ball.radius,
+        rgb(255, 255, 255)
+    );
+
+    // 绘制分数和生命
+    let info = "分数: " ++ game.score.toString() ++ "  生命: " ++ game.lives.toString();
+    fb_draw_text_size(10, 10, info, rgb(255, 255, 255), 18);
+
+    // 绘制状态文本
+    let status = get_status_text(&game);
+    fb_draw_text_size(250, 280, status, rgb(255, 255, 0), 24);
+
+    // 绘制控制说明
+    fb_draw_text_size(10, GAME_HEIGHT - 30, get_controls_text(), rgb(180, 180, 180), 14);
+
+    // 呈现画面
+    fb_present();
+}
+
+fn on_mouse(x: i32, y: i32) {
+    // 鼠标点击开始游戏
+    if game.status == GameStatus.Ready {
+        game.status = GameStatus.Playing;
+        let angle = (math.rand() % 50 - 25) as i32;
+        let rad = angle as f32 * 3.14159 / 180.0;
+        game.ball.vx = (BALL_SPEED as f32 * math.sin(rad)) as i32;
+        game.ball.vy = -BALL_SPEED;
+    }
+}
+
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C Breakout 打砖块游戏");
+    io.println("========================================");
+
+    // 初始化游戏状态
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "Breakout - 打砖块游戏";
+    window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 获取实际客户区大小
+    let mut cw = 0;
+    let mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        game.width = cw;
+        game.height = ch;
+        set_client_size(cw, ch);
+    }
+
+    // 设置事件处理器
+    set_key_handler(on_key);
+    set_timer_handler(on_timer);
+    set_paint_handler(on_paint);
+    set_mouse_handler(on_mouse);
+    set_destroy_handler(on_destroy);
+
+    // 显示窗口
+    show_window(window);
+
+    // 设置游戏定时器
+    set_game_timer(window, game_speed);
+
+    io.println("窗口创建成功!");
+    io.println("按空格键开始游戏");
+    io.println("使用 ← → 方向键控制挡板");
+    io.println("========================================");
+
+    // 初始绘制
+    redraw_window(window);
+
+    // 运行事件循环
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("最终得分: " ++ game.score.toString());
+    io.println("========================================");
+
+    0
+}
