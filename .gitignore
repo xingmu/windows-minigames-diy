@@ -1,0 +1,11 @@
+# Build output
+build/
+*.exe
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
