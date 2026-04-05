@@ -1,0 +1,19 @@
+# Zen-C 编译输出
+*.exe
+*.o
+*.obj
+*.pdb
+*.ilk
+
+# 构建目录
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
