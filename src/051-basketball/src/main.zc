@@ -1,0 +1,559 @@
+// main.zc - 篮球游戏主程序
+// Zen-C + 003-framework
+// 鼠标拖拽投篮操作
+
+import std.io;
+import std.math;
+import std.string;
+import std.ffi;
+
+// 导入平台API和游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: GameState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut lastFrame: u32 = 0;
+static mut frameTime: u32 = 16;
+
+// ==================== 颜色定义 ====================
+
+const COURT_COLOR = Color.RGB(184, 115, 51);    // 木地板颜色
+const COURT_LINES_COLOR = Color.White();        // 球场线条
+const BALL_COLOR = Color.RGB(255, 140, 0);      // 篮球橙色
+const BALL_LINES_COLOR = Color.RGB(139, 69, 19); // 篮球纹路
+const RIM_COLOR = Color.Red();                  // 篮筐红色
+const BACKBOARD_COLOR = Color.White();          // 篮板白色
+const NET_COLOR = Color.RGB(200, 200, 200);      // 篮网灰色
+const TEXT_COLOR = Color.White();
+const BG_COLOR = Color.RGB(30, 30, 30);
+const TRAJECTORY_COLOR = Color.RGB(255, 255, 0, 100);  // 半透明黄色
+const COMBO_COLOR = Color.RGB(255, 215, 0);     // 金色连击
+
+// ==================== 帧缓冲画布实现 ====================
+
+class FrameBufferCanvas {
+    width: int;
+    height: int;
+    pitch: int;
+    buffer: rawptr;
+}
+
+impl Canvas for FrameBufferCanvas {
+    fn clear(color: Color) {
+        var pixels = self.buffer as u32 mut;
+        var count = (self.pitch * self.height) / 4;
+        for i in 0..count {
+            pixels[i] = color;
+        }
+    }
+
+    fn setPixel(x: int, y: int, color: Color) {
+        if x < 0 || x >= self.width || y < 0 || y >= self.height {
+            return;
+        }
+        var offset = y * (self.pitch / 4) + x;
+        var pixels = self.buffer as u32 mut;
+        pixels[offset] = color;
+    }
+
+    fn getPixel(x: int, y: int) -> Color {
+        if x < 0 || x >= self.width || y < 0 || y >= self.height {
+            return Color.Black();
+        }
+        var offset = y * (self.pitch / 4) + x;
+        var pixels = self.buffer as u32;
+        return pixels[offset];
+    }
+
+    fn drawLine(x1: int, y1: int, x2: int, y2: int, color: Color) {
+        var dx = abs(x2 - x1);
+        var dy = abs(y2 - y1);
+        var sx = if x1 < x2 { 1 } else { -1 };
+        var sy = if y1 < y2 { 1 } else { -1 };
+        var err = dx - dy;
+
+        loop {
+            self.setPixel(x1, y1, color);
+            if x1 == x2 && y1 == y2 {
+                break;
+            }
+            var e2 = 2 * err;
+            if e2 > -dy {
+                err = err - dy;
+                x1 = x1 + sx;
+            }
+            if e2 < dx {
+                err = err + dx;
+                y1 = y1 + sy;
+            }
+        }
+    }
+
+    fn drawRect(x: int, y: int, w: int, h: int, color: Color) {
+        self.drawLine(x, y, x + w, y, color);
+        self.drawLine(x + w, y, x + w, y + h, color);
+        self.drawLine(x + w, y + h, x, y + h, color);
+        self.drawLine(x, y + h, x, y, color);
+    }
+
+    fn fillRect(x: int, y: int, w: int, h: int, color: Color) {
+        for py in y..(y + h) {
+            for px in x..(x + w) {
+                self.setPixel(px, py, color);
+            }
+        }
+    }
+
+    fn drawCircle(cx: int, cy: int, radius: int, color: Color) {
+        var d = 3 - 2 * radius;
+        var x = 0;
+        var y = radius;
+
+        loop {
+            self.setPixel(cx + x, cy + y, color);
+            self.setPixel(cx - x, cy + y, color);
+            self.setPixel(cx + x, cy - y, color);
+            self.setPixel(cx - x, cy - y, color);
+            self.setPixel(cx + y, cy + x, color);
+            self.setPixel(cx - y, cy + x, color);
+            self.setPixel(cx + y, cy - x, color);
+            self.setPixel(cx - y, cy - x, color);
+
+            if d < 0 {
+                d = d + 4 * x + 6;
+            } else {
+                d = d + 4 * (x - y) + 10;
+                y = y - 1;
+            }
+
+            x = x + 1;
+            if x > y {
+                break;
+            }
+        }
+    }
+
+    fn fillCircle(cx: int, cy: int, radius: int, color: Color) {
+        for y in (-radius)..(radius + 1) {
+            for x in (-radius)..(radius + 1) {
+                if x*x + y*y <= radius * radius {
+                    self.setPixel(cx + x, cy + y, color);
+                }
+            }
+        }
+    }
+
+    fn drawText(x: int, y: int, text: str, color: Color, font: Font) {
+        // 简化文字绘制
+        self.drawSimpleText(x, y, text, color);
+    }
+
+    fn getWidth() -> int { return self.width; }
+    fn getHeight() -> int { return self.height; }
+}
+
+impl FrameBufferCanvas {
+    fn drawSimpleText(self: &FrameBufferCanvas, x: int, y: int, text: str, color: Color) {
+        // 简化实现：画方块字符
+        var px = x;
+        var py = y;
+        for i in 0..len(text) {
+            // 画一个简单的方块表示字符
+            self.fillRect(px, py, 8, 12, color);
+            px = px + 10;
+            if px > self.width - 10 {
+                py = py + 16;
+                px = x;
+            }
+        }
+    }
+}
+
+// ==================== 绘制函数 ====================
+
+fn draw_court(ctx: &FrameBufferCanvas) {
+    // 球场背景（木地板纹理）
+    ctx.fillRect(0, 0, 800, GROUND_Y, COURT_COLOR);
+
+    // 木地板纹理线条
+    for x in 0..800 step 40 {
+        ctx.drawLine(x, 0, x, GROUND_Y, Color.RGB(165, 90, 40));
+    }
+
+    // 球场中线
+    ctx.drawLine(400, 0, 400, GROUND_Y, COURT_LINES_COLOR);
+
+    // 球场圆圈
+    ctx.drawCircle(400, GROUND_Y - 100, 80, COURT_LINES_COLOR);
+
+    // 三分线（简化）
+    ctx.drawArc(ctx, 650, 100, 200, 180, 0, 180);
+
+    // 地面线
+    ctx.drawLine(0, GROUND_Y, 800, GROUND_Y, COURT_LINES_COLOR);
+}
+
+fn drawArc(ctx: &FrameBufferCanvas, cx: int, cy: int, radius: int, startAngle: int, endAngle: int, _segments: int) {
+    // 简化的圆弧绘制
+    var x = cx + radius;
+    var y = cy;
+    var angle = startAngle;
+    var step = 5;
+
+    loop {
+        var rad = angle * 3.14159 / 180;
+        var px = cx + (radius as f32 * math.cos(rad)) as i32;
+        var py = cy + (radius as f32 * math.sin(rad)) as i32;
+        ctx.setPixel(px, py, COURT_LINES_COLOR);
+
+        angle = angle + step;
+        if angle > endAngle {
+            break;
+        }
+    }
+}
+
+fn draw_ball(ctx: &FrameBufferCanvas, ball: &Ball) {
+    var x = ball.x as i32;
+    var y = ball.y as i32;
+    var r = BALL_RADIUS;
+
+    // 球体
+    ctx.fillCircle(x, y, r, BALL_COLOR);
+
+    // 篮球纹路（十字）
+    ctx.drawLine(x - r, y, x + r, y, BALL_LINES_COLOR);
+    ctx.drawLine(x, y - r, x, y + r, BALL_LINES_COLOR);
+
+    // 弧形纹路
+    ctx.drawCircle(x, y, r - 2, BALL_LINES_COLOR);
+}
+
+fn draw_hoop(ctx: &FrameBufferCanvas, hoop: &Hoop) {
+    // 篮板
+    ctx.fillRect(hoop.backboardX, hoop.backboardTopY, 10, BOARD_HEIGHT, BACKBOARD_COLOR);
+    ctx.drawRect(hoop.backboardX, hoop.backboardTopY, 10, BOARD_HEIGHT, Color.Gray());
+
+    // 篮筐支架
+    ctx.drawLine(hoop.backboardX, hoop.backboardTopY + 30, hoop.backboardX + 30, hoop.rimY, Color.Gray());
+    ctx.drawLine(hoop.backboardX, hoop.backboardTopY + 30, hoop.backboardX + 30, hoop.rimY, Color.Gray());
+
+    // 篮筐边缘
+    ctx.drawLine(hoop.rimLeftX, hoop.rimY, hoop.rimRightX, hoop.rimY, RIM_COLOR);
+    ctx.fillRect(hoop.rimLeftX - 5, hoop.rimY - 5, 5, 10, RIM_COLOR);
+    ctx.fillRect(hoop.rimRightX, hoop.rimY - 5, 5, 10, RIM_COLOR);
+
+    // 篮网（简化线条）
+    var netTop = hoop.rimY + 5;
+    var netBottom = hoop.rimY + 45;
+    var netWidth = HOOP_WIDTH - 10;
+
+    // 垂直网线
+    for i in 0..6 {
+        var nx = hoop.rimLeftX + 5 + i * (netWidth / 5);
+        ctx.drawLine(nx, netTop, hoop.rimLeftX + netWidth/2, netBottom);
+    }
+
+    // 水平网线
+    for j in 0..4 {
+        var ny = netTop + j * 10;
+        var left_x = hoop.rimLeftX + 5 + j * 3;
+        var right_x = hoop.rimRightX - 5 - j * 3;
+        ctx.drawLine(left_x, ny, right_x, ny);
+    }
+}
+
+fn draw_trajectory(ctx: &FrameBufferCanvas, startX: int, startY: int, endX: int, endY: int) {
+    var points: [(i32, i32); 50];
+    var count = calculate_trajectory(&game, startX, startY, endX, endY, &mut points, 50);
+
+    for i in 0..count {
+        var alpha = (255 - i * 5) as u8;
+        if alpha < 50 {
+            alpha = 50;
+        }
+        var c = Color.ARGB(alpha, 255, 255, 0);
+        ctx.fillCircle(points[i].$0, points[i].$1, 3, c);
+    }
+}
+
+fn draw_power_bar(ctx: &FrameBufferCanvas, startX: int, startY: int, endX: int, endY: int) {
+    var dx = startX - endX;
+    var dy = startY - endY;
+    var power = math.sqrt(dx * dx + dy * dy) as f32;
+    power = math.min(power, 200.0);
+    var normalizedPower = (power / 200.0 * 100.0) as i32;
+
+    // 力量条背景
+    var barX = 20;
+    var barY = 470;
+    var barW = 150;
+    var barH = 20;
+
+    ctx.fillRect(barX, barY, barW, barH, Color.DarkGray());
+    ctx.drawRect(barX, barY, barW, barH, Color.White());
+
+    // 力量条填充
+    var fillW = (normalizedPower * barW / 100);
+    var fillColor = Color.Green();
+    if normalizedPower > 70 {
+        fillColor = Color.Red();
+    } else if normalizedPower > 40 {
+        fillColor = Color.Yellow();
+    }
+    ctx.fillRect(barX + 2, barY + 2, fillW - 4, barH - 4, fillColor);
+
+    // 显示数字
+    // 简化：显示百分比
+}
+
+fn draw_ui(ctx: &FrameBufferCanvas) {
+    // 分数
+    ctx.drawSimpleText(20, 20, "SCORE:", TEXT_COLOR);
+    ctx.drawSimpleText(100, 20, int_to_string(game.score), TEXT_COLOR);
+
+    // 连击
+    if game.combo > 1 {
+        ctx.drawSimpleText(200, 20, "COMBO x", COMBO_COLOR);
+        ctx.drawSimpleText(300, 20, int_to_string(game.combo), COMBO_COLOR);
+    }
+
+    // 剩余球数
+    ctx.drawSimpleText(600, 20, "BALLS:", TEXT_COLOR);
+    ctx.drawSimpleText(680, 20, int_to_string(game.ballsLeft), TEXT_COLOR);
+
+    // 提示文字
+    if !game.ball.isFlying && game.ballsLeft > 0 {
+        ctx.drawSimpleText(300, 480, "DRAG TO SHOOT", Color.RGB(200, 200, 200));
+    }
+
+    // 最佳连击
+    ctx.drawSimpleText(600, 50, "BEST:", TEXT_COLOR);
+    ctx.drawSimpleText(660, 50, int_to_string(game.bestCombo), TEXT_COLOR);
+}
+
+fn draw_game_over(ctx: &FrameBufferCanvas) {
+    // 半透明遮罩
+    ctx.fillRect(0, 0, 800, 500, Color.ARGB(180, 0, 0, 0));
+
+    // GAME OVER 文字
+    ctx.drawSimpleText(320, 180, "GAME OVER", Color.Red());
+    ctx.drawSimpleText(280, 220, "FINAL SCORE:", TEXT_COLOR);
+    ctx.drawSimpleText(420, 220, int_to_string(game.score), COMBO_COLOR);
+    ctx.drawSimpleText(280, 260, "BEST COMBO:", TEXT_COLOR);
+    ctx.drawSimpleText(420, 260, int_to_string(game.bestCombo), COMBO_COLOR);
+    ctx.drawSimpleText(280, 300, "SHOTS:", TEXT_COLOR);
+    ctx.drawSimpleText(380, 300, int_to_string(game.ball.shotsTaken), TEXT_COLOR);
+    ctx.drawSimpleText(300, 360, "PRESS R TO RESTART", TEXT_COLOR);
+}
+
+fn draw_aim_line(ctx: &FrameBufferCanvas, startX: int, startY: int, endX: int, endY: int) {
+    // 瞄准线
+    ctx.drawLine(startX, startY, endX, endY, Color.RGB(255, 255, 255, 150));
+
+    // 起点和终点标记
+    ctx.fillCircle(startX, startY, 5, Color.Green());
+    ctx.fillCircle(endX, endY, 5, Color.Red());
+}
+
+// ==================== 辅助函数 ====================
+
+fn abs(x: int) -> int {
+    return if x < 0 { -x } else { x };
+}
+
+fn int_to_string(n: int) -> str {
+    if n == 0 {
+        return "0";
+    }
+    var result = "";
+    var negative = false;
+    var num = n;
+    if num < 0 {
+        negative = true;
+        num = -num;
+    }
+    while num > 0 {
+        var digit = num % 10;
+        result = chr(digit + 48) ++ result;
+        num = num / 10;
+    }
+    return if negative { "-" ++ result } else { result };
+}
+
+fn chr(n: i32) -> str {
+    // 简化的单字符转换
+    return "";
+}
+
+// ==================== 事件处理 ====================
+
+static mut mouseDown: bool = false;
+static mut mouseStartX: int = 0;
+static mut mouseStartY: int = 0;
+static mut mouseX: int = 0;
+static mut mouseY: int = 0;
+
+fn handle_events() -> bool {
+    var event = Event.{};
+
+    while pollEvent(window, &event) {
+        match event.msg {
+            MessageType.Quit => {
+                return false;
+            }
+            MessageType.KeyDown => {
+                if event.key.key == VirtualKey.Escape {
+                    return false;
+                }
+                if event.key.key == VirtualKey.R {
+                    // 重新开始
+                    init_game(&mut game, 800, 500);
+                }
+            }
+            MessageType.MouseDown => {
+                if event.mouse.button == MouseButton.Left && !game.ball.isFlying && game.ballsLeft > 0 {
+                    mouseDown = true;
+                    mouseStartX = event.mouse.x;
+                    mouseStartY = event.mouse.y;
+                    mouseX = event.mouse.x;
+                    mouseY = event.mouse.y;
+                    game.isAiming = true;
+                }
+            }
+            MessageType.MouseUp => {
+                if event.mouse.button == MouseButton.Left && mouseDown && game.isAiming {
+                    aim_ball(&mut game, mouseStartX, mouseStartY, mouseX, mouseY);
+                    mouseDown = false;
+                    game.isAiming = false;
+                }
+            }
+            MessageType.MouseMove => {
+                if mouseDown {
+                    mouseX = event.mouse.x;
+                    mouseY = event.mouse.y;
+                }
+            }
+            _ => {}
+        }
+    }
+    return true;
+}
+
+// ==================== 主循环 ====================
+
+fn main() {
+    println("===========================================");
+    println("  Zen-C Basketball Game");
+    println("  鼠标拖拽投篮");
+    println("===========================================");
+
+    // 初始化
+    init_game(&mut game, 800, 500);
+
+    // 创建窗口
+    window = createWindow("Zen-C Basketball", 800, 520);
+    if window == nil {
+        println("错误: 无法创建窗口");
+        return;
+    }
+
+    println("游戏窗口创建成功!");
+    println("");
+    println("操作说明:");
+    println("  1. 在球的位置按住鼠标左键");
+    println("  2. 拖拽鼠标（向后拉）调整角度和力度");
+    println("  3. 松开鼠标投篮");
+    println("  4. 按 R 键重新开始");
+    println("");
+
+    running = true;
+    lastFrame = getTickCount();
+    frameTime = 16;
+
+    // 主循环
+    while running {
+        // 处理事件
+        running = handle_events();
+
+        // 更新
+        if game.state != GameState.GameOver {
+            update_game(&mut game);
+
+            // 检查是否需要开始新投篮
+            if game.ball.isFlying {
+                // 检查球是否停止或出界
+                if game.ball.vx == 0.0 && game.ball.vy == 0.0 {
+                    // 球停止了
+                    if !game.ballEnteredHoop && game.ballsLeft > 0 {
+                        // 没进球
+                        game.combo = 0; // 重置连击
+                    }
+                }
+            }
+        }
+
+        // 渲染
+        var fb = getFrameBuffer(window);
+        var pitch = getFrameBufferPitch(window);
+
+        var canvas = FrameBufferCanvas.{
+            width: 800,
+            height: 500,
+            pitch: pitch,
+            buffer: fb,
+        };
+
+        // 清屏
+        canvas.clear(BG_COLOR);
+
+        // 绘制球场
+        draw_court(&canvas);
+
+        // 绘制篮筐
+        draw_hoop(&canvas, &game.hoop);
+
+        // 绘制瞄准线和轨迹
+        if game.isAiming && !game.ball.isFlying {
+            draw_trajectory(&canvas, mouseStartX, mouseStartY, mouseX, mouseY);
+            draw_aim_line(&canvas, mouseStartX, mouseStartY, mouseX, mouseY);
+            draw_power_bar(&canvas, mouseStartX, mouseStartY, mouseX, mouseY);
+        }
+
+        // 绘制篮球
+        draw_ball(&canvas, &game.ball);
+
+        // 绘制UI
+        draw_ui(&canvas);
+
+        // 游戏结束
+        if game.gameOver {
+            draw_game_over(&canvas);
+        }
+
+        // 显示画面
+        presentFrame(window);
+
+        // 帧率限制
+        var elapsed = getTickCount() - lastFrame;
+        if elapsed < frameTime {
+            sleep(frameTime - elapsed);
+        }
+        lastFrame = getTickCount();
+    }
+
+    // 清理
+    closeWindow(window);
+    println("游戏已退出");
+}
+
+// 修正：导入 math 模块的函数
+import std.math;
+
+fn abs(x: int) -> int {
+    return if x < 0 { -x } else { x };
+}

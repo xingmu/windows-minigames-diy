@@ -1,0 +1,344 @@
+// game_logic.zc - 篮球游戏逻辑
+// 所有平台共用相同的游戏逻辑代码
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GRAVITY: f32 = 0.4;
+const BALL_RADIUS: i32 = 12;
+const HOOP_X: i32 = 620;
+const HOOP_Y: i32 = 150;
+const HOOP_WIDTH: i32 = 60;
+const BOARD_WIDTH: i32 = 15;
+const BOARD_HEIGHT: i32 = 90;
+const GROUND_Y: i32 = 450;
+const BACKBOARD_X: i32 = 650;
+const BACKBOARD_TOP_Y: i32 = 100;
+const RIM_RADIUS: i32 = 8;
+const MAX_SCORE: i32 = 100;
+
+// ==================== 数据结构 ====================
+
+// 篮球状态
+struct Ball {
+    x: f32,
+    y: f32,
+    vx: f32,
+    vy: f32,
+    rotation: f32,
+    rotationSpeed: f32,
+    isFlying: bool,
+    shotsTaken: int,
+}
+
+// 篮筐组件位置
+struct Hoop {
+    rimLeftX: int,
+    rimRightX: int,
+    rimY: int,
+    backboardX: int,
+    backboardTopY: int,
+    backboardBottomY: int,
+    netPoints: [&(i32, i32)],  // 篮网顶点
+}
+
+// 游戏状态
+struct GameState {
+    ball: Ball,
+    hoop: Hoop,
+    score: int,
+    combo: int,
+    bestCombo: int,
+    ballsLeft: int,
+    gameOver: bool,
+    showTrajectory: bool,
+    trajectoryStartX: int,
+    trajectoryStartY: int,
+    trajectoryEndX: int,
+    trajectoryEndY: int,
+    isAiming: bool,
+    lastScoreTime: u32,
+    ballEnteredHoop: bool,
+    frameCount: u32,
+}
+
+// ==================== 初始化 ====================
+
+fn init_game(game: &mut GameState, width: int, height: int) {
+    // 初始化球
+    game.ball = Ball.{
+        x: 100.0,
+        y: 350.0,
+        vx: 0.0,
+        vy: 0.0,
+        rotation: 0.0,
+        rotationSpeed: 0.0,
+        isFlying: false,
+        shotsTaken: 0,
+    };
+
+    // 初始化篮筐位置
+    game.hoop = Hoop.{
+        rimLeftX: HOOP_X - HOOP_WIDTH / 2,
+        rimRightX: HOOP_X + HOOP_WIDTH / 2,
+        rimY: HOOP_Y,
+        backboardX: BACKBOARD_X,
+        backboardTopY: BACKBOARD_TOP_Y,
+        backboardBottomY: BACKBOARD_TOP_Y + BOARD_HEIGHT,
+        netPoints: [],
+    };
+
+    game.score = 0;
+    game.combo = 0;
+    game.bestCombo = 0;
+    game.ballsLeft = 10;
+    game.gameOver = false;
+    game.showTrajectory = false;
+    game.isAiming = false;
+    game.lastScoreTime = 0;
+    game.ballEnteredHoop = false;
+    game.frameCount = 0;
+}
+
+fn reset_ball(game: &mut GameState) {
+    game.ball.x = 100.0;
+    game.ball.y = 350.0;
+    game.ball.vx = 0.0;
+    game.ball.vy = 0.0;
+    game.ball.rotation = 0.0;
+    game.ball.rotationSpeed = 0.0;
+    game.ball.isFlying = false;
+    game.ballEnteredHoop = false;
+}
+
+fn start_new_shot(game: &mut GameState) {
+    reset_ball(game);
+    game.ballsLeft = game.ballsLeft - 1;
+    if game.ballsLeft <= 0 {
+        game.gameOver = true;
+    }
+}
+
+// ==================== 投球逻辑 ====================
+
+fn aim_ball(game: &mut GameState, startX: int, startY: int, endX: int, endY: int) {
+    // 根据拖拽方向和距离计算投篮力度和角度
+    var dx = startX - endX;
+    var dy = startY - endY;
+
+    // 反向施力
+    var power = math.sqrt(dx * dx + dy * dy) as f32;
+    power = math.min(power, 200.0);
+
+    if power < 10.0 {
+        return;
+    }
+
+    var angle = math.atan2(dy as f32, dx as f32);
+
+    // 标准化力度
+    var normalizedPower = power / 200.0;
+
+    game.ball.vx = math.cos(angle) * normalizedPower * 15.0;
+    game.ball.vy = math.sin(angle) * normalizedPower * 15.0;
+    game.ball.isFlying = true;
+    game.ball.shotsTaken = game.ball.shotsTaken + 1;
+    game.isAiming = false;
+
+    // 重置连击（如果球离开屏幕而没有进球）
+    if !game.ballEnteredHoop {
+        // combo will be reset if no score
+    }
+}
+
+// ==================== 更新逻辑 ====================
+
+fn update_ball(game: &mut GameState) {
+    if !game.ball.isFlying {
+        return;
+    }
+
+    // 应用重力
+    game.ball.vy = game.ball.vy + GRAVITY;
+
+    // 更新位置
+    game.ball.x = game.ball.x + game.ball.vx;
+    game.ball.y = game.ball.y + game.ball.vy;
+
+    // 旋转
+    game.ball.rotation = game.ball.rotation + game.ball.rotationSpeed;
+    game.ball.rotationSpeed = game.ball.rotationSpeed * 0.99;
+
+    // 地面碰撞
+    if game.ball.y > GROUND_Y - BALL_RADIUS as f32 {
+        game.ball.y = GROUND_Y - BALL_RADIUS as f32;
+        game.ball.vy = -game.ball.vy * 0.6;
+        game.ball.vx = game.ball.vx * 0.8;
+        game.ball.rotationSpeed = game.ball.vx * 0.1;
+
+        // 停止条件
+        if math.abs(game.ball.vy) < 1.0 {
+            game.ball.vy = 0.0;
+            game.ball.vx = game.ball.vx * 0.95;
+            if math.abs(game.ball.vx) < 0.5 {
+                game.ball.vx = 0.0;
+                // 球停止，可以开始新投篮
+                if !game.ballEnteredHoop && game.ballsLeft > 0 {
+                    // 没进球但球停止了
+                }
+            }
+        }
+    }
+
+    // 左右边界
+    if game.ball.x < BALL_RADIUS as f32 {
+        game.ball.x = BALL_RADIUS as f32;
+        game.ball.vx = -game.ball.vx * 0.7;
+    }
+    if game.ball.x > 780 - BALL_RADIUS as f32 {
+        game.ball.x = 780 - BALL_RADIUS as f32;
+        game.ball.vx = -game.ball.vx * 0.7;
+    }
+
+    // 天花板
+    if game.ball.y < BALL_RADIUS as f32 {
+        game.ball.y = BALL_RADIUS as f32;
+        game.ball.vy = -game.ball.vy * 0.5;
+    }
+
+    // 篮板碰撞
+    if game.ball.x > game.hoop.backboardX as f32 - BALL_RADIUS as f32 &&
+       game.ball.x < game.hoop.backboardX as f32 + 10 &&
+       game.ball.y > game.hoop.backboardTopY as f32 &&
+       game.ball.y < game.hoop.backboardBottomY as f32 {
+        game.ball.x = game.hoop.backboardX as f32 - BALL_RADIUS as f32;
+        game.ball.vx = -game.ball.vx * 0.7;
+    }
+
+    // 篮筐碰撞检测
+    check_hoop_collision(game);
+
+    // 出界检测
+    if game.ball.y > 500.0 || game.ball.x < -50.0 || game.ball.x > 850.0 {
+        if game.ballsLeft > 0 && !game.ballEnteredHoop {
+            start_new_shot(game);
+        }
+    }
+}
+
+fn check_hoop_collision(game: &mut GameState) {
+    var ballCx = game.ball.x as i32;
+    var ballCy = game.ball.y as i32;
+
+    // 检测球是否通过篮筐（进球）
+    // 篮筐入口检测：球从上方落入篮筐区域
+    var rimLeftX = game.hoop.rimLeftX;
+    var rimRightX = game.hoop.rimRightX;
+    var rimY = game.hoop.rimY;
+
+    // 简单的进球检测：球中心穿过篮筐线
+    if !game.ballEnteredHoop &&
+       ballCx > rimLeftX && ballCx < rimRightX &&
+       ballCy > rimY && ballCy < rimY + 20 &&
+       game.ball.vy > 0 {
+
+        // 进球！
+        game.ballEnteredHoop = true;
+        game.score = game.score + 2 + game.combo;
+        game.combo = game.combo + 1;
+        if game.combo > game.bestCombo {
+            game.bestCombo = game.combo;
+        }
+    }
+
+    // 篮筐边缘碰撞
+    // 左边缘
+    var distLeft = math.sqrt(
+        (ballCx - rimLeftX) * (ballCx - rimLeftX) +
+        (ballCy - rimY) * (ballCy - rimY)
+    );
+    if distLeft < BALL_RADIUS + RIM_RADIUS {
+        // 碰撞反弹
+        var angle = math.atan2(
+            (ballCy - rimY) as f32,
+            (ballCx - rimLeftX) as f32
+        );
+        var speed = math.sqrt(
+            game.ball.vx * game.ball.vx +
+            game.ball.vy * game.ball.vy
+        );
+        game.ball.vx = math.cos(angle) * speed * 0.7;
+        game.ball.vy = math.sin(angle) * speed * 0.7;
+    }
+
+    // 右边缘
+    var distRight = math.sqrt(
+        (ballCx - rimRightX) * (ballCx - rimRightX) +
+        (ballCy - rimY) * (ballCy - rimY)
+    );
+    if distRight < BALL_RADIUS + RIM_RADIUS {
+        var angle = math.atan2(
+            (ballCy - rimY) as f32,
+            (ballCx - rimRightX) as f32
+        );
+        var speed = math.sqrt(
+            game.ball.vx * game.ball.vx +
+            game.ball.vy * game.ball.vy
+        );
+        game.ball.vx = math.cos(angle) * speed * 0.7;
+        game.ball.vy = math.sin(angle) * speed * 0.7;
+    }
+
+    // 篮筐前沿碰撞
+    if ballCx > rimRightX && ballCx < rimRightX + 20 &&
+       ballCy > rimY - 10 && ballCy < rimY + 10 {
+        if game.ball.vx > 0 {
+            game.ball.vx = -game.ball.vx * 0.5;
+        }
+    }
+}
+
+fn update_game(game: &mut GameState) {
+    game.frameCount = game.frameCount + 1;
+    update_ball(game);
+}
+
+// ==================== 投掷轨迹预览 ====================
+
+fn calculate_trajectory(game: &GameState, startX: int, startY: int, endX: int, endY: int, points: &mut [(i32, i32)], maxPoints: int) -> int {
+    var dx = startX - endX;
+    var dy = startY - endY;
+
+    var power = math.sqrt(dx * dx + dy * dy) as f32;
+    power = math.min(power, 200.0);
+
+    if power < 10.0 {
+        return 0;
+    }
+
+    var angle = math.atan2(dy as f32, dx as f32);
+    var normalizedPower = power / 200.0;
+
+    var vx = math.cos(angle) * normalizedPower * 15.0;
+    var vy = math.sin(angle) * normalizedPower * 15.0;
+
+    var x = startX as f32;
+    var y = startY as f32;
+
+    var count = 0;
+    for i in 0..maxPoints {
+        vy = vy + GRAVITY;
+        x = x + vx;
+        y = y + vy;
+
+        if y > GROUND_Y {
+            break;
+        }
+
+        points[i] = (x as i32, y as i32);
+        count = count + 1;
+    }
+
+    return count;
+}
