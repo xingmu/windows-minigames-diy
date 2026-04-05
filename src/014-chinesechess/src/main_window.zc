@@ -1,0 +1,513 @@
+// main_window.zc - 中国象棋主程序
+// Zen-C 实现
+
+import std.io;
+import std.string;
+
+import "game_logic.zc";
+import "platform_api.zc";
+
+// ==================== 常量 ====================
+
+const WINDOW_WIDTH = 580;
+const WINDOW_HEIGHT = 700;
+const BOARD_PADDING = 20;
+const STATUS_HEIGHT = 60;
+const CELL_SIZE = 54;
+const BOARD_WIDTH = 9 * CELL_SIZE;
+const BOARD_HEIGHT = 10 * CELL_SIZE;
+const BOARD_X = 20;
+const BOARD_Y = 20;
+
+// ==================== 颜色 ====================
+
+const BOARD_COLOR = Color.{ r = 220, g = 180, b = 140 };
+const LINE_COLOR = Color.{ r = 0, g = 0, b = 0 };
+const SELECT_COLOR = Color.{ r = 255, g = 255, b = 0 };
+const LAST_MOVE_COLOR = Color.{ r = 200, g = 200, b = 100 };
+const RED_PIECE_BG = Color.{ r = 255, g = 230, b = 200 };
+const BLACK_PIECE_BG = Color.{ r = 50, g = 50, b = 50 };
+const RED_PIECE_FG = Color.{ r = 200, g = 0, b = 0 };
+const BLACK_PIECE_FG = Color.{ r = 255, g = 255, b = 255 };
+const RIVER_COLOR = Color.{ r = 180, g = 220, b = 255 };
+const WINDOW_BG = Color.{ r = 45, g = 45, b = 45 };
+const STATUS_BG = Color.{ r = 235, g = 235, b = 235 };
+
+// ==================== 状态 ====================
+
+static mut game: ChessGame;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut needRedraw: bool = true;
+static mut aiCooldown: i32 = 0;
+
+// ==================== 绘制棋盘 ====================
+
+fn drawBoard(ctx: GraphicsContext) {
+    var bx = BOARD_X;
+    var by = BOARD_Y;
+    
+    // 绘制棋盘背景
+    draw_rect(ctx, bx - 5, by - 5, BOARD_WIDTH + 10, BOARD_HEIGHT + 10, BOARD_COLOR);
+    
+    // 绘制横线
+    for row in 0..10 {
+        var y = by + row * CELL_SIZE;
+        draw_line(ctx, bx, y, bx + BOARD_WIDTH, y);
+    }
+    
+    // 绘制竖线
+    for col in 0..9 {
+        var x = bx + col * CELL_SIZE;
+        if col == 0 || col == 8 {
+            draw_line(ctx, x, by, x, by + BOARD_HEIGHT);
+        } else {
+            draw_line(ctx, x, by, x, by + 4 * CELL_SIZE);
+            draw_line(ctx, x, by + 5 * CELL_SIZE, x, by + BOARD_HEIGHT);
+        }
+    }
+    
+    // 绘制九宫格
+    draw_line(ctx, bx + 3 * CELL_SIZE, by + 7 * CELL_SIZE, 
+              bx + 5 * CELL_SIZE, by + 9 * CELL_SIZE);
+    draw_line(ctx, bx + 5 * CELL_SIZE, by + 7 * CELL_SIZE, 
+              bx + 3 * CELL_SIZE, by + 9 * CELL_SIZE);
+    draw_line(ctx, bx + 3 * CELL_SIZE, by + 0 * CELL_SIZE, 
+              bx + 5 * CELL_SIZE, by + 2 * CELL_SIZE);
+    draw_line(ctx, bx + 5 * CELL_SIZE, by + 0 * CELL_SIZE, 
+              bx + 3 * CELL_SIZE, by + 2 * CELL_SIZE);
+    
+    // 楚河汉界
+    var ry = by + 4 * CELL_SIZE + 1;
+    draw_rect(ctx, bx, ry, BOARD_WIDTH, CELL_SIZE - 2, RIVER_COLOR);
+    
+    // 绘制米字格标记
+    drawMark(ctx, bx + 1 * CELL_SIZE, by + 2 * CELL_SIZE);
+    drawMark(ctx, bx + 7 * CELL_SIZE, by + 2 * CELL_SIZE);
+    drawMark(ctx, bx + 1 * CELL_SIZE, by + 7 * CELL_SIZE);
+    drawMark(ctx, bx + 7 * CELL_SIZE, by + 7 * CELL_SIZE);
+    
+    // 兵/卒位置标记
+    drawMark(ctx, bx + 0 * CELL_SIZE, by + 3 * CELL_SIZE);
+    drawMark(ctx, bx + 2 * CELL_SIZE, by + 3 * CELL_SIZE);
+    drawMark(ctx, bx + 4 * CELL_SIZE, by + 3 * CELL_SIZE);
+    drawMark(ctx, bx + 6 * CELL_SIZE, by + 3 * CELL_SIZE);
+    drawMark(ctx, bx + 8 * CELL_SIZE, by + 3 * CELL_SIZE);
+    drawMark(ctx, bx + 0 * CELL_SIZE, by + 6 * CELL_SIZE);
+    drawMark(ctx, bx + 2 * CELL_SIZE, by + 6 * CELL_SIZE);
+    drawMark(ctx, bx + 4 * CELL_SIZE, by + 6 * CELL_SIZE);
+    drawMark(ctx, bx + 6 * CELL_SIZE, by + 6 * CELL_SIZE);
+    drawMark(ctx, bx + 8 * CELL_SIZE, by + 6 * CELL_SIZE);
+}
+
+fn drawMark(ctx: GraphicsContext, cx: i32, cy: i32) {
+    var size = CELL_SIZE / 5;
+    // 四个角的标记
+    draw_line(ctx, cx - size, cy, cx - 2, cy);
+    draw_line(ctx, cx - size, cy, cx, cy - size);
+    draw_line(ctx, cx + size, cy, cx + 2, cy);
+    draw_line(ctx, cx + size, cy, cx, cy - size);
+    draw_line(ctx, cx - size, cy, cx - 2, cy);
+    draw_line(ctx, cx - size, cy, cx, cy + size);
+    draw_line(ctx, cx + size, cy, cx + 2, cy);
+    draw_line(ctx, cx + size, cy, cx, cy + size);
+}
+
+fn draw_line(ctx: GraphicsContext, x1: i32, y1: i32, x2: i32, y2: i32) {
+    // 使用矩形模拟线条
+    if y1 == y2 {
+        // 水平线
+        if x1 > x2 { let t = x1; x1 = x2; x2 = t; }
+        draw_rect(ctx, x1, y1 - 1, x2 - x1, 2, LINE_COLOR);
+    } else if x1 == x2 {
+        // 垂直线
+        if y1 > y2 { let t = y1; y1 = y2; y2 = t; }
+        draw_rect(ctx, x1 - 1, y1, 2, y2 - y1, LINE_COLOR);
+    } else {
+        // 斜线 - 使用 Bresenham
+        var dx = if x2 > x1 { x2 - x1 } else { x1 - x2 };
+        var dy = if y2 > y1 { y2 - y1 } else { y1 - y2 };
+        var sx = if x1 < x2 { 1 } else { -1 };
+        var sy = if y1 < y2 { 1 } else { -1 };
+        var err = dx - dy;
+        
+        var x = x1;
+        var y = y1;
+        loop {
+            draw_rect(ctx, x, y, 2, 2, LINE_COLOR);
+            if x == x2 && y == y2 { break; }
+            var e2 = 2 * err;
+            if e2 > -dy { err = err - dy; x = x + sx; }
+            if e2 < dx { err = err + dx; y = y + sy; }
+        }
+    }
+}
+
+// ==================== 绘制棋子 ====================
+
+fn drawPiece(ctx: GraphicsContext, col: i32, row: i32, pieceType: i32, color: i32, selected: bool) {
+    var cx = BOARD_X + col * CELL_SIZE;
+    var cy = BOARD_Y + row * CELL_SIZE;
+    var radius = CELL_SIZE / 2 - 5;
+    
+    // 上一步高亮
+    if game.showLastMove {
+        if game.lastMoveTo.col == col && game.lastMoveTo.row == row {
+            fill_circle(ctx, cx, cy, radius + 6, LAST_MOVE_COLOR);
+        }
+        if game.lastMoveFrom.col == col && game.lastMoveFrom.row == row {
+            fill_circle(ctx, cx, cy, radius + 6, LAST_MOVE_COLOR);
+        }
+    }
+    
+    // 选中效果
+    if selected {
+        fill_circle(ctx, cx, cy, radius + 4, SELECT_COLOR);
+    }
+    
+    // 棋子背景
+    var bgColor = if color == COLOR_RED { RED_PIECE_BG } else { BLACK_PIECE_BG };
+    fill_circle(ctx, cx, cy, radius, bgColor);
+    draw_circle(ctx, cx, cy, radius, LINE_COLOR);
+    draw_circle(ctx, cx, cy, radius - 2, LINE_COLOR);
+    
+    // 绘制棋子标识
+    drawPieceChar(ctx, cx, cy, pieceType, color);
+}
+
+fn drawPieceChar(ctx: GraphicsContext, cx: i32, cy: i32, pieceType: i32, color: i32) {
+    // 用圆点表示棋子类型
+    var fgColor = if color == COLOR_RED { RED_PIECE_FG } else { BLACK_PIECE_FG };
+    
+    // 中心点
+    fill_circle(ctx, cx, cy, 6, fgColor);
+    
+    // 根据棋子类型画不同的图案
+    match pieceType {
+        PIECE_KING => {
+            // 将帅 - 画大方块
+            draw_rect(ctx, cx - 8, cy - 8, 16, 16, fgColor);
+            draw_rect(ctx, cx - 5, cy - 5, 10, 10, bgColor);
+        }
+        PIECE_ADVISOR => {
+            // 仕士 - 画菱形
+            draw_rect(ctx, cx - 6, cy - 3, 12, 6, fgColor);
+            draw_rect(ctx, cx - 3, cy - 6, 6, 12, fgColor);
+        }
+        PIECE_ELEPHANT => {
+            // 象相 - 画三角形
+            draw_rect(ctx, cx - 8, cy + 2, 16, 4, fgColor);
+            draw_rect(ctx, cx - 5, cy - 3, 10, 5, fgColor);
+            draw_rect(ctx, cx - 2, cy - 6, 4, 3, fgColor);
+        }
+        PIECE_HORSE => {
+            // 马 - 画L形
+            draw_rect(ctx, cx - 8, cy - 3, 5, 10, fgColor);
+            draw_rect(ctx, cx - 3, cy - 8, 10, 5, fgColor);
+        }
+        PIECE_CHARIOT => {
+            // 车 - 画矩形
+            draw_rect(ctx, cx - 7, cy - 7, 14, 14, fgColor);
+            draw_rect(ctx, cx - 4, cy - 4, 8, 8, bgColor);
+        }
+        PIECE_CANNON => {
+            // 炮 - 画两个圆
+            fill_circle(ctx, cx, cy, 7, fgColor);
+            fill_circle(ctx, cx, cy, 4, bgColor);
+        }
+        PIECE_PAWN => {
+            // 兵卒 - 画三角形
+            draw_rect(ctx, cx - 6, cy + 2, 12, 3, fgColor);
+            draw_rect(ctx, cx - 4, cy - 2, 8, 4, fgColor);
+            draw_rect(ctx, cx - 2, cy - 6, 4, 4, fgColor);
+        }
+    }
+}
+
+fn drawPieces(ctx: GraphicsContext) {
+    for i in 0..32 {
+        if !game.board[i].alive {
+            continue;
+        }
+        var selected = (i == game.selectedIndex);
+        drawPiece(ctx, game.board[i].col, game.board[i].row,
+                  game.board[i].pieceType, game.board[i].color, selected);
+    }
+}
+
+// ==================== 绘制状态栏 ====================
+
+fn drawStatusBar(ctx: GraphicsContext) {
+    var y = BOARD_Y + BOARD_HEIGHT + 10;
+    
+    // 背景
+    draw_rect(ctx, BOARD_X, y, BOARD_WIDTH, STATUS_HEIGHT, STATUS_BG);
+    
+    // 边框
+    draw_rect(ctx, BOARD_X, y, BOARD_WIDTH, STATUS_HEIGHT, LINE_COLOR);
+    
+    // 回合信息
+    var turnText = if game.currentTurn == COLOR_RED { "[红方回合]" } else { "[黑方回合]" };
+    var statusText = if game.gameOver { 
+        if game.winner == COLOR_RED { "红方胜!" } else { "黑方胜!" }
+    } else { turnText };
+    
+    // 提示文字
+    var hint = if game.gameOver { "游戏结束" } 
+               else if game.selectedIndex == -1 { "请选择棋子" } 
+               else { "请选择目标位置" };
+    
+    // 简单绘制文字（用方块代替）
+    drawTextSimple(ctx, BOARD_X + 10, y + 10, statusText, 
+                   if game.currentTurn == COLOR_RED { RED_PIECE_FG } else { BLACK_PIECE_FG });
+    drawTextSimple(ctx, BOARD_X + 200, y + 10, hint, Color.{ r = 50, g = 50, b = 50 });
+    
+    // 操作说明
+    drawTextSimple(ctx, BOARD_X + 10, y + 35, "右键取消选中 | ESC退出", 
+                   Color.{ r = 100, g = 100, b = 100 });
+}
+
+fn drawTextSimple(ctx: GraphicsContext, x: i32, y: i32, text: str, color: Color) {
+    // 简化文字绘制 - 用像素方块组成
+    // 每个字符用 4x6 的点阵模拟
+    var px = x;
+    var blockSize = 4;
+    var spacing = 1;
+    
+    for i in 0..len(text) {
+        var charCode = text[i] as int;
+        
+        // 用伪随机图案模拟字符
+        for bx in 0..4 {
+            for by in 0..6 {
+                var pattern = (charCode * (bx + 2) * (by + 3) + bx * by) % 13;
+                if pattern > 5 {
+                    draw_rect(ctx, px + bx * (blockSize + spacing), 
+                             y + by * (blockSize + spacing),
+                             blockSize, blockSize, color);
+                }
+            }
+        }
+        px = px + 5 * (blockSize + spacing);
+    }
+}
+
+// ==================== 绘制整个棋盘 ====================
+
+fn drawGame(ctx: GraphicsContext) {
+    // 清屏
+    draw_rect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_BG);
+    
+    // 绘制棋盘
+    drawBoard(ctx);
+    
+    // 绘制棋子
+    drawPieces(ctx);
+    
+    // 绘制状态栏
+    drawStatusBar(ctx);
+}
+
+// ==================== 鼠标处理 ====================
+
+fn handleClick(x: i32, y: i32) {
+    // 计算棋盘坐标
+    var boardX = x - BOARD_X;
+    var boardY = y - BOARD_Y;
+    
+    if boardX < 0 || boardX >= BOARD_WIDTH || boardY < 0 || boardY >= BOARD_HEIGHT {
+        return;
+    }
+    
+    if game.currentTurn != COLOR_RED || game.gameOver {
+        return;
+    }
+    
+    var col = boardX / CELL_SIZE;
+    var row = boardY / CELL_SIZE;
+    
+    if col < 0 || col >= 9 || row < 0 || row >= 10 {
+        return;
+    }
+    
+    var clickedIdx = getPieceAt(&game, col, row);
+    
+    if game.selectedIndex == -1 {
+        // 没有选中，选择己方棋子
+        if clickedIdx != -1 && game.board[clickedIdx].color == COLOR_RED {
+            game.selectedIndex = clickedIdx;
+            needRedraw = true;
+        }
+    } else {
+        // 已选中
+        if clickedIdx != -1 && game.board[clickedIdx].color == COLOR_RED {
+            // 选中另一个己方棋子
+            game.selectedIndex = clickedIdx;
+            needRedraw = true;
+        } else {
+            // 尝试移动
+            if makeMove(&mut game, game.selectedIndex, col, row) {
+                // 玩家移动完成，等待 AI
+                aiCooldown = 0;
+            }
+            needRedraw = true;
+        }
+    }
+}
+
+// ==================== Windows 窗口过程 ====================
+
+#if IS_WINDOWS
+
+struct MSG {
+    hwnd: WindowHandle,
+    message: u32,
+    wParam: u32,
+    lParam: u32,
+    time: u32,
+    pt: i32,
+}
+
+extern fn WindowProc(hwnd: WindowHandle, msg: u32, wParam: u32, lParam: u32) -> i32 {
+    match msg {
+        WM_PAINT => {
+            let ps: [64]u8 = [0; 64];
+            let hdc = BeginPaint(hwnd, &ps);
+            drawGame(hdc);
+            EndPaint(hwnd, &ps);
+            return 0;
+        },
+        WM_LBUTTONDOWN => {
+            var x = (lParam & 0xFFFF) as i32;
+            var y = ((lParam >> 16) & 0xFFFF) as i32;
+            handleClick(x, y);
+            InvalidateRect(hwnd, null, 0);
+            return 0;
+        },
+        WM_RBUTTONDOWN => {
+            if game.selectedIndex != -1 {
+                game.selectedIndex = -1;
+                InvalidateRect(hwnd, null, 0);
+            }
+            return 0;
+        },
+        WM_TIMER => {
+            // AI 回合
+            if game.currentTurn == COLOR_BLACK && !game.gameOver {
+                aiCooldown = aiCooldown + 1;
+                if aiCooldown > 10 {
+                    if selectAIMove(&mut game) {
+                        // AI 移动完成
+                    }
+                    aiCooldown = 0;
+                    InvalidateRect(hwnd, null, 0);
+                }
+            }
+            return 0;
+        },
+        WM_DESTROY => {
+            running = false;
+            PostQuitMessage(0);
+            return 0;
+        },
+        _ => {
+            return DefWindowProcA(hwnd, msg, wParam, lParam);
+        }
+    }
+}
+
+extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32;
+extern "user32.dll" fn RegisterClassA(lpWndClass: *const i8) -> u16;
+extern "user32.dll" fn CreateWindowExA(
+    dwExStyle: u32, lpClassName: *const i8, lpWindowName: *const i8,
+    dwStyle: u32, x: i32, y: i32, nWidth: i32, nHeight: i32,
+    hWndParent: WindowHandle, hMenu: *void, hInstance: *void, lpParam: *void
+) -> WindowHandle;
+extern "user32.dll" fn GetMessageA(lpMsg: *void, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32) -> bool;
+extern "user32.dll" fn TranslateMessage(lpMsg: *void) -> bool;
+extern "user32.dll" fn DispatchMessageA(lpMsg: *void) -> i32;
+extern "user32.dll" fn ShowWindow(hWnd: WindowHandle, nCmdShow: i32) -> bool;
+extern "user32.dll" fn UpdateWindow(hWnd: WindowHandle) -> bool;
+extern "user32.dll" fn BeginPaint(hWnd: WindowHandle, lpPaint: *void) -> GraphicsContext;
+extern "user32.dll" fn EndPaint(hWnd: WindowHandle, lpPaint: *void);
+extern "user32.dll" fn InvalidateRect(hWnd: WindowHandle, lpRect: *void, bErase: bool) -> bool;
+extern "user32.dll" fn PostQuitMessage(nExitCode: i32);
+extern "user32.dll" fn SetTimer(hWnd: WindowHandle, nIDEvent: u32, uElapse: u32, lpTimerFunc: *void) -> u32;
+extern "user32.dll" fn PeekMessageA(lpMsg: *void, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32, wRemoveMsg: u32) -> bool;
+
+const WS_OVERLAPPEDWINDOW: u32 = 0x00CF0000;
+const CW_USEDEFAULT: i32 = 0x80000000;
+const WM_QUIT: u32 = 0x0012;
+const PM_REMOVE: u32 = 0x0001;
+
+#endif
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C 中国象棋");
+    io.println("========================================");
+    
+    // 初始化游戏
+    game = createChessGame();
+    game.currentTurn = COLOR_RED;
+    
+    io.println("游戏初始化完成!");
+    io.println("红方先手 (玩家)");
+    io.println("使用鼠标点击选择和移动棋子");
+    io.println("右键取消选中 | ESC 退出");
+    io.println("========================================");
+    
+    // 创建窗口
+    var title = "Zen-C 中国象棋 - 红先手";
+    window = create_window(title, WINDOW_WIDTH, WINDOW_HEIGHT);
+    
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+    
+    // 设置定时器
+    set_game_timer(window, 50);
+    
+    // 显示窗口
+    show_window(window);
+    
+    io.println("窗口创建成功!");
+    
+    // 设置随机种子
+    setRandomSeed(getTickCount());
+    
+    // 消息循环
+    var msg: MSG;
+    while running {
+        // 处理消息
+        while PeekMessageA(&msg, window, 0, 0, PM_REMOVE) {
+            if msg.message == WM_QUIT {
+                running = false;
+                break;
+            }
+            TranslateMessage(&msg);
+            DispatchMessageA(&msg);
+        }
+        
+        // AI 回合（备用，不依赖定时器）
+        if game.currentTurn == COLOR_BLACK && !game.gameOver {
+            aiCooldown = aiCooldown + 1;
+            if aiCooldown > 60 {
+                if selectAIMove(&mut game) {
+                    InvalidateRect(window, null, 0);
+                }
+                aiCooldown = 0;
+            }
+        }
+        
+        sleep(10);
+    }
+    
+    io.println("游戏结束!");
+    io.println("谢谢游玩!");
+    
+    0
+}

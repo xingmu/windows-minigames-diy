@@ -1,0 +1,444 @@
+// game_logic.zc - 中国象棋游戏逻辑
+// Zen-C 实现
+
+import std.io;
+
+// ==================== 常量 ====================
+
+const BOARD_COLS = 9;
+const BOARD_ROWS = 10;
+const CELL_SIZE = 54;
+
+// 宫的限制
+const RED_PALACE_TOP = 7;
+const RED_PALACE_BOTTOM = 9;
+const BLACK_PALACE_TOP = 0;
+const BLACK_PALACE_BOTTOM = 2;
+const PALACE_LEFT = 3;
+const PALACE_RIGHT = 5;
+
+// 棋子颜色
+const COLOR_RED = 0;
+const COLOR_BLACK = 1;
+
+// 棋子类型
+const PIECE_KING = 0;
+const PIECE_ADVISOR = 1;
+const PIECE_ELEPHANT = 2;
+const PIECE_HORSE = 3;
+const PIECE_CHARIOT = 4;
+const PIECE_CANNON = 5;
+const PIECE_PAWN = 6;
+
+// ==================== 数据结构 ====================
+
+struct Position {
+    col: int,
+    row: int,
+}
+
+struct Piece {
+    pieceType: int,
+    color: int,
+    alive: bool,
+    col: int,
+    row: int,
+}
+
+struct ChessGame {
+    board: [32]Piece,
+    selectedIndex: int,
+    currentTurn: int,
+    gameOver: bool,
+    winner: int,
+    lastMoveFrom: Position,
+    lastMoveTo: Position,
+    showLastMove: bool,
+}
+
+// ==================== 棋子字符 ====================
+
+fn getPieceChar(pieceType: int, color: int) -> str {
+    if color == COLOR_RED {
+        match pieceType {
+            PIECE_KING => return "帥";
+            PIECE_ADVISOR => return "仕";
+            PIECE_ELEPHANT => return "相";
+            PIECE_HORSE => return "馬";
+            PIECE_CHARIOT => return "車";
+            PIECE_CANNON => return "炮";
+            PIECE_PAWN => return "兵";
+        }
+    } else {
+        match pieceType {
+            PIECE_KING => return "將";
+            PIECE_ADVISOR => return "士";
+            PIECE_ELEPHANT => return "象";
+            PIECE_HORSE => return "馬";
+            PIECE_CHARIOT => return "車";
+            PIECE_CANNON => return "炮";
+            PIECE_PAWN => return "卒";
+        }
+    }
+    return "?";
+}
+
+// ==================== 游戏创建 ====================
+
+fn createChessGame() -> ChessGame {
+    var game: ChessGame;
+    game.selectedIndex = -1;
+    game.currentTurn = COLOR_RED;
+    game.gameOver = false;
+    game.winner = -1;
+    game.showLastMove = false;
+    game.lastMoveFrom = Position.{ col = -1, row = -1 };
+    game.lastMoveTo = Position.{ col = -1, row = -1 };
+    
+    // 红方棋子 (board[0-15])
+    game.board[0] = Piece.{ pieceType = PIECE_KING, color = COLOR_RED, alive = true, col = 4, row = 9 };
+    game.board[1] = Piece.{ pieceType = PIECE_ADVISOR, color = COLOR_RED, alive = true, col = 3, row = 9 };
+    game.board[2] = Piece.{ pieceType = PIECE_ADVISOR, color = COLOR_RED, alive = true, col = 5, row = 9 };
+    game.board[3] = Piece.{ pieceType = PIECE_ELEPHANT, color = COLOR_RED, alive = true, col = 2, row = 9 };
+    game.board[4] = Piece.{ pieceType = PIECE_ELEPHANT, color = COLOR_RED, alive = true, col = 6, row = 9 };
+    game.board[5] = Piece.{ pieceType = PIECE_HORSE, color = COLOR_RED, alive = true, col = 1, row = 9 };
+    game.board[6] = Piece.{ pieceType = PIECE_HORSE, color = COLOR_RED, alive = true, col = 7, row = 9 };
+    game.board[7] = Piece.{ pieceType = PIECE_CHARIOT, color = COLOR_RED, alive = true, col = 0, row = 9 };
+    game.board[8] = Piece.{ pieceType = PIECE_CHARIOT, color = COLOR_RED, alive = true, col = 8, row = 9 };
+    game.board[9] = Piece.{ pieceType = PIECE_CANNON, color = COLOR_RED, alive = true, col = 1, row = 7 };
+    game.board[10] = Piece.{ pieceType = PIECE_CANNON, color = COLOR_RED, alive = true, col = 7, row = 7 };
+    game.board[11] = Piece.{ pieceType = PIECE_PAWN, color = COLOR_RED, alive = true, col = 0, row = 6 };
+    game.board[12] = Piece.{ pieceType = PIECE_PAWN, color = COLOR_RED, alive = true, col = 2, row = 6 };
+    game.board[13] = Piece.{ pieceType = PIECE_PAWN, color = COLOR_RED, alive = true, col = 4, row = 6 };
+    game.board[14] = Piece.{ pieceType = PIECE_PAWN, color = COLOR_RED, alive = true, col = 6, row = 6 };
+    game.board[15] = Piece.{ pieceType = PIECE_PAWN, color = COLOR_RED, alive = true, col = 8, row = 6 };
+    
+    // 黑方棋子 (board[16-31])
+    game.board[16] = Piece.{ pieceType = PIECE_KING, color = COLOR_BLACK, alive = true, col = 4, row = 0 };
+    game.board[17] = Piece.{ pieceType = PIECE_ADVISOR, color = COLOR_BLACK, alive = true, col = 3, row = 0 };
+    game.board[18] = Piece.{ pieceType = PIECE_ADVISOR, color = COLOR_BLACK, alive = true, col = 5, row = 0 };
+    game.board[19] = Piece.{ pieceType = PIECE_ELEPHANT, color = COLOR_BLACK, alive = true, col = 2, row = 0 };
+    game.board[20] = Piece.{ pieceType = PIECE_ELEPHANT, color = COLOR_BLACK, alive = true, col = 6, row = 0 };
+    game.board[21] = Piece.{ pieceType = PIECE_HORSE, color = COLOR_BLACK, alive = true, col = 1, row = 0 };
+    game.board[22] = Piece.{ pieceType = PIECE_HORSE, color = COLOR_BLACK, alive = true, col = 7, row = 0 };
+    game.board[23] = Piece.{ pieceType = PIECE_CHARIOT, color = COLOR_BLACK, alive = true, col = 0, row = 0 };
+    game.board[24] = Piece.{ pieceType = PIECE_CHARIOT, color = COLOR_BLACK, alive = true, col = 8, row = 0 };
+    game.board[25] = Piece.{ pieceType = PIECE_CANNON, color = COLOR_BLACK, alive = true, col = 1, row = 2 };
+    game.board[26] = Piece.{ pieceType = PIECE_CANNON, color = COLOR_BLACK, alive = true, col = 7, row = 2 };
+    game.board[27] = Piece.{ pieceType = PIECE_PAWN, color = COLOR_BLACK, alive = true, col = 0, row = 3 };
+    game.board[28] = Piece.{ pieceType = PIECE_PAWN, color = COLOR_BLACK, alive = true, col = 2, row = 3 };
+    game.board[29] = Piece.{ pieceType = PIECE_PAWN, color = COLOR_BLACK, alive = true, col = 4, row = 3 };
+    game.board[30] = Piece.{ pieceType = PIECE_PAWN, color = COLOR_BLACK, alive = true, col = 6, row = 3 };
+    game.board[31] = Piece.{ pieceType = PIECE_PAWN, color = COLOR_BLACK, alive = true, col = 8, row = 3 };
+    
+    return game;
+}
+
+// ==================== 移动验证 ====================
+
+fn isInPalace(col: int, row: int, color: int) -> bool {
+    if color == COLOR_RED {
+        return row >= RED_PALACE_TOP && row <= RED_PALACE_BOTTOM &&
+               col >= PALACE_LEFT && col <= PALACE_RIGHT;
+    } else {
+        return row >= BLACK_PALACE_TOP && row <= BLACK_PALACE_BOTTOM &&
+               col >= PALACE_LEFT && col <= PALACE_RIGHT;
+    }
+}
+
+fn getPieceAt(game: &ChessGame, col: int, row: int) -> int {
+    for i in 0..32 {
+        if game.board[i].alive && game.board[i].col == col && game.board[i].row == row {
+            return i;
+        }
+    }
+    return -1;
+}
+
+fn absInt(x: int) -> int {
+    return if x < 0 { -x } else { x };
+}
+
+fn isPathClear(game: &ChessGame, fromCol: int, fromRow: int, 
+               toCol: int, toRow: int) -> bool {
+    var dc = if toCol > fromCol { 1 } else if toCol < fromCol { -1 } else { 0 };
+    var dr = if toRow > fromRow { 1 } else if toRow < fromRow { -1 } else { 0 };
+    
+    var c = fromCol + dc;
+    var r = fromRow + dr;
+    
+    while c != toCol || r != toRow {
+        if getPieceAt(game, c, r) != -1 {
+            return false;
+        }
+        c = c + dc;
+        r = r + dr;
+    }
+    return true;
+}
+
+fn countPiecesBetween(game: &ChessGame, fromCol: int, fromRow: int,
+                      toCol: int, toRow: int) -> int {
+    var count = 0;
+    var dc = if toCol > fromCol { 1 } else if toCol < fromCol { -1 } else { 0 };
+    var dr = if toRow > fromRow { 1 } else if toRow < fromRow { -1 } else { 0 };
+    
+    var c = fromCol + dc;
+    var r = fromRow + dr;
+    
+    while c != toCol || r != toRow {
+        var idx = getPieceAt(game, c, r);
+        if idx != -1 {
+            count = count + 1;
+        }
+        c = c + dc;
+        r = r + dr;
+    }
+    return count;
+}
+
+fn isValidMove(game: &ChessGame, pieceIndex: int, toCol: int, toRow: int) -> bool {
+    var piece = game.board[pieceIndex];
+    var fromCol = piece.col;
+    var fromRow = piece.row;
+    
+    if fromCol == toCol && fromRow == toRow {
+        return false;
+    }
+    
+    var targetIdx = getPieceAt(game, toCol, toRow);
+    if targetIdx != -1 && game.board[targetIdx].color == piece.color {
+        return false;
+    }
+    
+    var dc = toCol - fromCol;
+    var dr = toRow - fromRow;
+    var adx = absInt(dc);
+    var ady = absInt(dr);
+    
+    match piece.pieceType {
+        PIECE_KING => {
+            if adx + ady != 1 { return false; }
+            return isInPalace(toCol, toRow, piece.color);
+        }
+        PIECE_ADVISOR => {
+            if adx == 1 && ady == 1 {
+                return isInPalace(toCol, toRow, piece.color);
+            }
+            return false;
+        }
+        PIECE_ELEPHANT => {
+            if adx == 2 && ady == 2 {
+                var centerCol = fromCol + dc / 2;
+                var centerRow = fromRow + dr / 2;
+                if getPieceAt(game, centerCol, centerRow) == -1 {
+                    if piece.color == COLOR_RED && toRow >= 5 {
+                        return true;
+                    }
+                    if piece.color == COLOR_BLACK && toRow <= 4 {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        PIECE_HORSE => {
+            if adx == 1 && ady == 2 {
+                var legCol = fromCol;
+                var legRow = fromRow + dr / 2;
+                if getPieceAt(game, legCol, legRow) == -1 {
+                    return true;
+                }
+            }
+            if adx == 2 && ady == 1 {
+                var legCol = fromCol + dc / 2;
+                var legRow = fromRow;
+                if getPieceAt(game, legCol, legRow) == -1 {
+                    return true;
+                }
+            }
+            return false;
+        }
+        PIECE_CHARIOT => {
+            if fromCol == toCol || fromRow == toRow {
+                return isPathClear(game, fromCol, fromRow, toCol, toRow);
+            }
+            return false;
+        }
+        PIECE_CANNON => {
+            if fromCol == toCol || fromRow == toRow {
+                var count = countPiecesBetween(game, fromCol, fromRow, toCol, toRow);
+                if targetIdx == -1 {
+                    return count == 0;
+                } else {
+                    return count == 1;
+                }
+            }
+            return false;
+        }
+        PIECE_PAWN => {
+            if piece.color == COLOR_RED {
+                if fromRow >= 5 {
+                    return (dr == 0 && adx == 1) || (dc == 0 && dr == -1);
+                } else {
+                    return dc == 0 && dr == -1;
+                }
+            } else {
+                if fromRow <= 4 {
+                    return (dr == 0 && adx == 1) || (dc == 0 && dr == 1);
+                } else {
+                    return dc == 0 && dr == 1;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+// ==================== AI 移动 ====================
+
+fn evaluateMove(game: &ChessGame, pieceIndex: int, toCol: int, toRow: int) -> int {
+    var score = 0;
+    var targetIdx = getPieceAt(game, toCol, toRow);
+    
+    if targetIdx != -1 {
+        match game.board[targetIdx].pieceType {
+            PIECE_KING => score = score + 10000;
+            PIECE_CHARIOT => score = score + 900;
+            PIECE_HORSE => score = score + 400;
+            PIECE_CANNON => score = score + 450;
+            PIECE_ADVISOR, PIECE_ELEPHANT => score = score + 200;
+            PIECE_PAWN => score = score + 100;
+        }
+    }
+    
+    var piece = game.board[pieceIndex];
+    if piece.pieceType == PIECE_PAWN {
+        if piece.color == COLOR_RED && toRow < 5 {
+            score = score + 50;
+        }
+        if piece.color == COLOR_BLACK && toRow > 4 {
+            score = score + 50;
+        }
+    }
+    
+    score = score + randInt(0, 20);
+    return score;
+}
+
+fn selectAIMove(game: &mut ChessGame) -> bool {
+    var bestScore = -1;
+    var bestPiece = -1;
+    var bestCol = -1;
+    var bestRow = -1;
+    
+    // 只遍历黑方棋子 (index 16-31)
+    for i in 16..32 {
+        if !game.board[i].alive || game.board[i].color != COLOR_BLACK {
+            continue;
+        }
+        
+        for toCol in 0..BOARD_COLS {
+            for toRow in 0..BOARD_ROWS {
+                if isValidMove(game, i, toCol, toRow) {
+                    var score = evaluateMove(game, i, toCol, toRow);
+                    if score > bestScore {
+                        bestScore = score;
+                        bestPiece = i;
+                        bestCol = toCol;
+                        bestRow = toRow;
+                    }
+                }
+            }
+        }
+    }
+    
+    if bestPiece != -1 {
+        game.lastMoveFrom = Position.{
+            col = game.board[bestPiece].col,
+            row = game.board[bestPiece].row
+        };
+        game.lastMoveTo = Position.{ col = bestCol, row = bestRow };
+        game.showLastMove = true;
+        
+        var targetIdx = getPieceAt(game, bestCol, bestRow);
+        if targetIdx != -1 {
+            game.board[targetIdx].alive = false;
+        }
+        
+        game.board[bestPiece].col = bestCol;
+        game.board[bestPiece].row = bestRow;
+        game.currentTurn = COLOR_RED;
+        return true;
+    }
+    return false;
+}
+
+// ==================== 游戏操作 ====================
+
+fn makeMove(game: &mut ChessGame, pieceIndex: int, toCol: int, toRow: int) -> bool {
+    if !isValidMove(game, pieceIndex, toCol, toRow) {
+        return false;
+    }
+    
+    game.lastMoveFrom = Position.{
+        col = game.board[pieceIndex].col,
+        row = game.board[pieceIndex].row
+    };
+    game.lastMoveTo = Position.{ col = toCol, row = toRow };
+    game.showLastMove = true;
+    
+    var targetIdx = getPieceAt(game, toCol, toRow);
+    if targetIdx != -1 {
+        game.board[targetIdx].alive = false;
+        if game.board[targetIdx].pieceType == PIECE_KING {
+            game.gameOver = true;
+            game.winner = game.board[pieceIndex].color;
+        }
+    }
+    
+    game.board[pieceIndex].col = toCol;
+    game.board[pieceIndex].row = toRow;
+    
+    if game.currentTurn == COLOR_RED {
+        game.currentTurn = COLOR_BLACK;
+    } else {
+        game.currentTurn = COLOR_RED;
+    }
+    
+    game.selectedIndex = -1;
+    return true;
+}
+
+fn handleBoardClick(game: &mut ChessGame, boardX: int, boardY: int) -> bool {
+    var col = boardX / CELL_SIZE;
+    var row = boardY / CELL_SIZE;
+    
+    if col < 0 || col >= BOARD_COLS || row < 0 || row >= BOARD_ROWS {
+        return false;
+    }
+    
+    if game.currentTurn != COLOR_RED || game.gameOver {
+        return false;
+    }
+    
+    var clickedIndex = getPieceAt(game, col, row);
+    
+    if game.selectedIndex == -1 {
+        if clickedIndex != -1 && game.board[clickedIndex].color == COLOR_RED {
+            game.selectedIndex = clickedIndex;
+            return true;
+        }
+    } else {
+        if clickedIndex != -1 && game.board[clickedIndex].color == COLOR_RED {
+            game.selectedIndex = clickedIndex;
+            return true;
+        }
+        if makeMove(game, game.selectedIndex, col, row) {
+            return true;
+        }
+        game.selectedIndex = -1;
+        return false;
+    }
+    return false;
+}
