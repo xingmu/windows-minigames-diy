@@ -1,0 +1,352 @@
+// game_logic.zc - Zen-C Skiing（滑雪）游戏核心逻辑
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 400;
+const GAME_HEIGHT: i32 = 600;
+const SKIER_WIDTH: i32 = 30;
+const SKIER_HEIGHT: i32 = 40;
+const OBSTACLE_WIDTH: i32 = 30;
+const OBSTACLE_HEIGHT: i32 = 30;
+const MAX_OBSTACLES: i32 = 20;
+const INITIAL_SPEED: i32 = 3;
+const SPEED_INCREMENT: i32 = 1;
+const SKIER_SPEED: i32 = 6;
+const OBSTACLE_SPAWN_RATE: i32 = 30;  // 每隔多少帧生成一个障碍物
+const POINTS_PER_DISTANCE: i32 = 1;
+
+// ==================== 障碍物类型 ====================
+
+enum ObstacleType {
+    Tree,      // 树
+    Rock,      // 石头
+    Snowman,   // 雪人
+}
+
+// ==================== 游戏状态 ====================
+
+enum GameStatus {
+    Ready,
+    Playing,
+    GameOver,
+}
+
+// ==================== 数据结构 ====================
+
+struct Vec2 {
+    x: i32,
+    y: i32,
+}
+
+struct Skier {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    velocity_x: i32,
+}
+
+struct Obstacle {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    type: ObstacleType,
+    active: bool,
+}
+
+struct SkiingState {
+    skier: Skier,
+    obstacles: [MAX_OBSTACLES]Obstacle,
+    obstacle_count: i32,
+    score: i32,
+    distance: i32,
+    speed: i32,
+    status: GameStatus,
+    frame_count: i32,
+    width: i32,
+    height: i32,
+}
+
+// ==================== 颜色定义 ====================
+
+struct Color {
+    r: u8,
+    g: u8,
+    b: u8,
+}
+
+fn rgb(r: u8, g: u8, b: u8) -> Color {
+    Color { r, g, b }
+}
+
+// 游戏颜色
+const COLOR_SKY: Color = rgb(135, 206, 235);        // 浅蓝色天空
+const COLOR_SNOW: Color = rgb(245, 245, 250);     // 雪白
+const COLOR_SKIER: Color = rgb(220, 20, 60);       // 红色滑雪服
+const COLOR_SKI: Color = rgb(50, 50, 50);          // 黑色雪橇
+const COLOR_TREE: Color = rgb(34, 139, 34);         // 绿色树
+const COLOR_TREE_TRUNK: Color = rgb(139, 69, 19);  // 棕色树干
+const COLOR_ROCK: Color = rgb(128, 128, 128);       // 灰色石头
+const COLOR_SNOWMAN: Color = rgb(250, 250, 250);    // 白色雪人
+const COLOR_SNOWMAN_NOSE: Color = rgb(255, 140, 0); // 橙色胡萝卜鼻子
+const COLOR_UI_BG: Color = rgb(70, 130, 180);       // 蓝色UI背景
+const COLOR_TEXT: Color = rgb(255, 255, 255);       // 白色文字
+const COLOR_SKI_TRACK: Color = rgb(200, 200, 220); // 雪痕
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut SkiingState) {
+    game.width = GAME_WIDTH;
+    game.height = GAME_HEIGHT;
+    game.score = 0;
+    game.distance = 0;
+    game.speed = INITIAL_SPEED;
+    game.status = GameStatus.Ready;
+    game.frame_count = 0;
+    game.obstacle_count = 0;
+
+    // 初始化滑雪者
+    game.skier = Skier {
+        x: (GAME_WIDTH - SKIER_WIDTH) / 2,
+        y: GAME_HEIGHT - 100,
+        width: SKIER_WIDTH,
+        height: SKIER_HEIGHT,
+        velocity_x: 0,
+    };
+
+    // 初始化障碍物数组
+    for i in 0..MAX_OBSTACLES {
+        game.obstacles[i] = Obstacle {
+            x: 0,
+            y: 0,
+            width: OBSTACLE_WIDTH,
+            height: OBSTACLE_HEIGHT,
+            type: ObstacleType.Tree,
+            active: false,
+        };
+    }
+}
+
+// 处理键盘输入
+fn handle_input(game: &mut SkiingState, key: KeyCode) -> bool {
+    match key {
+        KeyCode.KeyLeft => {
+            game.skier.velocity_x = -SKIER_SPEED;
+        },
+        KeyCode.KeyRight => {
+            game.skier.velocity_x = SKIER_SPEED;
+        },
+        KeyCode.KeySpace => {
+            if game.status == GameStatus.Ready || game.status == GameStatus.GameOver {
+                game.status = GameStatus.Playing;
+                game.score = 0;
+                game.distance = 0;
+                game.speed = INITIAL_SPEED;
+                game.frame_count = 0;
+                game.obstacle_count = 0;
+                
+                // 清空障碍物
+                for i in 0..MAX_OBSTACLES {
+                    game.obstacles[i].active = false;
+                }
+                
+                // 重置滑雪者位置
+                game.skier.x = (GAME_WIDTH - SKIER_WIDTH) / 2;
+                game.skier.y = GAME_HEIGHT - 100;
+            }
+        },
+        KeyCode.KeyR => {
+            if game.status == GameStatus.GameOver {
+                init_game(game);
+                game.status = GameStatus.Playing;
+            }
+        },
+        KeyCode.KeyEscape => {
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+// 处理键盘释放
+fn handle_key_up(game: &mut SkiingState, key: KeyCode) {
+    match key {
+        KeyCode.KeyLeft => {
+            if game.skier.velocity_x < 0 {
+                game.skier.velocity_x = 0;
+            }
+        },
+        KeyCode.KeyRight => {
+            if game.skier.velocity_x > 0 {
+                game.skier.velocity_x = 0;
+            }
+        },
+        _ => {}
+    }
+}
+
+// 生成障碍物
+fn spawn_obstacle(game: &mut SkiingState) {
+    // 找到非活跃的障碍物
+    let mut slot = -1;
+    for i in 0..MAX_OBSTACLES {
+        if !game.obstacles[i].active {
+            slot = i;
+            break;
+        }
+    }
+    
+    if slot < 0 {
+        return;  // 没有空闲槽位
+    }
+    
+    // 随机生成位置和类型
+    let x = math.rand() as i32 % (GAME_WIDTH - OBSTACLE_WIDTH);
+    let obstacle_type = (math.rand() as i32 % 3) as i32;  // 0=树, 1=石头, 2=雪人
+    
+    let obstacle = &mut game.obstacles[slot];
+    obstacle.x = x;
+    obstacle.y = -OBSTACLE_HEIGHT;  // 从顶部外开始
+    obstacle.width = OBSTACLE_WIDTH;
+    obstacle.height = OBSTACLE_HEIGHT;
+    obstacle.active = true;
+    
+    if obstacle_type == 0 {
+        obstacle.type = ObstacleType.Tree;
+    } else if obstacle_type == 1 {
+        obstacle.type = ObstacleType.Rock;
+    } else {
+        obstacle.type = ObstacleType.Snowman;
+    }
+    
+    game.obstacle_count = game.obstacle_count + 1;
+}
+
+// 碰撞检测
+fn check_collision(a_x: i32, a_y: i32, a_w: i32, a_h: i32, 
+                   b_x: i32, b_y: i32, b_w: i32, b_h: i32) -> bool {
+    // 简化碰撞检测（使用矩形）
+    return a_x < b_x + b_w &&
+           a_x + a_w > b_x &&
+           a_y < b_y + b_h &&
+           a_y + a_h > b_y;
+}
+
+// 更新游戏逻辑
+fn update_game(game: &mut SkiingState) -> bool {
+    if game.status != GameStatus.Playing {
+        return false;
+    }
+
+    game.frame_count = game.frame_count + 1;
+    
+    // 移动滑雪者
+    game.skier.x = game.skier.x + game.skier.velocity_x;
+    
+    // 边界检测
+    if game.skier.x < 0 {
+        game.skier.x = 0;
+    }
+    if game.skier.x > GAME_WIDTH - game.skier.width {
+        game.skier.x = GAME_WIDTH - game.skier.width;
+    }
+    
+    // 生成障碍物
+    if game.frame_count % OBSTACLE_SPAWN_RATE == 0 {
+        spawn_obstacle(game);
+    }
+    
+    // 更新障碍物位置
+    for i in 0..MAX_OBSTACLES {
+        if game.obstacles[i].active {
+            game.obstacles[i].y = game.obstacles[i].y + game.speed;
+            
+            // 移出屏幕的障碍物
+            if game.obstacles[i].y > GAME_HEIGHT {
+                game.obstacles[i].active = false;
+            }
+            
+            // 碰撞检测
+            let obs = game.obstacles[i];
+            if check_collision(
+                game.skier.x + 5, game.skier.y + 5, 
+                game.skier.width - 10, game.skier.height - 10,
+                obs.x + 3, obs.y + 3, 
+                obs.width - 6, obs.height - 6
+            ) {
+                game.status = GameStatus.GameOver;
+                return true;
+            }
+        }
+    }
+    
+    // 更新距离和分数
+    game.distance = game.distance + game.speed;
+    game.score = game.distance / 10;
+    
+    // 逐渐加速
+    if game.frame_count % 300 == 0 {  // 每5秒加速
+        game.speed = game.speed + SPEED_INCREMENT;
+    }
+    
+    return true;
+}
+
+// 获取分数
+fn get_score(game: &SkiingState) -> i32 {
+    game.score
+}
+
+// 获取状态文本
+fn get_status_text(game: &SkiingState) -> string {
+    match game.status {
+        GameStatus.Ready => return "按空格键开始游戏",
+        GameStatus.Playing => return "游戏中...",
+        GameStatus.GameOver => return "游戏结束! 按 R 或 空格 重新开始",
+    }
+}
+
+// 获取控制说明
+fn get_controls_text() -> string {
+    "控制: ← → 移动滑雪者 | 空格 开始 | ESC 退出"
+}
+
+// 获取滑雪者位置
+fn get_skier_pos(game: &SkiingState) -> (i32, i32, i32, i32) {
+    (game.skier.x, game.skier.y, game.skier.width, game.skier.height)
+}
+
+// 获取障碍物数量
+fn get_obstacle_count(game: &SkiingState) -> i32 {
+    game.obstacle_count
+}
+
+// 检查障碍物是否活跃
+fn is_obstacle_active(game: &SkiingState, index: i32) -> bool {
+    if index >= 0 && index < MAX_OBSTACLES {
+        game.obstacles[index].active
+    } else {
+        false
+    }
+}
+
+// 获取障碍物信息
+fn get_obstacle_info(game: &SkiingState, index: i32) -> (i32, i32, i32, i32, i32) {
+    if index >= 0 && index < MAX_OBSTACLES {
+        let obs = game.obstacles[index];
+        (
+            obs.x, 
+            obs.y, 
+            obs.width, 
+            obs.height, 
+            obs.type as i32
+        )
+    } else {
+        (0, 0, 0, 0, 0)
+    }
+}

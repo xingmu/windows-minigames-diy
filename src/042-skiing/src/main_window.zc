@@ -1,0 +1,239 @@
+// main_window.zc - Zen-C Skiing（滑雪）游戏主程序
+
+import std.io;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: SkiingState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut game_speed: u32 = 16;  // ~60 FPS
+static mut key_states: [2]bool = [false, false];  // 左、右键状态
+
+// ==================== 事件处理 ====================
+
+fn on_key(key: KeyCode) -> bool {
+    match key {
+        KeyCode.KeyLeft => {
+            key_states[0] = true;
+            handle_input(&mut game, key);
+        },
+        KeyCode.KeyRight => {
+            key_states[1] = true;
+            handle_input(&mut game, key);
+        },
+        _ => {
+            return handle_input(&mut game, key);
+        }
+    }
+    return true;
+}
+
+fn on_key_up(key: KeyCode) {
+    match key {
+        KeyCode.KeyLeft => {
+            key_states[0] = false;
+        },
+        KeyCode.KeyRight => {
+            key_states[1] = false;
+        },
+        _ => {}
+    }
+    handle_key_up(&mut game, key);
+}
+
+fn on_timer() -> bool {
+    if game.status == GameStatus.Playing {
+        // 持续处理键盘输入以实现平滑移动
+        if key_states[0] {
+            game.skier.velocity_x = -SKIER_SPEED;
+        } else if key_states[1] {
+            game.skier.velocity_x = SKIER_SPEED;
+        } else {
+            game.skier.velocity_x = 0;
+        }
+        return update_game(&mut game);
+    }
+    return false;
+}
+
+fn on_paint(w: i32, h: i32) {
+    // 确保帧缓冲初始化
+    if !fb_data.valid {
+        fb_init(window, w, h);
+    }
+
+    // 绘制天空背景
+    fb_clear(COLOR_SKY);
+    
+    // 绘制雪山背景（渐变效果）
+    for y in 0..(h / 3) {
+        let shade = (y as f32 / (h as f32 / 3.0) * 30.0) as i32;
+        fb_draw_rect(0, y, w, 1, rgb(250 - shade, 250 - shade, 255 - shade));
+    }
+    
+    // 绘制雪地
+    for y in (h / 3)..h {
+        fb_draw_rect(0, y, w, 1, COLOR_SNOW);
+    }
+    
+    // 绘制滑雪痕迹
+    if game.status == GameStatus.Playing {
+        let skier_x = game.skier.x + game.skier.width / 2;
+        for i in 0..10 {
+            let trail_y = (game.distance / 2 + i * 20) % h;
+            let offset = (i % 2 == 0) as i32 * 10 - 5;
+            fb_draw_rect(skier_x - 3 + offset, trail_y, 2, 15, COLOR_SKI_TRACK);
+            fb_draw_rect(skier_x + 8 + offset, trail_y, 2, 15, COLOR_SKI_TRACK);
+        }
+    }
+    
+    // 绘制障碍物
+    for i in 0..MAX_OBSTACLES {
+        if is_obstacle_active(&game, i) {
+            let (obs_x, obs_y, obs_w, obs_h, obs_type) = get_obstacle_info(&game, i);
+            
+            if obs_type == 0 {
+                // 树 - 三角形树冠 + 矩形树干
+                // 树干
+                fb_draw_rect(obs_x + obs_w/2 - 4, obs_y + obs_h/2, 8, obs_h/2, COLOR_TREE_TRUNK);
+                // 树冠（三角形用圆形模拟）
+                fb_draw_circle(obs_x + obs_w/2, obs_y + obs_h/3, obs_w/2 - 2, COLOR_TREE);
+                fb_draw_circle(obs_x + obs_w/2, obs_y + obs_h/4, obs_w/3, COLOR_TREE);
+            } else if obs_type == 1 {
+                // 石头 - 不规则圆形
+                fb_draw_circle(obs_x + obs_w/2, obs_y + obs_h/2, obs_w/2, COLOR_ROCK);
+                fb_draw_circle(obs_x + obs_w/3, obs_y + obs_h/3, obs_w/4, rgb(160, 160, 160));
+            } else {
+                // 雪人 - 三个圆形
+                fb_draw_circle(obs_x + obs_w/2, obs_y + obs_h - 10, 10, COLOR_SNOWMAN);  // 底部
+                fb_draw_circle(obs_x + obs_w/2, obs_y + obs_h - 25, 8, COLOR_SNOWMAN);   // 中间
+                fb_draw_circle(obs_x + obs_w/2, obs_y + obs_h - 38, 6, COLOR_SNOWMAN);   // 头部
+                // 胡萝卜鼻子
+                fb_draw_rect(obs_x + obs_w/2, obs_y + obs_h - 40, 10, 3, COLOR_SNOWMAN_NOSE);
+                // 眼睛
+                fb_draw_rect(obs_x + obs_w/2 - 4, obs_y + obs_h - 40, 2, 2, rgb(0, 0, 0));
+                fb_draw_rect(obs_x + obs_w/2 + 2, obs_y + obs_h - 40, 2, 2, rgb(0, 0, 0));
+            }
+        }
+    }
+    
+    // 绘制滑雪者
+    let (sx, sy, sw, sh) = get_skier_pos(&game);
+    
+    // 滑雪服身体
+    fb_draw_rect(sx + 5, sy + 5, sw - 10, sh - 20, COLOR_SKIER);
+    
+    // 头部
+    fb_draw_circle(sx + sw/2, sy + 8, 8, rgb(255, 220, 177));
+    
+    // 雪橇
+    fb_draw_rect(sx - 5, sy + sh - 15, 15, 4, COLOR_SKI);
+    fb_draw_rect(sx + sw - 10, sy + sh - 15, 15, 4, COLOR_SKI);
+    
+    // 滑雪杖
+    fb_draw_rect(sx - 2, sy + 15, 2, sh - 25, rgb(100, 100, 100));
+    fb_draw_rect(sx + sw, sy + 15, 2, sh - 25, rgb(100, 100, 100));
+    
+    // 绘制UI面板背景
+    fb_draw_rect(0, 0, w, 50, COLOR_UI_BG);
+    
+    // 绘制分数
+    let score_text = "分数: " ++ game.score.toString() ++ "  速度: " ++ game.speed.toString();
+    fb_draw_text_size(10, 15, score_text, COLOR_TEXT, 16);
+    
+    // 绘制状态文本
+    if game.status == GameStatus.Ready {
+        fb_draw_text_size(80, 250, "滑雪游戏", rgb(255, 100, 50), 36);
+        let status = get_status_text(&game);
+        fb_draw_text_size(60, 320, status, rgb(255, 255, 0), 20);
+        fb_draw_text_size(30, 500, get_controls_text(), rgb(200, 200, 200), 14);
+    } else if game.status == GameStatus.GameOver {
+        fb_draw_text_size(80, 250, "游戏结束!", rgb(255, 50, 50), 32);
+        let final_score = "最终分数: " ++ game.score.toString();
+        fb_draw_text_size(100, 300, final_score, rgb(255, 255, 0), 24);
+        let status = get_status_text(&game);
+        fb_draw_text_size(40, 350, status, rgb(255, 255, 255), 18);
+    }
+    
+    // 呈现画面
+    fb_present();
+}
+
+fn on_mouse(x: i32, y: i32) {
+    // 鼠标点击开始游戏
+    if game.status == GameStatus.Ready {
+        game.status = GameStatus.Playing;
+    } else if game.status == GameStatus.GameOver {
+        init_game(&mut game);
+        game.status = GameStatus.Playing;
+    }
+}
+
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C Skiing 滑雪游戏");
+    io.println("========================================");
+
+    // 初始化游戏状态
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "Skiing - 滑雪游戏";
+    window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 获取实际客户区大小
+    let mut cw = 0;
+    let mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        game.width = cw;
+        game.height = ch;
+        set_client_size(cw, ch);
+    }
+
+    // 设置事件处理器
+    set_key_handler(on_key);
+    set_timer_handler(on_timer);
+    set_paint_handler(on_paint);
+    set_mouse_handler(on_mouse);
+    set_destroy_handler(on_destroy);
+
+    // 显示窗口
+    show_window(window);
+
+    // 设置游戏定时器
+    set_game_timer(window, game_speed);
+
+    io.println("窗口创建成功!");
+    io.println("按空格键或点击鼠标开始游戏");
+    io.println("使用 ← → 方向键控制滑雪者移动");
+    io.println("========================================");
+
+    // 初始绘制
+    redraw_window(window);
+
+    // 运行事件循环
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("最终分数: " ++ game.score.toString());
+    io.println("========================================");
+
+    0
+}
