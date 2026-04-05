@@ -1,0 +1,455 @@
+// main_window.zc - Zen-C 沙狐球游戏主程序
+// Shuffleboard - 滑动蓄力发射
+
+import std.io;
+
+// 导入平台API
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 常量 ====================
+
+// 游戏颜色
+const TABLE_COLOR: Color = Color.RGB(60, 100, 60);    // 台面绿
+const RAIL_COLOR: Color = Color.RGB(139, 90, 43);       // 木色边框
+const LINE_COLOR: Color = Color.RGB(255, 255, 255);    // 白色线
+const BG_COLOR: Color = Color.RGB(30, 30, 40);         // 背景色
+
+// ==================== 全局变量 ====================
+
+static mut game: ShuffleboardState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+
+// 帧缓冲数据
+static mut fb_buffer: rawptr = null;
+static mut fb_pitch: i32 = 0;
+static mut fb_width: i32 = GAME_WIDTH;
+static mut fb_height: i32 = GAME_HEIGHT;
+
+// ==================== 帧缓冲画布实现 ====================
+
+fn fb_set_pixel(x: i32, y: i32, color: Color) {
+    if x < 0 || x >= fb_width || y < 0 || y >= fb_height {
+        return;
+    }
+    let offset = y * (fb_pitch / 4) + x;
+    let pixels = fb_buffer as u32 mut;
+    pixels[offset] = color;
+}
+
+fn fb_get_pixel(x: i32, y: i32) -> Color {
+    if x < 0 || x >= fb_width || y < 0 || y >= fb_height {
+        return Color.Black();
+    }
+    let offset = y * (fb_pitch / 4) + x;
+    let pixels = fb_buffer as u32;
+    return pixels[offset];
+}
+
+fn abs(x: i32) -> i32 {
+    if x < 0 { -x } else { x }
+}
+
+fn fb_draw_line(x1: i32, y1: i32, x2: i32, y2: i32, color: Color) {
+    let dx = abs(x2 - x1);
+    let dy = abs(y2 - y1);
+    let sx = if x1 < x2 { 1 } else { -1 };
+    let sy = if y1 < y2 { 1 } else { -1 };
+    let mut err = dx - dy;
+
+    let mut x = x1;
+    let mut y = y1;
+
+    loop {
+        fb_set_pixel(x, y, color);
+
+        if x == x2 && y == y2 {
+            break;
+        }
+
+        let e2 = 2 * err;
+        if e2 > -dy {
+            err = err - dy;
+            x = x + sx;
+        }
+        if e2 < dx {
+            err = err + dx;
+            y = y + sy;
+        }
+    }
+}
+
+fn fb_draw_rect(x: i32, y: i32, w: i32, h: i32, color: Color) {
+    fb_draw_line(x, y, x + w, y, color);
+    fb_draw_line(x + w, y, x + w, y + h, color);
+    fb_draw_line(x + w, y + h, x, y + h, color);
+    fb_draw_line(x, y + h, x, y, color);
+}
+
+fn fb_fill_rect(x: i32, y: i32, w: i32, h: i32, color: Color) {
+    for py in y..(y + h) {
+        for px in x..(x + w) {
+            fb_set_pixel(px, py, color);
+        }
+    }
+}
+
+fn fb_draw_circle(cx: i32, cy: i32, radius: i32, color: Color) {
+    let mut d = 3 - 2 * radius;
+    let mut x = 0;
+    let mut y = radius;
+
+    loop {
+        fb_set_pixel(cx + x, cy + y, color);
+        fb_set_pixel(cx - x, cy + y, color);
+        fb_set_pixel(cx + x, cy - y, color);
+        fb_set_pixel(cx - x, cy - y, color);
+        fb_set_pixel(cx + y, cy + x, color);
+        fb_set_pixel(cx - y, cy + x, color);
+        fb_set_pixel(cx + y, cy - x, color);
+        fb_set_pixel(cx - y, cy - x, color);
+
+        if d < 0 {
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            y = y - 1;
+        }
+
+        x = x + 1;
+        if x > y {
+            break;
+        }
+    }
+}
+
+fn fb_fill_circle(cx: i32, cy: i32, radius: i32, color: Color) {
+    for py in (cy - radius)..(cy + radius + 1) {
+        for px in (cx - radius)..(cx + radius + 1) {
+            if (px - cx) * (px - cx) + (py - cy) * (py - cy) <= radius * radius {
+                fb_set_pixel(px, py, color);
+            }
+        }
+    }
+}
+
+fn fb_clear(color: Color) {
+    let count = fb_pitch * fb_height / 4;
+    let pixels = fb_buffer as u32 mut;
+    for i in 0..count {
+        pixels[i] = color;
+    }
+}
+
+fn fb_present() {
+    if window != null {
+        presentFrame(window);
+    }
+}
+
+// ==================== 事件处理 ====================
+
+fn handle_key(key: VirtualKey): bool {
+    if key == VirtualKey.Escape {
+        running = false;
+        return false;
+    }
+    if key == VirtualKey.Space {
+        // 空格键跳过当前回合
+        if game.status == GameStatus.Ready || game.status == GameStatus.Moving {
+            if allPucksStopped(&game) && game.status == GameStatus.Moving {
+                // 切换玩家
+                game.currentPlayer = if game.currentPlayer == 1 { 2 } else { 1 };
+                game.round = game.round + 1;
+                if game.round > game.maxRounds {
+                    game.status = GameStatus.GameOver;
+                    calculateScores(&mut game);
+                } else {
+                    resetRound(&mut game);
+                }
+            }
+        }
+    }
+    return true;
+}
+
+fn handle_timer(): bool {
+    if game.status == GameStatus.Moving {
+        let stillMoving = updatePucks(&mut game);
+        if !stillMoving {
+            // 所有球停止
+            game.status = GameStatus.Scoring;
+            
+            // 计算分数
+            calculateScores(&mut game);
+            
+            // 切换玩家
+            game.currentPlayer = if game.currentPlayer == 1 { 2 } else { 1 };
+            game.round = game.round + 1;
+            
+            if game.round > game.maxRounds {
+                game.status = GameStatus.GameOver;
+            } else {
+                resetRound(&mut game);
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+fn handle_mouse_down(x: i32, y: i32, button: MouseButton) {
+    onMouseDown(&mut game, x, y);
+}
+
+fn handle_mouse_up(x: i32, y: i32, button: MouseButton) {
+    onMouseUp(&mut game, x, y);
+}
+
+fn handle_mouse_move(x: i32, y: i32) {
+    onMouseMove(&mut game, x, y);
+}
+
+// ==================== 绘制函数 ====================
+
+fn render_game() {
+    // 清屏
+    fb_clear(BG_COLOR);
+
+    // 绘制球道边框 (木色)
+    let borderWidth = 15;
+    fb_fill_rect(LANE_LEFT - borderWidth, LANE_TOP - borderWidth, 
+                 LANE_WIDTH + borderWidth * 2, LANE_HEIGHT + borderWidth * 2 + 80, 
+                 RAIL_COLOR);
+
+    // 绘制球道底色
+    fb_fill_rect(LANE_LEFT, LANE_TOP, LANE_WIDTH, LANE_HEIGHT, TABLE_COLOR);
+
+    // 绘制计分区
+    drawZones();
+
+    // 绘制顶线 (buzz line / fault line)
+    fb_draw_line(LANE_LEFT, BUZZER_LINE, LANE_RIGHT, BUZZER_LINE, Color.Red());
+    
+    // 绘制发射区
+    fb_fill_rect(LANE_LEFT, SHOOT_ZONE_Y, LANE_WIDTH, SHOOT_ZONE_HEIGHT, Color.RGB(40, 80, 40));
+    fb_draw_line(LANE_LEFT, SHOOT_ZONE_Y, LANE_RIGHT, SHOOT_ZONE_Y, LINE_COLOR);
+
+    // 绘制所有球
+    for i in 0..game.puckCount {
+        let puck = game.pucks[i];
+        if !puck.active {
+            continue;
+        }
+
+        // 阴影
+        fb_fill_circle(puck.x + 2, puck.y + 2, puck.radius, Color.RGB(0, 0, 0));
+        // 球体
+        fb_fill_circle(puck.x, puck.y, puck.radius, puck.color);
+        // 高光
+        let hlRadius = puck.radius / 3;
+        fb_fill_circle(puck.x - puck.radius / 3, puck.y - puck.radius / 3, hlRadius, Color.RGB(255, 255, 255));
+        
+        // 玩家标记
+        if puck.player == 1 {
+            // 红色玩家 - 三角形标记
+            let triSize = puck.radius / 2;
+            fb_draw_line(puck.x, puck.y - triSize, puck.x - triSize, puck.y + triSize / 2, Color.White());
+            fb_draw_line(puck.x, puck.y - triSize, puck.x + triSize, puck.y + triSize / 2, Color.White());
+            fb_draw_line(puck.x - triSize, puck.y + triSize / 2, puck.x + triSize, puck.y + triSize / 2, Color.White());
+        } else {
+            // 蓝色玩家 - 圆形标记
+            fb_draw_circle(puck.x, puck.y, puck.radius / 2, Color.White());
+        }
+    }
+
+    // 绘制瞄准/蓄力指示
+    if game.status == GameStatus.Charging {
+        // 发射位置指示器
+        fb_draw_circle(game.shootX, SHOOT_ZONE_Y - PUCK_RADIUS - 5, PUCK_RADIUS, 
+                       if game.currentPlayer == 1 { PUCK_RED } else { PUCK_BLUE });
+        
+        // 拖拽线
+        fb_draw_line(game.shootX, SHOOT_ZONE_Y - PUCK_RADIUS - 5, 
+                     game.shootX, game.mouseY, Color.Yellow());
+        
+        // 蓄力条
+        let barWidth = 80;
+        let barHeight = 12;
+        let barX = LANE_LEFT + 10;
+        let barY = SHOOT_ZONE_Y + 15;
+
+        fb_draw_rect(barX, barY, barWidth, barHeight, Color.White());
+        let fillW = (game.power as f32 / MAX_POWER as f32 * barWidth as f32) as i32;
+        let powerColor = if game.power < 8 {
+            Color.Green()
+        } else if game.power < 16 {
+            Color.Yellow()
+        } else {
+            Color.Red()
+        };
+        fb_fill_rect(barX, barY, fillW, barHeight, powerColor);
+        
+        // 力度文字
+        draw_text(barX + barWidth + 10, barY, "Power: " ++ game.power.toString(), Color.White(), 12);
+    }
+
+    // 绘制UI信息
+    drawUI();
+
+    // 显示画面
+    fb_present();
+}
+
+fn drawZones() {
+    // 计分区 - 从顶部到底部绘制
+    // 10分区 (顶部, 金色)
+    fb_fill_rect(LANE_LEFT, ZONE_10_Y, LANE_WIDTH, ZONE_8_Y - ZONE_10_Y, ZONE_10_COLOR);
+    draw_text(LANE_LEFT + 5, ZONE_10_Y + 5, "10", Color.Black(), 16);
+    
+    // 8分区
+    fb_fill_rect(LANE_LEFT, ZONE_8_Y, LANE_WIDTH, ZONE_7_Y - ZONE_8_Y, ZONE_8_COLOR);
+    draw_text(LANE_LEFT + 5, ZONE_8_Y + 5, "8", Color.Black(), 16);
+    
+    // 7分区
+    fb_fill_rect(LANE_LEFT, ZONE_7_Y, LANE_WIDTH, ZONE_6_Y - ZONE_7_Y, ZONE_7_COLOR);
+    draw_text(LANE_LEFT + 5, ZONE_7_Y + 5, "7", Color.Black(), 16);
+    
+    // 6分区
+    fb_fill_rect(LANE_LEFT, ZONE_6_Y, LANE_WIDTH, ZONE_5_Y - ZONE_6_Y, ZONE_6_COLOR);
+    draw_text(LANE_LEFT + 5, ZONE_6_Y + 5, "6", Color.Black(), 16);
+    
+    // 5分区
+    fb_fill_rect(LANE_LEFT, ZONE_5_Y, LANE_WIDTH, ZONE_4_Y - ZONE_5_Y, ZONE_5_COLOR);
+    draw_text(LANE_LEFT + 5, ZONE_5_Y + 5, "5", Color.Black(), 16);
+    
+    // 4分区
+    fb_fill_rect(LANE_LEFT, ZONE_4_Y, LANE_WIDTH, ZONE_3_Y - ZONE_4_Y, ZONE_4_COLOR);
+    draw_text(LANE_LEFT + 5, ZONE_4_Y + 5, "4", Color.Black(), 16);
+    
+    // 3分区
+    fb_fill_rect(LANE_LEFT, ZONE_3_Y, LANE_WIDTH, ZONE_2_Y - ZONE_3_Y, ZONE_3_COLOR);
+    draw_text(LANE_LEFT + 5, ZONE_3_Y + 5, "3", Color.Black(), 16);
+    
+    // 2分区
+    fb_fill_rect(LANE_LEFT, ZONE_2_Y, LANE_WIDTH, ZONE_1_Y - ZONE_2_Y, ZONE_2_COLOR);
+    draw_text(LANE_LEFT + 5, ZONE_2_Y + 5, "2", Color.Black(), 16);
+    
+    // 1分区
+    fb_fill_rect(LANE_LEFT, ZONE_1_Y, LANE_WIDTH, LANE_BOTTOM - ZONE_1_Y, ZONE_1_COLOR);
+    draw_text(LANE_LEFT + 5, ZONE_1_Y + 5, "1", Color.Black(), 16);
+    
+    // 分区隔线
+    let zoneYs = [ZONE_10_Y, ZONE_8_Y, ZONE_7_Y, ZONE_6_Y, ZONE_5_Y, 
+                  ZONE_4_Y, ZONE_3_Y, ZONE_2_Y, ZONE_1_Y, LANE_BOTTOM];
+    for i in 0..10 {
+        fb_draw_line(LANE_LEFT, zoneYs[i], LANE_RIGHT, zoneYs[i], Color.RGB(255, 255, 255));
+    }
+}
+
+fn drawUI() {
+    // 顶部标题
+    draw_text(GAME_WIDTH / 2 - 80, 8, "沙狐球 Shuffleboard", Color.Yellow(), 20);
+
+    // 分数面板
+    let scoreY = GAME_HEIGHT - 55;
+    
+    // 玩家1分数 (红色)
+    fb_fill_rect(20, scoreY, 120, 35, Color.RGB(60, 30, 30));
+    draw_text(25, scoreY + 3, "红队: " ++ game.score1.toString(), PUCK_RED, 18);
+    
+    // 玩家2分数 (蓝色)
+    fb_fill_rect(GAME_WIDTH - 140, scoreY, 120, 35, Color.RGB(30, 30, 60));
+    draw_text(GAME_WIDTH - 135, scoreY + 3, "蓝队: " ++ game.score2.toString(), PUCK_BLUE, 18);
+    
+    // 回合信息
+    let roundText = "回合: " ++ game.round.toString() ++ "/" ++ game.maxRounds.toString();
+    draw_text(GAME_WIDTH / 2 - 40, scoreY, roundText, Color.White(), 16);
+    
+    // 当前玩家指示
+    let playerText = if game.currentPlayer == 1 { "红队回合" } else { "蓝队回合" };
+    let playerColor = if game.currentPlayer == 1 { PUCK_RED } else { PUCK_BLUE };
+    draw_text(GAME_WIDTH / 2 - 35, scoreY + 20, playerText, playerColor, 14);
+
+    // 底部状态栏
+    let status = getStatusText(&game);
+    let statusColor = if game.status == GameStatus.GameOver { Color.Yellow() } else { Color.White() };
+    draw_text(10, GAME_HEIGHT - 25, status, statusColor, 14);
+
+    let controls = "空格键跳过回合 | ESC退出";
+    draw_text(GAME_WIDTH - 220, GAME_HEIGHT - 25, controls, Color.RGB(150, 150, 150), 12);
+}
+
+// 简单的文字绘制
+fn draw_text(x: i32, y: i32, text: string, color: Color, size: i32) {
+    let charW = size * 2 / 3;
+    let charH = size;
+
+    var px = x;
+    var py = y;
+
+    for i in 0..len(text) {
+        if text[i] == ' ' {
+            px = px + charW;
+            continue;
+        }
+        if text[i] == '\n' {
+            py = py + charH;
+            px = x;
+            continue;
+        }
+        if text[i] == ':' {
+            // 绘制冒号
+            fb_fill_rect(px, py + charH / 3, charW / 3, charH / 3, color);
+            px = px + charW / 2;
+            continue;
+        }
+        if text[i] == '/' {
+            fb_draw_line(px + charW / 4, py + charH * 2 / 3, px + charW * 3 / 4, py + charH / 3, color);
+            px = px + charW;
+            continue;
+        }
+
+        // 画字符占位
+        fb_fill_rect(px, py, charW - 1, charH - 1, Color.RGB(40, 40, 40));
+        fb_draw_rect(px, py, charW - 1, charH - 1, color);
+
+        px = px + charW;
+        if px > GAME_WIDTH - charW {
+            py = py + charH;
+            px = x;
+        }
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C 沙狐球游戏 - Shuffleboard");
+    io.println("========================================");
+
+    // 初始化游戏
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "沙狐球 - Shuffleboard";
+    window = createWindow(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    io.println("窗口创建成功!");
+    io.println("点击并向上拖拽蓄力发射!");
+    io.println("========================================");
+
+    0
+}
+
+// Zen-C 框架入口
+pub fn gameMain() {
+    main();
+}

@@ -1,0 +1,499 @@
+// game_logic.zc - Zen-C 沙狐球游戏核心逻辑
+// Shuffleboard - 滑动蓄力发射沙狐球
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 500;
+const GAME_HEIGHT: i32 = 700;
+
+// 球道尺寸
+const LANE_LEFT: i32 = 100;
+const LANE_RIGHT: i32 = 400;
+const LANE_TOP: i32 = 80;
+const LANE_BOTTOM: i32 = 600;
+const LANE_WIDTH: i32 = LANE_RIGHT - LANE_LEFT;
+const LANE_HEIGHT: i32 = LANE_BOTTOM - LANE_TOP;
+
+// 发射区 (底部)
+const SHOOT_ZONE_Y: i32 = 620;
+const SHOOT_ZONE_HEIGHT: i32 = 60;
+
+// 缓冲区顶部 (球不能越过)
+const BUZZER_LINE: i32 = 100;
+
+// 计分区
+const ZONE_10_Y: i32 = 120;    // 10分区 (最近)
+const ZONE_8_Y: i32 = 180;     // 8分区
+const ZONE_7_Y: i32 = 240;     // 7分区
+const ZONE_6_Y: i32 = 300;     // 6分区
+const ZONE_5_Y: i32 = 360;     // 5分区
+const ZONE_4_Y: i32 = 420;     // 4分区
+const ZONE_3_Y: i32 = 480;     // 3分区
+const ZONE_2_Y: i32 = 540;     // 2分区
+const ZONE_1_Y: i32 = 600;     // 1分区 (最远)
+
+// 球的半径
+const PUCK_RADIUS: i32 = 18;
+
+// 最大球数
+const MAX_PUCKS: i32 = 16;
+
+// 摩擦系数
+const FRICTION: i32 = 3;
+
+// 最大发射力度
+const MAX_POWER: i32 = 25;
+
+// 最小速度阈值
+const MIN_VELOCITY: i32 = 1;
+
+// 出界高度 (球道顶部以上)
+const OUT_OF_BOUNDS_Y: i32 = BUZZER_LINE - PUCK_RADIUS - 5;
+
+// ==================== 计分区颜色 ====================
+
+const ZONE_10_COLOR: Color = Color.RGB(255, 215, 0);   // 金色
+const ZONE_8_COLOR: Color = Color.RGB(192, 192, 192);  // 银色
+const ZONE_7_COLOR: Color = Color.RGB(205, 127, 50);   // 青铜
+const ZONE_6_COLOR: Color = Color.RGB(220, 20, 60);    // 深红
+const ZONE_5_COLOR: Color = Color.RGB(30, 144, 255);   // 道奇蓝
+const ZONE_4_COLOR: Color = Color.RGB(50, 205, 50);    // 草绿
+const ZONE_3_COLOR: Color = Color.RGB(255, 182, 193); // 粉红
+const ZONE_2_COLOR: Color = Color.RGB(138, 43, 226);   // 蓝紫
+const ZONE_1_COLOR: Color = Color.RGB(255, 228, 181);  // 玉米丝
+
+// 玩家球颜色
+const PUCK_RED: Color = Color.RGB(220, 30, 30);
+const PUCK_BLUE: Color = Color.RGB(30, 30, 220);
+const PUCK_YELLOW: Color = Color.RGB(220, 220, 30);
+const PUCK_GREEN: Color = Color.RGB(30, 180, 30);
+
+// ==================== 数据结构 ====================
+
+// 沙狐球 (puck) 结构
+struct Puck {
+    x: i32,           // 球心X
+    y: i32,           // 球心Y
+    vx: i32,          // X方向速度
+    vy: i32,          // Y方向速度
+    radius: i32,      // 半径
+    color: Color,     // 颜色
+    active: bool,     // 是否在场
+    scored: bool,     // 是否已计分
+    player: i32,      // 所属玩家 1=红, 2=蓝
+}
+
+// 游戏状态
+enum GameStatus {
+    Ready,       // 等待发射
+    Aiming,     // 瞄准中
+    Charging,   // 蓄力中
+    Moving,     // 球运动中
+    Scoring,    // 计分阶段
+    GameOver,   // 游戏结束
+}
+
+struct ShuffleboardState {
+    pucks: [MAX_PUCKS]Puck,
+    puckCount: i32,
+    status: GameStatus,
+    score1: i32,      // 玩家1分数
+    score2: i32,      // 玩家2分数
+    currentPlayer: i32,
+    round: i32,
+    maxRounds: i32,
+    
+    // 鼠标/蓄力相关
+    mouseX: i32,
+    mouseY: i32,
+    shootX: i32,      // 发射位置X
+    power: i32,       // 蓄力值
+    chargeStartY: i32,
+    
+    // 画面尺寸
+    width: i32,
+    height: i32,
+    
+    // 显示信息
+    message: string,
+}
+
+// ==================== 辅助函数 ====================
+
+fn abs(n: i32) -> i32 {
+    if n < 0 { -n } else { n }
+}
+
+fn min(a: i32, b: i32) -> i32 {
+    if a < b { a } else { b }
+}
+
+fn max(a: i32, b: i32) -> i32 {
+    if a > b { a } else { b }
+}
+
+fn sqrt_int(n: i32) -> i32 {
+    if n <= 0 { return 0; }
+    let x = n;
+    let y = 1;
+    while y < x {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    return x;
+}
+
+fn dist2(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    return dx * dx + dy * dy;
+}
+
+// 两球是否碰撞
+fn pucksColliding(p1: &Puck, p2: &Puck) -> bool {
+    if !p1.active || !p2.active {
+        return false;
+    }
+    let minDist = p1.radius + p2.radius;
+    return dist2(p1.x, p1.y, p2.x, p2.y) <= minDist * minDist;
+}
+
+// ==================== 球台物理 ====================
+
+// 边界碰撞检测
+fn checkWallCollision(puck: &mut Puck) {
+    if !puck.active {
+        return;
+    }
+
+    // 左右边界
+    if puck.x - puck.radius <= LANE_LEFT {
+        puck.x = LANE_LEFT + puck.radius;
+        puck.vx = -puck.vx;
+    }
+    if puck.x + puck.radius >= LANE_RIGHT {
+        puck.x = LANE_RIGHT - puck.radius;
+        puck.vx = -puck.vx;
+    }
+    
+    // 下边界 (发射区边界)
+    if puck.y + puck.radius >= LANE_BOTTOM {
+        puck.y = LANE_BOTTOM - puck.radius;
+        puck.vy = -puck.vy;
+    }
+    
+    // 上边界 - 出界判定
+    if puck.y - puck.radius <= BUZZER_LINE {
+        // 出界了 - 这是一个"坏球"
+        puck.active = false;
+    }
+}
+
+// 球球碰撞检测与响应
+fn checkPuckCollision(state: &mut ShuffleboardState) {
+    for i in 0..state.puckCount {
+        if !state.pucks[i].active {
+            continue;
+        }
+
+        for j in (i + 1)..state.puckCount {
+            if !state.pucks[j].active {
+                continue;
+            }
+
+            if pucksColliding(&state.pucks[i], &state.pucks[j]) {
+                let dx = state.pucks[j].x - state.pucks[i].x;
+                let dy = state.pucks[j].y - state.pucks[i].y;
+                let dist = sqrt_int(dist2(state.pucks[i].x, state.pucks[i].y, 
+                                          state.pucks[j].x, state.pucks[j].y));
+
+                if dist == 0 {
+                    continue;
+                }
+
+                let nx = dx * 100 / dist;
+                let ny = dy * 100 / dist;
+
+                let dvx = state.pucks[i].vx - state.pucks[j].vx;
+                let dvy = state.pucks[i].vy - state.pucks[j].vy;
+                let dvn = dvx * nx + dvy * ny;
+
+                if dvn <= 0 {
+                    continue;
+                }
+
+                state.pucks[i].vx = state.pucks[i].vx - dvn * nx / 100;
+                state.pucks[i].vy = state.pucks[i].vy - dvn * ny / 100;
+                state.pucks[j].vx = state.pucks[j].vx + dvn * nx / 100;
+                state.pucks[j].vy = state.pucks[j].vy + dvn * ny / 100;
+
+                let overlap = (state.pucks[i].radius + state.pucks[j].radius) - dist;
+                if overlap > 0 {
+                    state.pucks[i].x = state.pucks[i].x - nx * (overlap / 2 + 1) / 100;
+                    state.pucks[i].y = state.pucks[i].y - ny * (overlap / 2 + 1) / 100;
+                    state.pucks[j].x = state.pucks[j].x + nx * (overlap / 2 + 1) / 100;
+                    state.pucks[j].y = state.pucks[j].y + ny * (overlap / 2 + 1) / 100;
+                }
+            }
+        }
+    }
+}
+
+// ==================== 计分系统 ====================
+
+// 获取球所在区域的分数
+fn getZoneScore(y: i32) -> i32 {
+    if y >= ZONE_1_Y { return 1; }
+    if y >= ZONE_2_Y { return 2; }
+    if y >= ZONE_3_Y { return 3; }
+    if y >= ZONE_4_Y { return 4; }
+    if y >= ZONE_5_Y { return 5; }
+    if y >= ZONE_6_Y { return 6; }
+    if y >= ZONE_7_Y { return 7; }
+    if y >= ZONE_8_Y { return 8; }
+    if y >= ZONE_9_Y { return 9; }
+    if y >= ZONE_10_Y { return 10; }
+    return 0;
+}
+
+const ZONE_9_Y: i32 = 150; // 9分区 (10和8之间)
+
+// 计算并显示分数
+fn calculateScores(state: &mut ShuffleboardState) {
+    state.score1 = 0;
+    state.score2 = 0;
+    
+    for i in 0..state.puckCount {
+        let puck = &state.pucks[i];
+        if !puck.active {
+            continue;
+        }
+        
+        // 只计算在球道内的球
+        if puck.y < BUZZER_LINE || puck.y > LANE_BOTTOM - puck.radius {
+            continue;
+        }
+        
+        let score = getZoneScore(puck.y);
+        if puck.player == 1 {
+            state.score1 = state.score1 + score;
+        } else {
+            state.score2 = state.score2 + score;
+        }
+    }
+}
+
+// ==================== 初始化 ====================
+
+// 初始化游戏
+fn init_game(state: &mut ShuffleboardState) {
+    state.width = GAME_WIDTH;
+    state.height = GAME_HEIGHT;
+    state.status = GameStatus.Ready;
+    state.puckCount = 0;
+    state.score1 = 0;
+    state.score2 = 0;
+    state.currentPlayer = 1;
+    state.round = 1;
+    state.maxRounds = 5;
+    state.power = 0;
+    state.shootX = GAME_WIDTH / 2;
+    state.mouseX = 0;
+    state.mouseY = 0;
+    state.message = "玩家1: 点击并向上拖拽发射!";
+    
+    // 清空所有球
+    for i in 0..MAX_PUCKS {
+        state.pucks[i] = Puck.{
+            x: 0, y: 0, vx: 0, vy: 0,
+            radius: PUCK_RADIUS,
+            color: PUCK_RED,
+            active: false,
+            scored: false,
+            player: 0,
+        };
+    }
+}
+
+// 重置本轮
+fn resetRound(state: &mut ShuffleboardState) {
+    state.puckCount = 0;
+    for i in 0..MAX_PUCKS {
+        state.pucks[i].active = false;
+        state.pucks[i].scored = false;
+    }
+    state.status = GameStatus.Ready;
+    state.message = "玩家" ++ state.currentPlayer.toString() ++ ": 点击并向上拖拽发射!";
+}
+
+// 添加一个球
+fn addPuck(state: &mut ShuffleboardState, x: i32, y: i32, player: i32) -> i32 {
+    if state.puckCount >= MAX_PUCKS {
+        return -1;
+    }
+    
+    let color = if player == 1 { PUCK_RED } else { PUCK_BLUE };
+    
+    state.pucks[state.puckCount] = Puck.{
+        x: x,
+        y: y,
+        vx: 0,
+        vy: 0,
+        radius: PUCK_RADIUS,
+        color: color,
+        active: true,
+        scored: false,
+        player: player,
+    };
+    
+    state.puckCount = state.puckCount + 1;
+    return state.puckCount - 1;
+}
+
+// ==================== 发射逻辑 ====================
+
+// 发射球
+fn shoot(state: &mut ShuffleboardState, x: i32, power: i32) {
+    // 从底部向上发射
+    let shootY = SHOOT_ZONE_Y - PUCK_RADIUS - 5;
+    
+    // 添加新球
+    let puckIndex = addPuck(state, x, shootY, state.currentPlayer);
+    if puckIndex < 0 {
+        state.message = "球数已满!";
+        return;
+    }
+    
+    // 设置速度 (向上为负Y)
+    let speed = power;
+    state.pucks[puckIndex].vy = -speed;
+    state.pucks[puckIndex].vx = 0;
+    
+    state.status = GameStatus.Moving;
+}
+
+// ==================== 更新逻辑 ====================
+
+// 更新所有球的物理状态
+fn updatePucks(state: &mut ShuffleboardState) -> bool {
+    var anyMoving = false;
+
+    for i in 0..state.puckCount {
+        if !state.pucks[i].active {
+            continue;
+        }
+
+        // 移动
+        state.pucks[i].x = state.pucks[i].x + state.pucks[i].vx;
+        state.pucks[i].y = state.pucks[i].y + state.pucks[i].vy;
+
+        // 应用摩擦力
+        if state.pucks[i].vx != 0 || state.pucks[i].vy != 0 {
+            if state.pucks[i].vx > 0 {
+                state.pucks[i].vx = max(0, state.pucks[i].vx - FRICTION);
+            } else if state.pucks[i].vx < 0 {
+                state.pucks[i].vx = min(0, state.pucks[i].vx + FRICTION);
+            }
+            if state.pucks[i].vy > 0 {
+                state.pucks[i].vy = max(0, state.pucks[i].vy - FRICTION);
+            } else if state.pucks[i].vy < 0 {
+                state.pucks[i].vy = min(0, state.pucks[i].vy + FRICTION);
+            }
+
+            // 检查是否停止
+            if abs(state.pucks[i].vx) <= MIN_VELOCITY && abs(state.pucks[i].vy) <= MIN_VELOCITY {
+                state.pucks[i].vx = 0;
+                state.pucks[i].vy = 0;
+            } else {
+                anyMoving = true;
+            }
+        }
+
+        // 边界碰撞
+        checkWallCollision(&mut state.pucks[i]);
+        
+        // 出界球标记为不活跃
+        if state.pucks[i].y <= BUZZER_LINE - state.pucks[i].radius {
+            state.pucks[i].active = false;
+        }
+    }
+
+    // 球球碰撞
+    checkPuckCollision(state);
+
+    return anyMoving;
+}
+
+// 检查所有球是否静止
+fn allPucksStopped(state: &ShuffleboardState) -> bool {
+    for i in 0..state.puckCount {
+        if state.pucks[i].active {
+            if state.pucks[i].vx != 0 || state.pucks[i].vy != 0 {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// ==================== 鼠标处理 ====================
+
+fn onMouseDown(state: &mut ShuffleboardState, x: i32, y: i32) {
+    if state.status == GameStatus.Moving {
+        return;
+    }
+    
+    if state.status == GameStatus.GameOver {
+        init_game(state);
+        return;
+    }
+    
+    state.status = GameStatus.Charging;
+    state.mouseX = x;
+    state.mouseY = y;
+    state.chargeStartY = y;
+    state.power = 0;
+    state.shootX = x;
+}
+
+fn onMouseMove(state: &mut ShuffleboardState, x: i32, y: i32) {
+    state.mouseX = x;
+    state.mouseY = y;
+    
+    if state.status == GameStatus.Charging {
+        // 蓄力: 从点击位置向上拖拽的距离决定力度
+        let dragDist = state.chargeStartY - y;
+        state.power = min(dragDist / 3, MAX_POWER);
+        
+        // 发射X位置跟随鼠标
+        state.shootX = max(LANE_LEFT + PUCK_RADIUS, min(x, LANE_RIGHT - PUCK_RADIUS));
+    }
+}
+
+fn onMouseUp(state: &mut ShuffleboardState, x: i32, y: i32) {
+    if state.status == GameStatus.Charging {
+        if state.power > 3 {
+            shoot(state, state.shootX, state.power);
+        } else {
+            state.status = GameStatus.Ready;
+            state.message = "力度太小! 请向上拖拽更远。";
+        }
+    }
+}
+
+// ==================== 状态查询 ====================
+
+fn getStatusText(state: &ShuffleboardState) -> string {
+    match state.status {
+        GameStatus.Ready => return state.message,
+        GameStatus.Aiming => return "瞄准中...",
+        GameStatus.Charging => return "蓄力中: " ++ state.power.toString() ++ "  松开发射!",
+        GameStatus.Moving => return "球运动中...",
+        GameStatus.Scoring => return "计分中...",
+        GameStatus.GameOver => return "游戏结束! 点击重新开始",
+    }
+}
+
+fn getControlsText() -> string {
+    "控制: 点击并向上拖拽蓄力 | 松开发射 | ESC 退出"
+}
