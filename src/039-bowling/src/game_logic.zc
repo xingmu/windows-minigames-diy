@@ -1,0 +1,752 @@
+// game_logic.zc - Zen-C 保龄球游戏核心逻辑
+// 鼠标蓄力投球，瓶靶碰撞
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 500;
+const GAME_HEIGHT: i32 = 700;
+
+// 球道尺寸
+const LANE_LEFT: i32 = 100;
+const LANE_RIGHT: i32 = 400;
+const LANE_TOP: i32 = 80;
+const LANE_BOTTOM: i32 = 650;
+const LANE_WIDTH: i32 = LANE_RIGHT - LANE_LEFT;
+const LANE_HEIGHT: i32 = LANE_BOTTOM - LANE_TOP;
+
+// 瓶靶区起始Y
+const PIN_AREA_Y: i32 = 120;
+const PIN_ROW_HEIGHT: i32 = 30;
+
+// 保龄球
+const BALL_RADIUS: i32 = 18;
+const BALL_START_X: i32 = (LANE_LEFT + LANE_RIGHT) / 2;
+const BALL_START_Y: i32 = LANE_BOTTOM - 60;
+
+// 最大投球力度
+const MAX_POWER: i32 = 25;
+const MIN_POWER: i32 = 3;
+const FRICTION: i32 = 1;
+
+// 瓶靶
+const PIN_RADIUS: i32 = 10;
+const PIN_BASE_Y: i32 = PIN_AREA_Y + 120;
+
+// 每局投球次数
+const THROWS_PER_FRAME: i32 = 2;
+
+// ==================== 颜色定义 ====================
+
+const LANE_COLOR: Color = Color.{ r: 210, g: 180, b: 140 };      // 木质球道
+const LANE_EDGE_COLOR: Color = Color.{ r: 101, g: 67, b: 33 };  // 球道边缘
+const BALL_COLOR: Color = Color.{ r: 20, g: 20, b: 20 };          // 深色保龄球
+const PIN_COLOR: Color = Color.{ r: 240, g: 240, b: 240 };        // 白色瓶靶
+const PIN_STRIKE_COLOR: Color = Color.{ r: 255, g: 50, b: 50 };   // 被击倒红色
+const GUTTER_COLOR: Color = Color.{ r: 60, g: 60, b: 60 };        // 沟渠
+
+// ==================== 数据结构 ====================
+
+// 瓶靶状态
+struct Pin {
+    x: i32,
+    y: i32,
+    vx: i32,
+    vy: i32,
+    standing: bool,    // 是否站立
+    fallen: bool,      // 是否已倒下
+    radius: i32,
+}
+
+// 保龄球
+struct Ball {
+    x: i32,
+    y: i32,
+    vx: i32,
+    vy: i32,
+    radius: i32,
+    rolling: bool,     // 是否在滚动
+    inGutter: bool,    // 是否在沟渠
+}
+
+// 游戏状态枚举
+enum GameStatus {
+    Ready,       // 等待投球
+    Aiming,      // 瞄准中
+    Charging,    // 蓄力中
+    Rolling,     // 球滚动中
+    Settling,    // 瓶靶稳定中
+    FrameEnd,    // 本局结束
+    GameOver,    // 游戏结束
+}
+
+// 单局得分
+struct FrameScore {
+    firstThrow: i32,   // 第一次投球击倒数
+    secondThrow: i32,  // 第二次投球击倒数 (-1表示未投)
+    thirdThrow: i32,  // 第三次投球击倒数 (仅第10局)
+    strike: bool,      // 全中
+    spare: bool,       // 补中
+    bonus: i32,        // 奖励分
+    calculated: bool,
+}
+
+// 游戏全局状态
+struct BowlingState {
+    ball: Ball,
+    pins: [10]Pin,
+    pinCount: i32,
+    standingPins: i32,
+    status: GameStatus,
+    score: i32,
+    frame: i32,           // 当前帧 (1-10)
+    throwNum: i32,       // 本局第几次投球 (1-3)
+    mouseX: i32,
+    mouseY: i32,
+    chargeStartX: i32,
+    chargeStartY: i32,
+    power: i32,
+    aimAngle: i32,       // 瞄准角度 (-30 to 30 degrees)
+    width: i32,
+    height: i32,
+    frameScores: [10]FrameScore,
+    gutterTriggered: bool,
+}
+
+// ==================== 辅助函数 ====================
+
+fn abs(n: i32) -> i32 {
+    if n < 0 { -n } else { n }
+}
+
+fn min(a: i32, b: i32) -> i32 {
+    if a < b { a } else { b }
+}
+
+fn max(a: i32, b: i32) -> i32 {
+    if a > b { a } else { b }
+}
+
+fn clamp(v: i32, minV: i32, maxV: i32) -> i32 {
+    if v < minV { return minV; }
+    if v > maxV { return maxV; }
+    return v;
+}
+
+fn dist2(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    return dx * dx + dy * dy;
+}
+
+fn sqrt_int(n: i32) -> i32 {
+    if n <= 0 { return 0; }
+    let mut x = n;
+    let mut y = 1;
+    while y < x {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    return x;
+}
+
+// ==================== 初始化 ====================
+
+// 初始化瓶靶布局 (标准三角形)
+fn initPins(state: &mut BowlingState) {
+    // 标准10瓶布局
+    // 行0: 1个瓶 (顶部)
+    // 行1: 2个瓶
+    // 行2: 3个瓶
+    // 行3: 4个瓶 (底部)
+    // 总计: 1+2+3+4 = 10
+
+    let spacing = PIN_RADIUS * 2 + 4;
+    let mut pinIndex = 0;
+
+    // 瓶靶三角形的基准位置
+    let baseX = (LANE_LEFT + LANE_RIGHT) / 2;
+    let baseY = PIN_BASE_Y;
+
+    // 第1行: 1个瓶 (顶部)
+    state.pins[0] = Pin.{
+        x: baseX,
+        y: baseY,
+        vx: 0, vy: 0,
+        standing: true,
+        fallen: false,
+        radius: PIN_RADIUS,
+    };
+    pinIndex = 1;
+
+    // 第2行: 2个瓶
+    for i in 0..2 {
+        state.pins[pinIndex] = Pin.{
+            x: baseX + (i as i32 - 1) * spacing,
+            y: baseY + spacing,
+            vx: 0, vy: 0,
+            standing: true,
+            fallen: false,
+            radius: PIN_RADIUS,
+        };
+        pinIndex = pinIndex + 1;
+    }
+
+    // 第3行: 3个瓶
+    for i in 0..3 {
+        state.pins[pinIndex] = Pin.{
+            x: baseX + (i as i32 - 1) * spacing - spacing / 2,
+            y: baseY + spacing * 2,
+            vx: 0, vy: 0,
+            standing: true,
+            fallen: false,
+            radius: PIN_RADIUS,
+        };
+        pinIndex = pinIndex + 1;
+    }
+
+    // 第4行: 4个瓶
+    for i in 0..4 {
+        state.pins[pinIndex] = Pin.{
+            x: baseX + (i as i32 - 2) * spacing,
+            y: baseY + spacing * 3,
+            vx: 0, vy: 0,
+            standing: true,
+            fallen: false,
+            radius: PIN_RADIUS,
+        };
+        pinIndex = pinIndex + 1;
+    }
+
+    state.pinCount = 10;
+    state.standingPins = 10;
+}
+
+// 重置球位置
+fn resetBall(state: &mut BowlingState) {
+    state.ball.x = BALL_START_X;
+    state.ball.y = BALL_START_Y;
+    state.ball.vx = 0;
+    state.ball.vy = 0;
+    state.ball.rolling = false;
+    state.ball.inGutter = false;
+    state.gutterTriggered = false;
+}
+
+// 初始化游戏
+fn initGame(state: &mut BowlingState) {
+    state.width = GAME_WIDTH;
+    state.height = GAME_HEIGHT;
+    state.frame = 1;
+    state.throwNum = 1;
+    state.score = 0;
+    state.status = GameStatus.Ready;
+    state.power = 0;
+    state.aimAngle = 0;
+    state.mouseX = BALL_START_X;
+    state.mouseY = BALL_START_Y;
+
+    // 初始化所有帧得分
+    for i in 0..10 {
+        state.frameScores[i] = FrameScore.{
+            firstThrow: 0,
+            secondThrow: -1,
+            thirdThrow: -1,
+            strike: false,
+            spare: false,
+            bonus: 0,
+            calculated: false,
+        };
+    }
+
+    initPins(state);
+    resetBall(state);
+}
+
+// ==================== 物理更新 ====================
+
+// 更新保龄球
+fn updateBall(state: &mut BowlingState) -> bool {
+    if !state.ball.rolling {
+        return false;
+    }
+
+    let ball = &mut state.ball;
+
+    // 移动
+    ball.x = ball.x + ball.vx;
+    ball.y = ball.y + ball.vy;
+
+    // 沟渠检测 (球道左右边缘)
+    let gutterWidth = 20;
+    if ball.x - ball.radius <= LANE_LEFT {
+        // 进入左侧沟渠
+        if !state.gutterTriggered && ball.y > LANE_BOTTOM - 200 {
+            state.gutterTriggered = true;
+            ball.inGutter = true;
+        }
+    }
+    if ball.x + ball.radius >= LANE_RIGHT {
+        // 进入右侧沟渠
+        if !state.gutterTriggered && ball.y > LANE_BOTTOM - 200 {
+            state.gutterTriggered = true;
+            ball.inGutter = true;
+        }
+    }
+
+    if ball.inGutter {
+        // 沟渠中滚动：只向下，慢慢减速
+        ball.vx = 0;
+        ball.x = if ball.x < (LANE_LEFT + LANE_RIGHT) / 2 {
+            LANE_LEFT + 10
+        } else {
+            LANE_RIGHT - 10
+        };
+    } else {
+        // 边缘反弹
+        if ball.x - ball.radius <= LANE_LEFT {
+            ball.x = LANE_LEFT + ball.radius;
+            ball.vx = -ball.vx / 2;
+        }
+        if ball.x + ball.radius >= LANE_RIGHT {
+            ball.x = LANE_RIGHT - ball.radius;
+            ball.vx = -ball.vx / 2;
+        }
+    }
+
+    // 上边界
+    if ball.y - ball.radius <= LANE_TOP {
+        ball.y = LANE_TOP + ball.radius;
+        ball.vy = -ball.vy / 2;
+    }
+
+    // 摩擦力减速
+    if ball.vx > 0 {
+        ball.vx = max(0, ball.vx - FRICTION);
+    } else if ball.vx < 0 {
+        ball.vx = min(0, ball.vx + FRICTION);
+    }
+    if ball.vy > 0 {
+        ball.vy = max(0, ball.vy - FRICTION);
+    } else if ball.vy < 0 {
+        ball.vy = min(0, ball.vy + FRICTION);
+    }
+
+    // 停止检测
+    let speed = sqrt_int(ball.vx * ball.vx + ball.vy * ball.vy);
+    if speed <= 0 && ball.y >= PIN_AREA_Y + 50 {
+        ball.rolling = false;
+        return false;
+    }
+
+    return true;
+}
+
+// 更新瓶靶物理
+fn updatePins(state: &mut BowlingState) -> bool {
+    var anyMoving = false;
+
+    for i in 0..state.pinCount {
+        let pin = &mut state.pins[i];
+
+        if pin.fallen && pin.vx == 0 && pin.vy == 0 {
+            continue;
+        }
+
+        // 倒下的瓶靶继续移动
+        if pin.fallen {
+            pin.x = pin.x + pin.vx;
+            pin.y = pin.y + pin.vy;
+
+            // 摩擦力
+            if pin.vx > 0 {
+                pin.vx = max(0, pin.vx - FRICTION / 2);
+            } else if pin.vx < 0 {
+                pin.vx = min(0, pin.vx + FRICTION / 2);
+            }
+            if pin.vy > 0 {
+                pin.vy = max(0, pin.vy - FRICTION / 2);
+            } else if pin.vy < 0 {
+                pin.vy = min(0, pin.vy + FRICTION / 2);
+            }
+
+            let speed = sqrt_int(pin.vx * pin.vx + pin.vy * pin.vy);
+            if speed <= 1 {
+                pin.vx = 0;
+                pin.vy = 0;
+            } else {
+                anyMoving = true;
+            }
+        }
+    }
+
+    return anyMoving;
+}
+
+// 球与瓶靶碰撞
+fn checkBallPinCollision(state: &mut BowlingState) {
+    let ball = &state.ball;
+    if !ball.rolling || ball.inGutter {
+        return;
+    }
+
+    for i in 0..state.pinCount {
+        let pin = &mut state.pins[i];
+
+        if pin.fallen && !pin.standing {
+            continue;
+        }
+
+        // 计算距离
+        let dx = pin.x - ball.x;
+        let dy = pin.y - ball.y;
+        let dist = sqrt_int(dx * dx + dy * dy);
+        let minDist = ball.radius + pin.radius;
+
+        if dist < minDist && dist > 0 {
+            // 碰撞发生!
+
+            // 击倒瓶靶
+            if pin.standing {
+                pin.standing = false;
+                pin.fallen = true;
+                state.standingPins = state.standingPins - 1;
+
+                // 碰撞方向
+                let nx = dx * 100 / dist;
+                let ny = dy * 100 / dist;
+
+                // 瓶靶获得速度
+                let ballSpeed = sqrt_int(ball.vx * ball.vx + ball.vy * ball.vy);
+                let pinSpeed = ballSpeed * 70 / 100;
+                pin.vx = nx * pinSpeed / 100;
+                pin.vy = ny * pinSpeed / 100;
+
+                // 球减速
+                ball.vx = ball.vx * 80 / 100;
+                ball.vy = ball.vy * 80 / 100;
+            } else if pin.fallen {
+                // 与已倒瓶靶碰撞
+                let nx = dx * 100 / dist;
+                let ny = dy * 100 / dist;
+                let ballSpeed = sqrt_int(ball.vx * ball.vx + ball.vy * ball.vy);
+                let pinSpeed = ballSpeed * 30 / 100;
+                pin.vx = pin.vx + nx * pinSpeed / 100;
+                pin.vy = pin.vy + ny * pinSpeed / 100;
+            }
+        }
+    }
+}
+
+// 瓶靶之间的碰撞
+fn checkPinPinCollision(state: &mut BowlingState) {
+    for i in 0..state.pinCount {
+        if !state.pins[i].fallen {
+            continue;
+        }
+
+        for j in (i + 1)..state.pinCount {
+            if !state.pins[j].fallen {
+                continue;
+            }
+
+            let dx = state.pins[j].x - state.pins[i].x;
+            let dy = state.pins[j].y - state.pins[i].y;
+            let dist = sqrt_int(dx * dx + dy * dy);
+            let minDist = state.pins[i].radius + state.pins[j].radius;
+
+            if dist < minDist && dist > 0 {
+                // 碰撞
+                let nx = dx * 100 / dist;
+                let ny = dy * 100 / dist;
+
+                let dvx = state.pins[i].vx - state.pins[j].vx;
+                let dvy = state.pins[i].vy - state.pins[j].vy;
+                let dvn = dvx * nx + dvy * ny;
+
+                if dvn > 0 {
+                    state.pins[i].vx = state.pins[i].vx - dvn * nx / 100;
+                    state.pins[i].vy = state.pins[i].vy - dvn * ny / 100;
+                    state.pins[j].vx = state.pins[j].vx + dvn * nx / 100;
+                    state.pins[j].vy = state.pins[j].vy + dvn * ny / 100;
+
+                    // 分离
+                    let overlap = (minDist - dist) / 2 + 1;
+                    state.pins[i].x = state.pins[i].x - nx * overlap / 100;
+                    state.pins[i].y = state.pins[i].y - ny * overlap / 100;
+                    state.pins[j].x = state.pins[j].x + nx * overlap / 100;
+                    state.pins[j].y = state.pins[j].y + ny * overlap / 100;
+                }
+            }
+        }
+    }
+}
+
+// 检查所有瓶靶是否稳定
+fn pinsSettled(state: &BowlingState) -> bool {
+    for i in 0..state.pinCount {
+        if state.pins[i].fallen {
+            if state.pins[i].vx != 0 || state.pins[i].vy != 0 {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// ==================== 投球 ====================
+
+// 执行投球
+fn throwBall(state: &mut BowlingState, power: i32, angle: i32) {
+    if state.ball.rolling {
+        return;
+    }
+
+    // 标准化角度 (-30 到 30 度)
+    let clampedAngle = clamp(angle, -30, 30);
+    let rad = clampedAngle as f32 * 3.14159 / 180.0;
+
+    // 计算速度分量
+    let speed = power;
+    state.ball.vx = (speed as f32 * math.sin(rad)) as i32;
+    state.ball.vy = -(speed as f32 * math.cos(rad)) as i32;  // 向上
+    state.ball.rolling = true;
+    state.ball.inGutter = false;
+    state.gutterTriggered = false;
+
+    state.status = GameStatus.Rolling;
+}
+
+// ==================== 得分计算 ====================
+
+// 记录本轮得分
+fn recordFrameScore(state: &mut BowlingState, knockedDown: i32) {
+    let frameIdx = state.frame - 1;
+    let fs = &mut state.frameScores[frameIdx];
+
+    if state.throwNum == 1 {
+        fs.firstThrow = knockedDown;
+        if knockedDown == 10 {
+            fs.strike = true;
+        }
+    } else if state.throwNum == 2 {
+        fs.secondThrow = knockedDown;
+        if fs.firstThrow + knockedDown == 10 && fs.firstThrow < 10 {
+            fs.spare = true;
+        }
+    } else if state.throwNum == 3 {
+        fs.thirdThrow = knockedDown;
+    }
+
+    // 计算奖励分
+    if fs.calculated {
+        return;
+    }
+
+    // 标准保龄球计分规则
+    // Strike: 10分 + 下两球
+    // Spare: 10分 + 下一球
+    // 普通: 直接累加
+
+    // 计算当前总分
+    var total = 0;
+    for i in 0..10 {
+        let f = &state.frameScores[i];
+        if f.firstThrow == 0 && f.secondThrow < 0 && f.thirdThrow < 0 {
+            continue;
+        }
+
+        var frameTotal = 0;
+        if f.strike {
+            frameTotal = 10;
+            // 需要下两球奖励
+            if i < 9 {
+                let next = &state.frameScores[i + 1];
+                if next.firstThrow >= 0 {
+                    frameTotal = frameTotal + next.firstThrow;
+                    if next.strike && i + 2 < 10 {
+                        let next2 = &state.frameScores[i + 2];
+                        if next2.firstThrow >= 0 {
+                            frameTotal = frameTotal + next2.firstThrow;
+                        } else {
+                            frameTotal = frameTotal + (if next2.secondThrow >= 0 { next2.secondThrow } else { 0 });
+                        }
+                    } else {
+                        frameTotal = frameTotal + (if next.secondThrow >= 0 { next.secondThrow } else { 0 });
+                    }
+                }
+            }
+        } else if f.spare {
+            frameTotal = 10;
+            // 需要下一球奖励
+            if i < 9 {
+                let next = &state.frameScores[i + 1];
+                frameTotal = frameTotal + (if next.firstThrow >= 0 { next.firstThrow } else { 0 });
+            }
+        } else {
+            frameTotal = f.firstThrow;
+            if f.secondThrow >= 0 {
+                frameTotal = frameTotal + f.secondThrow;
+            }
+        }
+        total = total + frameTotal;
+    }
+
+    state.score = total;
+}
+
+// 进入下一投或下一局
+fn advanceGame(state: &mut BowlingState) {
+    let knockedDown = 10 - state.standingPins;
+
+    // 记录得分
+    recordFrameScore(state, knockedDown);
+
+    if state.frame == 10 {
+        // 第10局特殊规则
+        if state.throwNum == 1 {
+            if knockedDown == 10 {
+                // Strike: 再投两球
+                state.throwNum = 2;
+                resetBall(state);
+                state.status = GameStatus.Ready;
+            } else {
+                state.throwNum = 2;
+                resetBall(state);
+                state.status = GameStatus.Ready;
+            }
+        } else if state.throwNum == 2 {
+            let fs = &state.frameScores[9];
+            if fs.firstThrow == 10 || fs.spare {
+                // 获得第三次投球机会
+                state.throwNum = 3;
+                resetBall(state);
+                state.status = GameStatus.Ready;
+            } else {
+                // 游戏结束
+                state.status = GameStatus.GameOver;
+            }
+        } else {
+            // 第10局第三投结束
+            state.status = GameStatus.GameOver;
+        }
+    } else {
+        // 普通帧 (1-9)
+        let fs = &state.frameScores[state.frame - 1];
+        if fs.strike || state.throwNum == 2 {
+            // 进入下一帧
+            state.frame = state.frame + 1;
+            state.throwNum = 1;
+            initPins(state);
+            resetBall(state);
+            state.status = GameStatus.Ready;
+        } else {
+            // 本帧第二次投球
+            state.throwNum = 2;
+            resetBall(state);
+            state.status = GameStatus.Ready;
+        }
+    }
+}
+
+// ==================== 游戏主更新 ====================
+
+fn updateGame(state: &mut BowlingState) -> bool {
+    match state.status {
+        GameStatus.Rolling => {
+            let ballMoving = updateBall(state);
+            checkBallPinCollision(state);
+            let pinsMoving = updatePins(state);
+
+            // 检查是否需要进入settling
+            if !ballMoving && !pinsMoving {
+                state.status = GameStatus.Settling;
+            }
+            return true;
+        },
+        GameStatus.Settling => {
+            updatePins(state);
+            checkPinPinCollision(state);
+
+            if pinsSettled(state) {
+                advanceGame(state);
+            }
+            return true;
+        },
+        _ => {
+            return false;
+        }
+    }
+}
+
+// ==================== 鼠标处理 ====================
+
+fn onMouseDown(state: &mut BowlingState, x: i32, y: i32) {
+    if state.status == GameStatus.GameOver {
+        initGame(state);
+        return;
+    }
+
+    if state.status != GameStatus.Ready {
+        return;
+    }
+
+    state.status = GameStatus.Charging;
+    state.chargeStartX = x;
+    state.chargeStartY = y;
+    state.mouseX = x;
+    state.mouseY = y;
+}
+
+fn onMouseMove(state: &mut BowlingState, x: i32, y: i32) {
+    state.mouseX = x;
+    state.mouseY = y;
+
+    if state.status == GameStatus.Charging {
+        // 计算蓄力 (拖拽距离)
+        let dx = state.chargeStartX - x;
+        let dy = state.chargeStartY - y;
+        let dragDist = sqrt_int(dx * dx + dy * dy);
+
+        state.power = clamp(dragDist / 8, 0, MAX_POWER);
+
+        // 计算瞄准角度 (基于左右偏移)
+        if dy > 0 {
+            state.aimAngle = clamp(dx * 30 / dy, -30, 30);
+        }
+    }
+}
+
+fn onMouseUp(state: &mut BowlingState, x: i32, y: i32) {
+    if state.status == GameStatus.Charging {
+        if state.power >= MIN_POWER {
+            throwBall(state, state.power, state.aimAngle);
+        } else {
+            state.status = GameStatus.Ready;
+            state.power = 0;
+        }
+    }
+}
+
+// ==================== 状态查询 ====================
+
+fn getStatusText(state: &BowlingState) -> string {
+    match state.status {
+        GameStatus.Ready => {
+            if state.frame == 10 {
+                return "第10局 | 第" ++ state.throwNum.toString() ++ "球 | 点击拖拽投球";
+            }
+            return "第" ++ state.frame.toString() ++ "局 | 第" ++ state.throwNum.toString() ++ "球 | 点击拖拽投球";
+        },
+        GameStatus.Charging => return "蓄力中: " ++ state.power.toString() ++ " | 角度: " ++ state.aimAngle.toString() ++ "°",
+        GameStatus.Rolling => return "球滚动中...",
+        GameStatus.Settling => return "等待瓶靶稳定...",
+        GameStatus.GameOver => return "游戏结束! 点击重新开始",
+        _ => return "",
+    }
+}
+
+fn getControlsText() -> string {
+    "控制: 点击拖拽蓄力 | 松开投球 | R 重新开始"
+}

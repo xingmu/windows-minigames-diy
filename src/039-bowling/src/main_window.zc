@@ -1,0 +1,348 @@
+// main_window.zc - Zen-C 保龄球游戏主程序
+
+import std.io;
+import std.math;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: BowlingState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut game_speed: u32 = 16;  // ~60 FPS
+
+// ==================== 事件处理 ====================
+
+fn on_key(key: KeyCode) -> bool {
+    match key {
+        KeyCode.KeyR => {
+            initGame(&mut game);
+        },
+        KeyCode.KeyEscape => {
+            running = false;
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+fn on_timer() -> bool {
+    return updateGame(&mut game);
+}
+
+fn on_paint(w: i32, h: i32) {
+    if !fb_data.valid {
+        fb_init(window, w, h);
+    }
+
+    // 清屏 - 深色背景
+    fb_clear(rgb(30, 30, 40));
+
+    // 绘制球道
+    drawLane();
+
+    // 绘制沟渠
+    drawGutters();
+
+    // 绘制投球区标记
+    drawLaneMarkers();
+
+    // 绘制瓶靶
+    drawPins();
+
+    // 绘制保龄球
+    drawBall();
+
+    // 绘制瞄准线和蓄力指示
+    if game.status == GameStatus.Charging || game.status == GameStatus.Ready {
+        drawAimIndicator();
+    }
+
+    // 绘制UI
+    drawUI();
+
+    // 呈现画面
+    fb_present();
+}
+
+fn on_mouse_down(x: i32, y: i32) {
+    onMouseDown(&mut game, x, y);
+}
+
+fn on_mouse_move(x: i32, y: i32) {
+    onMouseMove(&mut game, x, y);
+}
+
+fn on_mouse_up(x: i32, y: i32) {
+    onMouseUp(&mut game, x, y);
+}
+
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 绘制函数 ====================
+
+fn drawLane() {
+    // 球道背景
+    fb_draw_rect(LANE_LEFT, LANE_TOP, LANE_WIDTH, LANE_HEIGHT - LANE_TOP, rgb(210, 180, 140));
+
+    // 球道木纹效果 (竖条纹)
+    for i in 0..10 {
+        let x = LANE_LEFT + i * (LANE_WIDTH / 10);
+        fb_draw_rect(x, LANE_TOP, LANE_WIDTH / 10 / 2, LANE_HEIGHT - LANE_TOP, rgb(200, 170, 130));
+    }
+
+    // 球道边缘
+    fb_draw_rect(LANE_LEFT - 5, LANE_TOP - 5, 5, LANE_HEIGHT - LANE_TOP + 10, rgb(101, 67, 33));
+    fb_draw_rect(LANE_RIGHT, LANE_TOP - 5, 5, LANE_HEIGHT - LANE_TOP + 10, rgb(101, 67, 33));
+}
+
+fn drawGutters() {
+    // 左侧沟渠
+    fb_draw_rect(0, LANE_BOTTOM - 200, LANE_LEFT - 5, 220, rgb(50, 50, 50));
+    // 右侧沟渠
+    fb_draw_rect(LANE_RIGHT + 5, LANE_BOTTOM - 200, GAME_WIDTH - LANE_RIGHT - 5, 220, rgb(50, 50, 50));
+}
+
+fn drawLaneMarkers() {
+    // 发球区线
+    let foulLineY = BALL_START_Y + 40;
+    fb_draw_line(LANE_LEFT, foulLineY, LANE_RIGHT, foulLineY, rgb(150, 0, 0));
+
+    // 瓶靶位置指示线
+    fb_draw_line(LANE_LEFT, PIN_BASE_Y + 50, LANE_RIGHT, PIN_BASE_Y + 50, rgb(180, 180, 180));
+}
+
+fn drawPins() {
+    for i in 0..game.pinCount {
+        let pin = game.pins[i];
+
+        // 瓶靶阴影
+        fb_draw_circle(pin.x + 2, pin.y + 2, pin.radius, rgb(0, 0, 0));
+
+        // 瓶靶主体
+        let pinColor = if pin.standing {
+            rgb(240, 240, 240)
+        } else if pin.fallen {
+            rgb(180, 180, 180)
+        } else {
+            rgb(240, 240, 240)
+        };
+        fb_draw_circle(pin.x, pin.y, pin.radius, pinColor);
+
+        // 瓶靶高光
+        fb_draw_circle(pin.x - 2, pin.y - 2, pin.radius / 3, rgb(255, 255, 255));
+    }
+}
+
+fn drawBall() {
+    let ball = game.ball;
+
+    // 球阴影
+    fb_draw_circle(ball.x + 3, ball.y + 3, ball.radius, rgb(0, 0, 0));
+
+    // 球主体
+    fb_draw_circle(ball.x, ball.y, ball.radius, rgb(30, 30, 30));
+
+    // 球高光
+    fb_draw_circle(ball.x - 5, ball.y - 5, ball.radius / 3, rgb(80, 80, 80));
+
+    // 球的指孔 (简化显示)
+    fb_draw_circle(ball.x, ball.y, 3, rgb(60, 60, 60));
+}
+
+fn drawAimIndicator() {
+    if game.ball.rolling {
+        return;
+    }
+
+    let ball = game.ball;
+
+    // 蓄力条
+    if game.status == GameStatus.Charging && game.power > 0 {
+        let barWidth = 80;
+        let barHeight = 8;
+        let barX = ball.x - barWidth / 2;
+        let barY = ball.y + 30;
+
+        fb_draw_rect(barX, barY, barWidth, barHeight, rgb(80, 80, 80));
+        let fillW = (game.power as f32 / MAX_POWER as f32 * barWidth as f32) as i32;
+        let powerColor = if game.power < 10 {
+            rgb(100, 200, 100)
+        } else if game.power < 18 {
+            rgb(255, 200, 0)
+        } else {
+            rgb(255, 80, 80)
+        };
+        fb_draw_rect(barX, barY, fillW, barHeight, powerColor);
+    }
+
+    // 瞄准方向线 (虚线)
+    if game.status == GameStatus.Charging || game.status == GameStatus.Ready {
+        let aimLen = 100 + game.power * 4;
+        let rad = game.aimAngle as f32 * 3.14159 / 180.0;
+
+        let aimEndX = ball.x + (aimLen as f32 * math.sin(rad)) as i32;
+        let aimEndY = ball.y - (aimLen as f32 * math.cos(rad)) as i32;
+
+        // 绘制虚线
+        let steps = 8;
+        for s in 0..steps {
+            let t1 = s as f32 / steps as f32;
+            let t2 = (s + 1) as f32 / steps as f32;
+            let x1 = ball.x + (aimEndX - ball.x) * t1;
+            let y1 = ball.y + (aimEndY - ball.y) * t1;
+            let x2 = ball.x + (aimEndX - ball.x) * t2;
+            let y2 = ball.y + (aimEndY - ball.y) * t2;
+            if s % 2 == 0 {
+                fb_draw_line(x1, y1, x2, y2, rgb(255, 255, 200));
+            }
+        }
+
+        // 瞄准点
+        fb_draw_circle(aimEndX, aimEndY, 4, rgb(255, 255, 0));
+    }
+}
+
+fn drawUI() {
+    // 标题
+    fb_draw_text_size(10, 8, "保龄球 - Bowling", rgb(255, 215, 0), 20);
+
+    // 分数
+    let scoreText = "总分: " ++ game.score.toString();
+    fb_draw_text_size(GAME_WIDTH - 130, 8, scoreText, rgb(255, 255, 255), 18);
+
+    // 当前状态
+    let status = getStatusText(&game);
+    fb_draw_text_size(10, GAME_HEIGHT - 35, status, rgb(255, 255, 0), 16);
+
+    // 剩余瓶靶
+    let pinsText = "剩余: " ++ game.standingPins.toString() ++ " 瓶";
+    fb_draw_text_size(GAME_WIDTH - 100, GAME_HEIGHT - 35, pinsText, rgb(200, 200, 200), 14);
+
+    // 控制说明
+    let controls = getControlsText();
+    fb_draw_text_size(10, GAME_HEIGHT - 18, controls, rgb(150, 150, 150), 12);
+
+    // 绘制分数板
+    drawScoreBoard();
+}
+
+fn drawScoreBoard() {
+    let boardX = LANE_LEFT;
+    let boardY = 38;
+    let boxW = 40;
+    let boxH = 25;
+
+    // 背景
+    fb_draw_rect(boardX - 2, boardY - 2, boxW * 10 + 4, boxH + 4, rgb(60, 60, 60));
+
+    // 绘制每帧小框
+    for f in 0..10 {
+        let x = boardX + f * boxW;
+        let fs = &game.frameScores[f];
+
+        fb_draw_rect(x, boardY, boxW, boxH, rgb(80, 80, 80));
+
+        // 第一投
+        if fs.firstThrow > 0 || (f == 9 && fs.firstThrow == 0) {
+            if fs.strike {
+                fb_draw_text_size(x + 2, boardY + 2, "X", rgb(255, 200, 0), 14);
+            } else {
+                fb_draw_text_size(x + 2, boardY + 2, fs.firstThrow.toString(), rgb(255, 255, 255), 14);
+            }
+        }
+
+        // 第二投
+        if fs.secondThrow >= 0 {
+            if fs.spare {
+                fb_draw_text_size(x + 18, boardY + 2, "/", rgb(0, 200, 255), 14);
+            } else if fs.secondThrow == 10 && f < 9 {
+                fb_draw_text_size(x + 18, boardY + 2, "X", rgb(255, 200, 0), 14);
+            } else if fs.secondThrow > 0 {
+                fb_draw_text_size(x + 18, boardY + 2, fs.secondThrow.toString(), rgb(255, 255, 255), 14);
+            }
+        }
+
+        // 第三投 (仅第10局)
+        if f == 9 && fs.thirdThrow >= 0 {
+            if fs.thirdThrow == 10 {
+                fb_draw_text_size(x + 32, boardY + 2, "X", rgb(255, 200, 0), 14);
+            } else if fs.thirdThrow > 0 {
+                fb_draw_text_size(x + 32, boardY + 2, fs.thirdThrow.toString(), rgb(255, 255, 255), 14);
+            }
+        }
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C 保龄球游戏 - Bowling");
+    io.println("========================================");
+
+    // 初始化游戏状态
+    initGame(&mut game);
+
+    // 创建窗口
+    let title = "保龄球 - Bowling";
+    window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 获取实际客户区大小
+    let mut cw = 0;
+    let mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        game.width = cw;
+        game.height = ch;
+        set_client_size(cw, ch);
+    }
+
+    // 设置事件处理器
+    set_key_handler(on_key);
+    set_timer_handler(on_timer);
+    set_paint_handler(on_paint);
+    set_mouse_down_handler(on_mouse_down);
+    set_mouse_move_handler(on_mouse_move);
+    set_mouse_up_handler(on_mouse_up);
+    set_destroy_handler(on_destroy);
+
+    // 显示窗口
+    show_window(window);
+
+    // 设置游戏定时器
+    set_game_timer(window, game_speed);
+
+    io.println("窗口创建成功!");
+    io.println("点击并向上拖拽蓄力投球");
+    io.println("按 R 重新开始, ESC 退出");
+    io.println("========================================");
+
+    // 初始绘制
+    redraw_window(window);
+
+    // 运行事件循环
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("最终得分: " ++ game.score.toString());
+    io.println("========================================");
+
+    0
+}
+
+// 入口点
+pub fn gameMain() {
+    main();
+}
