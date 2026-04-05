@@ -1,0 +1,32 @@
+# Zen-C Sudoku Game .gitignore
+
+# 构建输出
+build/
+*.exe
+*.dll
+*.obj
+*.o
+*.pdb
+*.ilk
+*.exp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 临时文件
+*.tmp
+*.bak
+*.cache
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# Zen-C 编译器输出
+*.zbc
+*.zbm

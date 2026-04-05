@@ -1,0 +1,593 @@
+// main_window.zc - Zen-C数独游戏主程序
+// 所有平台使用同一份Zen-C代码
+
+import std.io;
+import std.string;
+
+// 导入游戏逻辑和平台API
+import "game_logic.zc";
+import "platform_api.zc";
+
+// ==================== 常量 ====================
+
+const WINDOW_WIDTH = 620;
+const WINDOW_HEIGHT = 750;
+
+// 游戏颜色
+const BG_COLOR = rgb(30, 30, 40);
+const BOARD_BG = rgb(255, 255, 255);
+const CELL_FIXED_BG = rgb(240, 240, 240);
+const CELL_SELECTED_BG = rgb(100, 149, 237);
+const CELL_ERROR_BG = rgb(255, 200, 200);
+const LINE_THIN = rgb(180, 180, 180);
+const LINE_THICK = rgb(40, 40, 40);
+const TEXT_DARK = rgb(20, 20, 20);
+const TEXT_BLUE = rgb(50, 50, 150);
+const HIGHLIGHT_SAME = rgb(230, 230, 255);
+const BUTTON_BG = rgb(70, 130, 180);
+const BUTTON_HOVER = rgb(100, 160, 210);
+
+// ==================== 全局变量 ====================
+
+static mut game: SudokuGame;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut hovered_button: i32 = -1;
+
+// 按钮定义
+struct Button {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    text: string,
+    action: i32,  // 0=newgame, 1=hint, 2=check
+}
+
+static mut buttons: [3]Button;
+
+// ==================== 按钮初始化 ====================
+
+fn initButtons() {
+    let start_x = 50;
+    let start_y = WINDOW_HEIGHT - 100;
+    let btn_width = 160;
+    let gap = 20;
+    
+    buttons[0] = Button {
+        x: start_x,
+        y: start_y,
+        width: btn_width,
+        height: 40,
+        text: "新游戏",
+        action: 0
+    };
+    
+    buttons[1] = Button {
+        x: start_x + btn_width + gap,
+        y: start_y,
+        width: btn_width,
+        height: 40,
+        text: "提示",
+        action: 1
+    };
+    
+    buttons[2] = Button {
+        x: start_x + 2 * (btn_width + gap),
+        y: start_y,
+        width: btn_width,
+        height: 40,
+        text: "检查",
+        action: 2
+    };
+}
+
+// ==================== 绘图函数 ====================
+
+// 绘制背景
+fn drawBackground(canvas: &Canvas) {
+    canvas.clear(BG_COLOR);
+}
+
+// 绘制数字（简化实现）
+fn drawDigit(canvas: &Canvas, x: i32, y: i32, size: i32, digit: i32, color: Color, bold: bool) {
+    // 绘制一个简化的数字
+    // 实际游戏中应该使用位图字体
+    let cx = x + size / 2;
+    let cy = y + size / 2;
+    
+    // 绘制数字（使用小方块组成）
+    let block_size = size / 5;
+    let offset = (size - 5 * block_size) / 2;
+    
+    // 简化：用圆形表示数字
+    let radius = size / 3;
+    canvas.drawCircle(cx, cy, radius, color);
+}
+
+// 绘制数独网格
+fn drawGrid(canvas: &Canvas, offset_x: i32, offset_y: i32) {
+    // 绘制背景
+    canvas.fillRect(offset_x, offset_y, BOARD_SIZE, BOARD_SIZE, BOARD_BG);
+    
+    // 绘制每个单元格
+    for row in 0..GRID_SIZE {
+        for col in 0..GRID_SIZE {
+            let (cx, cy, cw, ch) = getCellRect(0, 0, row, col);
+            let cell_x = offset_x + cx;
+            let cell_y = offset_y + cy;
+            
+            // 确定单元格背景色
+            let bg_color = BOARD_BG;
+            
+            // 固定单元格背景
+            if game.grid.fixed[row][col] {
+                // 浅蓝色背景
+            } else if game.grid.errors[row][col] {
+                bg_color = CELL_ERROR_BG;
+            } else if row == game.selected_row && col == game.selected_col {
+                bg_color = CELL_SELECTED_BG;
+            } else if game.selected_row >= 0 && game.selected_col >= 0 &&
+                      (row == game.selected_row || col == game.selected_col) {
+                bg_color = HIGHLIGHT_SAME;
+            }
+            
+            canvas.fillRect(cell_x, cell_y, CELL_SIZE, CELL_SIZE, bg_color);
+            
+            // 绘制数字
+            let value = game.grid.values[row][col];
+            if value > 0 {
+                let text_color = if game.grid.fixed[row][col] {
+                    TEXT_BLUE
+                } else if game.grid.errors[row][col] {
+                    rgb(200, 50, 50)
+                } else {
+                    TEXT_DARK
+                };
+                
+                // 绘制数字（使用简化的圆形代替）
+                let cx = cell_x + CELL_SIZE / 2;
+                let cy = cell_y + CELL_SIZE / 2;
+                let radius = CELL_SIZE / 3;
+                canvas.drawCircle(cx, cy, radius, text_color);
+            }
+            
+            // 绘制单元格边框
+            let (right_boundary, bottom_boundary) = isBlockBoundary(row, col);
+            let line_width = if right_boundary { 3 } else { 1 };
+            let line_color = if right_boundary { LINE_THICK } else { LINE_THIN };
+            
+            // 右边框
+            canvas.fillRect(cell_x + CELL_SIZE - line_width, cell_y, 
+                          line_width, CELL_SIZE, line_color);
+            
+            // 下边框
+            let bottom_width = if bottom_boundary { 3 } else { 1 };
+            let bottom_color = if bottom_boundary { LINE_THICK } else { LINE_THIN };
+            canvas.fillRect(cell_x, cell_y + CELL_SIZE - bottom_width,
+                          CELL_SIZE, bottom_width, bottom_color);
+        }
+    }
+    
+    // 绘制选中单元格高亮边框
+    if game.selected_row >= 0 && game.selected_col >= 0 {
+        let (cx, cy, cw, ch) = getCellRect(0, 0, game.selected_row, game.selected_col);
+        let sel_x = offset_x + cx;
+        let sel_y = offset_y + cy;
+        
+        // 绘制粗边框
+        canvas.fillRect(sel_x, sel_y, CELL_SIZE, 3, rgb(30, 30, 180));
+        canvas.fillRect(sel_x, sel_y + CELL_SIZE - 3, CELL_SIZE, 3, rgb(30, 30, 180));
+        canvas.fillRect(sel_x, sel_y, 3, CELL_SIZE, rgb(30, 30, 180));
+        canvas.fillRect(sel_x + CELL_SIZE - 3, sel_y, 3, CELL_SIZE, rgb(30, 30, 180));
+    }
+}
+
+// 绘制按钮
+fn drawButton(canvas: &Canvas, btn: &Button, hovered: bool) {
+    let bg = if hovered { BUTTON_HOVER } else { BUTTON_BG };
+    canvas.fillRect(btn.x, btn.y, btn.width, btn.height, bg);
+    
+    // 按钮边框
+    canvas.fillRect(btn.x, btn.y, btn.width, 2, rgb(255, 255, 255));
+    canvas.fillRect(btn.x, btn.y + btn.height - 2, btn.width, 2, rgb(200, 200, 200));
+}
+
+// 绘制按钮文字（简化）
+fn drawButtonText(canvas: &Canvas, x: i32, y: i32, text: string, color: Color) {
+    // 简化实现：使用圆形组成文字
+    let cx = x;
+    let cy = y + 20;
+    canvas.drawCircle(cx, cy, 5, color);
+}
+
+// 绘制UI信息
+fn drawUI(canvas: &Canvas) {
+    // 计算游戏区域位置
+    let mut game_offset_x: i32 = 0;
+    let mut game_offset_y: i32 = 0;
+    calculateGameArea(&game, &mut game_offset_x, &mut game_offset_y);
+    
+    // 游戏信息区域（顶部）
+    let info_y = 20;
+    
+    // 难度
+    let difficulty_text = "难度: " ++ getDifficultyName(game.difficulty);
+    let timer_text = "时间: " ++ getTimerText(&game);
+    let mistakes_text = "错误: " ++ format("{}", game.mistakes);
+    
+    // 绘制按钮
+    for i in 0..3 {
+        let hovered = (hovered_button == i);
+        drawButton(canvas, &buttons[i], hovered);
+    }
+}
+
+// 绘制胜利画面
+fn drawWinScreen(canvas: &Canvas) {
+    // 半透明遮罩
+    let mut info_offset_x: i32 = 0;
+    let mut info_offset_y: i32 = 0;
+    calculateGameArea(&game, &mut info_offset_x, &mut info_offset_y);
+    
+    canvas.fillRect(info_offset_x, info_offset_y, BOARD_SIZE, BOARD_SIZE, 
+                   rgb(255, 255, 200));
+}
+
+// ==================== 事件处理 ====================
+
+// 处理鼠标点击
+fn handleMouseClick(x: i32, y: i32) {
+    // 检查按钮点击
+    for i in 0..3 {
+        let btn = &buttons[i];
+        if x >= btn.x && x <= btn.x + btn.width &&
+           y >= btn.y && y <= btn.y + btn.height {
+            match btn.action {
+                0 => { // 新游戏
+                    init_game(&mut game, Difficulty::Medium);
+                },
+                1 => { // 提示
+                    let _ = useHint(&mut game);
+                },
+                2 => { // 检查
+                    checkErrors(&mut game);
+                },
+            }
+            return;
+        }
+    }
+    
+    // 计算游戏区域
+    let mut game_offset_x: i32 = 0;
+    let mut game_offset_y: i32 = 0;
+    calculateGameArea(&game, &mut game_offset_x, &mut game_offset_y);
+    
+    // 检查是否点击在网格上
+    let (in_grid, row, col) = isPointInGrid(game_offset_x, game_offset_y, x, y);
+    if in_grid {
+        let _ = selectCell(&mut game, row, col);
+    }
+}
+
+// 处理键盘输入
+fn handleKeyInput(key: VirtualKey) -> bool {
+    // 数字键 1-9
+    match key {
+        VirtualKey.Key1 | VirtualKey.Numpad1 => {
+            let _ = inputNumber(&mut game, 1);
+        },
+        VirtualKey.Key2 | VirtualKey.Numpad2 => {
+            let _ = inputNumber(&mut game, 2);
+        },
+        VirtualKey.Key3 | VirtualKey.Numpad3 => {
+            let _ = inputNumber(&mut game, 3);
+        },
+        VirtualKey.Key4 | VirtualKey.Numpad4 => {
+            let _ = inputNumber(&mut game, 4);
+        },
+        VirtualKey.Key5 | VirtualKey.Numpad5 => {
+            let _ = inputNumber(&mut game, 5);
+        },
+        VirtualKey.Key6 | VirtualKey.Numpad6 => {
+            let _ = inputNumber(&mut game, 6);
+        },
+        VirtualKey.Key7 | VirtualKey.Numpad7 => {
+            let _ = inputNumber(&mut game, 7);
+        },
+        VirtualKey.Key8 | VirtualKey.Numpad8 => {
+            let _ = inputNumber(&mut game, 8);
+        },
+        VirtualKey.Key9 | VirtualKey.Numpad9 => {
+            let _ = inputNumber(&mut game, 9);
+        },
+        // 0 或 Backspace 清除
+        VirtualKey.Key0 | VirtualKey.Numpad0 | VirtualKey.Backspace => {
+            let _ = clearSelectedCell(&mut game);
+        },
+        // 方向键移动选择
+        VirtualKey.Up => {
+            if game.selected_row > 0 {
+                game.selected_row -= 1;
+            }
+        },
+        VirtualKey.Down => {
+            if game.selected_row < GRID_SIZE - 1 {
+                game.selected_row += 1;
+            }
+        },
+        VirtualKey.Left => {
+            if game.selected_col > 0 {
+                game.selected_col -= 1;
+            }
+        },
+        VirtualKey.Right => {
+            if game.selected_col < GRID_SIZE - 1 {
+                game.selected_col += 1;
+            }
+        },
+        // H 键提示
+        VirtualKey.KeyH => {
+            let _ = useHint(&mut game);
+        },
+        // N 键新游戏
+        VirtualKey.KeyN => {
+            init_game(&mut game, Difficulty::Medium);
+        },
+        // C 键检查
+        VirtualKey.KeyC => {
+            checkErrors(&mut game);
+        },
+        // ESC 退出
+        VirtualKey.Escape => {
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+// 绘制主界面
+fn drawMain(canvas: &Canvas, window_width: i32, window_height: i32) {
+    drawBackground(canvas);
+    
+    let mut game_offset_x: i32 = 0;
+    let mut game_offset_y: i32 = 0;
+    calculateGameArea(&game, &mut game_offset_x, &mut game_offset_y);
+    
+    drawGrid(canvas, game_offset_x, game_offset_y);
+    drawUI(canvas);
+    
+    if game.state == SudokuState.Won {
+        drawWinScreen(canvas);
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C 数独游戏 v1.0");
+    io.println("========================================");
+    
+    // 初始化游戏
+    game.window_width = WINDOW_WIDTH;
+    game.window_height = WINDOW_HEIGHT;
+    init_game(&mut game, Difficulty::Medium);
+    
+    // 初始化按钮
+    initButtons();
+    
+    // 创建窗口
+    window = create_window("Zen-C 数独游戏", WINDOW_WIDTH, WINDOW_HEIGHT);
+    
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+    
+    io.println("窗口创建成功!");
+    io.println("控制说明:");
+    io.println("  鼠标点击: 选择单元格");
+    io.println("  数字键 1-9: 填入数字");
+    io.println("  0/Backspace: 清除");
+    io.println("  方向键: 移动选择");
+    io.println("  H: 提示");
+    io.println("  N: 新游戏");
+    io.println("  C: 检查错误");
+    io.println("  ESC: 退出");
+    io.println("========================================");
+    
+    // 运行事件循环
+    runEventLoop(window);
+    
+    io.println("游戏结束!");
+    io.println("谢谢游玩 Zen-C 数独游戏!");
+    io.println("========================================");
+    
+    0
+}
+
+// 事件循环
+fn runEventLoop(win: WindowHandle) {
+    let mut last_time = getTickCount();
+    running = true;
+    
+    while running {
+        var event = Event.{};
+        
+        while pollEvent(win, &event) {
+            match event.msg {
+                MessageType.Quit => {
+                    running = false;
+                },
+                MessageType.MouseDown => {
+                    handleMouseClick(event.mouse.x, event.mouse.y);
+                },
+                MessageType.KeyDown => {
+                    let continue_game = handleKeyInput(event.key.key);
+                    if !continue_game {
+                        running = false;
+                    }
+                },
+                _ => {}
+            }
+        }
+        
+        // 简单渲染
+        var fb = getFrameBuffer(win);
+        var pitch = getFrameBufferPitch(win);
+        
+        // 创建画布
+        var canvas = SimpleCanvas.{
+            width: WINDOW_WIDTH,
+            height: WINDOW_HEIGHT,
+            pitch: pitch,
+            buffer: fb
+        };
+        
+        drawMain(&canvas, WINDOW_WIDTH, WINDOW_HEIGHT);
+        presentFrame(win);
+        
+        // 帧率控制
+        sleep(16);
+        
+        // 更新计时器
+        let current_time = getTickCount();
+        let dt = current_time - last_time;
+        last_time = current_time;
+        updateTimer(&mut game, dt);
+    }
+}
+
+// 简单画布实现
+private struct SimpleCanvas {
+    width: int,
+    height: int,
+    pitch: int,
+    buffer: rawptr,
+}
+
+impl Canvas for SimpleCanvas {
+    fn clear(color: Color) {
+        var pixels = self.buffer as u32 mut;
+        var count = (self.pitch * self.height) / 4;
+        
+        for i in 0..count {
+            pixels[i] = color;
+        }
+    }
+    
+    fn setPixel(x: int, y: int, color: Color) {
+        if x < 0 || x >= self.width || y < 0 || y >= self.height {
+            return;
+        }
+        
+        var offset = y * (self.pitch / 4) + x;
+        var pixels = self.buffer as u32 mut;
+        pixels[offset] = color;
+    }
+    
+    fn getPixel(x: int, y: int) -> Color {
+        if x < 0 || x >= self.width || y < 0 || y >= self.height {
+            return Color.Black();
+        }
+        
+        var offset = y * (self.pitch / 4) + x;
+        var pixels = self.buffer as u32;
+        return pixels[offset];
+    }
+    
+    fn drawLine(x1: int, y1: int, x2: int, y2: int, color: Color) {
+        // Bresenham 算法
+        var dx = abs(x2 - x1);
+        var dy = abs(y2 - y1);
+        var sx = if x1 < x2 { 1 } else { -1 };
+        var sy = if y1 < y2 { 1 } else { -1 };
+        var err = dx - dy;
+        
+        loop {
+            self.setPixel(x1, y1, color);
+            
+            if x1 == x2 && y1 == y2 {
+                break;
+            }
+            
+            var e2 = 2 * err;
+            if e2 > -dy {
+                err = err - dy;
+                x1 = x1 + sx;
+            }
+            if e2 < dx {
+                err = err + dx;
+                y1 = y1 + sy;
+            }
+        }
+    }
+    
+    fn drawRect(x: int, y: int, w: int, h: int, color: Color) {
+        self.drawLine(x, y, x + w, y, color);
+        self.drawLine(x + w, y, x + w, y + h, color);
+        self.drawLine(x + w, y + h, x, y + h, color);
+        self.drawLine(x, y + h, x, y, color);
+    }
+    
+    fn fillRect(x: int, y: int, w: int, h: int, color: Color) {
+        for py in y..(y + h) {
+            for px in x..(x + w) {
+                self.setPixel(px, py, color);
+            }
+        }
+    }
+    
+    fn drawCircle(cx: int, cy: int, radius: int, color: Color) {
+        var d = 3 - 2 * radius;
+        var x = 0;
+        var y = radius;
+        
+        loop {
+            self.setPixel(cx + x, cy + y, color);
+            self.setPixel(cx - x, cy + y, color);
+            self.setPixel(cx + x, cy - y, color);
+            self.setPixel(cx - x, cy - y, color);
+            self.setPixel(cx + y, cy + x, color);
+            self.setPixel(cx - y, cy + x, color);
+            self.setPixel(cx + y, cy - x, color);
+            self.setPixel(cx - y, cy - x, color);
+            
+            if d < 0 {
+                d = d + 4 * x + 6;
+            } else {
+                d = d + 4 * (x - y) + 10;
+                y = y - 1;
+            }
+            
+            x = x + 1;
+            if x > y {
+                break;
+            }
+        }
+    }
+    
+    fn fillCircle(cx: int, cy: int, radius: int, color: Color) {
+        for y in (-radius)..(radius + 1) {
+            for x in (-radius)..(radius + 1) {
+                if x*x + y*y <= radius * radius {
+                    self.setPixel(cx + x, cy + y, color);
+                }
+            }
+        }
+    }
+    
+    fn drawText(x: int, y: int, text: str, color: Color, font: Font) {
+        // 简化实现
+    }
+    
+    fn getWidth() -> int {
+        return self.width;
+    }
+    
+    fn getHeight() -> int {
+        return self.height;
+    }
+}
