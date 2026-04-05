@@ -1,0 +1,666 @@
+// game_logic.zc - Badminton Game Logic
+// 073-Badminton 羽毛球游戏
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const WINDOW_WIDTH: int = 800;
+const WINDOW_HEIGHT: int = 600;
+
+const COURT_TOP: int = 80;
+const COURT_BOTTOM: int = 590;
+const COURT_LEFT: int = 10;
+const COURT_RIGHT: int = 790;
+
+const NET_X: int = 400;
+const NET_HEIGHT: int = 10;
+const NET_Y_TOP: int = 200;
+const NET_Y_BOTTOM: int = COURT_BOTTOM;
+
+const RACKET_WIDTH: int = 10;
+const RACKET_HEIGHT: int = 80;
+const RACKET_SPEED: int = 8;
+const RACKET_MARGIN: int = 30;
+
+const SHUTTLECOCK_SIZE: int = 8;
+const SHUTTLECOCK_GRAVITY: float = 0.15;
+const SHUTTLECOCK_DRAG: float = 0.995;
+const SHUTTLECOCK_BOUNCE: float = 0.75;
+const SHUTTLECOCK_MIN_SPEED: int = 4;
+const SHUTTLECOCK_MAX_SPEED: int = 15;
+
+const WINNING_SCORE: int = 11;
+const AI_REACTION_DELAY: int = 80;
+const AI_ERROR_RANGE: int = 40;
+
+const SERVICE_DELAY: int = 1500;
+
+// ==================== 数据结构 ====================
+
+// 球拍
+struct Racket {
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+}
+
+// 羽毛球（羽毛球）
+struct Shuttlecock {
+    x: float,
+    y: float,
+    vx: float,
+    vy: float,
+    speed: int,
+    active: bool,
+}
+
+// ==================== BadmintonGame 类 ====================
+
+pub class BadmintonGame extends Game {
+    // 玩家球拍
+    playerRacketX: int;
+    playerRacketY: int;
+    playerRacketWidth: int;
+    playerRacketHeight: int;
+    playerScore: int;
+    
+    // 电脑球拍
+    cpuRacketX: int;
+    cpuRacketY: int;
+    cpuRacketWidth: int;
+    cpuRacketHeight: int;
+    cpuScore: int;
+    
+    // 羽毛球
+    shuttleX: float;
+    shuttleY: float;
+    shuttleVX: float;
+    shuttleVY: float;
+    shuttleSpeed: int;
+    shuttleActive: bool;
+    
+    // 服务权
+    playerServing: bool;
+    lastServer: int;
+    
+    // 游戏状态
+    gameStarted: bool;
+    gameOver: bool;
+    winner: str;
+    waitingForService: bool;
+    serviceTimer: u32;
+    
+    // 按键状态
+    keyUp: bool;
+    keyDown: bool;
+    
+    // AI相关
+    aiTargetY: int;
+    aiLastUpdate: u32;
+    aiError: int;
+    
+    // 边框颜色
+    courtColor: Color;
+    netColor: Color;
+    
+    // onInit - 初始化游戏
+    pub fn onInit() {
+        self.setState(GameState.Playing);
+        self.gameStarted = false;
+        self.gameOver = false;
+        self.winner = "";
+        self.waitingForService = false;
+        self.serviceTimer = 0;
+        self.lastServer = 0;
+        self.playerServing = true;
+        
+        self.courtColor = Color.White();
+        self.netColor = Color.Yellow();
+        
+        // 初始化玩家球拍
+        self.playerRacketX = RACKET_MARGIN;
+        self.playerRacketY = (self.height - RACKET_HEIGHT) / 2;
+        self.playerRacketWidth = RACKET_WIDTH;
+        self.playerRacketHeight = RACKET_HEIGHT;
+        self.playerScore = 0;
+        
+        // 初始化电脑球拍
+        self.cpuRacketX = self.width - RACKET_MARGIN - RACKET_WIDTH;
+        self.cpuRacketY = (self.height - RACKET_HEIGHT) / 2;
+        self.cpuRacketWidth = RACKET_WIDTH;
+        self.cpuRacketHeight = RACKET_HEIGHT;
+        self.cpuScore = 0;
+        
+        // 重置按键状态
+        self.keyUp = false;
+        self.keyDown = false;
+        
+        // AI初始化
+        self.aiTargetY = self.height / 2;
+        self.aiLastUpdate = 0;
+        self.aiError = 0;
+        
+        // 羽毛球初始化
+        self.shuttleActive = false;
+        self.shuttleX = 0.0;
+        self.shuttleY = 0.0;
+        self.shuttleVX = 0.0;
+        self.shuttleVY = 0.0;
+        self.shuttleSpeed = SHUTTLECOCK_MIN_SPEED;
+    }
+    
+    // onShutdown - 关闭清理
+    pub fn onShutdown() {
+    }
+    
+    // onUpdate - 每帧更新
+    pub fn onUpdate(dt: u32) {
+        if self.gameOver {
+            return;
+        }
+        
+        // 更新玩家球拍
+        self.updatePlayerRacket();
+        
+        // 更新电脑AI
+        self.updateCPU(dt);
+        
+        // 服务延迟
+        if self.waitingForService {
+            var current = getTickCount();
+            if current - self.serviceTimer >= SERVICE_DELAY as u32 {
+                self.waitingForService = false;
+                if self.playerServing {
+                    self.serveToRight();
+                } else {
+                    self.serveToLeft();
+                }
+            }
+            return;
+        }
+        
+        // 如果羽毛球激活了，更新羽毛球
+        if self.shuttleActive {
+            self.updateShuttlecock();
+            self.checkScoring();
+        }
+    }
+    
+    // 更新玩家球拍
+    private fn updatePlayerRacket() {
+        if self.keyUp {
+            self.playerRacketY = self.playerRacketY - RACKET_SPEED;
+        }
+        if self.keyDown {
+            self.playerRacketY = self.playerRacketY + RACKET_SPEED;
+        }
+        
+        // 确保球拍在边界内
+        if self.playerRacketY < COURT_TOP {
+            self.playerRacketY = COURT_TOP;
+        }
+        if self.playerRacketY + self.playerRacketHeight > COURT_BOTTOM {
+            self.playerRacketY = COURT_BOTTOM - self.playerRacketHeight;
+        }
+    }
+    
+    // 更新电脑AI
+    private fn updateCPU(dt: u32) {
+        // 限制AI更新频率
+        var currentTime = getTickCount();
+        if currentTime - self.aiLastUpdate < AI_REACTION_DELAY as u32 {
+            return;
+        }
+        self.aiLastUpdate = currentTime;
+        
+        // 预测羽毛球的位置
+        if self.shuttleActive && self.shuttleVX > 0.0 {
+            var timeToReach = (self.cpuRacketX - self.shuttleX) / self.shuttleVX;
+            if timeToReach > 0.0 && timeToReach < 50.0 {
+                var predictedY = self.shuttleY + self.shuttleVY * timeToReach;
+                // 添加失误
+                if math.rand() % 4 == 0 {
+                    self.aiError = math.rand() % (AI_ERROR_RANGE * 2) - AI_ERROR_RANGE;
+                }
+                self.aiTargetY = predictedY as int + self.aiError + RACKET_HEIGHT / 2;
+            }
+        } else {
+            self.aiTargetY = self.height / 2;
+        }
+        
+        // 让AI球拍移向目标位置
+        var cpuCenter = self.cpuRacketY + RACKET_HEIGHT / 2;
+        var diff = self.aiTargetY - cpuCenter;
+        
+        // AI移动速度（稍微慢一点）
+        var aiSpeed = RACKET_SPEED - 2;
+        
+        if diff > aiSpeed {
+            self.cpuRacketY = self.cpuRacketY + aiSpeed;
+        } else if diff < -aiSpeed {
+            self.cpuRacketY = self.cpuRacketY - aiSpeed;
+        }
+        
+        // 确保球拍在边界内
+        if self.cpuRacketY < COURT_TOP {
+            self.cpuRacketY = COURT_TOP;
+        }
+        if self.cpuRacketY + self.cpuRacketHeight > COURT_BOTTOM {
+            self.cpuRacketY = COURT_BOTTOM - self.cpuRacketHeight;
+        }
+    }
+    
+    // 发球到右边
+    private fn serveToRight() {
+        self.shuttleX = (self.playerRacketX + self.playerRacketWidth + SHUTTLECOCK_SIZE) as float;
+        self.shuttleY = self.playerRacketY as float + RACKET_HEIGHT as float / 2.0;
+        var angle = (math.rand() % 30 - 15) as float;
+        self.shuttleVX = (self.shuttleSpeed as float) * self.cos(angle);
+        self.shuttleVY = (self.shuttleSpeed as float) * self.sin(angle) - 2.0;
+        self.shuttleActive = true;
+        self.gameStarted = true;
+    }
+    
+    // 发球到左边
+    private fn serveToLeft() {
+        self.shuttleX = (self.cpuRacketX - SHUTTLECOCK_SIZE) as float;
+        self.shuttleY = self.cpuRacketY as float + RACKET_HEIGHT as float / 2.0;
+        var angle = (math.rand() % 30 - 15) as float;
+        self.shuttleVX = -(self.shuttleSpeed as float) * self.cos(angle);
+        self.shuttleVY = (self.shuttleSpeed as float) * self.sin(angle) - 2.0;
+        self.shuttleActive = true;
+        self.gameStarted = true;
+    }
+    
+    // 更新羽毛球物理
+    private fn updateShuttlecock() {
+        // 应用重力
+        self.shuttleVY = self.shuttleVY + SHUTTLECOCK_GRAVITY;
+        
+        // 应用空气阻力
+        self.shuttleVX = self.shuttleVX * SHUTTLECOCK_DRAG;
+        self.shuttleVY = self.shuttleVY * SHUTTLECOCK_DRAG;
+        
+        // 移动羽毛球
+        self.shuttleX = self.shuttleX + self.shuttleVX;
+        self.shuttleY = self.shuttleY + self.shuttleVY;
+        
+        // 上下边界碰撞
+        if self.shuttleY <= COURT_TOP as float + SHUTTLECOCK_SIZE as float {
+            self.shuttleY = COURT_TOP as float + SHUTTLECOCK_SIZE as float;
+            self.shuttleVY = -self.shuttleVY * SHUTTLECOCK_BOUNCE;
+        }
+        if self.shuttleY >= COURT_BOTTOM as float - SHUTTLECOCK_SIZE as float {
+            self.shuttleY = COURT_BOTTOM as float - SHUTTLECOCK_SIZE as float;
+            self.shuttleVY = -self.shuttleVY * SHUTTLECOCK_BOUNCE;
+        }
+        
+        // 边界碰撞（左右边界）
+        if self.shuttleX <= COURT_LEFT as float + SHUTTLECOCK_SIZE as float {
+            self.shuttleX = COURT_LEFT as float + SHUTTLECOCK_SIZE as float;
+            self.shuttleVX = -self.shuttleVX * SHUTTLECOCK_BOUNCE;
+        }
+        if self.shuttleX >= COURT_RIGHT as float - SHUTTLECOCK_SIZE as float {
+            self.shuttleX = COURT_RIGHT as float - SHUTTLECOCK_SIZE as float;
+            self.shuttleVX = -self.shuttleVX * SHUTTLECOCK_BOUNCE;
+        }
+        
+        // 玩家球拍碰撞
+        if self.checkRacketCollision(self.playerRacketX, self.playerRacketY, self.playerRacketWidth, self.playerRacketHeight) {
+            self.shuttleVX = self.absFloat(self.shuttleVX);
+            if self.shuttleVX < SHUTTLECOCK_MIN_SPEED as float {
+                self.shuttleVX = SHUTTLECOCK_MIN_SPEED as float;
+            }
+            
+            var racketCenter = self.playerRacketY as float + RACKET_HEIGHT as float / 2.0;
+            var hitPos = self.shuttleY - racketCenter;
+            self.shuttleVY = hitPos / (RACKET_HEIGHT as float / 2.0) * (self.shuttleSpeed as float);
+            
+            // 增加速度
+            if self.shuttleSpeed < SHUTTLECOCK_MAX_SPEED {
+                self.shuttleSpeed = self.shuttleSpeed + 1;
+            }
+            
+            // 限制速度
+            var currentSpeed = self.sqrtFloat(self.shuttleVX * self.shuttleVX + self.shuttleVY * self.shuttleVY);
+            if currentSpeed > SHUTTLECOCK_MAX_SPEED as float {
+                self.shuttleVX = self.shuttleVX / currentSpeed * self.shuttleSpeed as float;
+                self.shuttleVY = self.shuttleVY / currentSpeed * self.shuttleSpeed as float;
+            }
+            
+            self.shuttleX = (self.playerRacketX + self.playerRacketWidth + SHUTTLECOCK_SIZE) as float;
+        }
+        
+        // 电脑球拍碰撞
+        if self.checkRacketCollision(self.cpuRacketX, self.cpuRacketY, self.cpuRacketWidth, self.cpuRacketHeight) {
+            self.shuttleVX = -self.absFloat(self.shuttleVX);
+            if self.shuttleVX > -SHUTTLECOCK_MIN_SPEED as float {
+                self.shuttleVX = -SHUTTLECOCK_MIN_SPEED as float;
+            }
+            
+            var racketCenter = self.cpuRacketY as float + RACKET_HEIGHT as float / 2.0;
+            var hitPos = self.shuttleY - racketCenter;
+            self.shuttleVY = hitPos / (RACKET_HEIGHT as float / 2.0) * (self.shuttleSpeed as float);
+            
+            // 增加速度
+            if self.shuttleSpeed < SHUTTLECOCK_MAX_SPEED {
+                self.shuttleSpeed = self.shuttleSpeed + 1;
+            }
+            
+            // 限制速度
+            var currentSpeed = self.sqrtFloat(self.shuttleVX * self.shuttleVX + self.shuttleVY * self.shuttleVY);
+            if currentSpeed > SHUTTLECOCK_MAX_SPEED as float {
+                self.shuttleVX = self.shuttleVX / currentSpeed * self.shuttleSpeed as float;
+                self.shuttleVY = self.shuttleVY / currentSpeed * self.shuttleSpeed as float;
+            }
+            
+            self.shuttleX = (self.cpuRacketX - SHUTTLECOCK_SIZE) as float;
+        }
+        
+        // 网碰撞
+        if self.shuttleX > (NET_X - SHUTTLECOCK_SIZE) as float && self.shuttleX < (NET_X + SHUTTLECOCK_SIZE) as float {
+            if self.shuttleY > (NET_Y_TOP - SHUTTLECOCK_SIZE) as float && self.shuttleY < NET_Y_BOTTOM as float {
+                // 在网区域内
+                if self.shuttleVX > 0.0 && self.shuttleX < NET_X as float {
+                    self.shuttleVX = -self.shuttleVX * SHUTTLECOCK_BOUNCE;
+                    self.shuttleX = (NET_X - SHUTTLECOCK_SIZE) as float;
+                } else if self.shuttleVX < 0.0 && self.shuttleX > NET_X as float {
+                    self.shuttleVX = -self.shuttleVX * SHUTTLECOCK_BOUNCE;
+                    self.shuttleX = (NET_X + SHUTTLECOCK_SIZE) as float;
+                }
+            }
+        }
+    }
+    
+    // 检查球拍碰撞
+    private fn checkRacketCollision(rx: int, ry: int, rw: int, rh: int) -> bool {
+        var shuttleLeft = self.shuttleX - SHUTTLECOCK_SIZE as float / 2.0;
+        var shuttleRight = self.shuttleX + SHUTTLECOCK_SIZE as float / 2.0;
+        var shuttleTop = self.shuttleY - SHUTTLECOCK_SIZE as float / 2.0;
+        var shuttleBottom = self.shuttleY + SHUTTLECOCK_SIZE as float / 2.0;
+        
+        var racketLeft = rx as float;
+        var racketRight = (rx + rw) as float;
+        var racketTop = ry as float;
+        var racketBottom = (ry + rh) as float;
+        
+        return shuttleRight >= racketLeft && shuttleLeft <= racketRight &&
+               shuttleBottom >= racketTop && shuttleTop <= racketBottom;
+    }
+    
+    // 检查得分
+    private fn checkScoring() {
+        // 羽毛球出界左侧（玩家失分）
+        if self.shuttleX < COURT_LEFT as float {
+            self.cpuScore = self.cpuScore + 1;
+            self.lastServer = 1;
+            self.playerServing = false;
+            self.shuttleActive = false;
+            self.waitingForService = true;
+            self.serviceTimer = getTickCount();
+            self.shuttleSpeed = SHUTTLECOCK_MIN_SPEED;
+            self.checkWinCondition();
+            return;
+        }
+        
+        // 羽毛球出界右侧（电脑失分）
+        if self.shuttleX > COURT_RIGHT as float {
+            self.playerScore = self.playerScore + 1;
+            self.lastServer = 2;
+            self.playerServing = true;
+            self.shuttleActive = false;
+            self.waitingForService = true;
+            self.serviceTimer = getTickCount();
+            self.shuttleSpeed = SHUTTLECOCK_MIN_SPEED;
+            self.checkWinCondition();
+            return;
+        }
+        
+        // 羽毛球落地（如果在网这边）
+        if self.shuttleY > COURT_BOTTOM as float - SHUTTLECOCK_SIZE as float {
+            if self.shuttleX < NET_X as float {
+                // 玩家这边落地，玩家失分
+                self.cpuScore = self.cpuScore + 1;
+                self.lastServer = 1;
+                self.playerServing = false;
+            } else {
+                // 电脑这边落地，电脑失分
+                self.playerScore = self.playerScore + 1;
+                self.lastServer = 2;
+                self.playerServing = true;
+            }
+            self.shuttleActive = false;
+            self.waitingForService = true;
+            self.serviceTimer = getTickCount();
+            self.shuttleSpeed = SHUTTLECOCK_MIN_SPEED;
+            self.checkWinCondition();
+        }
+    }
+    
+    // 检查胜负
+    private fn checkWinCondition() {
+        if self.playerScore >= WINNING_SCORE {
+            self.gameOver = true;
+            self.winner = "玩家";
+            self.setState(GameState.Won);
+        } else if self.cpuScore >= WINNING_SCORE {
+            self.gameOver = true;
+            self.winner = "电脑";
+            self.setState(GameState.Lost);
+        }
+    }
+    
+    // onRender - 渲染画面
+    pub fn onRender(canvas: Canvas) {
+        canvas.clear(Color.Black());
+        
+        self.drawCourt(canvas);
+        self.drawNet(canvas);
+        self.drawRacket(canvas, self.playerRacketX, self.playerRacketY, self.playerRacketWidth, self.playerRacketHeight, Color.Blue());
+        self.drawRacket(canvas, self.cpuRacketX, self.cpuRacketY, self.cpuRacketWidth, self.cpuRacketHeight, Color.Red());
+        
+        if self.shuttleActive {
+            self.drawShuttlecock(canvas);
+        }
+        
+        self.drawScore(canvas);
+        self.drawServiceIndicator(canvas);
+        
+        if self.gameOver {
+            self.drawGameOver(canvas);
+        }
+    }
+    
+    // 绘制球场
+    private fn drawCourt(canvas: Canvas) {
+        // 外边框
+        canvas.drawRect(COURT_LEFT, COURT_TOP, COURT_RIGHT - COURT_LEFT, COURT_BOTTOM - COURT_TOP, self.courtColor);
+        
+        // 中线
+        canvas.drawLine(NET_X, COURT_TOP, NET_X, COURT_BOTTOM, Color.Gray());
+        
+        // 服务线
+        canvas.drawLine(RACKET_MARGIN * 3, COURT_TOP, RACKET_MARGIN * 3, COURT_BOTTOM, Color.Gray());
+        canvas.drawLine(self.width - RACKET_MARGIN * 3, COURT_TOP, self.width - RACKET_MARGIN * 3, COURT_BOTTOM, Color.Gray());
+    }
+    
+    // 绘制球网
+    private fn drawNet(canvas: Canvas) {
+        canvas.fillRect(NET_X - 3, NET_Y_TOP, 6, NET_Y_BOTTOM - NET_Y_TOP, self.netColor);
+        // 网顶
+        canvas.fillRect(NET_X - 5, NET_Y_TOP - 3, 10, 3, self.netColor);
+    }
+    
+    // 绘制球拍
+    private fn drawRacket(canvas: Canvas, x: int, y: int, w: int, h: int, color: Color) {
+        canvas.fillRect(x, y, w, h, color);
+        // 球拍手柄
+        var handleX = if color == Color.Blue() { x + w } else { x - 15 };
+        canvas.fillRect(handleX, y + h/2 - 3, 15, 6, Color.Brown());
+    }
+    
+    // 绘制羽毛球
+    private fn drawShuttlecock(canvas: Canvas) {
+        // 羽毛球头部（圆形）
+        canvas.fillCircle(self.shuttleX as int, self.shuttleY as int, SHUTTLECOCK_SIZE, Color.White());
+        // 羽毛球尾部（羽毛部分用线条表示）
+        var tailDir = if self.shuttleVX > 0.0 { -1 } else { 1 };
+        var tailX = self.shuttleX as int + tailDir * SHUTTLECOCK_SIZE * 2;
+        var tailY = self.shuttleY as int;
+        canvas.drawLine(self.shuttleX as int, self.shuttleY as int, tailX, tailY, Color.Cyan());
+    }
+    
+    // 绘制分数
+    private fn drawScore(canvas: Canvas) {
+        var font = Font.("Arial", 36);
+        var fontSmall = Font.("Arial", 14);
+        
+        var playerText = self.intToString(self.playerScore);
+        canvas.drawText(self.width / 4 - 20, 15, playerText, Color.Blue(), font);
+        
+        var cpuText = self.intToString(self.cpuScore);
+        canvas.drawText(self.width * 3 / 4 - 20, 15, cpuText, Color.Red(), font);
+        
+        canvas.drawText(self.width / 2 - 10, 15, "-", Color.Gray(), font);
+        
+        canvas.drawText(self.width / 4 - 30, 2, "玩家", Color.LightGray(), fontSmall);
+        canvas.drawText(self.width * 3 / 4 - 30, 2, "电脑", Color.LightGray(), fontSmall);
+    }
+    
+    // 绘制发球指示
+    private fn drawServiceIndicator(canvas: Canvas) {
+        if self.waitingForService {
+            var font = Font.("Arial", 20);
+            var text = if self.playerServing { "玩家发球..." } else { "电脑发球..." };
+            var xPos = if self.playerServing { self.width / 4 - 60 } else { self.width * 3 / 4 - 60 };
+            canvas.drawText(xPos, self.height / 2, text, Color.Yellow(), font);
+        }
+    }
+    
+    // 绘制游戏结束
+    private fn drawGameOver(canvas: Canvas) {
+        canvas.fillRect(0, 0, self.width, self.height, Color.ARGB(150, 0, 0, 0));
+        
+        var font = Font.("Arial", 48);
+        var text = self.winner ++ " 获胜!";
+        canvas.drawText(self.width / 2 - 150, self.height / 2 - 50, text, Color.Yellow(), font);
+        
+        var smallFont = Font.("Arial", 20);
+        var scoreText = "比分: " ++ self.intToString(self.playerScore) ++ " - " ++ self.intToString(self.cpuScore);
+        canvas.drawText(self.width / 2 - 80, self.height / 2 + 10, scoreText, Color.White(), smallFont);
+        
+        var restartText = "按 R 键重新开始";
+        canvas.drawText(self.width / 2 - 100, self.height / 2 + 50, restartText, Color.White(), smallFont);
+    }
+    
+    // onKeyDown - 键盘按下
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.Up | VirtualKey.KeyW => {
+                self.keyUp = true;
+            }
+            VirtualKey.Down | VirtualKey.KeyS => {
+                self.keyDown = true;
+            }
+            VirtualKey.Space => {
+                if self.waitingForService && self.playerServing && !self.gameOver {
+                    self.waitingForService = false;
+                    self.serveToRight();
+                }
+            }
+            VirtualKey.KeyR => {
+                if self.gameOver {
+                    self.onInit();
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    // onKeyUp - 键盘释放
+    pub fn onKeyUp(key: VirtualKey) {
+        match key {
+            VirtualKey.Up | VirtualKey.KeyW => {
+                self.keyUp = false;
+            }
+            VirtualKey.Down | VirtualKey.KeyS => {
+                self.keyDown = false;
+            }
+            _ => {}
+        }
+    }
+    
+    // onMouseDown - 鼠标按下
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        if self.waitingForService && self.playerServing && !self.gameOver {
+            self.waitingForService = false;
+            self.serveToRight();
+        }
+    }
+    
+    // onMouseUp - 鼠标释放
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+    }
+    
+    // ============ 辅助函数 ============
+    
+    fn absFloat(x: float) -> float {
+        return if x < 0.0 { -x } else { x };
+    }
+    
+    fn sqrtFloat(n: float) -> float {
+        if n < 0.0 {
+            return 0.0;
+        }
+        var x = n;
+        var y = 1.0;
+        while y < x {
+            x = (x + y) / 2.0;
+            y = n / x;
+        }
+        return x;
+    }
+    
+    fn cos(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = 1.0;
+        var term = 1.0;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn sin(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = rad;
+        var term = rad;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn intToString(n: int) -> str {
+        if n == 0 {
+            return "0";
+        }
+        var result = "";
+        var negative = false;
+        var num = n;
+        if num < 0 {
+            negative = true;
+            num = -num;
+        }
+        while num > 0 {
+            var digit = num % 10;
+            result = (digit as char + "") ++ result;
+            num = num / 10;
+        }
+        return if negative { "-" ++ result } else { result };
+    }
+}
