@@ -1,0 +1,857 @@
+// game_logic.zc - Cricket板球游戏逻辑
+// 075-Cricket 板球游戏 - 玩家击球对战电脑投球手
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const WINDOW_WIDTH: int = 600;
+const WINDOW_HEIGHT: int = 800;
+
+const PITCH_Y: int = WINDOW_HEIGHT / 2;
+const BATSMAN_Y: int = WINDOW_HEIGHT - 120;
+const BOWLER_Y: int = 100;
+
+const BALL_RADIUS: int = 6;
+const BAT_WIDTH: int = 100;
+const BAT_HEIGHT: int = 10;
+const WICKET_WIDTH: int = 40;
+const WICKET_HEIGHT: int = 40;
+
+const BALL_SPEED_INITIAL: int = 6;
+const BALL_SPEED_FAST: int = 10;
+const BALL_BOUNCE_Y: int = WINDOW_HEIGHT - 250;
+
+const BALLS_PER_OVER: int = 6;
+const MAX_OUTS: int = 3;
+const MATCH_OVERS: int = 2;
+
+// ==================== 游戏阶段 ====================
+
+enum GamePhase {
+    Ready,        // 等待开始
+    Bowling,      // 投球中
+    BallBouncing, // 球弹跳
+    BallFlying,   // 球飞行
+    Batting,      // 击球
+    Result,       // 显示结果
+    GameOver,     // 游戏结束
+}
+
+// ==================== 投球类型 ====================
+
+enum BallType {
+    Normal,     // 普通球
+    Fast,       // 快速球
+    Spin,       // 旋转球
+    Bouncer,    // 反弹高球
+}
+
+// ==================== 击球结果 ====================
+
+enum ShotResult {
+    Dot,         // 没击中或0分
+    Single,      // 1分
+    Double,      // 2分
+    Triple,      // 3分
+    Four,        // 4分
+    Six,         // 6分
+    Out,         // 出局
+}
+
+// ==================== Cricket游戏类 ====================
+
+pub class CricketGame extends Game {
+    // 球的状态
+    ballX: float;
+    ballY: float;
+    ballVX: float;
+    ballVY: float;
+    ballPhase: BallPhase;
+    ballType: BallType;
+    ballBounceCount: int;
+    
+    // 蝙蝠状态
+    batX: int;
+    batY: int;
+    batSwinging: bool;
+    batSwingPower: float;
+    batSwingAngle: float;
+    batSwingProgress: float;
+    
+    // 门柱(wickets)状态
+    wicketsX: int;
+    wicketsY: int;
+    wicketsHit: bool;
+    
+    // 游戏状态
+    phase: GamePhase;
+    gameStarted: bool;
+    gameOver: bool;
+    winner: str;
+    
+    // 回合/轮次
+    currentOver: int;
+    ballsInOver: int;
+    totalOvers: int;
+    
+    // 分数和出局
+    runs: int;
+    outs: int;
+    maxOuts: int;
+    
+    // 鼠标
+    mouseX: int;
+    mouseY: int;
+    lastMouseY: int;
+    swingTime: u32;
+    
+    // 击球结果动画
+    lastResult: ShotResult;
+    resultTimer: u32;
+    resultShown: bool;
+    
+    // 投球动画
+    bowlAnimTimer: u32;
+    bowlAnimating: bool;
+    
+    // 计时器
+    lastUpdate: u32;
+    
+    // 边框颜色
+    borderColor: Color;
+    
+    // onInit - 初始化游戏
+    pub fn onInit() {
+        self.setState(GameState.Playing);
+        self.phase = GamePhase.Ready;
+        self.gameStarted = false;
+        self.gameOver = false;
+        self.winner = "";
+        self.borderColor = Color.White();
+        
+        // 蝙蝠位置
+        self.batX = WINDOW_WIDTH / 2 - BAT_WIDTH / 2;
+        self.batY = BATSMAN_Y;
+        self.batSwinging = false;
+        self.batSwingPower = 0.0;
+        self.batSwingAngle = 0.0;
+        self.batSwingProgress = 0.0;
+        
+        // 门柱位置
+        self.wicketsX = WINDOW_WIDTH / 2 - WICKET_WIDTH / 2;
+        self.wicketsY = BATSMAN_Y + 30;
+        self.wicketsHit = false;
+        
+        // 鼠标
+        self.mouseX = WINDOW_WIDTH / 2;
+        self.mouseY = WINDOW_HEIGHT / 2;
+        self.lastMouseY = 0;
+        self.swingTime = 0;
+        
+        // 回合
+        self.currentOver = 1;
+        self.ballsInOver = 0;
+        self.totalOvers = MATCH_OVERS;
+        
+        // 分数
+        self.runs = 0;
+        self.outs = 0;
+        self.maxOuts = MAX_OUTS;
+        
+        // 结果显示
+        self.lastResult = ShotResult.Dot;
+        self.resultTimer = 0;
+        self.resultShown = false;
+        
+        // 投球动画
+        self.bowlAnimTimer = 0;
+        self.bowlAnimating = false;
+        
+        // 计时器
+        self.lastUpdate = getTickCount();
+        
+        // 初始化球
+        self.resetBall();
+    }
+    
+    // onShutdown - 关闭清理
+    pub fn onShutdown() {
+    }
+    
+    // onUpdate - 每帧更新
+    pub fn onUpdate(dt: u32) {
+        if self.gameOver {
+            return;
+        }
+        
+        var currentTime = getTickCount();
+        var deltaTime = currentTime - self.lastUpdate;
+        self.lastUpdate = currentTime;
+        
+        // 更新蝙蝠位置
+        self.updateBat();
+        
+        // 根据阶段更新
+        match self.phase {
+            GamePhase.Ready => {
+                // 等待 - 自动开始投球
+                if !self.bowlAnimating {
+                    self.startBowling();
+                }
+            }
+            GamePhase.Bowling => {
+                self.updateBowling(deltaTime);
+            }
+            GamePhase.BallBouncing => {
+                self.updateBallBounce(deltaTime);
+            }
+            GamePhase.BallFlying => {
+                self.updateBallFly(deltaTime);
+            }
+            GamePhase.Batting => {
+                self.updateBatting(deltaTime);
+            }
+            GamePhase.Result => {
+                self.updateResult(deltaTime);
+            }
+            _ => {}
+        }
+        
+        // 更新挥杆动画
+        if self.batSwinging {
+            self.batSwingProgress = self.batSwingProgress + 0.15;
+            if self.batSwingProgress >= 1.0 {
+                self.batSwinging = false;
+                self.batSwingProgress = 0.0;
+            }
+        }
+    }
+    
+    // 开始投球
+    private fn startBowling() {
+        self.bowlAnimating = true;
+        self.bowlAnimTimer = getTickCount();
+        self.phase = GamePhase.Bowling;
+        
+        // 随机选择投球类型
+        var rand = randInt(0, 3);
+        match rand {
+            0 => self.ballType = BallType.Normal;
+            1 => self.ballType = BallType.Fast;
+            2 => self.ballType = BallType.Spin;
+            _ => self.ballType = BallType.Bouncer;
+        }
+        
+        // 设置初始球位置
+        self.ballX = WINDOW_WIDTH as float / 2.0;
+        self.ballY = BOWLER_Y as float;
+        self.ballVX = (randInt(-15, 15)) as float * 0.1;
+        
+        match self.ballType {
+            BallType.Normal => {
+                self.ballVY = BALL_SPEED_INITIAL as float;
+            }
+            BallType.Fast => {
+                self.ballVY = BALL_SPEED_FAST as float;
+            }
+            BallType.Spin => {
+                self.ballVY = (BALL_SPEED_INITIAL - 1) as float;
+                self.ballVX = self.ballVX * 2.0;
+            }
+            BallType.Bouncer => {
+                self.ballVY = (BALL_SPEED_INITIAL + 2) as float;
+                self.ballVX = 0.0;
+            }
+        }
+        
+        self.ballBounceCount = 0;
+    }
+    
+    // 更新投球动画
+    private fn updateBowling(deltaTime: u32) {
+        var elapsed = getTickCount() - self.bowlAnimTimer;
+        
+        // 投球动画持续1秒
+        if elapsed > 1000 {
+            self.bowlAnimating = false;
+            self.phase = GamePhase.BallBouncing;
+        }
+    }
+    
+    // 更新球弹跳阶段
+    private fn updateBallBounce(deltaTime: u32) {
+        // 移动球
+        self.ballX = self.ballX + self.ballVX;
+        self.ballY = self.ballY + self.ballVY;
+        
+        // 反弹球
+        if self.ballY >= BALL_BOUNCE_Y as float {
+            self.ballY = BALL_BOUNCE_Y as float;
+            self.ballVY = -self.ballVY * 0.6;
+            self.ballBounceCount = self.ballBounceCount + 1;
+            
+            // 快速球反弹更低
+            if self.ballType == BallType.Fast {
+                self.ballVY = -self.ballVY * 0.5;
+            }
+            
+            // 旋转球横向偏移
+            if self.ballType == BallType.Spin {
+                self.ballVX = self.ballVX * 1.3;
+            }
+        }
+        
+        // 球弹跳后进入飞行阶段
+        if self.ballBounceCount >= 1 && self.ballVY > 0.0 {
+            self.phase = GamePhase.BallFlying;
+        }
+        
+        // 球到达击球区域
+        if self.ballY >= (BATSMAN_Y - 30) as float {
+            self.checkHit();
+        }
+        
+        // 出界
+        if self.ballX < 30.0 || self.ballX > (WINDOW_WIDTH - 30) as float {
+            self.recordResult(ShotResult.Dot);
+        }
+    }
+    
+    // 更新球飞行阶段
+    private fn updateBallFly(deltaTime: u32) {
+        // 移动球
+        self.ballX = self.ballX + self.ballVX;
+        self.ballY = self.ballY + self.ballVY;
+        
+        // 球到达击球区域
+        if self.ballY >= (BATSMAN_Y - 20) as float {
+            self.checkHit();
+        }
+        
+        // 球飞过击球区域或出界
+        if self.ballY > (BATSMAN_Y + 50) as float || 
+           self.ballX < 20.0 || self.ballX > (WINDOW_WIDTH - 20) as float {
+            // 未击中
+            if !self.batSwinging {
+                self.recordResult(ShotResult.Out);
+            }
+        }
+    }
+    
+    // 检查是否击中
+    private fn checkHit() {
+        if self.phase == GamePhase.Result {
+            return;
+        }
+        
+        // 挥杆时球在击球区域
+        if self.batSwinging && self.batSwingProgress > 0.2 && self.batSwingProgress < 0.8 {
+            // 计算击球质量
+            var batCenterX = self.batX as float + BAT_WIDTH as float / 2.0;
+            var hitOffset = self.absFloat(self.ballX - batCenterX);
+            
+            // 完美击中
+            if hitOffset < 20.0 && self.batSwingPower > 5.0 {
+                self.recordResult(ShotResult.Six);
+            }
+            else if hitOffset < 30.0 && self.batSwingPower > 4.0 {
+                self.recordResult(ShotResult.Four);
+            }
+            else if hitOffset < 40.0 && self.batSwingPower > 3.0 {
+                var r = randInt(0, 2);
+                match r {
+                    0 => self.recordResult(ShotResult.Single);
+                    1 => self.recordResult(ShotResult.Double);
+                    _ => self.recordResult(ShotResult.Triple);
+                }
+            }
+            else if hitOffset < 50.0 {
+                self.recordResult(ShotResult.Single);
+            }
+            else {
+                // 击中边缘，得1分
+                self.recordResult(ShotResult.Single);
+            }
+        }
+    }
+    
+    // 记录击球结果
+    private fn recordResult(result: ShotResult) {
+        self.lastResult = result;
+        self.resultTimer = getTickCount();
+        self.resultShown = true;
+        self.phase = GamePhase.Result;
+        
+        match result {
+            ShotResult.Dot => {
+                // 0分
+            }
+            ShotResult.Single => {
+                self.runs = self.runs + 1;
+            }
+            ShotResult.Double => {
+                self.runs = self.runs + 2;
+            }
+            ShotResult.Triple => {
+                self.runs = self.runs + 3;
+            }
+            ShotResult.Four => {
+                self.runs = self.runs + 4;
+            }
+            ShotResult.Six => {
+                self.runs = self.runs + 6;
+            }
+            ShotResult.Out => {
+                self.outs = self.outs + 1;
+                if self.outs >= self.maxOuts {
+                    self.endGame("电脑");
+                }
+            }
+        }
+        
+        self.ballsInOver = self.ballsInOver + 1;
+        
+        if self.ballsInOver >= BALLS_PER_OVER {
+            self.currentOver = self.currentOver + 1;
+            self.ballsInOver = 0;
+            
+            if self.currentOver > self.totalOvers {
+                self.endGame("");
+            }
+        }
+    }
+    
+    // 更新结果动画
+    private fn updateResult(deltaTime: u32) {
+        var elapsed = getTickCount() - self.resultTimer;
+        
+        if elapsed > 1500 {
+            self.resultShown = false;
+            
+            if !self.gameOver {
+                self.resetBall();
+                self.phase = GamePhase.Ready;
+            }
+        }
+    }
+    
+    // 更新击球动画
+    private fn updateBatting(deltaTime: u32) {
+        // 击球后的球运动
+        if self.batSwinging {
+            self.ballX = self.ballX + self.ballVX;
+            self.ballY = self.ballY + self.ballVY;
+            
+            // 球飞出屏幕
+            if self.ballY < -50.0 || self.ballX < -50.0 || self.ballX > (WINDOW_WIDTH + 50) as float {
+                self.recordResult(ShotResult.Six);
+            }
+        }
+    }
+    
+    // 更新蝙蝠
+    private fn updateBat() {
+        // 蝙蝠跟随鼠标X位置
+        var targetX = self.mouseX - BAT_WIDTH / 2;
+        
+        // 平滑移动
+        var diff = targetX - self.batX;
+        if diff > 15 {
+            self.batX = self.batX + 15;
+        } else if diff < -15 {
+            self.batX = self.batX - 15;
+        } else {
+            self.batX = targetX;
+        }
+        
+        // 确保在边界内
+        if self.batX < 50 {
+            self.batX = 50;
+        }
+        if self.batX + BAT_WIDTH > WINDOW_WIDTH - 50 {
+            self.batX = WINDOW_WIDTH - 50 - BAT_WIDTH;
+        }
+    }
+    
+    // 结束游戏
+    private fn endGame(winner: str) {
+        self.gameOver = true;
+        self.winner = winner;
+        self.phase = GamePhase.GameOver;
+        
+        if winner == "" {
+            // 平局或时间到
+            if self.runs > 20 {
+                self.winner = "玩家";
+                self.setState(GameState.Won);
+            } else {
+                self.winner = "电脑";
+                self.setState(GameState.Lost);
+            }
+        } else {
+            self.setState(GameState.Lost);
+        }
+    }
+    
+    // 重置球
+    private fn resetBall() {
+        self.ballX = WINDOW_WIDTH as float / 2.0;
+        self.ballY = BOWLER_Y as float;
+        self.ballVX = 0.0;
+        self.ballVY = 0.0;
+        self.ballPhase = BallPhase.AtBowler;
+        self.batSwinging = false;
+        self.batSwingPower = 0.0;
+        self.batSwingProgress = 0.0;
+    }
+    
+    // onRender - 渲染画面
+    pub fn onRender(canvas: Canvas) {
+        // 球场背景 - 绿色草地
+        canvas.clear(Color.RGB(34, 139, 34));
+        
+        // 绘制球场线
+        self.drawPitch(canvas);
+        
+        // 绘制门柱
+        self.drawWickets(canvas);
+        
+        // 绘制蝙蝠
+        self.drawBat(canvas);
+        
+        // 绘制球
+        if self.phase != GamePhase.Ready {
+            self.drawBall(canvas);
+        }
+        
+        // 绘制投球手(简化)
+        self.drawBowler(canvas);
+        
+        // 绘制分数板
+        self.drawScoreboard(canvas);
+        
+        // 绘制结果
+        if self.resultShown {
+            self.drawResult(canvas);
+        }
+        
+        // 绘制游戏结束
+        if self.gameOver {
+            self.drawGameOver(canvas);
+        }
+        
+        // 绘制提示
+        if self.phase == GamePhase.Ready && !self.gameOver {
+            self.drawInstructions(canvas);
+        }
+    }
+    
+    // 绘制球场
+    private fn drawPitch(canvas: Canvas) {
+        var pitchColor = Color.RGB(139, 90, 43); // 土棕色
+        var creaseColor = Color.White();
+        
+        // 投手道
+        canvas.fillRect(WINDOW_WIDTH / 2 - 30, BOWLER_Y - 20, 60, BATSMAN_Y - BOWLER_Y + 40, pitchColor);
+        
+        // 击球线
+        canvas.drawLine(50, BATSMAN_Y - 10, WINDOW_WIDTH - 50, BATSMAN_Y - 10, creaseColor);
+        canvas.drawLine(50, BATSMAN_Y + 60, WINDOW_WIDTH - 50, BATSMAN_Y + 60, creaseColor);
+        
+        // 边界线
+        canvas.drawRect(30, 30, WINDOW_WIDTH - 60, WINDOW_HEIGHT - 60, Color.White());
+    }
+    
+    // 绘制门柱
+    private fn drawWickets(canvas: Canvas) {
+        var wicketColor = Color.RGB(255, 220, 177); // 木质色
+        
+        // 三根门柱
+        var stumpWidth = 4;
+        var stumpHeight = 35;
+        
+        canvas.fillRect(self.wicketsX, self.wicketsY, stumpWidth, stumpHeight, wicketColor);
+        canvas.fillRect(self.wicketsX + 15, self.wicketsY, stumpWidth, stumpHeight, wicketColor);
+        canvas.fillRect(self.wicketsX + 30, self.wicketsY, stumpWidth, stumpHeight, wicketColor);
+        
+        // 横木
+        canvas.fillRect(self.wicketsX - 3, self.wicketsY + 5, WICKET_WIDTH + 6, 4, Color.Red());
+        canvas.fillRect(self.wicketsX - 3, self.wicketsY + 20, WICKET_WIDTH + 6, 4, Color.Red());
+    }
+    
+    // 绘制蝙蝠
+    private fn drawBat(canvas: Canvas) {
+        var batColor = Color.RGB(180, 120, 60); // 木质棕色
+        var batEdgeColor = Color.RGB(140, 90, 40);
+        
+        // 挥杆动画
+        var swingOffset = 0;
+        var swingRotation = 0.0;
+        
+        if self.batSwinging {
+            swingOffset = (self.sin(self.batSwingProgress * 3.14159 * 2.0) * 20.0) as int;
+            swingRotation = self.batSwingProgress * 0.5;
+        }
+        
+        // 蝙蝠主体
+        var batDrawX = self.batX - swingOffset;
+        var batDrawY = self.batY;
+        
+        canvas.fillRect(batDrawX, batDrawY, BAT_WIDTH, BAT_HEIGHT, batColor);
+        canvas.drawRect(batDrawX, batDrawY, BAT_WIDTH, BAT_HEIGHT, batEdgeColor);
+        
+        // 蝙蝠手柄
+        canvas.fillRect(batDrawX + BAT_WIDTH / 2 - 5, batDrawY + BAT_HEIGHT, 10, 25, Color.RGB(101, 67, 33));
+    }
+    
+    // 绘制球
+    private fn drawBall(canvas: Canvas) {
+        // 球阴影
+        canvas.fillCircle(self.ballX as int + 2, self.ballY as int + 2, BALL_RADIUS, Color.ARGB(80, 0, 0, 0));
+        
+        // 红色板球
+        canvas.fillCircle(self.ballX as int, self.ballY as int, BALL_RADIUS, Color.Red());
+        canvas.drawCircle(self.ballX as int, self.ballY as int, BALL_RADIUS, Color.DarkGray());
+        
+        // 球的缝线效果
+        var seamColor = Color.White();
+        canvas.drawLine(self.ballX as int - 3, self.ballY as int, self.ballX as int + 3, self.ballY as int, seamColor);
+    }
+    
+    // 绘制投球手(简化)
+    private fn drawBowler(canvas: Canvas) {
+        var bowlerColor = Color.White();
+        
+        // 简化投球手 - 一个圆形
+        var bowlerX = WINDOW_WIDTH / 2;
+        var bowlerY = BOWLER_Y - 30;
+        
+        canvas.fillCircle(bowlerX, bowlerY, 15, bowlerColor);
+        canvas.fillRect(bowlerX - 8, bowlerY + 10, 16, 30, bowlerColor);
+    }
+    
+    // 绘制分数板
+    private fn drawScoreboard(canvas: Canvas) {
+        var bgColor = Color.ARGB(200, 0, 0, 0);
+        var textColor = Color.White();
+        var highlightColor = Color.Yellow();
+        
+        // 分数板背景
+        canvas.fillRect(20, 20, 160, 100, bgColor);
+        canvas.drawRect(20, 20, 160, 100, Color.White());
+        
+        // 标题
+        var font = Font.("Arial", 14);
+        var bigFont = Font.("Arial", 24);
+        
+        canvas.drawText(30, 30, "板球 - Cricket", textColor, font);
+        
+        // 分数
+        var scoreText = "得分: " ++ self.intToString(self.runs);
+        canvas.drawText(30, 55, scoreText, highlightColor, bigFont);
+        
+        // 出局
+        var outsText = "出局: " ++ self.intToString(self.outs) ++ "/" ++ self.intToString(self.maxOuts);
+        canvas.drawText(30, 85, outsText, textColor, font);
+        
+        // 轮次信息
+        var overText = "第" ++ self.intToString(self.currentOver) ++ "/" ++ self.intToString(self.totalOvers) ++ "轮";
+        canvas.drawText(30, 105, overText, textColor, font);
+        
+        // 球数
+        var ballText = "球数: " ++ self.intToString(self.ballsInOver) ++ "/" ++ self.intToString(BALLS_PER_OVER);
+        canvas.drawText(110, 105, ballText, textColor, font);
+    }
+    
+    // 绘制击球结果
+    private fn drawResult(canvas: Canvas) {
+        var bgColor = Color.ARGB(150, 0, 0, 0);
+        var textColor = Color.Yellow();
+        var font = Font.("Arial", 36);
+        
+        canvas.fillRect(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 - 40, 200, 80, bgColor);
+        
+        var resultText = "";
+        var color = textColor;
+        
+        match self.lastResult {
+            ShotResult.Dot => {
+                resultText = "Dot Ball!";
+                color = Color.Gray();
+            }
+            ShotResult.Single => {
+                resultText = "Single! +1";
+                color = Color.Green();
+            }
+            ShotResult.Double => {
+                resultText = "Double! +2";
+                color = Color.Green();
+            }
+            ShotResult.Triple => {
+                resultText = "Triple! +3";
+                color = Color.Cyan();
+            }
+            ShotResult.Four => {
+                resultText = "FOUR! +4";
+                color = Color.Orange();
+            }
+            ShotResult.Six => {
+                resultText = "SIX! +6";
+                color = Color.Red();
+            }
+            ShotResult.Out => {
+                resultText = "OUT!";
+                color = Color.Red();
+            }
+        }
+        
+        canvas.drawText(WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 - 10, resultText, color, font);
+    }
+    
+    // 绘制游戏结束
+    private fn drawGameOver(canvas: Canvas) {
+        canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(180, 0, 0, 0));
+        
+        var font = Font.("Arial", 48);
+        var text = "游戏结束!";
+        canvas.drawText(WINDOW_WIDTH / 2 - 120, WINDOW_HEIGHT / 2 - 80, text, Color.Yellow(), font);
+        
+        var resultFont = Font.("Arial", 32);
+        var resultText = "";
+        
+        if self.winner == "玩家" {
+            resultText = "恭喜 " ++ self.winner ++ " 获胜!";
+        } else if self.winner == "电脑" {
+            resultText = self.winner ++ " 获胜!";
+        } else {
+            resultText = "平局!";
+        }
+        
+        canvas.drawText(WINDOW_WIDTH / 2 - 150, WINDOW_HEIGHT / 2 - 20, resultText, Color.Cyan(), resultFont);
+        
+        var scoreText = "最终得分: " ++ self.intToString(self.runs);
+        canvas.drawText(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 + 30, scoreText, Color.White(), resultFont);
+        
+        var smallFont = Font.("Arial", 20);
+        var restartText = "按 R 键重新开始";
+        canvas.drawText(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 + 80, restartText, Color.Gray(), smallFont);
+    }
+    
+    // 绘制提示
+    private fn drawInstructions(canvas: Canvas) {
+        var font = Font.("Arial", 16);
+        var text = "点击鼠标挥杆击球!";
+        canvas.drawText(WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT - 200, text, Color.Yellow(), font);
+    }
+    
+    // onKeyDown - 键盘按下
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.KeyR => {
+                if self.gameOver {
+                    self.onInit();
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    // onKeyUp - 键盘释放
+    pub fn onKeyUp(key: VirtualKey) {
+    }
+    
+    // onMouseDown - 鼠标按下 - 挥杆
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        if self.gameOver {
+            return;
+        }
+        
+        self.mouseX = x;
+        self.mouseY = y;
+        self.lastMouseY = y;
+        
+        // 挥杆
+        if self.phase == GamePhase.BallFlying || self.phase == GamePhase.BallBouncing {
+            self.batSwinging = true;
+            self.batSwingPower = 8.0;
+            self.swingTime = getTickCount();
+            
+            // 计算挥杆角度
+            var dy = self.lastMouseY - y;
+            self.batSwingAngle = dy as float * 0.05;
+            
+            if self.batSwingAngle > 3.0 {
+                self.batSwingAngle = 3.0;
+            }
+            if self.batSwingAngle < -3.0 {
+                self.batSwingAngle = -3.0;
+            }
+            
+            self.batSwingProgress = 0.1;
+        }
+    }
+    
+    // onMouseUp - 鼠标释放
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+        self.mouseX = x;
+        self.mouseY = y;
+        self.lastMouseY = y;
+        
+        // 增加挥杆力度
+        if self.batSwinging {
+            self.batSwingPower = 10.0;
+        }
+    }
+    
+    // ============ 辅助函数 ============
+    
+    fn absFloat(x: float) -> float {
+        return if x < 0.0 { -x } else { x };
+    }
+    
+    fn sin(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = rad;
+        var term = rad;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn cos(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = 1.0;
+        var term = 1.0;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn intToString(n: int) -> str {
+        if n == 0 {
+            return "0";
+        }
+        var result = "";
+        var num = n;
+        while num > 0 {
+            var digit = num % 10;
+            result = (digit as char + "") ++ result;
+            num = num / 10;
+        }
+        return result;
+    }
+}
+
+// 球的阶段
+enum BallPhase {
+    AtBowler,
+    Bouncing,
+    Flying,
+    Hit,
+}
