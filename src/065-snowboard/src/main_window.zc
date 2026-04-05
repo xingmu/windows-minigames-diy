@@ -1,0 +1,799 @@
+// main_window.zc - Zen-C Snowboard 单板滑雪游戏
+// 使用纯 Zen-C 实现, Windows GUI 版本
+
+import std.io;
+
+// 导入平台 API
+import "platform_api.zc";
+
+// ==================== 游戏配置 ====================
+
+const WINDOW_WIDTH: int = 480;
+const WINDOW_HEIGHT: int = 640;
+const TARGET_FPS: int = 60;
+const FRAME_TIME: u32 = 1000 / TARGET_FPS;
+
+// 滑雪者配置
+const PLAYER_WIDTH: int = 24;
+const PLAYER_HEIGHT: int = 36;
+const PLAYER_X: int = WINDOW_WIDTH / 2;
+const GRAVITY_ACCEL: int = 200;
+const SIDE_SPEED: int = 280;
+const SIDE_FRICTION: int = 600;
+
+// 雪道/障碍物
+const TREE_WIDTH: int = 28;
+const TREE_HEIGHT: int = 36;
+const ROCK_WIDTH: int = 30;
+const ROCK_HEIGHT: int = 20;
+const FLAG_WIDTH: int = 6;
+const FLAG_HEIGHT: int = 40;
+const OBSTACLE_SPAWN_INTERVAL: u32 = 800;
+const COURSE_WIDTH: int = 360;
+const COURSE_LEFT: int = (WINDOW_WIDTH - COURSE_WIDTH) / 2;
+
+// ==================== 游戏状态 ====================
+
+enum GameState {
+    Ready,
+    Playing,
+    GameOver,
+}
+
+enum ObstacleType {
+    Tree,
+    Rock,
+    Flag,
+}
+
+struct Obstacle {
+    x: int;
+    y: int;
+    kind: ObstacleType;
+    passed: bool,
+}
+
+// ==================== 全局游戏数据 ====================
+
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut gameState: GameState = GameState.Ready;
+
+// 滑雪者状态
+static mut playerY: float = 0.0;
+static mut playerVelX: float = 0.0;
+static mut playerX: float = WINDOW_WIDTH / 2 as float;
+static mut playerTilt: int = 0;
+
+// 障碍物
+static mut obstacles: [40]Obstacle;
+static mut obstacleCount: int = 0;
+
+// 计时/分数
+static mut lastObstacleSpawn: u32 = 0;
+static mut gameTime: u32 = 0;
+static mut lastFrame: u32 = 0;
+static mut score: int = 0;
+static mut speed: int = 280;
+
+// 雪地粒子效果
+static mut snowParticles: [60]Particle;
+static mut particleCount: int = 60;
+
+struct Particle {
+    x: float;
+    y: float;
+    speed: float;
+    size: int,
+}
+
+// ==================== 颜色定义 ====================
+
+const SKY_TOP = Color.RGB(135, 175, 220);
+const SKY_BOTTOM = Color.RGB(200, 220, 240);
+const SNOW_LIGHT = Color.RGB(240, 248, 255);
+const SNOW_MID = Color.RGB(210, 230, 245);
+const SNOW_DARK = Color.RGB(180, 210, 230);
+const TREE_TRUNK = Color.RGB(101, 67, 33);
+const TREE_GREEN = Color.RGB(30, 120, 40);
+const TREE_GREEN2 = Color.RGB(20, 100, 30);
+const ROCK_GRAY = Color.RGB(100, 100, 110);
+const ROCK_DARK = Color.RGB(70, 70, 80);
+const FLAG_RED = Color.White();
+const PLAYER_RED = Color.RGB(220, 40, 40);
+const PLAYER_BLUE = Color.RGB(40, 80, 180);
+const PLAYER_YELLOW = Color.RGB(240, 220, 60);
+const TEXT_COLOR = Color.White();
+const SHADOW_COLOR = Color.RGB(160, 190, 210);
+
+// ==================== 游戏初始化 ====================
+
+fn initGame() {
+    playerY = 100.0;
+    playerX = WINDOW_WIDTH / 2 as float;
+    playerVelX = 0.0;
+    playerTilt = 0;
+    obstacleCount = 0;
+    lastObstacleSpawn = 0;
+    gameTime = 0;
+    score = 0;
+    speed = 280;
+    gameState = GameState.Ready;
+    initParticles();
+}
+
+fn initParticles() {
+    for i in 0..particleCount {
+        snowParticles[i] = Particle.{
+            x: randFloat(0.0, WINDOW_WIDTH as float),
+            y: randFloat(0.0, WINDOW_HEIGHT as float),
+            speed: randFloat(80.0, 200.0),
+            size: randInt(1, 3),
+        };
+    }
+}
+
+// ==================== 随机数 ====================
+
+static mut rng_seed: u32 = 54321;
+
+fn randInt(minVal: int, maxVal: int) -> int {
+    rng_seed = rng_seed * 1103515245 + 12345;
+    var r = (rng_seed / 65536) % 32768;
+    return minVal + (r as int % (maxVal - minVal + 1));
+}
+
+fn randFloat(minVal: float, maxVal: float) -> float {
+    var r = randInt(0, 1000);
+    return minVal + (r as float / 1000.0) * (maxVal - minVal);
+}
+
+// ==================== 游戏逻辑 ====================
+
+fn moveLeft() {
+    if gameState == GameState.Ready {
+        gameState = GameState.Playing;
+        lastObstacleSpawn = 0;
+        gameTime = 0;
+    }
+    if gameState == GameState.Playing {
+        playerVelX = -SIDE_SPEED as float;
+    }
+    if gameState == GameState.GameOver {
+        initGame();
+    }
+}
+
+fn moveRight() {
+    if gameState == GameState.Ready {
+        gameState = GameState.Playing;
+        lastObstacleSpawn = 0;
+        gameTime = 0;
+    }
+    if gameState == GameState.Playing {
+        playerVelX = SIDE_SPEED as float;
+    }
+    if gameState == GameState.GameOver {
+        initGame();
+    }
+}
+
+fn spawnObstacle() {
+    if obstacleCount >= 40 {
+        return;
+    }
+    
+    var lane = randInt(0, 4);
+    var ox = COURSE_LEFT + 20 + lane * 68;
+    var kind = randInt(0, 2) as ObstacleType;
+    
+    obstacles[obstacleCount] = Obstacle.{
+        x: ox,
+        y: -40,
+        kind: kind,
+        passed: false,
+    };
+    obstacleCount = obstacleCount + 1;
+    
+    // 有时生成多个
+    if randInt(0, 3) == 0 && obstacleCount < 38 {
+        var lane2 = randInt(0, 4);
+        if lane2 != lane {
+            var ox2 = COURSE_LEFT + 20 + lane2 * 68;
+            obstacles[obstacleCount] = Obstacle.{
+                x: ox2,
+                y: -40,
+                kind: kind,
+                passed: false,
+            };
+            obstacleCount = obstacleCount + 1;
+        }
+    }
+}
+
+fn updateGame(dt: u32) {
+    if gameState != GameState.Playing {
+        return;
+    }
+    
+    var dtSec = dt as float / 1000.0;
+    gameTime = gameTime + dt;
+    
+    // 速度随时间增加
+    speed = 280 + (gameTime / 3000) as int * 15;
+    if speed > 600 {
+        speed = 600;
+    }
+    
+    // 滑雪者左右移动
+    if playerVelX > 0.0 {
+        playerVelX = playerVelX - SIDE_FRICTION as float * dtSec;
+        if playerVelX < 0.0 {
+            playerVelX = 0.0;
+        }
+    } else if playerVelX < 0.0 {
+        playerVelX = playerVelX + SIDE_FRICTION as float * dtSec;
+        if playerVelX > 0.0 {
+            playerVelX = 0.0;
+        }
+    }
+    
+    playerX = playerX + playerVelX * dtSec;
+    
+    // 边界
+    var halfW = PLAYER_WIDTH / 2;
+    if playerX < COURSE_LEFT as float + halfW as float {
+        playerX = COURSE_LEFT as float + halfW as float;
+        playerVelX = 0.0;
+    }
+    if playerX > (COURSE_LEFT + COURSE_WIDTH - halfW) as float {
+        playerX = (COURSE_LEFT + COURSE_WIDTH - halfW) as float;
+        playerVelX = 0.0;
+    }
+    
+    // 玩家倾斜
+    playerTilt = (playerVelX / SIDE_SPEED as float * 15.0) as int;
+    if playerTilt > 15 { playerTilt = 15; }
+    if playerTilt < -15 { playerTilt = -15; }
+    
+    // 生成障碍物
+    if gameTime - lastObstacleSpawn > OBSTACLE_SPAWN_INTERVAL {
+        spawnObstacle();
+        lastObstacleSpawn = gameTime;
+    }
+    
+    // 更新障碍物
+    var move = (speed as float * dtSec) as int;
+    
+    for i in 0..obstacleCount {
+        obstacles[i].y = obstacles[i].y + move;
+        
+        // 计分
+        if !obstacles[i].passed && obstacles[i].y > playerY as int + PLAYER_HEIGHT {
+            obstacles[i].passed = true;
+            score = score + 1;
+        }
+    }
+    
+    // 移除屏幕外的障碍物
+    var removed = 0;
+    for i in 0..obstacleCount {
+        if obstacles[i].y > WINDOW_HEIGHT + 60 {
+            // 跳过
+            for j in i..(obstacleCount - 1) {
+                obstacles[j] = obstacles[j + 1];
+            }
+            removed = removed + 1;
+        }
+    }
+    obstacleCount = obstacleCount - removed;
+    
+    // 碰撞检测
+    checkCollisions();
+    
+    // 更新粒子
+    updateParticles(dt, move);
+}
+
+fn updateParticles(dt: u32, scroll: int) {
+    var dtSec = dt as float / 1000.0;
+    
+    for i in 0..particleCount {
+        snowParticles[i].y = snowParticles[i].y + (snowParticles[i].speed + scroll as float * 0.3) * dtSec;
+        snowParticles[i].x = snowParticles[i].x + (randFloat(-20.0, 20.0) * dtSec);
+        
+        if snowParticles[i].y > WINDOW_HEIGHT as float {
+            snowParticles[i].y = -5.0;
+            snowParticles[i].x = randFloat(0.0, WINDOW_WIDTH as float);
+        }
+        if snowParticles[i].x < 0.0 {
+            snowParticles[i].x = WINDOW_WIDTH as float;
+        }
+        if snowParticles[i].x > WINDOW_WIDTH as float {
+            snowParticles[i].x = 0.0;
+        }
+    }
+}
+
+fn checkCollisions() {
+    var px = playerX as int;
+    var py = playerY as int;
+    var pw = PLAYER_WIDTH;
+    var ph = PLAYER_HEIGHT;
+    
+    for i in 0..obstacleCount {
+        var ox = obstacles[i].x;
+        var oy = obstacles[i].y;
+        
+        var ow = 0;
+        var oh = 0;
+        
+        match obstacles[i].kind {
+            ObstacleType.Tree => { ow = TREE_WIDTH; oh = TREE_HEIGHT; }
+            ObstacleType.Rock => { ow = ROCK_WIDTH; oh = ROCK_HEIGHT; }
+            ObstacleType.Flag => { ow = FLAG_WIDTH; oh = FLAG_HEIGHT; }
+        }
+        
+        // AABB碰撞检测
+        if px - pw/2 < ox + ow &&
+           px + pw/2 > ox &&
+           py < oy + oh &&
+           py + ph > oy {
+            gameState = GameState.GameOver;
+            io.println("游戏结束! 得分: " ++ score.toString());
+            return;
+        }
+    }
+}
+
+// ==================== 绘制函数 ====================
+
+fn drawBackground(ctx: rawptr, pitch: int, buffer: rawptr) {
+    // 天空渐变
+    for y in 0..WINDOW_HEIGHT {
+        var t = y as float / WINDOW_HEIGHT as float;
+        var r = (200.0 * (1.0 - t) + 135.0 * t) as u8;
+        var g = (220.0 * (1.0 - t) + 175.0 * t) as u8;
+        var b = (240.0 * (1.0 - t) + 220.0 * t) as u8;
+        drawRect(ctx, 0, y, WINDOW_WIDTH, 1, pitch, buffer, Color.RGB(r, g, b));
+    }
+    
+    // 雪道
+    drawRect(ctx, COURSE_LEFT, 0, COURSE_WIDTH, WINDOW_HEIGHT, pitch, buffer, SNOW_MID);
+    
+    // 雪道边缘阴影
+    drawRect(ctx, COURSE_LEFT - 8, 0, 8, WINDOW_HEIGHT, pitch, buffer, SHADOW_COLOR);
+    drawRect(ctx, COURSE_LEFT + COURSE_WIDTH, 0, 8, WINDOW_HEIGHT, pitch, buffer, SHADOW_COLOR);
+    
+    // 雪道纹理（划过的痕迹）
+    var stride = 40;
+    var off = (gameTime / 50) % stride;
+    for y in (-stride + off)..WINDOW_HEIGHT {
+        var alpha = (((y + stride - off) % stride) as float / stride as float * 80.0) as u8;
+        if alpha > 60 { alpha = 60; }
+        var lineColor = Color.ARGB(alpha, 160, 195, 215);
+        drawRect(ctx, COURSE_LEFT + 10, y, COURSE_WIDTH - 20, 1, pitch, buffer, lineColor);
+    }
+}
+
+fn drawTree(ctx: rawptr, pitch: int, buffer: rawptr, x: int, y: int) {
+    // 树干
+    drawRect(ctx, x + 10, y + 24, 8, 12, pitch, buffer, TREE_TRUNK);
+    // 树冠三层
+    fillTriangle(ctx, x + 14, y, x + 0, y + 24, x + 28, y + 24, pitch, buffer, TREE_GREEN);
+    fillTriangle(ctx, x + 14, y + 8, x + 2, y + 24, x + 26, y + 24, pitch, buffer, TREE_GREEN2);
+    fillTriangle(ctx, x + 14, y + 16, x + 4, y + 26, x + 24, y + 26, pitch, buffer, TREE_GREEN);
+}
+
+fn drawRock(ctx: rawptr, pitch: int, buffer: rawptr, x: int, y: int) {
+    fillEllipse(ctx, x + 15, y + 10, 15, 10, pitch, buffer, ROCK_GRAY);
+    fillEllipse(ctx, x + 12, y + 8, 10, 7, pitch, buffer, ROCK_DARK);
+    // 高光
+    setPixel(ctx, x + 10, y + 6, pitch, buffer, Color.RGB(140, 140, 150));
+    setPixel(ctx, x + 12, y + 7, pitch, buffer, Color.RGB(140, 140, 150));
+}
+
+fn drawFlag(ctx: rawptr, pitch: int, buffer: rawptr, x: int, y: int) {
+    // 旗杆
+    drawRect(ctx, x + 1, y, 4, 40, pitch, buffer, Color.RGB(200, 200, 200));
+    // 旗帜
+    drawRect(ctx, x + 5, y, 16, 12, pitch, buffer, FLAG_RED);
+    drawRect(ctx, x + 5, y + 14, 16, 12, pitch, buffer, Color.White());
+    drawRect(ctx, x + 5, y + 28, 16, 10, pitch, buffer, FLAG_RED);
+}
+
+fn drawPlayer(ctx: rawptr, pitch: int, buffer: rawptr) {
+    var px = playerX as int;
+    var py = playerY as int;
+    
+    // 影子
+    fillEllipse(ctx, px, py + PLAYER_HEIGHT + 2, 14, 5, pitch, buffer, SHADOW_COLOR);
+    
+    // 滑雪板
+    var tiltOffset = playerTilt;
+    drawRect(ctx, px - 18 + tiltOffset, py + PLAYER_HEIGHT - 8, 36, 6, pitch, buffer, PLAYER_BLUE);
+    drawRect(ctx, px - 20 + tiltOffset, py + PLAYER_HEIGHT - 7, 4, 4, pitch, buffer, Color.White());
+    drawRect(ctx, px + 16 + tiltOffset, py + PLAYER_HEIGHT - 7, 4, 4, pitch, buffer, Color.White());
+    
+    // 身体
+    fillRoundRect(ctx, px - 8, py + 4, 16, 22, 4, pitch, buffer, PLAYER_RED);
+    
+    // 头盔/头
+    fillCircle(ctx, px, py + 2, 8, pitch, buffer, Color.White());
+    
+    // 护目镜
+    drawRect(ctx, px - 6, py, 12, 5, pitch, buffer, PLAYER_BLUE);
+    // 护目镜反光
+    setPixel(ctx, px - 4, py + 1, pitch, buffer, Color.White());
+    setPixel(ctx, px - 3, py + 1, pitch, buffer, Color.White());
+    
+    // 手臂（倾斜时伸出）
+    if playerTilt < -5 {
+        drawRect(ctx, px + 8, py + 10, 10, 5, pitch, buffer, PLAYER_RED);
+    } else if playerTilt > 5 {
+        drawRect(ctx, px - 18, py + 10, 10, 5, pitch, buffer, PLAYER_RED);
+    }
+}
+
+fn drawParticles(ctx: rawptr, pitch: int, buffer: rawptr) {
+    for i in 0..particleCount {
+        var sx = snowParticles[i].x as int;
+        var sy = snowParticles[i].y as int;
+        var sz = snowParticles[i].size;
+        
+        if sz == 1 {
+            setPixel(ctx, sx, sy, pitch, buffer, Color.White());
+        } else {
+            fillCircle(ctx, sx, sy, sz, pitch, buffer, Color.White());
+        }
+    }
+}
+
+fn drawScore(ctx: rawptr, pitch: int, buffer: rawptr) {
+    var text = "分数: " ++ score.toString();
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 45, 18, text, pitch, buffer, TEXT_COLOR);
+    var speedText = "速度: " ++ (speed / 10).toString() ++ " km/h";
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 55, 38, speedText, pitch, buffer, Color.LightGray());
+}
+
+fn drawHUD(ctx: rawptr, pitch: int, buffer: rawptr) {
+    // 顶部信息栏背景
+    drawRect(ctx, 0, 0, WINDOW_WIDTH, 60, pitch, buffer, Color.ARGB(100, 0, 0, 0));
+}
+
+fn drawReadyScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
+    // 半透明覆盖
+    drawRect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, pitch, buffer, Color.ARGB(150, 0, 0, 50));
+    
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 - 100, "SNOWBOARD", pitch, buffer, Color.White());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 - 50, "单板滑雪", pitch, buffer, Color.Yellow());
+    
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 110, WINDOW_HEIGHT / 2 + 10, "← → 或 A D 左右移动", pitch, buffer, Color.LightGray());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 40, "按方向键开始", pitch, buffer, Color.Yellow());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 50, WINDOW_HEIGHT / 2 + 70, "ESC 退出", pitch, buffer, Color.LightGray());
+}
+
+fn drawGameOverScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
+    drawRect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, pitch, buffer, Color.ARGB(180, 0, 0, 50));
+    
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 50, WINDOW_HEIGHT / 2 - 60, "游戏结束!", pitch, buffer, Color.Red());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2 - 10, "得分: " ++ score.toString(), pitch, buffer, TEXT_COLOR);
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 30, "按方向键重新开始", pitch, buffer, Color.Yellow());
+}
+
+// ==================== 底层绘制函数 (直接写像素) ====================
+
+fn setPixel(ctx: rawptr, x: int, y: int, pitch: int, buffer: rawptr, color: Color) {
+    if x < 0 || x >= WINDOW_WIDTH || y < 0 || y >= WINDOW_HEIGHT {
+        return;
+    }
+    var offset = y * (pitch / 4) + x;
+    var pixels = buffer as u32 mut;
+    pixels[offset] = color;
+}
+
+fn drawRect(ctx: rawptr, x: int, y: int, w: int, h: int, pitch: int, buffer: rawptr, color: Color) {
+    for py in y..(y + h) {
+        for px in x..(x + w) {
+            setPixel(ctx, px, py, pitch, buffer, color);
+        }
+    }
+}
+
+fn fillCircle(ctx: rawptr, cx: int, cy: int, radius: int, pitch: int, buffer: rawptr, color: Color) {
+    for y in (-radius)..(radius + 1) {
+        for x in (-radius)..(radius + 1) {
+            if x*x + y*y <= radius * radius {
+                setPixel(ctx, cx + x, cy + y, pitch, buffer, color);
+            }
+        }
+    }
+}
+
+fn fillEllipse(ctx: rawptr, cx: int, cy: int, rx: int, ry: int, pitch: int, buffer: rawptr, color: Color) {
+    for y in (-ry)..(ry + 1) {
+        for x in (-rx)..(rx + 1) {
+            var dx = x * x;
+            var dy = y * y;
+            var rxsq = rx * rx;
+            var rysq = ry * ry;
+            if dy * rxsq + dx * rysq <= rxsq * rysq {
+                setPixel(ctx, cx + x, cy + y, pitch, buffer, color);
+            }
+        }
+    }
+}
+
+fn fillTriangle(ctx: rawptr, x1: int, y1: int, x2: int, y2: int, x3: int, y3: int, pitch: int, buffer: rawptr, color: Color) {
+    // 简单三角形填充 - 扫描线算法
+    var minY = y1;
+    var maxY = y1;
+    
+    if y2 < minY { minY = y2; }
+    if y3 < minY { minY = y3; }
+    if y2 > maxY { maxY = y2; }
+    if y3 > maxY { maxY = y3; }
+    
+    for y in minY..(maxY + 1) {
+        var xLeft = x1;
+        var xRight = x1;
+        
+        // 求与每条边的交点
+        if y1 != y2 {
+            var t = (y - y1) as float / (y2 - y1) as float;
+            if t >= 0.0 && t <= 1.0 {
+                var ix = (x1 as float + t * (x2 - x1) as float) as int;
+                if ix < xLeft { xLeft = ix; }
+                if ix > xRight { xRight = ix; }
+            }
+        }
+        if y1 != y3 {
+            var t = (y - y1) as float / (y3 - y1) as float;
+            if t >= 0.0 && t <= 1.0 {
+                var ix = (x1 as float + t * (x3 - x1) as float) as int;
+                if ix < xLeft { xLeft = ix; }
+                if ix > xRight { xRight = ix; }
+            }
+        }
+        if y2 != y3 {
+            var t = (y - y2) as float / (y3 - y2) as float;
+            if t >= 0.0 && t <= 1.0 {
+                var ix = (x2 as float + t * (x3 - x2) as float) as int;
+                if ix < xLeft { xLeft = ix; }
+                if ix > xRight { xRight = ix; }
+            }
+        }
+        
+        for x in xLeft..(xRight + 1) {
+            setPixel(ctx, x, y, pitch, buffer, color);
+        }
+    }
+}
+
+fn fillRoundRect(ctx: rawptr, x: int, y: int, w: int, h: int, r: int, pitch: int, buffer: rawptr, color: Color) {
+    // 圆角矩形：中间矩形 + 上下圆角
+    drawRect(ctx, x, y + r, w, h - 2*r, pitch, buffer, color);
+    fillEllipse(ctx, x + r, y + r, r, r, pitch, buffer, color);
+    fillEllipse(ctx, x + w - r - 1, y + r, r, r, pitch, buffer, color);
+    fillEllipse(ctx, x + r, y + h - r - 1, r, r, pitch, buffer, color);
+    fillEllipse(ctx, x + w - r - 1, y + h - r - 1, r, r, pitch, buffer, color);
+}
+
+// 简化文字绘制 (8x8 字符块)
+fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, pitch: int, buffer: rawptr, color: Color) {
+    var px = x;
+    var py = y;
+    var charW = 8;
+    var charH = 8;
+    
+    for i in 0..len(text) {
+        for cy in 0..charH {
+            for cx in 0..charW {
+                var isFilled = false;
+                var charCode = text[i] as u32;
+                
+                // 简单字符图案
+                if charCode > 32 {
+                    isFilled = ((charCode + cx + cy) % 3) != 0;
+                }
+                
+                if isFilled {
+                    setPixel(ctx, px + cx, py + cy, pitch, buffer, color);
+                }
+            }
+        }
+        px = px + charW;
+        if px > WINDOW_WIDTH - charW {
+            py = py + charH;
+            px = x;
+        }
+    }
+}
+
+fn clearScreen(pitch: int, buffer: rawptr, color: Color) {
+    var pixels = buffer as u32 mut;
+    var count = (pitch * WINDOW_HEIGHT) / 4;
+    for i in 0..count {
+        pixels[i] = color;
+    }
+}
+
+// ==================== 事件处理 ====================
+
+fn handleKeyDown(key: VirtualKey) {
+    match key {
+        VirtualKey.Left => {
+            moveLeft();
+        },
+        VirtualKey.Right => {
+            moveRight();
+        },
+        VirtualKey.A => {
+            moveLeft();
+        },
+        VirtualKey.D => {
+            moveRight();
+        },
+        VirtualKey.Escape => {
+            running = false;
+        },
+        _ => {}
+    }
+}
+
+fn handleKeyUp(key: VirtualKey) {
+    match key {
+        VirtualKey.Left => {
+            if playerVelX < 0.0 {
+                playerVelX = 0.0;
+            }
+        },
+        VirtualKey.Right => {
+            if playerVelX > 0.0 {
+                playerVelX = 0.0;
+            }
+        },
+        VirtualKey.A => {
+            if playerVelX < 0.0 {
+                playerVelX = 0.0;
+            }
+        },
+        VirtualKey.D => {
+            if playerVelX > 0.0 {
+                playerVelX = 0.0;
+            }
+        },
+        _ => {}
+    }
+}
+
+fn processEvents() {
+    var event = Event.{};
+    
+    while pollEvent(window, &event) {
+        match event.msg {
+            MessageType.Quit => {
+                running = false;
+            },
+            MessageType.KeyDown => {
+                handleKeyDown(event.key.key);
+            },
+            MessageType.KeyUp => {
+                handleKeyUp(event.key.key);
+            },
+            MessageType.MouseDown => {
+                // 点击开始
+                if gameState != GameState.Playing {
+                    if gameState == GameState.Ready {
+                        gameState = GameState.Playing;
+                        lastObstacleSpawn = 0;
+                        gameTime = 0;
+                    } else if gameState == GameState.GameOver {
+                        initGame();
+                    }
+                }
+            },
+            _ => {}
+        }
+    }
+}
+
+// ==================== 游戏主循环 ====================
+
+fn gameLoop() {
+    lastFrame = getTickCount();
+    
+    while running {
+        processEvents();
+        
+        var current = getTickCount();
+        var dt = current - lastFrame;
+        
+        // 更新游戏逻辑
+        updateGame(dt);
+        
+        // 渲染
+        var fb = getFrameBuffer(window);
+        var pitch = getFrameBufferPitch(window);
+        
+        clearScreen(pitch, fb, SKY_TOP);
+        
+        drawBackground(window, pitch, fb);
+        
+        // 绘制粒子
+        drawParticles(window, pitch, fb);
+        
+        // 绘制障碍物
+        for i in 0..obstacleCount {
+            match obstacles[i].kind {
+                ObstacleType.Tree => {
+                    drawTree(window, pitch, fb, obstacles[i].x, obstacles[i].y);
+                },
+                ObstacleType.Rock => {
+                    drawRock(window, pitch, fb, obstacles[i].x, obstacles[i].y);
+                },
+                ObstacleType.Flag => {
+                    drawFlag(window, pitch, fb, obstacles[i].x, obstacles[i].y);
+                },
+            }
+        }
+        
+        // 绘制玩家
+        drawPlayer(window, pitch, fb);
+        
+        // HUD
+        drawHUD(window, pitch, fb);
+        drawScore(window, pitch, fb);
+        
+        if gameState == GameState.Ready {
+            drawReadyScreen(window, pitch, fb);
+        } else if gameState == GameState.GameOver {
+            drawGameOverScreen(window, pitch, fb);
+        }
+        
+        presentFrame(window);
+        
+        lastFrame = current;
+        
+        // 帧率控制
+        var elapsed = getTickCount() - lastFrame;
+        if elapsed < FRAME_TIME {
+            sleep(FRAME_TIME - elapsed);
+        }
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() {
+    io.println("===========================================");
+    io.println("  Snowboard - Zen-C 单板滑雪");
+    io.println("  版本: 1.0.0");
+    io.println("===========================================");
+    
+    // 初始化平台
+    initPlatform();
+    
+    // 创建窗口
+    window = createWindow("Snowboard - Zen-C 单板滑雪", WINDOW_WIDTH, WINDOW_HEIGHT);
+    
+    if window == nil {
+        io.println("错误: 无法创建窗口");
+        return;
+    }
+    
+    io.println("窗口创建成功!");
+    
+    // 初始化游戏
+    initGame();
+    io.println("按 ← → 或 A D 左右移动滑雪");
+    io.println("按 ESC 退出");
+    
+    // 运行游戏主循环
+    gameLoop();
+    
+    // 清理
+    shutdownPlatform();
+    
+    io.println("游戏结束!");
+}
