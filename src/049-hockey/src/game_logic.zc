@@ -1,0 +1,801 @@
+// game_logic.zc - Hockey 冰球守门员游戏逻辑
+// 049-Hockey 冰球游戏 - 玩家扮演守门员，鼠标控制手套扑救
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const WINDOW_WIDTH: int = 600;
+const WINDOW_HEIGHT: int = 800;
+
+const GOAL_WIDTH: int = 300;
+const GOAL_HEIGHT: int = 40;
+const GOAL_Y: int = WINDOW_HEIGHT - 120;
+
+const GOALIE_WIDTH: int = 200;
+const GOALIE_HEIGHT: int = 30;
+const GOALIE_Y: int = GOAL_Y - GOALIE_HEIGHT;
+
+const PUCK_RADIUS: int = 12;
+const PUCK_INITIAL_SPEED: int = 4;
+const PUCK_MAX_SPEED: int = 10;
+const GRAVITY: float = 0.05;
+
+const MAX_PUCKS: int = 10;
+const INITIAL_LIVES: int = 3;
+const WINNING_SCORE: int = 30;
+
+// ==================== HockeyGame游戏类 ====================
+
+pub class HockeyGame extends Game {
+    // 守门员位置
+    goalieX: int;
+    goalieY: int;
+    goalieWidth: int;
+    goalieHeight: int;
+    
+    // 球杆位置（左侧辅助）
+    blockerX: int;
+    blockerY: int;
+    blockerWidth: int;
+    blockerHeight: int;
+    
+    // 球杆位置（右侧辅助）
+    stickX: int;
+    stickY: int;
+    stickWidth: int;
+    stickHeight: int;
+    
+    // 冰球数组
+    puckCount: int;
+    puckX: float[MAX_PUCKS];
+    puckY: float[MAX_PUCKS];
+    puckVX: float[MAX_PUCKS];
+    puckVY: float[MAX_PUCKS];
+    puckActive: bool[MAX_PUCKS];
+    puckSpin: float[MAX_PUCKS];
+    
+    // 游戏状态
+    gameStarted: bool;
+    gameOver: bool;
+    winner: str;
+    
+    // 鼠标状态
+    mouseX: int;
+    mouseY: int;
+    
+    // 分数和生命
+    score: int;
+    lives: int;
+    level: int;
+    puckSpawnTimer: u32;
+    lastPuckSpawn: u32;
+    
+    // 扑救特效
+    saveEffectTimer: int;
+    saveEffectX: int;
+    saveEffectY: int;
+    
+    // 进球特效
+    goalEffectTimer: int;
+    goalEffectX: int;
+    goalEffectY: int;
+    
+    // 冰面效果
+    iceCrackTimer: int;
+    
+    // onInit - 初始化游戏
+    pub fn onInit() {
+        self.setState(GameState.Playing);
+        self.gameStarted = true;
+        self.gameOver = false;
+        self.winner = "";
+        
+        // 初始化守门员
+        self.goalieX = WINDOW_WIDTH / 2 - GOALIE_WIDTH / 2;
+        self.goalieY = GOALIE_Y;
+        self.goalieWidth = GOALIE_WIDTH;
+        self.goalieHeight = GOALIE_HEIGHT;
+        
+        // 左手手套(挡板)
+        self.blockerX = self.goalieX - 20;
+        self.blockerY = self.goalieY - 10;
+        self.blockerWidth = 50;
+        self.blockerHeight = 40;
+        
+        // 右手球杆
+        self.stickX = self.goalieX + GOALIE_WIDTH - 30;
+        self.stickY = self.goalieY - 5;
+        self.stickWidth = 30;
+        self.stickHeight = 35;
+        
+        // 鼠标状态
+        self.mouseX = WINDOW_WIDTH / 2;
+        self.mouseY = WINDOW_HEIGHT / 2;
+        
+        // 分数和生命
+        self.score = 0;
+        self.lives = INITIAL_LIVES;
+        self.level = 1;
+        
+        // 重置冰球
+        self.puckCount = 0;
+        for i in 0..MAX_PUCKS {
+            self.puckActive[i] = false;
+            self.puckX[i] = 0.0;
+            self.puckY[i] = 0.0;
+            self.puckVX[i] = 0.0;
+            self.puckVY[i] = 0.0;
+            self.puckSpin[i] = 0.0;
+        }
+        
+        // 特效
+        self.saveEffectTimer = 0;
+        self.saveEffectX = 0;
+        self.saveEffectY = 0;
+        self.goalEffectTimer = 0;
+        self.goalEffectX = 0;
+        self.goalEffectY = 0;
+        self.iceCrackTimer = 0;
+        
+        // 生成冰球计时器
+        self.puckSpawnTimer = 0;
+        self.lastPuckSpawn = getTickCount();
+    }
+    
+    // onShutdown - 关闭清理
+    pub fn onShutdown() {
+    }
+    
+    // onUpdate - 每帧更新
+    pub fn onUpdate(dt: u32) {
+        if self.gameOver {
+            return;
+        }
+        
+        // 更新守门员位置
+        self.updateGoalie();
+        
+        // 更新辅助装备
+        self.updateGlove();
+        
+        // 生成新冰球
+        self.spawnPucks(dt);
+        
+        // 更新冰球
+        self.updatePucks(dt);
+        
+        // 更新特效
+        self.updateEffects(dt);
+        
+        // 检查升级
+        self.checkLevelUp();
+    }
+    
+    // 更新守门员位置 - 跟随鼠标X
+    private fn updateGoalie() {
+        var targetX = self.mouseX - GOALIE_WIDTH / 2;
+        
+        // 平滑移动
+        var diff = targetX - self.goalieX;
+        var speed = 12;
+        if diff > speed {
+            self.goalieX = self.goalieX + speed;
+        } else if diff < -speed {
+            self.goalieX = self.goalieX - speed;
+        } else {
+            self.goalieX = targetX;
+        }
+        
+        // 确保在球门范围内
+        var goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
+        var goalRight = goalLeft + GOAL_WIDTH;
+        
+        if self.goalieX < goalLeft {
+            self.goalieX = goalLeft;
+        }
+        if self.goalieX + self.goalieWidth > goalRight {
+            self.goalieX = goalRight - self.goalieWidth;
+        }
+        
+        // 更新手套和球杆位置
+        self.blockerX = self.goalieX - 15;
+        self.blockerY = self.goalieY - 5;
+        self.stickX = self.goalieX + GOALIE_WIDTH - 15;
+        self.stickY = self.goalieY - 5;
+    }
+    
+    // 更新手套
+    private fn updateGlove() {
+        // 手套跟随鼠标稍微倾斜
+        var gloveOffsetY = (self.mouseY - GOALIE_Y) as float * 0.1;
+        if gloveOffsetY > 20.0 {
+            gloveOffsetY = 20.0;
+        }
+        if gloveOffsetY < -20.0 {
+            gloveOffsetY = -20.0;
+        }
+        self.blockerY = self.goalieY - 10 + gloveOffsetY as int;
+        
+        // 确保在合理范围
+        if self.blockerY < GOAL_Y - 30 {
+            self.blockerY = GOAL_Y - 30;
+        }
+        if self.blockerY > GOALIE_Y - 5 {
+            self.blockerY = GOALIE_Y - 5;
+        }
+    }
+    
+    // 生成冰球
+    private fn spawnPucks(dt: u32) {
+        self.puckSpawnTimer = self.puckSpawnTimer + dt;
+        
+        // 根据等级调整生成间隔
+        var spawnInterval = 2000 - self.level * 150;
+        if spawnInterval < 500 {
+            spawnInterval = 500;
+        }
+        
+        // 最多同时存在的冰球数
+        var maxActive = 3 + self.level / 3;
+        if maxActive > MAX_PUCKS {
+            maxActive = MAX_PUCKS;
+        }
+        
+        var activeCount = 0;
+        for i in 0..MAX_PUCKS {
+            if self.puckActive[i] {
+                activeCount = activeCount + 1;
+            }
+        }
+        
+        if self.puckSpawnTimer >= spawnInterval && activeCount < maxActive {
+            self.puckSpawnTimer = 0;
+            
+            // 找到一个空闲的冰球槽
+            for i in 0..MAX_PUCKS {
+                if !self.puckActive[i] {
+                    self.puckActive[i] = true;
+                    
+                    // 从球门上方随机位置发射
+                    var goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
+                    var spawnX = goalLeft + 30 + (rand() % (GOAL_WIDTH - 60)) as u32;
+                    self.puckX[i] = spawnX as float;
+                    self.puckY[i] = 60.0;
+                    
+                    // 目标方向（朝向球门）
+                    var targetX = goalLeft + GOAL_WIDTH / 2 + (rand() % 100 - 50) as u32;
+                    var dx = targetX - spawnX;
+                    var dy = GOAL_Y - 60;
+                    
+                    // 速度和方向
+                    var speed = PUCK_INITIAL_SPEED + self.level / 2;
+                    if speed > PUCK_MAX_SPEED {
+                        speed = PUCK_MAX_SPEED;
+                    }
+                    
+                    var dist = self.sqrtFloat(dx * dx + dy * dy) as float;
+                    if dist > 0.0 {
+                        self.puckVX[i] = dx as float / dist * speed as float;
+                        self.puckVY[i] = dy as float / dist * speed as float;
+                    }
+                    
+                    // 添加一些随机性
+                    self.puckVX[i] = self.puckVX[i] + (rand() % 20 - 10) as float * 0.1;
+                    
+                    // 旋转
+                    self.puckSpin[i] = (rand() % 100 - 50) as float * 0.1;
+                    
+                    break;
+                }
+            }
+        }
+    }
+    
+    // 更新冰球
+    private fn updatePucks(dt: u32) {
+        var goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
+        var goalRight = goalLeft + GOAL_WIDTH;
+        
+        for i in 0..MAX_PUCKS {
+            if !self.puckActive[i] {
+                continue;
+            }
+            
+            // 应用轻微重力
+            self.puckVY[i] = self.puckVY[i] + GRAVITY;
+            
+            // 移动
+            self.puckX[i] = self.puckX[i] + self.puckVX[i];
+            self.puckY[i] = self.puckY[i] + self.puckVY[i];
+            
+            // 旋转
+            self.puckSpin[i] = self.puckSpin[i] + 0.05;
+            
+            // 左右边界碰撞
+            if self.puckX[i] <= PUCK_RADIUS as float {
+                self.puckX[i] = PUCK_RADIUS as float;
+                self.puckVX[i] = -self.puckVX[i] * 0.8;
+            }
+            if self.puckX[i] >= WINDOW_WIDTH as float - PUCK_RADIUS as float {
+                self.puckX[i] = WINDOW_WIDTH as float - PUCK_RADIUS as float;
+                self.puckVX[i] = -self.puckVX[i] * 0.8;
+            }
+            
+            // 顶部边界
+            if self.puckY[i] <= PUCK_RADIUS as float {
+                self.puckY[i] = PUCK_RADIUS as float;
+                self.puckVY[i] = -self.puckVY[i] * 0.5;
+            }
+            
+            // 守门员扑救检测
+            if self.checkGoalieSave(i) {
+                continue;
+            }
+            
+            // 手套扑救检测
+            if self.checkBlockerSave(i) {
+                continue;
+            }
+            
+            // 球杆扑救检测
+            if self.checkStickSave(i) {
+                continue;
+            }
+            
+            // 进球检测
+            if self.puckY[i] >= GOAL_Y as float - PUCK_RADIUS as float {
+                // 进了！
+                self.goalEffectX = self.puckX[i] as int;
+                self.goalEffectY = GOAL_Y;
+                self.goalEffectTimer = 30;
+                
+                self.lives = self.lives - 1;
+                self.puckActive[i] = false;
+                
+                if self.lives <= 0 {
+                    self.gameOver = true;
+                    self.winner = "";
+                    self.setState(GameState.Lost);
+                }
+                
+                continue;
+            }
+            
+            // 底部出界
+            if self.puckY[i] >= WINDOW_HEIGHT as float + 50.0 {
+                self.puckActive[i] = false;
+            }
+        }
+    }
+    
+    // 守门员身体扑救
+    private fn checkGoalieSave(i: int) -> bool {
+        var puckLeft = self.puckX[i] - PUCK_RADIUS as float;
+        var puckRight = self.puckX[i] + PUCK_RADIUS as float;
+        var puckTop = self.puckY[i] - PUCK_RADIUS as float;
+        var puckBottom = self.puckY[i] + PUCK_RADIUS as float;
+        
+        if puckRight >= self.goalieX as float && puckLeft <= (self.goalieX + self.goalieWidth) as float &&
+           puckBottom >= self.goalieY as float && puckTop <= (self.goalieY + self.goalieHeight) as float {
+            // 扑救了！
+            self.triggerSaveEffect(i);
+            self.puckActive[i] = false;
+            return true;
+        }
+        return false;
+    }
+    
+    // 手套扑救
+    private fn checkBlockerSave(i: int) -> bool {
+        var puckLeft = self.puckX[i] - PUCK_RADIUS as float;
+        var puckRight = self.puckX[i] + PUCK_RADIUS as float;
+        var puckTop = self.puckY[i] - PUCK_RADIUS as float;
+        var puckBottom = self.puckY[i] + PUCK_RADIUS as float;
+        
+        if puckRight >= self.blockerX as float && puckLeft <= (self.blockerX + self.blockerWidth) as float &&
+           puckBottom >= self.blockerY as float && puckTop <= (self.blockerY + self.blockerHeight) as float {
+            // 扑救了！
+            self.triggerSaveEffect(i);
+            self.puckActive[i] = false;
+            return true;
+        }
+        return false;
+    }
+    
+    // 球杆扑救
+    private fn checkStickSave(i: int) -> bool {
+        var puckLeft = self.puckX[i] - PUCK_RADIUS as float;
+        var puckRight = self.puckX[i] + PUCK_RADIUS as float;
+        var puckTop = self.puckY[i] - PUCK_RADIUS as float;
+        var puckBottom = self.puckY[i] + PUCK_RADIUS as float;
+        
+        if puckRight >= self.stickX as float && puckLeft <= (self.stickX + self.stickWidth) as float &&
+           puckBottom >= self.stickY as float && puckTop <= (self.stickY + self.stickHeight) as float {
+            // 扑救了！
+            self.triggerSaveEffect(i);
+            self.puckActive[i] = false;
+            return true;
+        }
+        return false;
+    }
+    
+    // 触发扑救特效
+    private fn triggerSaveEffect(i: int) {
+        self.saveEffectX = self.puckX[i] as int;
+        self.saveEffectY = self.puckY[i] as int;
+        self.saveEffectTimer = 20;
+        
+        // 加分
+        self.score = self.score + 1;
+    }
+    
+    // 更新特效
+    private fn updateEffects(dt: u32) {
+        if self.saveEffectTimer > 0 {
+            self.saveEffectTimer = self.saveEffectTimer - 1;
+        }
+        if self.goalEffectTimer > 0 {
+            self.goalEffectTimer = self.goalEffectTimer - 1;
+        }
+        if self.iceCrackTimer > 0 {
+            self.iceCrackTimer = self.iceCrackTimer - 1;
+        }
+    }
+    
+    // 检查升级
+    private fn checkLevelUp() {
+        var newLevel = self.score / 10 + 1;
+        if newLevel > self.level {
+            self.level = newLevel;
+        }
+        
+        if self.score >= WINNING_SCORE {
+            self.gameOver = true;
+            self.winner = "玩家";
+            self.setState(GameState.Won);
+        }
+    }
+    
+    // onRender - 渲染画面
+    pub fn onRender(canvas: Canvas) {
+        // 冰面背景
+        canvas.clear(Color.ARGB(255, 200, 230, 255));
+        self.drawIceRink(canvas);
+        
+        // 球门
+        self.drawGoal(canvas);
+        
+        // 守门员
+        self.drawGoalie(canvas);
+        
+        // 手套和球杆
+        self.drawGlove(canvas);
+        self.drawStick(canvas);
+        
+        // 冰球
+        self.drawPucks(canvas);
+        
+        // 特效
+        self.drawEffects(canvas);
+        
+        // 分数和状态
+        self.drawHUD(canvas);
+        
+        // 游戏结束
+        if self.gameOver {
+            self.drawGameOver(canvas);
+        }
+    }
+    
+    // 绘制冰场
+    private fn drawIceRink(canvas: Canvas) {
+        // 冰面纹理
+        var iceColor = Color.ARGB(255, 220, 240, 255);
+        canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, iceColor);
+        
+        // 冰场线条
+        var lineColor = Color.ARGB(100, 100, 150, 200);
+        
+        // 中线和圆
+        canvas.drawLine(WINDOW_WIDTH / 2, 0, WINDOW_WIDTH / 2, WINDOW_HEIGHT, lineColor);
+        canvas.drawCircle(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2, 80, lineColor);
+        
+        // 球门区线
+        var goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
+        canvas.drawRect(goalLeft - 20, GOAL_Y - 60, GOAL_WIDTH + 40, 80, lineColor);
+        
+        // 守门员站位点
+        canvas.drawCircle(WINDOW_WIDTH / 2, GOALIE_Y + GOALIE_HEIGHT / 2, 8, Color.ARGB(150, 255, 100, 100));
+        
+        // 冰面划痕效果
+        if self.iceCrackTimer <= 0 && self.rand() % 100 == 0 {
+            self.iceCrackTimer = 5;
+        }
+        if self.iceCrackTimer > 0 {
+            var cx = self.rand() % WINDOW_WIDTH;
+            var cy = 100 + self.rand() % (WINDOW_HEIGHT - 200);
+            canvas.drawLine(cx - 20, cy, cx + 20, cy, Color.ARGB(50, 150, 180, 210));
+        }
+    }
+    
+    // 绘制球门
+    private fn drawGoal(canvas: Canvas) {
+        var goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
+        var goalRight = goalLeft + GOAL_WIDTH;
+        
+        // 球门框架
+        var frameColor = Color.Red();
+        
+        // 门柱
+        canvas.fillRect(goalLeft - 8, GOAL_Y - GOAL_HEIGHT, 8, GOAL_HEIGHT + 10, frameColor);
+        canvas.fillRect(goalRight, GOAL_Y - GOAL_HEIGHT, 8, GOAL_HEIGHT + 10, frameColor);
+        
+        // 横梁
+        canvas.fillRect(goalLeft - 8, GOAL_Y - GOAL_HEIGHT - 8, GOAL_WIDTH + 16, 8, frameColor);
+        
+        // 球门网（斜线）
+        var netColor = Color.ARGB(150, 200, 200, 200);
+        for i in 0..15 {
+            var y1 = GOAL_Y - GOAL_HEIGHT + i * 3;
+            canvas.drawLine(goalLeft, y1, goalRight, y1, netColor);
+        }
+        for i in 0..20 {
+            var x1 = goalLeft + i * (GOAL_WIDTH / 20);
+            canvas.drawLine(x1, GOAL_Y - GOAL_HEIGHT, goalRight - (i * GOAL_WIDTH / 20), GOAL_Y, netColor);
+        }
+        
+        // 球门线
+        canvas.drawLine(goalLeft, GOAL_Y, goalRight, GOAL_Y, Color.ARGB(200, 255, 0, 0));
+    }
+    
+    // 绘制守门员
+    private fn drawGoalie(canvas: Canvas) {
+        // 身体
+        var bodyColor = Color.ARGB(255, 80, 80, 120); // 守门员球衣
+        canvas.fillRect(self.goalieX, self.goalieY, self.goalieWidth, self.goalieHeight, bodyColor);
+        
+        // 身体轮廓
+        canvas.drawRect(self.goalieX, self.goalieY, self.goalieWidth, self.goalieHeight, Color.DarkGray());
+        
+        // 护胸
+        canvas.fillRect(self.goalieX + 40, self.goalieY - 5, GOALIE_WIDTH - 80, 10, Color.ARGB(255, 100, 100, 140));
+        
+        // 头盔
+        canvas.fillCircle(self.goalieX + GOALIE_WIDTH / 2, self.goalieY - 5, 15, Color.ARGB(255, 80, 80, 120));
+        canvas.drawCircle(self.goalieX + GOALIE_WIDTH / 2, self.goalieY - 5, 15, Color.DarkGray());
+        
+        // 头盔面罩
+        canvas.drawRect(self.goalieX + GOALIE_WIDTH / 2 - 12, self.goalieY - 8, 24, 10, Color.ARGB(200, 150, 150, 150));
+    }
+    
+    // 绘制手套(左手)
+    private fn drawGlove(canvas: Canvas) {
+        // 手套主体
+        var gloveColor = Color.ARGB(255, 200, 150, 100);
+        canvas.fillRect(self.blockerX, self.blockerY, self.blockerWidth, self.blockerHeight, gloveColor);
+        
+        // 手套轮廓
+        canvas.drawRect(self.blockerX, self.blockerY, self.blockerWidth, self.blockerHeight, Color.DarkGray());
+        
+        // 手套手指分隔
+        var fingerColor = Color.ARGB(180, 220, 180, 130);
+        canvas.drawLine(self.blockerX + 12, self.blockerY, self.blockerX + 12, self.blockerY + self.blockerHeight, fingerColor);
+        canvas.drawLine(self.blockerX + 24, self.blockerY, self.blockerX + 24, self.blockerY + self.blockerHeight, fingerColor);
+        canvas.drawLine(self.blockerX + 36, self.blockerY, self.blockerX + 36, self.blockerY + self.blockerHeight, fingerColor);
+        
+        // 手套虎口
+        canvas.fillCircle(self.blockerX + 8, self.blockerY + self.blockerHeight / 2, 6, fingerColor);
+    }
+    
+    // 绘制球杆(右手)
+    private fn drawStick(canvas: Canvas) {
+        // 球杆柄
+        var stickColor = Color.ARGB(255, 180, 120, 80);
+        canvas.fillRect(self.stickX + 5, self.stickY, self.stickWidth - 10, self.stickHeight - 10, stickColor);
+        
+        // 球杆 blade
+        var bladeColor = Color.ARGB(255, 200, 180, 150);
+        canvas.fillRect(self.stickX, self.stickY + self.stickHeight - 15, self.stickWidth, 15, bladeColor);
+        
+        // 球杆轮廓
+        canvas.drawRect(self.stickX, self.stickY, self.stickWidth - 5, self.stickHeight - 5, Color.DarkGray());
+    }
+    
+    // 绘制冰球
+    private fn drawPucks(canvas: Canvas) {
+        for i in 0..MAX_PUCKS {
+            if !self.puckActive[i] {
+                continue;
+            }
+            
+            var px = self.puckX[i] as int;
+            var py = self.puckY[i] as int;
+            
+            // 阴影
+            canvas.fillCircle(px + 3, py + 3, PUCK_RADIUS, Color.ARGB(80, 0, 0, 0));
+            
+            // 冰球主体
+            canvas.fillCircle(px, py, PUCK_RADIUS, Color.ARGB(255, 30, 30, 30));
+            
+            // 冰球纹理线
+            var spinOffset = (self.puckSpin[i] * 10.0) as int;
+            canvas.drawLine(px - 6 + spinOffset, py, px + 6 + spinOffset, py, Color.ARGB(150, 80, 80, 80));
+            canvas.drawLine(px, py - 6 + spinOffset, px, py + 6 + spinOffset, Color.ARGB(150, 80, 80, 80));
+            
+            // 高光
+            canvas.fillCircle(px - 3, py - 3, 3, Color.ARGB(100, 150, 150, 150));
+        }
+    }
+    
+    // 绘制特效
+    private fn drawEffects(canvas: Canvas) {
+        // 扑救特效
+        if self.saveEffectTimer > 0 {
+            var alpha = (self.saveEffectTimer * 10) as u8;
+            var radius = (20 - self.saveEffectTimer) * 3;
+            canvas.drawCircle(self.saveEffectX, self.saveEffectY, radius, Color.ARGB(alpha, 255, 255, 100));
+            canvas.drawCircle(self.saveEffectX, self.saveEffectY, radius / 2, Color.ARGB(alpha, 255, 200, 50));
+            
+            // 粒子
+            for j in 0..6 {
+                var angle = j as float * 60.0 + self.saveEffectTimer as float * 10.0;
+                var dist = (20 - self.saveEffectTimer) as float * 3.0;
+                var sx = self.saveEffectX + (self.cos(angle) * dist) as int;
+                var sy = self.saveEffectY + (self.sin(angle) * dist) as int;
+                canvas.fillCircle(sx, sy, 4, Color.ARGB(alpha, 255, 255, 200));
+            }
+        }
+        
+        // 进球特效
+        if self.goalEffectTimer > 0 {
+            var alpha = (self.goalEffectTimer * 8) as u8;
+            
+            // 红色闪烁
+            for j in 0..5 {
+                var y = GOAL_Y - j * 15;
+                canvas.drawLine(self.goalEffectX - 60 + j * 10, y, self.goalEffectX + 60 - j * 10, y, Color.ARGB(alpha, 255, 50, 50));
+            }
+        }
+    }
+    
+    // 绘制HUD
+    private fn drawHUD(canvas: Canvas) {
+        var font = Font.("Arial", 16);
+        var bigFont = Font.("Arial", 24);
+        
+        // 分数
+        canvas.drawText(20, 20, "分数: " ++ self.intToString(self.score), Color.DarkGray(), font);
+        
+        // 生命
+        var livesText = "生命: ";
+        for li in 0..self.lives {
+            livesText = livesText ++ "♥";
+        }
+        for li in self.lives..INITIAL_LIVES {
+            livesText = livesText ++ "♡";
+        }
+        canvas.drawText(20, 40, livesText, Color.Red(), bigFont);
+        
+        // 关卡
+        canvas.drawText(WINDOW_WIDTH - 100, 20, "关卡: " ++ self.intToString(self.level), Color.DarkGray(), font);
+        
+        // 目标
+        canvas.drawText(WINDOW_WIDTH - 150, 40, "目标: " ++ self.intToString(WINNING_SCORE), Color.DarkGray(), font);
+        
+        // 提示
+        if self.gameStarted && !self.gameOver && self.score == 0 {
+            var hintFont = Font.("Arial", 14);
+            canvas.drawText(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT - 50, "← → 移动守门员扑救", Color.ARGB(150, 100, 100, 100), hintFont);
+        }
+    }
+    
+    // 绘制游戏结束
+    private fn drawGameOver(canvas: Canvas) {
+        canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(180, 0, 0, 0));
+        
+        var font = Font.("Arial", 48);
+        var smallFont = Font.("Arial", 20);
+        
+        if self.winner == "玩家" {
+            canvas.drawText(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 - 50, "胜利!", Color.Yellow(), font);
+        } else {
+            canvas.drawText(WINDOW_WIDTH / 2 - 150, WINDOW_HEIGHT / 2 - 50, "游戏结束", Color.Red(), font);
+        }
+        
+        canvas.drawText(WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 10, "最终分数: " ++ self.intToString(self.score), Color.White(), smallFont);
+        canvas.drawText(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 + 40, "按 R 键重新开始", Color.White(), smallFont);
+    }
+    
+    // onKeyDown - 键盘按下
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.KeyR => {
+                if self.gameOver {
+                    self.onInit();
+                }
+            }
+            VirtualKey.Left => {
+                self.mouseX = self.mouseX - 20;
+            }
+            VirtualKey.Right => {
+                self.mouseX = self.mouseX + 20;
+            }
+            _ => {}
+        }
+    }
+    
+    // onKeyUp - 键盘释放
+    pub fn onKeyUp(key: VirtualKey) {
+    }
+    
+    // onMouseDown - 鼠标按下
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        self.mouseX = x;
+        self.mouseY = y;
+    }
+    
+    // onMouseUp - 鼠标释放
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+        self.mouseX = x;
+        self.mouseY = y;
+    }
+    
+    // ============ 辅助函数 ============
+    
+    fn sin(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = rad;
+        var term = rad;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn cos(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = 1.0;
+        var term = 1.0;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn sqrtFloat(n: float) -> float {
+        if n < 0.0 {
+            return 0.0;
+        }
+        var x = n;
+        var y = 1.0;
+        while y < x {
+            x = (x + y) / 2.0;
+            y = n / x;
+        }
+        return x;
+    }
+    
+    fn rand() -> u32 {
+        // 线性同余生成器
+        static var rng_seed: u32 = 12345;
+        rng_seed = rng_seed * 1103515245 + 12345;
+        return rng_seed;
+    }
+    
+    fn intToString(n: int) -> str {
+        if n == 0 {
+            return "0";
+        }
+        var result = "";
+        var num = n;
+        while num > 0 {
+            var digit = num % 10;
+            result = (digit as char + "") ++ result;
+            num = num / 10;
+        }
+        return result;
+    }
+}

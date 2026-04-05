@@ -1,0 +1,233 @@
+// platform_api_windows.zc - Windows 平台 API 实现
+// 框架版本: 1.0.0
+
+// ============================================================================
+// Windows 头文件和常量
+// ============================================================================
+
+// Windows API 函数声明
+#[link(name: "user32")]
+#[link(name: "gdi32")]
+extern {
+    // 窗口管理
+    fn CreateWindowExA(
+        dwExStyle: u32,
+        lpClassName: str,
+        lpWindowName: str,
+        dwStyle: u32,
+        X: i32,
+        Y: i32,
+        nWidth: i32,
+        nHeight: i32,
+        hWndParent: rawptr,
+        hMenu: rawptr,
+        hInstance: rawptr,
+        lpParam: rawptr
+    ) -> WindowHandle;
+    
+    fn DefWindowProcA(hWnd: WindowHandle, msg: u32, wParam: u64, lParam: i64) -> i64;
+    fn PostQuitMessage(nExitCode: i32);
+    fn ShowWindow(hWnd: WindowHandle, nCmdShow: i32) -> i32;
+    fn UpdateWindow(hWnd: WindowHandle) -> i32;
+    fn DestroyWindow(hWnd: WindowHandle) -> i32;
+    fn GetMessageA(lpMsg: rawptr, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32) -> i32;
+    fn TranslateMessage(lpMsg: rawptr) -> i32;
+    fn DispatchMessageA(lpMsg: rawptr) -> i64;
+    fn PeekMessageA(lpMsg: rawptr, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32, wRemoveMsg: u32) -> i32;
+    
+    // 计时器
+    fn GetTickCount() -> u32;
+    fn Sleep(dwMilliseconds: u32);
+    
+    // 键盘
+    fn GetAsyncKeyState(vKey: i32) -> i16;
+    
+    // 显存
+    fn GetDC(hWnd: WindowHandle) -> rawptr;
+    fn ReleaseDC(hWnd: WindowHandle, hDC: rawptr) -> i32;
+    fn CreateCompatibleDC(hDC: rawptr) -> rawptr;
+    fn CreateCompatibleBitmap(hDC: rawptr, nWidth: i32, nHeight: i32) -> rawptr;
+    fn SelectObject(hDC: rawptr, hObject: rawptr) -> rawptr;
+    fn BitBlt(hdcDest: rawptr, x: i32, y: i32, w: i32, h: i32, hdcSrc: rawptr, xSrc: i32, ySrc: i32, rop: u32) -> i32;
+    fn GetBltMode() -> u32;
+    fn DeleteDC(hDC: rawptr) -> i32;
+    fn DeleteObject(hObject: rawptr) -> i32;
+}
+
+// 窗口样式常量
+const WS_OVERLAPPEDWINDOW: u32 = 13529344;
+const WS_VISIBLE: u32 = 268435456;
+const CW_USEDEFAULT: i32 = -2147483648;
+
+// 消息常量
+const WM_QUIT: u32 = 18;
+const WM_DESTROY: u32 = 2;
+const WM_PAINT: u32 = 15;
+const WM_KEYDOWN: u32 = 256;
+const WM_KEYUP: u32 = 257;
+const WM_LBUTTONDOWN: u32 = 513;
+const WM_LBUTTONUP: u32 = 514;
+const WM_RBUTTONDOWN: u32 = 516;
+const WM_RBUTTONUP: u32 = 517;
+const WM_MBUTTONDOWN: u32 = 519;
+const WM_MBUTTONUP: u32 = 520;
+const WM_MOUSEMOVE: u32 = 512;
+const WM_SIZE: u32 = 5;
+
+// 虚拟键码映射
+fn mapVirtualKey(wParam: u64) -> VirtualKey {
+    match wParam {
+        0x1B => return VirtualKey.Escape,
+        0x20 => return VirtualKey.Space,
+        0x0D => return VirtualKey.Enter,
+        0x09 => return VirtualKey.Tab,
+        0x08 => return VirtualKey.Backspace,
+        0x25 => return VirtualKey.Left,
+        0x26 => return VirtualKey.Up,
+        0x27 => return VirtualKey.Right,
+        0x28 => return VirtualKey.Down,
+        0x30 => return VirtualKey.Key0,
+        0x31 => return VirtualKey.Key1,
+        0x32 => return VirtualKey.Key2,
+        0x33 => return VirtualKey.Key3,
+        0x34 => return VirtualKey.Key4,
+        0x35 => return VirtualKey.Key5,
+        0x36 => return VirtualKey.Key6,
+        0x37 => return VirtualKey.Key7,
+        0x38 => return VirtualKey.Key8,
+        0x39 => return VirtualKey.Key9,
+        0x70 => return VirtualKey.F1,
+        0x71 => return VirtualKey.F2,
+        0x72 => return VirtualKey.F3,
+        0x73 => return VirtualKey.F4,
+        0x74 => return VirtualKey.F5,
+        0x75 => return VirtualKey.F6,
+        0x76 => return VirtualKey.F7,
+        0x77 => return VirtualKey.F8,
+        0x78 => return VirtualKey.F9,
+        0x79 => return VirtualKey.F10,
+        0x7A => return VirtualKey.F11,
+        0x7B => return VirtualKey.F12,
+        _ => return VirtualKey.None,
+    }
+}
+
+// 鼠标按钮映射
+fn mapMouseButton(wParam: u64) -> MouseButton {
+    if (wParam & 1) != 0 {
+        return MouseButton.Left;
+    }
+    if (wParam & 2) != 0 {
+        return MouseButton.Right;
+    }
+    if (wParam & 16) != 0 {
+        return MouseButton.Middle;
+    }
+    return MouseButton.None;
+}
+
+// 内部窗口数据
+private struct WindowData {
+    handle: WindowHandle,
+    mouseX: int,
+    mouseY: int,
+    quit: bool,
+}
+
+private var windowData: WindowData;
+
+// MSG 结构
+private struct MSG {
+    hwnd: WindowHandle,
+    message: u32,
+    wParam: u64,
+    lParam: i64,
+    time: u32,
+    pt_x: i32,
+    pt_y: i32,
+}
+
+// 平台初始化
+pub fn initPlatform() {
+    windowData.handle = nil;
+    windowData.mouseX = 0;
+    windowData.mouseY = 0;
+    windowData.quit = false;
+}
+
+// 平台关闭
+pub fn shutdownPlatform() {
+}
+
+// 创建窗口实现
+pub fn createWindow(title: str, width: int, height: int) -> WindowHandle {
+    // 简单实现：返回一个假的窗口句柄
+    // 实际 Windows 实现需要完整的窗口注册和创建
+    var hwnd = 0x10001 as WindowHandle; // 模拟句柄
+    windowData.handle = hwnd;
+    windowData.quit = false;
+    return hwnd;
+}
+
+// 关闭窗口实现
+pub fn closeWindow(handle: WindowHandle) {
+}
+
+// 设置窗口标题
+pub fn setWindowTitle(handle: WindowHandle, title: str) {
+}
+
+// 获取窗口尺寸
+pub fn getWindowSize(handle: WindowHandle) -> (int, int) {
+    return (800, 600);
+}
+
+// 处理消息
+pub fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
+    // 模拟事件循环
+    // 实际 Windows 实现需要调用 PeekMessage/GetMessage
+    
+    if windowData.quit {
+        event.msg = MessageType.Quit;
+        return true;
+    }
+    
+    return false;
+}
+
+// 等待事件
+pub fn waitEvent(handle: WindowHandle, event: &Event) {
+}
+
+// 发送退出消息
+pub fn postQuitMessage(handle: WindowHandle) {
+    windowData.quit = true;
+}
+
+// 获取Tick计数
+pub fn getTickCount() -> u32 {
+    return 0;
+}
+
+// 睡眠
+pub fn sleep(ms: u32) {
+}
+
+// 键盘状态
+pub fn isKeyDown(key: VirtualKey) -> bool {
+    return false;
+}
+
+// 获取帧缓冲
+pub fn getFrameBuffer(handle: WindowHandle) -> rawptr {
+    return nil;
+}
+
+// 获取帧缓冲pitch
+pub fn getFrameBufferPitch(handle: WindowHandle) -> int {
+    return 800 * 4;
+}
+
+// 显示帧
+pub fn presentFrame(handle: WindowHandle) {
+}
