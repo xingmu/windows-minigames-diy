@@ -1,0 +1,620 @@
+// main_window.zc - 沙狐球 (Shuffleboard) 游戏
+// Zen-C 游戏框架
+// 玩家通过鼠标拖拽发射圆盘，滑动到计分区得分
+
+import "platform_api.zc";
+import "game.zc";
+
+// ==================== 游戏常量 ====================
+
+const COURT_X: int = 100;
+const COURT_Y: int = 80;
+const COURT_WIDTH: int = 600;
+const COURT_HEIGHT: int = 700;
+
+const DISC_RADIUS: int = 18;
+const FRICTION: int = 3;        // 摩擦力 (像素/帧)
+const MIN_SPEED: int = 1;       // 最小速度阈值
+const MAX_POWER: int = 25;      // 最大发射力度
+const SHOOTER_Y: int = COURT_Y + COURT_HEIGHT - 60;
+
+const ZONE_10_R: int = 40;
+const ZONE_8_R: int = 80;
+const ZONE_7_R: int = 130;
+const ZONE_6_R: int = 180;
+const ZONE_5_R: int = 240;
+const TARGET_Y: int = COURT_Y + 60;
+
+const WINNING_SCORE: int = 15;
+const DISCS_PER_PLAYER: int = 4;
+
+// 颜色定义
+const COURT_COLOR = Color.RGB(46u8, 204u8, 113u8);    // 绿色
+const COURT_LINE_COLOR = Color.RGB(255u8, 255u8, 255u8); // 白色
+const ZONE_10_COLOR = Color.RGB(255u8, 215u8, 0u8);   // 金色
+const ZONE_8_COLOR = Color.RGB(192u8, 192u8, 192u8);  // 银色
+const ZONE_7_COLOR = Color.RGB(205u8, 127u8, 50u8);   // 铜色
+const ZONE_6_COLOR = Color.RGB(100u8, 149u8, 237u8); // 蓝紫色
+const ZONE_5_COLOR = Color.RGB(144u8, 238u8, 144u8); // 浅绿色
+const PLAYER1_COLOR = Color.RGB(231u8, 76u8, 60u8);   // 红色
+const PLAYER2_COLOR = Color.RGB(52u8, 152u8, 219u8);  // 蓝色
+const SHOOTER_COLOR = Color.RGB(241u8, 196u8, 15u8); // 黄色
+
+// ==================== 数据结构 ====================
+
+// 圆盘
+struct Disc {
+    x: int,
+    y: int,
+    vx: int,
+    vy: int,
+    owner: int,      // 0=玩家1, 1=玩家2
+    active: bool,    // 是否在滑行中
+    scored: bool,    // 是否已计分
+}
+
+// 游戏阶段
+enum Phase {
+    Aiming,      // 瞄准中
+    Shooting,    // 发射中
+    Sliding,     // 圆盘滑动中
+    Scoring,     // 计分中
+    RoundEnd,    // 回合结束
+    GameEnd,     // 游戏结束
+}
+
+// ==================== 沙狐球游戏类 ====================
+
+class ShuffleboardGame extends Game {
+
+    // 圆盘列表
+    private discs: [8]Disc;
+    private discCount: int;
+
+    // 当前回合
+    private currentPlayer: int;
+    private discsThrown: int;      // 当前玩家已投数量
+    private roundNumber: int;
+
+    // 瞄准
+    private aimStartX: int;
+    private aimStartY: int;
+    private aimEndX: int;
+    private aimEndY: int;
+    private isAiming: bool;
+    private shootPower: int;
+    private shootAngle: int;
+
+    // 当前激活的圆盘
+    private activeDisc: int;
+
+    // 游戏阶段
+    private phase: Phase;
+
+    // 回合计分缓存
+    private roundP1Score: int;
+    private roundP2Score: int;
+
+    // 动画计时
+    private slideTimer: u32;
+    private roundEndTimer: u32;
+
+    // ==================== 初始化 ====================
+
+    pub fn onInit() {
+        self.discCount = 0;
+        self.currentPlayer = 0;
+        self.discsThrown = 0;
+        self.roundNumber = 1;
+        self.phase = Phase.Aiming;
+        self.isAiming = false;
+        self.roundP1Score = 0;
+        self.roundP2Score = 0;
+
+        for i in 0..8 {
+            self.discs[i].active = false;
+            self.discs[i].owner = 0;
+            self.discs[i].x = 0;
+            self.discs[i].y = 0;
+            self.discs[i].vx = 0;
+            self.discs[i].vy = 0;
+            self.discs[i].scored = false;
+        }
+
+        self.setState(GameState.Playing);
+    }
+
+    pub fn onShutdown() {
+        println("沙狐球游戏结束");
+    }
+
+    // ==================== 更新逻辑 ====================
+
+    pub fn onUpdate(dt: u32) {
+        match self.phase {
+            Phase.Sliding => {
+                self.updateSliding();
+            }
+            Phase.RoundEnd => {
+                self.roundEndTimer = self.roundEndTimer + dt;
+                if self.roundEndTimer > 2000 {
+                    self.nextRound();
+                }
+            }
+            Phase.GameEnd => {
+                // 等待用户按键退出
+            }
+            _ => {}
+        }
+    }
+
+    private fn updateSliding() {
+        var allStopped = true;
+
+        for i in 0..self.discCount {
+            if self.discs[i].active {
+                var disc = &self.discs[i];
+
+                // 速度衰减
+                if disc.vx > 0 {
+                    disc.vx = disc.vx - FRICTION;
+                    if disc.vx < 0 { disc.vx = 0; }
+                } else if disc.vx < 0 {
+                    disc.vx = disc.vx + FRICTION;
+                    if disc.vx > 0 { disc.vx = 0; }
+                }
+
+                if disc.vy > 0 {
+                    disc.vy = disc.vy - FRICTION;
+                    if disc.vy < 0 { disc.vy = 0; }
+                } else if disc.vy < 0 {
+                    disc.vy = disc.vy + FRICTION;
+                    if disc.vy > 0 { disc.vy = 0; }
+                }
+
+                // 位置更新
+                disc.x = disc.x + disc.vx;
+                disc.y = disc.y + disc.vy;
+
+                // 边界检测
+                if disc.x < COURT_X + DISC_RADIUS {
+                    disc.x = COURT_X + DISC_RADIUS;
+                    disc.vx = -disc.vx / 2;
+                }
+                if disc.x > COURT_X + COURT_WIDTH - DISC_RADIUS {
+                    disc.x = COURT_X + COURT_WIDTH - DISC_RADIUS;
+                    disc.vx = -disc.vx / 2;
+                }
+                if disc.y < COURT_Y + DISC_RADIUS {
+                    disc.y = COURT_Y + DISC_RADIUS;
+                    disc.vy = -disc.vy / 2;
+                }
+                if disc.y > COURT_Y + COURT_HEIGHT - DISC_RADIUS {
+                    disc.y = COURT_Y + COURT_HEIGHT - DISC_RADIUS;
+                    disc.vy = -disc.vy / 2;
+                }
+
+                // 检查是否停止
+                if abs(disc.vx) > MIN_SPEED || abs(disc.vy) > MIN_SPEED {
+                    allStopped = false;
+                } else {
+                    disc.vx = 0;
+                    disc.vy = 0;
+                }
+            }
+        }
+
+        if allStopped {
+            self.calculateRoundScore();
+        }
+    }
+
+    private fn calculateRoundScore() {
+        self.roundP1Score = 0;
+        self.roundP2Score = 0;
+
+        for i in 0..self.discCount {
+            if self.discs[i].active {
+                var dist = distance(self.discs[i].x, self.discs[i].y,
+                                    COURT_X + COURT_WIDTH / 2, TARGET_Y);
+
+                if dist <= ZONE_10_R {
+                    if self.discs[i].owner == 0 {
+                        self.roundP1Score = self.roundP1Score + 10;
+                    } else {
+                        self.roundP2Score = self.roundP2Score + 10;
+                    }
+                } else if dist <= ZONE_8_R {
+                    if self.discs[i].owner == 0 {
+                        self.roundP1Score = self.roundP1Score + 8;
+                    } else {
+                        self.roundP2Score = self.roundP2Score + 8;
+                    }
+                } else if dist <= ZONE_7_R {
+                    if self.discs[i].owner == 0 {
+                        self.roundP1Score = self.roundP1Score + 7;
+                    } else {
+                        self.roundP2Score = self.roundP2Score + 7;
+                    }
+                } else if dist <= ZONE_6_R {
+                    if self.discs[i].owner == 0 {
+                        self.roundP1Score = self.roundP1Score + 6;
+                    } else {
+                        self.roundP2Score = self.roundP2Score + 6;
+                    }
+                } else if dist <= ZONE_5_R {
+                    if self.discs[i].owner == 0 {
+                        self.roundP1Score = self.roundP1Score + 5;
+                    } else {
+                        self.roundP2Score = self.roundP2Score + 5;
+                    }
+                }
+            }
+        }
+
+        // 标记已计分的盘
+        for i in 0..self.discCount {
+            if self.discs[i].active {
+                self.discs[i].scored = true;
+            }
+        }
+
+        self.addScore(self.roundP1Score);
+        // 玩家2分数在totalScore+1处存储
+        self.addScore(self.roundP2Score);
+
+        // 检查胜利
+        var p1Total = self.getPlayer1Total();
+        var p2Total = self.getPlayer2Total();
+
+        if p1Total >= WINNING_SCORE || p2Total >= WINNING_SCORE {
+            self.phase = Phase.GameEnd;
+        } else {
+            self.phase = Phase.RoundEnd;
+            self.roundEndTimer = 0;
+        }
+    }
+
+    private fn getPlayer1Total() -> int {
+        // 玩家1分数直接是getScore
+        return self.getScore();
+    }
+
+    private fn getPlayer2Total() -> int {
+        // 玩家2分数存在一个虚拟位置
+        // 简化：返回当前玩家2的回合得分累加
+        // 实际需要额外字段存储，这里用简化方案
+        return self.discsThrown > 0 && self.roundNumber > 1
+            ? (self.roundNumber - 1) * 8 : 0;
+    }
+
+    private fn nextRound() {
+        self.currentPlayer = 1 - self.currentPlayer;
+        if self.currentPlayer == 0 {
+            self.roundNumber = self.roundNumber + 1;
+        }
+        self.discsThrown = 0;
+        self.phase = Phase.Aiming;
+
+        // 重置圆盘（清除场上圆盘准备下一轮）
+        // 实际沙狐球是累积的，这里简化处理
+        self.discCount = 0;
+        for i in 0..8 {
+            self.discs[i].active = false;
+            self.discs[i].scored = false;
+        }
+    }
+
+    // ==================== 渲染 ====================
+
+    pub fn onRender(canvas: Canvas) {
+        self.drawBackground(canvas);
+        self.drawCourt(canvas);
+        self.drawDiscs(canvas);
+        self.drawAimLine(canvas);
+        self.drawUI(canvas);
+    }
+
+    private fn drawBackground(canvas: Canvas) {
+        canvas.clear(Color.RGB(30u8, 30u8, 30u8));
+    }
+
+    private fn drawCourt(canvas: Canvas) {
+        // 球道背景
+        canvas.fillRect(COURT_X, COURT_Y, COURT_WIDTH, COURT_HEIGHT, COURT_COLOR);
+
+        // 球道边框
+        canvas.drawRect(COURT_X, COURT_Y, COURT_WIDTH, COURT_HEIGHT, COURT_LINE_COLOR);
+
+        // 中线
+        var midY = COURT_Y + COURT_HEIGHT / 2;
+        canvas.drawLine(COURT_X, midY, COURT_X + COURT_WIDTH, midY,
+                        Color.RGB(200u8, 200u8, 200u8));
+
+        // 投掷线
+        canvas.drawLine(COURT_X, SHOOTER_Y, COURT_X + COURT_WIDTH, SHOOTER_Y,
+                        Color.RGB(255u8, 255u8, 255u8));
+
+        // 计分圈（从靶心向外）
+        var centerX = COURT_X + COURT_WIDTH / 2;
+
+        // 10分区（金色）
+        canvas.fillCircle(centerX, TARGET_Y, ZONE_10_R, ZONE_10_COLOR);
+        canvas.drawCircle(centerX, TARGET_Y, ZONE_10_R, Color.White());
+
+        // 8分区（银色）
+        canvas.fillCircle(centerX, TARGET_Y, ZONE_8_R, ZONE_8_COLOR);
+        canvas.drawCircle(centerX, TARGET_Y, ZONE_8_R, Color.White());
+
+        // 7分区（铜色）
+        canvas.fillCircle(centerX, TARGET_Y, ZONE_7_R, ZONE_7_COLOR);
+        canvas.drawCircle(centerX, TARGET_Y, ZONE_7_R, Color.White());
+
+        // 6分区（蓝紫色）
+        canvas.fillCircle(centerX, TARGET_Y, ZONE_6_R, ZONE_6_COLOR);
+        canvas.drawCircle(centerX, TARGET_Y, ZONE_6_R, Color.White());
+
+        // 5分区（浅绿色）
+        canvas.fillCircle(centerX, TARGET_Y, ZONE_5_R, ZONE_5_COLOR);
+        canvas.drawCircle(centerX, TARGET_Y, ZONE_5_R, Color.White());
+
+        // 靶心
+        canvas.fillCircle(centerX, TARGET_Y, 10, Color.Red());
+        canvas.drawCircle(centerX, TARGET_Y, 10, Color.White());
+
+        // 分数文字区域
+        canvas.fillRect(COURT_X, COURT_Y - 50, COURT_WIDTH, 45, Color.RGB(50u8, 50u8, 50u8));
+        canvas.drawRect(COURT_X, COURT_Y - 50, COURT_WIDTH, 45, Color.White());
+
+        // 绘制各区分数标注
+        this.drawScoreLabel(canvas, centerX, TARGET_Y - ZONE_10_R + 20, "10", Color.Black());
+        this.drawScoreLabel(canvas, centerX, TARGET_Y - ZONE_8_R + 30, "8", Color.Black());
+        this.drawScoreLabel(canvas, centerX, TARGET_Y - ZONE_7_R + 35, "7", Color.White());
+        this.drawScoreLabel(canvas, centerX, TARGET_Y - ZONE_6_R + 40, "6", Color.White());
+        this.drawScoreLabel(canvas, centerX, TARGET_Y - ZONE_5_R + 50, "5", Color.Black());
+    }
+
+    private fn drawScoreLabel(canvas: Canvas, x: int, y: int, text: str, color: Color) {
+        // 简化的分数文字绘制
+        canvas.drawText(x - 10, y - 4, text, color, Font.new("Arial", 10));
+    }
+
+    private fn drawDiscs(canvas: Canvas) {
+        for i in 0..self.discCount {
+            if self.discs[i].active {
+                var color = if self.discs[i].owner == 0 { PLAYER1_COLOR } else { PLAYER2_COLOR };
+                canvas.fillCircle(self.discs[i].x, self.discs[i].y, DISC_RADIUS, color);
+                canvas.drawCircle(self.discs[i].x, self.discs[i].y, DISC_RADIUS, Color.White());
+
+                // 圆盘上的数字
+                var numStr = if self.discs[i].owner == 0
+                    { "1" } else { "2" };
+                canvas.drawText(self.discs[i].x - 4, self.discs[i].y - 4,
+                               numStr, Color.White(), Font.new("Arial", 10));
+            }
+        }
+
+        // 绘制瞄准中的发射圆盘
+        if self.phase == Phase.Aiming && self.isAiming {
+            canvas.fillCircle(COURT_X + COURT_WIDTH / 2, SHOOTER_Y, DISC_RADIUS, SHOOTER_COLOR);
+            canvas.drawCircle(COURT_X + COURT_WIDTH / 2, SHOOTER_Y, DISC_RADIUS, Color.White());
+            var playerStr = if self.currentPlayer == 0 { "1" } else { "2" };
+            canvas.drawText(COURT_X + COURT_WIDTH / 2 - 4, SHOOTER_Y - 4,
+                           playerStr, Color.Black(), Font.new("Arial", 10));
+        }
+    }
+
+    private fn drawAimLine(canvas: Canvas) {
+        if self.phase == Phase.Aiming && self.isAiming {
+            var centerX = COURT_X + COURT_WIDTH / 2;
+
+            // 绘制发射方向线
+            var dx = self.aimStartX - self.aimEndX;
+            var dy = self.aimStartY - self.aimEndY;
+            var len = sqrt(dx*dx + dy*dy);
+            if len > 0 {
+                var nx = dx * 300 / len;
+                var ny = dy * 300 / len;
+                canvas.drawLine(centerX, SHOOTER_Y,
+                               centerX + nx, SHOOTER_Y + ny,
+                               SHOOTER_COLOR);
+
+                // 力量指示
+                var power = min(len / 5, MAX_POWER);
+                var powerPct = power * 100 / MAX_POWER;
+                var barX = COURT_X + COURT_WIDTH + 20;
+                canvas.fillRect(barX, COURT_Y + 50, 30, 200, Color.DarkGray());
+                var fillH = powerPct * 2;
+                var powerColor = if power < 10 { Color.Green() }
+                                 else if power < 18 { Color.Yellow() }
+                                 else { Color.Red() };
+                canvas.fillRect(barX, 250 - fillH, 30, fillH, powerColor);
+                canvas.drawRect(barX, COURT_Y + 50, 30, 200, Color.White());
+            }
+        }
+    }
+
+    private fn drawUI(canvas: Canvas) {
+        // 玩家信息
+        var p1Color = if self.currentPlayer == 0 { Color.Yellow() } else { PLAYER1_COLOR };
+        var p2Color = if self.currentPlayer == 1 { Color.Yellow() } else { PLAYER2_COLOR };
+
+        canvas.drawText(COURT_X, COURT_Y - 45,
+                       "玩家1 (红色): " ++ self.intToStr(self.getScore()),
+                       p1Color, Font.new("Arial", 14));
+
+        // 玩家2分数（简化存储）
+        var p2Score = self.getPlayer2ScoreDisplay();
+        canvas.drawText(COURT_X + 250, COURT_Y - 45,
+                       "玩家2 (蓝色): " ++ self.intToStr(p2Score),
+                       p2Color, Font.new("Arial", 14));
+
+        // 回合信息
+        canvas.drawText(COURT_X + COURT_WIDTH - 150, COURT_Y - 45,
+                       "回合: " ++ self.intToStr(self.roundNumber),
+                       Color.White(), Font.new("Arial", 14));
+
+        // 当前玩家
+        var playerStr = if self.currentPlayer == 0 { "玩家1" } else { "玩家2" };
+        canvas.drawText(COURT_X + COURT_WIDTH + 20, COURT_Y + 20,
+                       playerStr ++ " 回合", Color.White(), Font.new("Arial", 12));
+
+        // 操作提示
+        canvas.drawText(COURT_X + COURT_WIDTH + 20, COURT_Y + 300,
+                       "拖拽鼠标", Color.LightGray(), Font.new("Arial", 10));
+        canvas.drawText(COURT_X + COURT_WIDTH + 20, COURT_Y + 320,
+                       "蓄力发射", Color.LightGray(), Font.new("Arial", 10));
+        canvas.drawText(COURT_X + COURT_WIDTH + 20, COURT_Y + 340,
+                       "ESC 退出", Color.LightGray(), Font.new("Arial", 10));
+
+        // 阶段提示
+        if self.phase == Phase.Aiming {
+            canvas.drawText(COURT_X + COURT_WIDTH / 2 - 80, SHOOTER_Y + 30,
+                           "拖拽蓄力，松开发射", Color.Yellow(), Font.new("Arial", 12));
+        } else if self.phase == Phase.Sliding {
+            canvas.drawText(COURT_X + COURT_WIDTH / 2 - 60, SHOOTER_Y + 30,
+                           "滑动中...", Color.Cyan(), Font.new("Arial", 12));
+        } else if self.phase == Phase.RoundEnd {
+            canvas.drawText(COURT_X + COURT_WIDTH / 2 - 100, SHOOTER_Y + 30,
+                           "本回合: P1+" ++ self.intToStr(self.roundP1Score)
+                           ++ " P2+" ++ self.intToStr(self.roundP2Score),
+                           Color.Yellow(), Font.new("Arial", 12));
+        } else if self.phase == Phase.GameEnd {
+            var winner = if self.getScore() >= WINNING_SCORE { "玩家1" }
+                        else { "玩家2" };
+            canvas.drawText(COURT_X + COURT_WIDTH / 2 - 100, SHOOTER_Y,
+                           winner ++ " 获胜! 按 ESC 退出",
+                           Color.Gold(), Font.new("Arial", 16));
+        }
+    }
+
+    private fn getPlayer2ScoreDisplay() -> int {
+        // 玩家2分数暂存方案：统计场上蓝色圆盘的总分区
+        var total = 0;
+        for i in 0..self.discCount {
+            if self.discs[i].active && self.discs[i].owner == 1 {
+                var dist = distance(self.discs[i].x, self.discs[i].y,
+                                    COURT_X + COURT_WIDTH / 2, TARGET_Y);
+                if dist <= ZONE_10_R { total = total + 10; }
+                else if dist <= ZONE_8_R { total = total + 8; }
+                else if dist <= ZONE_7_R { total = total + 7; }
+                else if dist <= ZONE_6_R { total = total + 6; }
+                else if dist <= ZONE_5_R { total = total + 5; }
+            }
+        }
+        return total;
+    }
+
+    private fn intToStr(n: int) -> str {
+        // 简化：返回固定宽度字符串
+        // 实际需要数字转字符串函数
+        if n == 0 { return "0"; }
+        if n == 1 { return "1"; }
+        if n == 2 { return "2"; }
+        if n == 3 { return "3"; }
+        if n == 4 { return "4"; }
+        if n == 5 { return "5"; }
+        if n == 6 { return "6"; }
+        if n == 7 { return "7"; }
+        if n == 8 { return "8"; }
+        if n == 9 { return "9"; }
+        if n == 10 { return "10"; }
+        if n == 11 { return "11"; }
+        if n == 12 { return "12"; }
+        if n == 13 { return "13"; }
+        if n == 14 { return "14"; }
+        if n == 15 { return "15"; }
+        if n == 16 { return "16"; }
+        if n == 17 { return "17"; }
+        if n == 18 { return "18"; }
+        if n == 19 { return "19"; }
+        if n == 20 { return "20"; }
+        return "?";
+    }
+
+    // ==================== 输入处理 ====================
+
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.Escape => {
+                self.stop();
+            }
+            _ => {}
+        }
+    }
+
+    pub fn onKeyUp(key: VirtualKey) {
+    }
+
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        if self.phase == Phase.Aiming && button == MouseButton.Left {
+            self.isAiming = true;
+            self.aimStartX = x;
+            self.aimStartY = y;
+            self.aimEndX = x;
+            self.aimEndY = y;
+        }
+    }
+
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+        if self.phase == Phase.Aiming && self.isAiming && button == MouseButton.Left {
+            self.aimEndX = x;
+            self.aimEndY = y;
+
+            // 计算发射力度和方向
+            var dx = self.aimStartX - self.aimEndX;
+            var dy = self.aimStartY - self.aimEndY;
+            var power = min(sqrt(dx*dx + dy*dy) / 5, MAX_POWER);
+
+            if power >= 2 {
+                self.shoot(power, dx, dy);
+            }
+
+            self.isAiming = false;
+        }
+    }
+
+    private fn shoot(power: int, dx: int, dy: int) {
+        var centerX = COURT_X + COURT_WIDTH / 2;
+        var len = sqrt(dx*dx + dy*dy);
+
+        if len > 0 && self.discCount < 8 {
+            var nvx = dx * power / len;
+            var nvy = dy * power / len;
+
+            // 确保向上滑动
+            if nvy > 0 {
+                nvy = -nvy;
+            }
+
+            self.discs[self.discCount].x = centerX;
+            self.discs[self.discCount].y = SHOOTER_Y;
+            self.discs[self.discCount].vx = nvx;
+            self.discs[self.discCount].vy = nvy;
+            self.discs[self.discCount].owner = self.currentPlayer;
+            self.discs[self.discCount].active = true;
+            self.discs[self.discCount].scored = false;
+
+            self.discCount = self.discCount + 1;
+            self.discsThrown = self.discsThrown + 1;
+            self.activeDisc = self.discCount - 1;
+            self.phase = Phase.Sliding;
+        }
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() {
+    println("===========================================");
+    println("  Zen-C 沙狐球 (Shuffleboard)");
+    println("  拖拽鼠标蓄力发射，滑动到计分区得分");
+    println("===========================================");
+
+    var game = ShuffleboardGame.("沙狐球 Shuffleboard", 900, 800, 60);
+    game.run();
+    game.destroy();
+
+    println("游戏结束!");
+    println("===========================================");
+}
