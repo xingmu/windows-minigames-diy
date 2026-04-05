@@ -1,0 +1,1241 @@
+// game_logic.zc - 089-Pingpong 乒乓球 - 街机增强版
+// 089-Pingpong 乒乓球街机版 - 带有道具、技能和连击系统
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const WINDOW_WIDTH: int = 900;
+const WINDOW_HEIGHT: int = 650;
+
+const PADDLE_WIDTH: int = 12;
+const PADDLE_HEIGHT: int = 90;
+const PADDLE_SPEED: int = 8;
+const PADDLE_MARGIN: int = 35;
+
+const BALL_SIZE: int = 12;
+const BALL_INITIAL_SPEED: int = 6;
+const BALL_MAX_SPEED: int = 18;
+const BALL_SPEED_INCREMENT: float = 0.25;
+
+const WINNING_SCORE: int = 11;
+
+const MATCH_COUNT: int = 3;  // 三局两胜
+
+// 道具类型
+const POWERUP_TYPE_COUNT: int = 5;
+const POWERUP_SIZE: int = 24;
+const POWERUP_SPAWN_CHANCE: int = 15;  // 每帧检查是否生成道具的概率（越小越稀有）
+const POWERUP_LIFETIME: u32 = 8000;  // 道具存活时间(ms)
+
+// ==================== 道具类型 ====================
+
+const PTYPE_SPEED_UP: int = 0;
+const PTYPE_SLOW_DOWN: int = 1;
+const PTYPE_WIDE_PADDLE: int = 2;
+const PTYPE_NARROW_PADDLE: int = 3;
+const PTYPE_MULTIBALL: int = 4;
+
+// ==================== 数据结构 ====================
+
+// 挡板
+struct Paddle {
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    baseHeight: int,
+    baseWidth: int,
+    score: int,
+    hasPowerup: int,  // 当前激活的道具类型
+    powerupTimer: u32,  // 道具剩余时间
+}
+
+// 球
+struct Ball {
+    x: float,
+    y: float,
+    vx: float,
+    vy: float,
+    speed: int,
+    active: bool,
+    trail: int,
+}
+
+// 道具
+struct PowerUp {
+    x: float,
+    y: float,
+    ptype: int,
+    spawnTime: u32,
+    active: bool,
+}
+
+// 粒子
+struct Particle {
+    x: float,
+    y: float,
+    vx: float,
+    vy: float,
+    life: int,
+    color: Color,
+    active: bool,
+}
+
+// ==================== PingpongGame街机版类 ====================
+
+pub class PingpongGame extends Game {
+    // 玩家1挡板 (左侧 - W/S)
+    p1: Paddle;
+    p1KeyUp: bool;
+    p1KeyDown: bool;
+    
+    // 玩家2挡板 (右侧 - 上/下箭头)
+    p2: Paddle;
+    p2KeyUp: bool;
+    p2KeyDown: bool;
+    
+    // 多个球
+    balls: Ball[3];
+    activeBallCount: int;
+    
+    // 道具
+    powerups: PowerUp[5];
+    activePowerupCount: int;
+    
+    // 粒子系统
+    particles: Particle[100];
+    particleCount: int;
+    
+    // 游戏状态
+    gameStarted: bool;
+    gameOver: bool;
+    winner: int;
+    rally: int;
+    matchWins: int[2];  // 系列赛胜场
+    matchGame: int;     // 当前是第几局
+    
+    // 特效
+    lastHitTime: u32;
+    hitFlash: int;
+    screenShake: int;
+    
+    // 颜色方案
+    p1Color: Color;
+    p2Color: Color;
+    bgColor: Color;
+    
+    // onInit - 初始化游戏
+    pub fn onInit() {
+        self.setState(GameState.Playing);
+        self.gameStarted = false;
+        self.gameOver = false;
+        self.winner = 0;
+        self.rally = 0;
+        self.hitFlash = 0;
+        self.screenShake = 0;
+        self.lastHitTime = 0;
+        self.activeBallCount = 1;
+        self.activePowerupCount = 0;
+        self.particleCount = 0;
+        
+        // 玩家1颜色 - 青色
+        self.p1Color = Color.Cyan();
+        // 玩家2颜色 - 橙色
+        self.p2Color = Color.Orange();
+        // 背景色 - 深蓝紫
+        self.bgColor = Color.RGB(15, 10, 35);
+        
+        // 初始化玩家1挡板
+        self.p1.x = PADDLE_MARGIN;
+        self.p1.y = (self.height - PADDLE_HEIGHT) / 2;
+        self.p1.width = PADDLE_WIDTH;
+        self.p1.height = PADDLE_HEIGHT;
+        self.p1.baseHeight = PADDLE_HEIGHT;
+        self.p1.baseWidth = PADDLE_WIDTH;
+        self.p1.score = 0;
+        self.p1.hasPowerup = -1;
+        self.p1.powerupTimer = 0;
+        
+        // 初始化玩家2挡板
+        self.p2.x = self.width - PADDLE_MARGIN - PADDLE_WIDTH;
+        self.p2.y = (self.height - PADDLE_HEIGHT) / 2;
+        self.p2.width = PADDLE_WIDTH;
+        self.p2.height = PADDLE_HEIGHT;
+        self.p2.baseHeight = PADDLE_HEIGHT;
+        self.p2.baseWidth = PADDLE_WIDTH;
+        self.p2.score = 0;
+        self.p2.hasPowerup = -1;
+        self.p2.powerupTimer = 0;
+        
+        // 初始化球
+        self.initBalls();
+        
+        // 初始化道具
+        self.initPowerups();
+        
+        // 初始化粒子
+        self.initParticles();
+        
+        // 系列赛初始化
+        self.matchWins[0] = 0;
+        self.matchWins[1] = 0;
+        self.matchGame = 1;
+    }
+    
+    // 初始化球
+    fn initBalls() {
+        for i in 0..3 {
+            self.balls[i].active = false;
+            self.balls[i].x = 0;
+            self.balls[i].y = 0;
+            self.balls[i].vx = 0;
+            self.balls[i].vy = 0;
+            self.balls[i].speed = BALL_INITIAL_SPEED;
+            self.balls[i].trail = 0;
+        }
+        self.activeBallCount = 1;
+        self.resetBall(0);
+    }
+    
+    // 初始化道具
+    fn initPowerups() {
+        for i in 0..5 {
+            self.powerups[i].active = false;
+            self.powerups[i].ptype = 0;
+            self.powerups[i].x = 0;
+            self.powerups[i].y = 0;
+            self.powerups[i].spawnTime = 0;
+        }
+    }
+    
+    // 初始化粒子
+    fn initParticles() {
+        for i in 0..100 {
+            self.particles[i].active = false;
+            self.particles[i].x = 0;
+            self.particles[i].y = 0;
+            self.particles[i].vx = 0;
+            self.particles[i].vy = 0;
+            self.particles[i].life = 0;
+            self.particles[i].color = Color.White();
+        }
+    }
+    
+    // onShutdown - 关闭清理
+    pub fn onShutdown() {
+    }
+    
+    // onUpdate - 每帧更新
+    pub fn onUpdate(dt: u32) {
+        if self.gameOver {
+            return;
+        }
+        
+        // 更新挡板
+        self.updatePaddle1();
+        self.updatePaddle2();
+        
+        // 更新道具效果
+        self.updatePowerups(dt);
+        
+        // 如果游戏开始了，更新球
+        if self.gameStarted {
+            self.updateBalls();
+            self.updatePowerupSpawn();
+            self.checkPowerupCollision();
+        }
+        
+        // 更新粒子
+        self.updateParticles();
+        
+        // 更新特效
+        if self.hitFlash > 0 {
+            self.hitFlash = self.hitFlash - 1;
+        }
+        if self.screenShake > 0 {
+            self.screenShake = self.screenShake - 1;
+        }
+        
+        // 检查胜负
+        self.checkWinCondition();
+    }
+    
+    // 更新玩家1挡板 (W/S)
+    fn updatePaddle1() {
+        if self.p1KeyUp {
+            self.p1.y = self.p1.y - PADDLE_SPEED;
+        }
+        if self.p1KeyDown {
+            self.p1.y = self.p1.y + PADDLE_SPEED;
+        }
+        
+        if self.p1.y < 55 {
+            self.p1.y = 55;
+        }
+        if self.p1.y + self.p1.height > self.height - 10 {
+            self.p1.y = self.height - 10 - self.p1.height;
+        }
+    }
+    
+    // 更新玩家2挡板
+    fn updatePaddle2() {
+        if self.p2KeyUp {
+            self.p2.y = self.p2.y - PADDLE_SPEED;
+        }
+        if self.p2KeyDown {
+            self.p2.y = self.p2.y + PADDLE_SPEED;
+        }
+        
+        if self.p2.y < 55 {
+            self.p2.y = 55;
+        }
+        if self.p2.y + self.p2.height > self.height - 10 {
+            self.p2.y = self.height - 10 - self.p2.height;
+        }
+    }
+    
+    // 更新道具效果
+    fn updatePowerups(dt: u32) {
+        var currentTime = getTickCount();
+        
+        // P1道具效果
+        if self.p1.hasPowerup >= 0 && currentTime > self.p1.powerupTimer {
+            self.removePowerup(1);
+        }
+        
+        // P2道具效果
+        if self.p2.hasPowerup >= 0 && currentTime > self.p2.powerupTimer {
+            self.removePowerup(2);
+        }
+    }
+    
+    // 移除道具效果
+    fn removePowerup(player: int) {
+        if player == 1 {
+            self.p1.height = self.p1.baseHeight;
+            self.p1.width = self.p1.baseWidth;
+            self.p1.hasPowerup = -1;
+        } else {
+            self.p2.height = self.p2.baseHeight;
+            self.p2.width = self.p2.baseWidth;
+            self.p2.hasPowerup = -1;
+        }
+    }
+    
+    // 应用道具效果
+    fn applyPowerup(player: int, ptype: int) {
+        var currentTime = getTickCount();
+        var duration: u32 = 5000;  // 5秒持续时间
+        
+        if player == 1 {
+            self.p1.hasPowerup = ptype;
+            self.p1.powerupTimer = currentTime + duration;
+            
+            match ptype {
+                PTYPE_SPEED_UP => {
+                    // 球向对方飞得更快
+                }
+                PTYPE_SLOW_DOWN => {
+                    // 球向自己飞得更慢
+                }
+                PTYPE_WIDE_PADDLE => {
+                    self.p1.height = (self.p1.baseHeight * 1.5) as int;
+                }
+                PTYPE_NARROW_PADDLE => {
+                    self.p1.height = (self.p1.baseHeight * 0.6) as int;
+                }
+                PTYPE_MULTIBALL => {
+                    // 激活额外球
+                    self.activateMultiball();
+                }
+                _ => {}
+            }
+        } else {
+            self.p2.hasPowerup = ptype;
+            self.p2.powerupTimer = currentTime + duration;
+            
+            match ptype {
+                PTYPE_SPEED_UP => {}
+                PTYPE_SLOW_DOWN => {}
+                PTYPE_WIDE_PADDLE => {
+                    self.p2.height = (self.p2.baseHeight * 1.5) as int;
+                }
+                PTYPE_NARROW_PADDLE => {
+                    self.p2.height = (self.p2.baseHeight * 0.6) as int;
+                }
+                PTYPE_MULTIBALL => {
+                    self.activateMultiball();
+                }
+                _ => {}
+            }
+        }
+        
+        // 生成获取道具的特效
+        self.spawnPowerupParticles(
+            if player == 1 { self.p1.x + self.p1.width } else { self.p2.x },
+            if player == 1 { self.p1.y + self.p1.height / 2 } else { self.p2.y + self.p2.height / 2 },
+            if player == 1 { self.p1Color } else { self.p2Color }
+        );
+    }
+    
+    // 激活多球
+    fn activateMultiball() {
+        if self.activeBallCount < 3 {
+            // 激活一个额外球
+            for i in 0..3 {
+                if !self.balls[i].active {
+                    self.balls[i].x = self.balls[0].x;
+                    self.balls[i].y = self.balls[0].y;
+                    self.balls[i].vx = -self.balls[0].vx * 0.7;
+                    self.balls[i].vy = self.balls[0].vy * 1.3;
+                    self.balls[i].speed = self.balls[0].speed;
+                    self.balls[i].active = true;
+                    self.activeBallCount = self.activeBallCount + 1;
+                    break;
+                }
+            }
+        }
+    }
+    
+    // 更新所有球
+    fn updateBalls() {
+        var allInactive = true;
+        
+        for i in 0..3 {
+            if self.balls[i].active {
+                allInactive = false;
+                self.updateSingleBall(i);
+            }
+        }
+        
+        // 如果所有球都不活跃了，发一个新球
+        if allInactive && self.gameStarted {
+            self.resetBall(0);
+        }
+    }
+    
+    // 更新单个球
+    fn updateSingleBall(idx: int) {
+        // 移动球
+        self.balls[idx].x = self.balls[idx].x + self.balls[idx].vx;
+        self.balls[idx].y = self.balls[idx].y + self.balls[idx].vy;
+        
+        // 尾迹效果
+        self.balls[idx].trail = (self.balls[idx].trail + 1) % 5;
+        
+        // 上下边界碰撞
+        if self.balls[idx].y <= 55.0 + BALL_SIZE as float / 2.0 {
+            self.balls[idx].y = 55.0 + BALL_SIZE as float / 2.0;
+            self.balls[idx].vy = -self.balls[idx].vy;
+            self.spawnHitParticles(self.balls[idx].x as int, 55, Color.White());
+        }
+        if self.balls[idx].y >= self.height as float - 10.0 - BALL_SIZE as float / 2.0 {
+            self.balls[idx].y = self.height as float - 10.0 - BALL_SIZE as float / 2.0;
+            self.balls[idx].vy = -self.balls[idx].vy;
+            self.spawnHitParticles(self.balls[idx].x as int, self.height - 15, Color.White());
+        }
+        
+        // 玩家1挡板碰撞 (左侧)
+        if self.checkBallPaddleCollision(self.p1.x, self.p1.y, self.p1.width, self.p1.height, idx) {
+            self.handleBallPaddleHit(1, idx);
+        }
+        
+        // 玩家2挡板碰撞 (右侧)
+        if self.checkBallPaddleCollision(self.p2.x, self.p2.y, self.p2.width, self.p2.height, idx) {
+            self.handleBallPaddleHit(2, idx);
+        }
+        
+        // 边界出界 - 计分
+        if self.balls[idx].x < 0.0 {
+            self.balls[idx].active = false;
+            self.p2.score = self.p2.score + 1;
+            self.rally = 0;
+            self.spawnScoreParticles(100, self.height / 2, self.p2Color);
+        }
+        
+        if self.balls[idx].x > self.width as float {
+            self.balls[idx].active = false;
+            self.p1.score = self.p1.score + 1;
+            self.rally = 0;
+            self.spawnScoreParticles(self.width - 100, self.height / 2, self.p1Color);
+        }
+        
+        // 检查是否所有球都不活跃
+        self.checkAllBallsInactive();
+    }
+    
+    // 检查球与挡板碰撞
+    fn checkBallPaddleCollision(px: int, py: int, pw: int, ph: int, idx: int) -> bool {
+        var ballLeft = self.balls[idx].x - BALL_SIZE as float / 2.0;
+        var ballRight = self.balls[idx].x + BALL_SIZE as float / 2.0;
+        var ballTop = self.balls[idx].y - BALL_SIZE as float / 2.0;
+        var ballBottom = self.balls[idx].y + BALL_SIZE as float / 2.0;
+        
+        var paddleLeft = px as float;
+        var paddleRight = (px + pw) as float;
+        var paddleTop = py as float;
+        var paddleBottom = (py + ph) as float;
+        
+        return ballRight >= paddleLeft && ballLeft <= paddleRight &&
+               ballBottom >= paddleTop && ballTop <= paddleBottom;
+    }
+    
+    // 处理球击中挡板
+    fn handleBallPaddleHit(player: int, idx: int) {
+        self.rally = self.rally + 1;
+        self.hitFlash = 15;
+        self.screenShake = 5;
+        self.lastHitTime = getTickCount();
+        
+        var speedMod: float = 1.0;
+        var paddle: Paddle;
+        
+        if player == 1 {
+            paddle = self.p1;
+            self.balls[idx].vx = self.absFloat(self.balls[idx].vx);
+            
+            // 检查是否有speed相关的道具
+            if self.p1.hasPowerup == PTYPE_SPEED_UP {
+                speedMod = 1.3;
+            } else if self.p1.hasPowerup == PTYPE_SLOW_DOWN {
+                speedMod = 0.7;
+            }
+        } else {
+            paddle = self.p2;
+            self.balls[idx].vx = -self.absFloat(self.balls[idx].vx);
+            
+            if self.p2.hasPowerup == PTYPE_SPEED_UP {
+                speedMod = 1.3;
+            } else if self.p2.hasPowerup == PTYPE_SLOW_DOWN {
+                speedMod = 0.7;
+            }
+        }
+        
+        // 根据击中位置计算反弹角度
+        var paddleCenter = paddle.y as float + paddle.height as float / 2.0;
+        var hitPos = self.balls[idx].y - paddleCenter;
+        var angleFactor = hitPos / (paddle.height as float / 2.0);
+        
+        // 增加速度
+        var newSpeed = self.balls[idx].speed;
+        if newSpeed < BALL_MAX_SPEED {
+            newSpeed = newSpeed + 1;
+            self.balls[idx].speed = newSpeed;
+        }
+        
+        var speed = newSpeed as float * speedMod;
+        var maxAngle: float = 60.0;
+        var angle = angleFactor * maxAngle;
+        
+        if player == 1 {
+            self.balls[idx].vx = speed * self.cos(angle);
+            self.balls[idx].vy = angleFactor * speed * self.sin(angle) * 0.8;
+        } else {
+            self.balls[idx].vx = -speed * self.cos(angle);
+            self.balls[idx].vy = angleFactor * speed * self.sin(angle) * 0.8;
+        }
+        
+        // 生成击中特效
+        var hitX = if player == 1 { paddle.x + paddle.width } else { paddle.x };
+        self.spawnHitParticles(hitX, self.balls[idx].y as int, 
+            if player == 1 { self.p1Color } else { self.p2Color });
+    }
+    
+    // 检查是否所有球都不活跃
+    fn checkAllBallsInactive() {
+        var anyActive = false;
+        for i in 0..3 {
+            if self.balls[i].active {
+                anyActive = true;
+                break;
+            }
+        }
+        
+        if !anyActive && self.gameStarted {
+            // 所有球都不活跃了，发一个新球
+            self.resetBall(0);
+        }
+    }
+    
+    // 更新道具生成
+    fn updatePowerupSpawn() {
+        var currentTime = getTickCount();
+        
+        // 随机生成道具
+        if math.rand() % POWERUP_SPAWN_CHANCE == 0 && self.activePowerupCount < 5 {
+            // 找到一个空闲的道具槽
+            for i in 0..5 {
+                if !self.powerups[i].active {
+                    self.powerups[i].x = (100 + math.rand() % (self.width - 200)) as float;
+                    self.powerups[i].y = (80 + math.rand() % (self.height - 150)) as float;
+                    self.powerups[i].ptype = math.rand() % POWERUP_TYPE_COUNT;
+                    self.powerups[i].spawnTime = currentTime;
+                    self.powerups[i].active = true;
+                    self.activePowerupCount = self.activePowerupCount + 1;
+                    break;
+                }
+            }
+        }
+        
+        // 检查道具是否过期
+        for i in 0..5 {
+            if self.powerups[i].active {
+                if currentTime - self.powerups[i].spawnTime > POWERUP_LIFETIME {
+                    self.powerups[i].active = false;
+                    self.activePowerupCount = self.activePowerupCount - 1;
+                }
+            }
+        }
+    }
+    
+    // 检查球与道具碰撞
+    fn checkPowerupCollision() {
+        for ballIdx in 0..3 {
+            if !self.balls[ballIdx].active {
+                continue;
+            }
+            
+            for i in 0..5 {
+                if !self.powerups[i].active {
+                    continue;
+                }
+                
+                // 简单圆形碰撞检测
+                var dx = self.balls[ballIdx].x - self.powerups[i].x;
+                var dy = self.balls[ballIdx].y - self.powerups[i].y;
+                var dist = self.sqrt(dx*dx + dy*dy);
+                
+                if dist < (BALL_SIZE + POWERUP_SIZE) as float / 2.0 {
+                    // 确定球是飞向哪方的
+                    var targetPlayer: int;
+                    if self.balls[ballIdx].vx > 0.0 {
+                        targetPlayer = 2;  // 飞向右侧，P2
+                    } else {
+                        targetPlayer = 1;  // 飞向左侧，P1
+                    }
+                    
+                    // 给对方施加负面道具
+                    var effectPtype = self.powerups[i].ptype;
+                    
+                    // 25%概率给自己正面道具
+                    if math.rand() % 4 == 0 {
+                        effectPtype = math.rand() % 3;  // 正面道具
+                    }
+                    
+                    self.applyPowerup(targetPlayer, effectPtype);
+                    
+                    // 移除道具
+                    self.powerups[i].active = false;
+                    self.activePowerupCount = self.activePowerupCount - 1;
+                    
+                    // 特效
+                    self.spawnPowerupParticles(self.powerups[i].x as int, self.powerups[i].y as int, 
+                        if targetPlayer == 1 { self.p1Color } else { self.p2Color });
+                    
+                    // 屏幕震动
+                    self.screenShake = 8;
+                }
+            }
+        }
+    }
+    
+    // 重置球
+    fn resetBall(serveTo: int) {
+        for i in 0..3 {
+            self.balls[i].x = self.width as float / 2.0;
+            self.balls[i].y = self.height as float / 2.0;
+            self.balls[i].speed = BALL_INITIAL_SPEED;
+            self.balls[i].vx = 0.0;
+            self.balls[i].vy = 0.0;
+            self.balls[i].active = false;
+            self.balls[i].trail = 0;
+        }
+        
+        // 只激活第一个球
+        self.balls[0].active = true;
+        self.activeBallCount = 1;
+        self.gameStarted = false;
+    }
+    
+    // 开始发球
+    fn startBall(serveTo: int) {
+        var angle = (math.rand() % 50 - 25) as float;
+        
+        if serveTo == 1 {
+            self.balls[0].vx = -(self.balls[0].speed as float) * self.cos(angle);
+        } else if serveTo == 2 {
+            self.balls[0].vx = (self.balls[0].speed as float) * self.cos(angle);
+        } else {
+            if math.rand() % 2 == 0 {
+                self.balls[0].vx = (self.balls[0].speed as float) * self.cos(angle);
+            } else {
+                self.balls[0].vx = -(self.balls[0].speed as float) * self.cos(angle);
+            }
+        }
+        
+        self.balls[0].vy = (self.balls[0].speed as float) * self.sin(angle) * 0.6;
+        self.balls[0].active = true;
+        self.gameStarted = true;
+    }
+    
+    // 检查胜负
+    fn checkWinCondition() {
+        if self.p1.score >= WINNING_SCORE {
+            self.matchWins[0] = self.matchWins[0] + 1;
+            
+            if self.matchWins[0] >= MATCH_COUNT {
+                self.gameOver = true;
+                self.winner = 1;
+                self.setState(GameState.Won);
+            } else {
+                // 进入下一局
+                self.matchGame = self.matchGame + 1;
+                self.resetRound();
+            }
+        } else if self.p2.score >= WINNING_SCORE {
+            self.matchWins[1] = self.matchWins[1] + 1;
+            
+            if self.matchWins[1] >= MATCH_COUNT {
+                self.gameOver = true;
+                self.winner = 2;
+                self.setState(GameState.Lost);
+            } else {
+                self.matchGame = self.matchGame + 1;
+                self.resetRound();
+            }
+        }
+    }
+    
+    // 重置一局
+    fn resetRound() {
+        self.p1.score = 0;
+        self.p2.score = 0;
+        self.rally = 0;
+        self.hitFlash = 0;
+        self.screenShake = 0;
+        self.gameStarted = false;
+        
+        // 移除所有道具效果
+        self.removePowerup(1);
+        self.removePowerup(2);
+        
+        // 停用所有道具
+        for i in 0..5 {
+            self.powerups[i].active = false;
+        }
+        self.activePowerupCount = 0;
+        
+        // 重置球
+        self.resetBall(0);
+    }
+    
+    // 生成击中粒子
+    fn spawnHitParticles(x: int, y: int, color: Color) {
+        for i in 0..20 {
+            self.spawnParticle(
+                x as float,
+                y as float,
+                (math.rand() % 10 - 5) as float,
+                (math.rand() % 10 - 5) as float,
+                20 + math.rand() % 20,
+                color
+            );
+        }
+    }
+    
+    // 生成得分粒子
+    fn spawnScoreParticles(x: int, y: int, color: Color) {
+        for i in 0..30 {
+            self.spawnParticle(
+                x as float,
+                y as float,
+                (math.rand() % 15 - 7) as float,
+                (math.rand() % 15 - 7) as float,
+                30 + math.rand() % 30,
+                color
+            );
+        }
+    }
+    
+    // 生成道具获取粒子
+    fn spawnPowerupParticles(x: int, y: int, color: Color) {
+        for i in 0..25 {
+            var angle = (math.rand() % 360) as float;
+            var speed = 2.0 + math.rand() % 5 as float;
+            self.spawnParticle(
+                x as float,
+                y as float,
+                self.cos(angle) * speed,
+                self.sin(angle) * speed,
+                40 + math.rand() % 20,
+                color
+            );
+        }
+    }
+    
+    // 生成单个粒子
+    fn spawnParticle(x: float, y: float, vx: float, vy: float, life: int, color: Color) {
+        for i in 0..100 {
+            if !self.particles[i].active {
+                self.particles[i].x = x;
+                self.particles[i].y = y;
+                self.particles[i].vx = vx;
+                self.particles[i].vy = vy;
+                self.particles[i].life = life;
+                self.particles[i].color = color;
+                self.particles[i].active = true;
+                self.particleCount = self.particleCount + 1;
+                break;
+            }
+        }
+    }
+    
+    // 更新粒子
+    fn updateParticles() {
+        for i in 0..100 {
+            if self.particles[i].active {
+                self.particles[i].x = self.particles[i].x + self.particles[i].vx;
+                self.particles[i].y = self.particles[i].y + self.particles[i].vy;
+                self.particles[i].life = self.particles[i].life - 1;
+                
+                if self.particles[i].life <= 0 {
+                    self.particles[i].active = false;
+                    self.particleCount = self.particleCount - 1;
+                }
+            }
+        }
+    }
+    
+    // ==================== 渲染 ====================
+    
+    // onRender - 渲染画面
+    pub fn onRender(canvas: Canvas) {
+        // 计算屏幕震动偏移
+        var shakeX = 0;
+        var shakeY = 0;
+        if self.screenShake > 0 {
+            shakeX = math.rand() % (self.screenShake * 2) - self.screenShake;
+            shakeY = math.rand() % (self.screenShake * 2) - self.screenShake;
+        }
+        
+        // 清屏
+        canvas.clear(self.bgColor);
+        
+        // 应用震动偏移
+        canvas.fillRect(shakeX - 5, shakeY - 5, self.width + 10, self.height + 10, self.bgColor);
+        
+        self.drawBorder(canvas);
+        self.drawCenterLine(canvas);
+        self.drawMatchInfo(canvas);
+        self.drawScore(canvas);
+        self.drawRally(canvas);
+        self.drawPaddle(canvas, self.p1.x, self.p1.y, self.p1.width, self.p1.height, self.p1Color, self.p1.hasPowerup);
+        self.drawPaddle(canvas, self.p2.x, self.p2.y, self.p2.width, self.p2.height, self.p2Color, self.p2.hasPowerup);
+        self.drawPowerups(canvas);
+        self.drawBalls(canvas);
+        self.drawParticles(canvas);
+        
+        if !self.gameStarted && !self.gameOver {
+            self.drawStartMessage(canvas);
+        }
+        
+        if self.gameOver {
+            self.drawGameOver(canvas);
+        }
+    }
+    
+    // 绘制边框
+    fn drawBorder(canvas: Canvas) {
+        canvas.drawLine(0, 50, self.width, 50, Color.White());
+        canvas.drawLine(0, self.height - 10, self.width, self.height - 10, Color.White());
+        canvas.drawLine(0, 50, 0, self.height - 10, Color.White());
+        canvas.drawLine(self.width - 1, 50, self.width - 1, self.height - 10, Color.White());
+    }
+    
+    // 绘制中线
+    fn drawCenterLine(canvas: Canvas) {
+        var centerX = self.width / 2;
+        var dashHeight = 12;
+        var gapHeight = 8;
+        var y = 60;
+        
+        while y < self.height - 20 {
+            canvas.drawLine(centerX, y, centerX, y + dashHeight, Color.DarkGray());
+            y = y + dashHeight + gapHeight;
+        }
+    }
+    
+    // 绘制比赛信息
+    fn drawMatchInfo(canvas: Canvas) {
+        var font = Font.("Arial", 12);
+        var matchText = "第 " ++ self.intToString(self.matchGame) ++ " 局";
+        canvas.drawText(self.width / 2 - 25, 30, matchText, Color.Gray(), font);
+        
+        // 系列赛比分
+        var seriesText = self.intToString(self.matchWins[0]) ++ " - " ++ self.intToString(self.matchWins[1]);
+        canvas.drawText(self.width / 2 - 20, 2, seriesText, Color.Yellow(), font);
+    }
+    
+    // 绘制分数
+    fn drawScore(canvas: Canvas) {
+        var font = Font.("Arial", 56);
+        
+        var p1Text = self.intToString(self.p1.score);
+        canvas.drawText(self.width / 4 - 40, 5, p1Text, self.p1Color, font);
+        
+        var p2Text = self.intToString(self.p2.score);
+        canvas.drawText(self.width * 3 / 4 - 40, 5, p2Text, self.p2Color, font);
+        
+        var smallFont = Font.("Arial", 14);
+        canvas.drawText(self.width / 4 - 20, 0, "P1", Color.LightGray(), smallFont);
+        canvas.drawText(self.width * 3 / 4 - 20, 0, "P2", Color.LightGray(), smallFont);
+    }
+    
+    // 绘制连击
+    fn drawRally(canvas: Canvas) {
+        if self.rally > 1 {
+            var font = Font.("Arial", 18);
+            var text = "x" ++ self.intToString(self.rally);
+            
+            var color = Color.Yellow();
+            if self.rally >= 15 {
+                color = Color.Red();
+            } else if self.rally >= 10 {
+                color = Color.Magenta();
+            } else if self.rally >= 5 {
+                color = Color.Orange();
+            }
+            
+            canvas.drawText(self.width / 2 - 20, 52, text, color, font);
+        }
+    }
+    
+    // 绘制挡板
+    fn drawPaddle(canvas: Canvas, x: int, y: int, w: int, h: int, color: Color, powerup: int) {
+        // 发光效果
+        if self.hitFlash > 0 {
+            canvas.fillRect(x - 3, y - 3, w + 6, h + 6, Color.White());
+        }
+        
+        // 道具激活时的额外效果
+        if powerup >= 0 {
+            var glowColor: Color;
+            match powerup {
+                PTYPE_SPEED_UP => { glowColor = Color.Red(); }
+                PTYPE_SLOW_DOWN => { glowColor = Color.Blue(); }
+                PTYPE_WIDE_PADDLE => { glowColor = Color.Green(); }
+                PTYPE_NARROW_PADDLE => { glowColor = Color.Purple(); }
+                PTYPE_MULTIBALL => { glowColor = Color.Yellow(); }
+                _ => { glowColor = Color.White(); }
+            }
+            canvas.fillRect(x - 2, y - 2, w + 4, h + 4, glowColor);
+        }
+        
+        canvas.fillRect(x, y, w, h, color);
+        canvas.drawRect(x, y, w, h, Color.White());
+    }
+    
+    // 绘制所有球
+    fn drawBalls(canvas: Canvas) {
+        for i in 0..3 {
+            if self.balls[i].active {
+                self.drawSingleBall(canvas, i);
+            }
+        }
+    }
+    
+    // 绘制单个球
+    fn drawSingleBall(canvas: Canvas, idx: int) {
+        var ballColor = Color.White();
+        if self.hitFlash > 0 {
+            ballColor = Color.Yellow();
+        }
+        
+        // 尾迹
+        if self.balls[idx].trail > 0 {
+            var alpha = (255 - self.balls[idx].trail * 40) as u8;
+            var trailColor = Color.ARGB(alpha, 255, 255, 255);
+            canvas.fillCircle(
+                (self.balls[idx].x - self.balls[idx].vx * 0.3) as int,
+                (self.balls[idx].y - self.balls[idx].vy * 0.3) as int,
+                BALL_SIZE / 2 - 1,
+                trailColor
+            );
+        }
+        
+        // 外发光
+        var glowRadius = BALL_SIZE / 2 + 3;
+        canvas.fillCircle(self.balls[idx].x as int, self.balls[idx].y as int, glowRadius, Color.ARGB(80, 255, 255, 255));
+        
+        // 球本体
+        canvas.fillCircle(self.balls[idx].x as int, self.balls[idx].y as int, BALL_SIZE / 2, ballColor);
+    }
+    
+    // 绘制道具
+    fn drawPowerups(canvas: Canvas) {
+        for i in 0..5 {
+            if self.powerups[i].active {
+                self.drawSinglePowerup(canvas, i);
+            }
+        }
+    }
+    
+    // 绘制单个道具
+    fn drawSinglePowerup(canvas: Canvas, idx: int) {
+        var x = self.powerups[idx].x as int;
+        var y = self.powerups[idx].y as int;
+        var size = POWERUP_SIZE;
+        var color: Color;
+        var symbol: str;
+        
+        match self.powerups[idx].ptype {
+            PTYPE_SPEED_UP => { 
+                color = Color.Red(); 
+                symbol = "S";
+            }
+            PTYPE_SLOW_DOWN => { 
+                color = Color.Blue(); 
+                symbol = "s";
+            }
+            PTYPE_WIDE_PADDLE => { 
+                color = Color.Green(); 
+                symbol = "W";
+            }
+            PTYPE_NARROW_PADDLE => { 
+                color = Color.Purple(); 
+                symbol = "N";
+            }
+            PTYPE_MULTIBALL => { 
+                color = Color.Yellow(); 
+                symbol = "M";
+            }
+            _ => { 
+                color = Color.White();
+                symbol = "?";
+            }
+        }
+        
+        // 闪烁效果
+        var currentTime = getTickCount();
+        var age = currentTime - self.powerups[idx].spawnTime;
+        if age > POWERUP_LIFETIME - 2000 {
+            // 快过期时闪烁
+            if (currentTime / 200) % 2 == 0 {
+                color = Color.DarkGray();
+            }
+        }
+        
+        // 绘制发光背景
+        canvas.fillCircle(x, y, size / 2 + 4, Color.ARGB(100, 255, 255, 255));
+        
+        // 绘制道具本体
+        canvas.fillCircle(x, y, size / 2, color);
+        canvas.drawCircle(x, y, size / 2, Color.White());
+        
+        // 绘制符号
+        var smallFont = Font.("Arial", 14);
+        canvas.drawText(x - 5, y - 7, symbol, Color.Black(), smallFont);
+    }
+    
+    // 绘制粒子
+    fn drawParticles(canvas: Canvas) {
+        for i in 0..100 {
+            if self.particles[i].active {
+                var alpha = (self.particles[i].life * 12) as u8;
+                var particleColor = Color.ARGB(alpha, 
+                    (self.particles[i].color >> 16) as u8 & 0xFF,
+                    (self.particles[i].color >> 8) as u8 & 0xFF,
+                    self.particles[i].color as u8 & 0xFF
+                );
+                canvas.fillCircle(self.particles[i].x as int, self.particles[i].y as int, 3, particleColor);
+            }
+        }
+    }
+    
+    // 绘制开始提示
+    fn drawStartMessage(canvas: Canvas) {
+        var font = Font.("Arial", 16);
+        
+        // P1 提示
+        canvas.drawText(25, self.height / 2 - 50, "P1: W/S", Color.LightGray(), font);
+        
+        // P2 提示
+        var p2Text = "P2: " ++ "↑/↓";
+        canvas.drawText(self.width - 90, self.height / 2 - 50, p2Text, Color.LightGray(), font);
+        
+        // 空格键提示
+        var spaceFont = Font.("Arial", 24);
+        var spaceText = "按 空格键 发球";
+        canvas.drawText(self.width / 2 - 110, self.height / 2 + 80, spaceText, Color.Yellow(), spaceFont);
+        
+        // 道具说明
+        var hintFont = Font.("Arial", 12);
+        var hintY = self.height / 2 + 120;
+        canvas.drawText(self.width / 2 - 180, hintY, "道具: S=加速 s=减速 W=加宽 N=变窄 M=多球", Color.Gray(), hintFont);
+        
+        // 系列赛提示
+        if self.matchWins[0] == 0 && self.matchWins[1] == 0 {
+            var matchFont = Font.("Arial", 14);
+            var matchText = "三局两胜制 | 先到 11 分获胜";
+            canvas.drawText(self.width / 2 - 100, self.height / 2 - 80, matchText, Color.Gray(), matchFont);
+        }
+    }
+    
+    // 绘制游戏结束
+    fn drawGameOver(canvas: Canvas) {
+        // 半透明遮罩
+        canvas.fillRect(0, 0, self.width, self.height, Color.ARGB(180, 0, 0, 0));
+        
+        var font = Font.("Arial", 56);
+        var text: str;
+        var color: Color;
+        
+        if self.winner == 1 {
+            text = "P1 获胜!";
+            color = self.p1Color;
+        } else {
+            text = "P2 获胜!";
+            color = self.p2Color;
+        }
+        
+        canvas.drawText(self.width / 2 - 150, self.height / 2 - 80, text, color, font);
+        
+        // 最终系列赛比分
+        var scoreFont = Font.("Arial", 32);
+        var scoreText = "系列赛: " ++ self.intToString(self.matchWins[0]) ++ " - " ++ self.intToString(self.matchWins[1]);
+        canvas.drawText(self.width / 2 - 100, self.height / 2 - 10, scoreText, Color.White(), scoreFont);
+        
+        // 重新开始提示
+        var restartFont = Font.("Arial", 20);
+        var restartText = "按 R 键重新开始";
+        canvas.drawText(self.width / 2 - 90, self.height / 2 + 60, restartText, Color.LightGray(), restartFont);
+    }
+    
+    // ==================== 输入处理 ====================
+    
+    // onKeyDown - 键盘按下
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.KeyW => {
+                self.p1KeyUp = true;
+            }
+            VirtualKey.KeyS => {
+                self.p1KeyDown = true;
+            }
+            VirtualKey.Up => {
+                self.p2KeyUp = true;
+            }
+            VirtualKey.Down => {
+                self.p2KeyDown = true;
+            }
+            VirtualKey.Space => {
+                if !self.gameStarted && !self.gameOver {
+                    var serveTo = if math.rand() % 2 == 0 { 1 } else { 2 };
+                    self.startBall(serveTo);
+                }
+            }
+            VirtualKey.KeyR => {
+                if self.gameOver {
+                    self.matchWins[0] = 0;
+                    self.matchWins[1] = 0;
+                    self.matchGame = 1;
+                    self.onInit();
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    // onKeyUp - 键盘释放
+    pub fn onKeyUp(key: VirtualKey) {
+        match key {
+            VirtualKey.KeyW => {
+                self.p1KeyUp = false;
+            }
+            VirtualKey.KeyS => {
+                self.p1KeyDown = false;
+            }
+            VirtualKey.Up => {
+                self.p2KeyUp = false;
+            }
+            VirtualKey.Down => {
+                self.p2KeyDown = false;
+            }
+            _ => {}
+        }
+    }
+    
+    // onMouseDown - 鼠标按下
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        if !self.gameStarted && !self.gameOver {
+            var serveTo = if math.rand() % 2 == 0 { 1 } else { 2 };
+            self.startBall(serveTo);
+        }
+    }
+    
+    // onMouseUp - 鼠标释放
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+    }
+    
+    // ==================== 辅助函数 ====================
+    
+    fn absFloat(x: float) -> float {
+        return if x < 0.0 { -x } else { x };
+    }
+    
+    fn sqrt(n: int) -> int {
+        if n < 0 {
+            return 0;
+        }
+        var x = n;
+        var y = 1;
+        while y < x {
+            x = (x + y) / 2;
+            y = n / x;
+        }
+        return x;
+    }
+    
+    fn cos(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = 1.0;
+        var term = 1.0;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn sin(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = rad;
+        var term = rad;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn intToString(n: int) -> str {
+        if n == 0 {
+            return "0";
+        }
+        var result = "";
+        var negative = false;
+        var num = n;
+        if num < 0 {
+            negative = true;
+            num = -num;
+        }
+        while num > 0 {
+            var digit = num % 10;
+            result = (digit as char + "") ++ result;
+            num = num / 10;
+        }
+        return if negative { "-" ++ result } else { result };
+    }
+}

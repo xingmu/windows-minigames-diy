@@ -1,0 +1,359 @@
+// game_logic.zc - Zen-C Minesweeper（扫雷）游戏核心逻辑
+
+import std.math;
+import std.string;
+
+// ==================== 游戏常量 ====================
+
+const GRID_ROWS: i32 = 9;
+const GRID_COLS: i32 = 9;
+const MINE_COUNT: i32 = 10;
+const CELL_SIZE: i32 = 40;
+const GRID_OFFSET_X: i32 = 20;
+const GRID_OFFSET_Y: i32 = 80;
+
+const GAME_WIDTH: i32 = GRID_COLS * CELL_SIZE + GRID_OFFSET_X * 2;
+const GAME_HEIGHT: i32 = GRID_ROWS * CELL_SIZE + GRID_OFFSET_Y + 30;
+
+// ==================== 数字颜色 ====================
+
+const NUMBER_COLORS: [8]Color = [
+    Color { r: 0,   g: 0,   b: 0   },  // 0 - 不显示
+    Color { r: 0,   g: 0,   b: 200 },  // 1 - 蓝色
+    Color { r: 0,   g: 150, b: 0   },  // 2 - 绿色
+    Color { r: 200, g: 0,   b: 0   },  // 3 - 红色
+    Color { r: 0,   g: 0,   b: 150 },  // 4 - 深蓝
+    Color { r: 150, g: 0,   b: 0   },  // 5 - 栗色
+    Color { r: 0,   g: 150, b: 150 },  // 6 - 青色
+    Color { r: 100, g: 100, b: 100 },  // 7 - 灰色
+    Color { r: 50,  g: 50,  b: 50  },  // 8 - 深灰
+];
+
+// ==================== 游戏状态枚举 ====================
+
+enum GameStatus {
+    Ready,
+    Playing,
+    Won,
+    Lost,
+}
+
+// ==================== 数据结构 ====================
+
+struct Cell {
+    is_mine: bool,
+    is_revealed: bool,
+    is_flagged: bool,
+    neighbor_mines: i32,
+}
+
+struct MineGrid {
+    cells: [GRID_ROWS * GRID_COLS]Cell,
+    rows: i32,
+    cols: i32,
+}
+
+struct MineState {
+    grid: MineGrid,
+    score: i32,
+    status: GameStatus,
+    elapsed_seconds: i32,
+    first_click: bool,
+    flag_count: i32,
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut MineState) {
+    game.score = 0;
+    game.status = GameStatus.Ready;
+    game.elapsed_seconds = 0;
+    game.first_click = true;
+    game.flag_count = 0;
+    
+    // 初始化网格
+    game.grid.rows = GRID_ROWS;
+    game.grid.cols = GRID_COLS;
+    
+    for r in 0..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            let index = r * GRID_COLS + c;
+            game.grid.cells[index] = Cell {
+                is_mine: false,
+                is_revealed: false,
+                is_flagged: false,
+                neighbor_mines: 0,
+            };
+        }
+    }
+}
+
+// 放置地雷（在首次点击后调用）
+fn place_mines(game: &mut MineState, avoid_row: i32, avoid_col: i32) {
+    // 使用计时器作为随机种子
+    let seed = get_tick() as u32;
+    set_random_seed(seed);
+    
+    let mut placed = 0;
+    let mut attempts = 0;
+    
+    while placed < MINE_COUNT && attempts < 1000 {
+        let r = rand_int(0, GRID_ROWS - 1);
+        let c = rand_int(0, GRID_COLS - 1);
+        
+        // 避免首次点击的位置及其周围
+        let dr = if r > avoid_row { r - avoid_row } else { avoid_row - r };
+        let dc = if c > avoid_col { c - avoid_col } else { avoid_col - c };
+        
+        if dr <= 1 && dc <= 1 {
+            attempts = attempts + 1;
+            continue;
+        }
+        
+        let index = r * GRID_COLS + c;
+        if !game.grid.cells[index].is_mine {
+            game.grid.cells[index].is_mine = true;
+            placed = placed + 1;
+        }
+        attempts = attempts + 1;
+    }
+    
+    // 计算每个格子的邻居地雷数
+    for r in 0..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            let index = r * GRID_COLS + c;
+            if game.grid.cells[index].is_mine {
+                continue;
+            }
+            
+            let mut count = 0;
+            for dr in -1..=1 {
+                for dc in -1..=1 {
+                    if dr == 0 && dc == 0 {
+                        continue;
+                    }
+                    let nr = r + dr;
+                    let nc = c + dc;
+                    if nr >= 0 && nr < GRID_ROWS && nc >= 0 && nc < GRID_COLS {
+                        let nindex = nr * GRID_COLS + nc;
+                        if game.grid.cells[nindex].is_mine {
+                            count = count + 1;
+                        }
+                    }
+                }
+            }
+            game.grid.cells[index].neighbor_mines = count;
+        }
+    }
+}
+
+// 处理左键点击
+fn handle_left_click(game: &mut MineState, row: i32, col: i32) {
+    if game.status == GameStatus.Won || game.status == GameStatus.Lost {
+        return;
+    }
+    
+    if row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS {
+        return;
+    }
+    
+    let index = row * GRID_COLS + col;
+    let cell = game.grid.cells[index];
+    
+    if cell.is_revealed || cell.is_flagged {
+        return;
+    }
+    
+    // 首次点击，放置地雷
+    if game.first_click {
+        game.first_click = false;
+        game.status = GameStatus.Playing;
+        place_mines(game, row, col);
+    }
+    
+    // 揭开格子
+    reveal_cell(game, row, col);
+    
+    // 检查胜利
+    if check_win(game) {
+        game.status = GameStatus.Won;
+    }
+}
+
+// 处理右键点击（标记/取消标记）
+fn handle_right_click(game: &mut MineState, row: i32, col: i32) {
+    if game.status == GameStatus.Won || game.status == GameStatus.Lost {
+        return;
+    }
+    
+    if row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS {
+        return;
+    }
+    
+    let index = row * GRID_COLS + col;
+    let cell = game.grid.cells[index];
+    
+    if cell.is_revealed {
+        return;
+    }
+    
+    game.grid.cells[index].is_flagged = !cell.is_flagged;
+    
+    if game.grid.cells[index].is_flagged {
+        game.flag_count = game.flag_count + 1;
+    } else {
+        game.flag_count = game.flag_count - 1;
+    }
+}
+
+// 揭开格子（递归展开空白区域）
+fn reveal_cell(game: &mut MineState, row: i32, col: i32) {
+    if row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS {
+        return;
+    }
+    
+    let index = row * GRID_COLS + col;
+    let cell = game.grid.cells[index];
+    
+    if cell.is_revealed || cell.is_flagged {
+        return;
+    }
+    
+    game.grid.cells[index].is_revealed = true;
+    game.score = game.score + 1;
+    
+    // 如果是地雷，游戏结束
+    if cell.is_mine {
+        game.status = GameStatus.Lost;
+        return;
+    }
+    
+    // 如果周围没有地雷，递归展开
+    if cell.neighbor_mines == 0 {
+        for dr in -1..=1 {
+            for dc in -1..=1 {
+                if dr == 0 && dc == 0 {
+                    continue;
+                }
+                reveal_cell(game, row + dr, col + dc);
+            }
+        }
+    }
+}
+
+// 检查胜利条件
+fn check_win(game: &mut MineState) -> bool {
+    let mut revealed_count = 0;
+    for i in 0..(GRID_ROWS * GRID_COLS) {
+        if game.grid.cells[i].is_revealed {
+            revealed_count = revealed_count + 1;
+        }
+    }
+    // 揭开了所有非地雷格子
+    return revealed_count >= GRID_ROWS * GRID_COLS - MINE_COUNT;
+}
+
+// 获取格子坐标对应的行列
+fn pixel_to_cell(x: i32, y: i32) -> (i32, i32) {
+    let col = (x - GRID_OFFSET_X) / CELL_SIZE;
+    let row = (y - GRID_OFFSET_Y) / CELL_SIZE;
+    return (row, col);
+}
+
+// 处理键盘输入
+fn handle_key_input(game: &mut MineState, key: KeyCode) -> bool {
+    match key {
+        KeyCode.KeyR => {
+            init_game(game);
+            return true;
+        },
+        KeyCode.KeyEscape => {
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+// 更新计时器
+fn update_timer(game: &mut MineState) -> bool {
+    if game.status == GameStatus.Playing {
+        game.elapsed_seconds = game.elapsed_seconds + 1;
+        return true;
+    }
+    return false;
+}
+
+// 获取状态文本
+fn get_status_text(game: &MineState) -> string {
+    match game.status {
+        GameStatus.Ready => return "左键揭格 | 右键标记 | 按 R 重新开始",
+        GameStatus.Playing => return "游戏中...",
+        GameStatus.Won => return "🎉 恭喜获胜! 按 R 重新开始",
+        GameStatus.Lost => return "💥 游戏结束! 按 R 重新开始",
+    }
+}
+
+// 获取剩余地雷数
+fn get_remaining_mines(game: &MineState) -> i32 {
+    return MINE_COUNT - game.flag_count;
+}
+
+// 获取计时器文本
+fn get_timer_text(game: &MineState) -> string {
+    let mins = game.elapsed_seconds / 60;
+    let secs = game.elapsed_seconds % 60;
+    let mut result = "";
+    
+    if mins < 10 {
+        result = "0" ++ mins.toString();
+    } else {
+        result = mins.toString();
+    }
+    
+    result = result ++ ":";
+    
+    if secs < 10 {
+        result = result ++ "0" ++ secs.toString();
+    } else {
+        result = result ++ secs.toString();
+    }
+    
+    return result;
+}
+
+// 获取显示数字的颜色
+fn get_number_color(n: i32) -> Color {
+    if n >= 1 && n <= 8 {
+        return NUMBER_COLORS[n as usize];
+    }
+    return Color { r: 0, g: 0, b: 0 };
+}
+
+// ==================== 随机数辅助 ====================
+
+private var rng_seed: u32 = 1;
+
+pub fn set_random_seed(seed: u32) {
+    rng_seed = seed;
+}
+
+fn rand_int(min: i32, max: i32) -> i32 {
+    rng_seed = rng_seed * 1103515245 + 12345;
+    let r = rng_seed % ((max - min + 1) as u32);
+    return min + r as i32;
+}
+
+// ==================== 计时器辅助 ====================
+
+#if defined(_WIN32) || defined(WIN32) || defined(__WIN32__) || defined(__NT__)
+    extern "kernel32.dll" fn GetTickCount() -> u32;
+    fn get_tick() -> u32 {
+        return GetTickCount();
+    }
+#else
+    fn get_tick() -> u32 {
+        return 0;
+    }
+#endif

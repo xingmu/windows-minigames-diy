@@ -1,0 +1,267 @@
+// main_window.zc - Zen-C Minesweeper（扫雷）游戏主程序
+
+import std.io;
+import std.string;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: MineState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut game_speed: u32 = 1000;  // 1秒定时器用于计时
+
+// ==================== 事件处理 ====================
+
+fn on_key(key: KeyCode) -> bool {
+    return handle_key_input(&mut game, key);
+}
+
+fn on_timer() -> bool {
+    if game.status == GameStatus.Playing {
+        game.elapsed_seconds = game.elapsed_seconds + 1;
+        return true;
+    }
+    return false;
+}
+
+fn on_paint(w: i32, h: i32) {
+    // 确保帧缓冲初始化
+    if !fb_data.valid {
+        fb_init(window, w, h);
+    }
+    
+    // 清屏 - 浅灰色背景
+    fb_clear(rgb(224, 224, 224));
+    
+    // 绘制顶部信息栏背景
+    fb_draw_rect(0, 0, w, GRID_OFFSET_Y - 10, rgb(200, 200, 200));
+    
+    // 绘制剩余地雷数
+    let mines_left = get_remaining_mines(&game);
+    let mines_text = "💣 " ++ mines_left.toString();
+    fb_draw_text_size(20, 20, mines_text, rgb(80, 80, 80), 20);
+    
+    // 绘制计时器
+    let timer_text = "⏱️ " ++ get_timer_text(&game);
+    fb_draw_text_size(w - 120, 20, timer_text, rgb(80, 80, 80), 20);
+    
+    // 绘制状态文本
+    let status = get_status_text(&game);
+    let status_x = (w - status.len * 8) / 2;
+    fb_draw_text_size(status_x.max(10), 50, status, rgb(100, 100, 100), 14);
+    
+    // 绘制游戏网格
+    draw_grid();
+    
+    // 如果游戏结束，绘制结果
+    if game.status == GameStatus.Won {
+        draw_resultOverlay("🎉 恭喜获胜!", rgb(0, 180, 0));
+    } else if game.status == GameStatus.Lost {
+        draw_resultOverlay("💥 游戏结束!", rgb(200, 0, 0));
+    }
+    
+    // 呈现画面
+    fb_present();
+}
+
+// 绘制网格
+fn draw_grid() {
+    for r in 0..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            let index = r * GRID_COLS + c;
+            let cell = game.grid.cells[index];
+            
+            let x = GRID_OFFSET_X + c * CELL_SIZE;
+            let y = GRID_OFFSET_Y + r * CELL_SIZE;
+            let size = CELL_SIZE;
+            
+            if cell.is_revealed {
+                // 已揭开的格子 - 白色背景
+                fb_draw_rect(x + 1, y + 1, size - 2, size - 2, rgb(255, 255, 255));
+                
+                if cell.is_mine {
+                    // 绘制地雷
+                    draw_mine(x + size / 2, y + size / 2, size / 3);
+                } else if cell.neighbor_mines > 0 {
+                    // 绘制数字
+                    let text = cell.neighbor_mines.toString();
+                    let color = get_number_color(cell.neighbor_mines);
+                    let text_x = x + size / 2 - text.len * 5;
+                    let text_y = y + size / 2 - 8;
+                    fb_draw_text_size(text_x, text_y, text, color, 18);
+                }
+            } else {
+                // 未揭开的格子 - 灰色背景，带边框效果
+                // 外边框（上和左亮，下和右暗，制造3D效果）
+                fb_draw_rect(x, y, size, size, rgb(180, 180, 180));
+                fb_draw_rect(x + 1, y + 1, size - 2, size - 2, rgb(220, 220, 220));
+                
+                // 左边和上边的亮边
+                fb_draw_rect(x, y, size, 3, rgb(255, 255, 255));
+                fb_draw_rect(x, y, 3, size, rgb(255, 255, 255));
+                
+                // 右边和下边的暗边
+                fb_draw_rect(x + size - 3, y, 3, size, rgb(128, 128, 128));
+                fb_draw_rect(x, y + size - 3, size, 3, rgb(128, 128, 128));
+                
+                if cell.is_flagged {
+                    // 绘制旗帜
+                    draw_flag(x + size / 2, y + size / 2, size / 3);
+                }
+            }
+            
+            // 网格线
+            fb_draw_rect(x + size - 1, y, 1, size, rgb(150, 150, 150));
+            fb_draw_rect(x, y + size - 1, size, 1, rgb(150, 150, 150));
+        }
+    }
+}
+
+// 绘制地雷
+fn draw_mine(cx: i32, cy: i32, radius: i32) {
+    // 地雷主体 - 深灰色圆形
+    fb_draw_circle(cx, cy, radius, rgb(40, 40, 40));
+    
+    // 高光
+    fb_draw_circle(cx - radius / 3, cy - radius / 3, radius / 4, rgb(100, 100, 100));
+    
+    // 引线
+    fb_draw_rect(cx + radius / 2, cy - radius * 2, 2, radius, rgb(150, 100, 50));
+    
+    // 引线尖端
+    fb_draw_circle(cx + radius / 2 + 1, cy - radius * 2, 3, rgb(255, 200, 0));
+}
+
+// 绘制旗帜
+fn draw_flag(cx: i32, cy: i32, size: i32) {
+    // 旗杆
+    fb_draw_rect(cx - size / 6, cy - size, size / 3, size * 2, rgb(100, 60, 30));
+    
+    // 旗面
+    let flag_color = rgb(220, 0, 0);
+    fb_draw_rect(cx - size / 6, cy - size, size * 2, size * 3 / 2, flag_color);
+    
+    // 旗面三角
+    fb_draw_rect(cx + size * 3 / 2 - 1, cy - size, size / 3, size * 3 / 4, flag_color);
+}
+
+// 绘制结果覆盖层
+fn draw_resultOverlay(text: string, color: Color) {
+    // 半透明黑色背景
+    let w = GRID_COLS * CELL_SIZE + GRID_OFFSET_X * 2;
+    let h = GRID_ROWS * CELL_SIZE + GRID_OFFSET_Y;
+    
+    // 简化：用深色矩形覆盖
+    fb_draw_rect(GRID_OFFSET_X, GRID_OFFSET_Y, w - GRID_OFFSET_X * 2, h - GRID_OFFSET_Y, rgb(0, 0, 0));
+    
+    // 绘制文本
+    let text_x = w / 2 - text.len * 10;
+    let text_y = GRID_OFFSET_Y + (h - GRID_OFFSET_Y) / 2 - 10;
+    fb_draw_text_size(text_x, text_y, text, color, 24);
+    
+    // 如果输了，显示所有地雷
+    if game.status == GameStatus.Lost {
+        for r in 0..GRID_ROWS {
+            for c in 0..GRID_COLS {
+                let index = r * GRID_COLS + c;
+                let cell = game.grid.cells[index];
+                if cell.is_mine && !cell.is_revealed {
+                    let x = GRID_OFFSET_X + c * CELL_SIZE;
+                    let y = GRID_OFFSET_Y + r * CELL_SIZE;
+                    let size = CELL_SIZE;
+                    
+                    // 已揭开的格子显示地雷
+                    fb_draw_rect(x + 1, y + 1, size - 2, size - 2, rgb(255, 255, 255));
+                    draw_mine(x + size / 2, y + size / 2, size / 3);
+                }
+            }
+        }
+    }
+}
+
+fn on_mouse(x: i32, y: i32) {
+    // 左键揭格
+    if y >= GRID_OFFSET_Y {
+        let (row, col) = pixel_to_cell(x, y);
+        if row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS {
+            handle_left_click(&mut game, row, col);
+        }
+    }
+}
+
+fn on_rmouse(x: i32, y: i32) {
+    // 右键标记
+    if y >= GRID_OFFSET_Y {
+        let (row, col) = pixel_to_cell(x, y);
+        if row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS {
+            handle_right_click(&mut game, row, col);
+        }
+    }
+}
+
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C Minesweeper 扫雷游戏");
+    io.println("========================================");
+    
+    // 初始化游戏状态
+    init_game(&mut game);
+    
+    // 创建窗口
+    let title = "Minesweeper - 扫雷游戏";
+    window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
+    
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+    
+    // 获取实际客户区大小
+    let mut cw = 0;
+    let mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        set_client_size(cw, ch);
+    }
+    
+    // 设置事件处理器
+    set_key_handler(on_key);
+    set_timer_handler(on_timer);
+    set_paint_handler(on_paint);
+    set_mouse_handler(on_mouse);
+    set_rmouse_handler(on_rmouse);
+    set_destroy_handler(on_destroy);
+    
+    // 显示窗口
+    show_window(window);
+    
+    // 设置游戏定时器（每秒更新一次）
+    set_game_timer(window, game_speed);
+    
+    io.println("窗口创建成功!");
+    io.println("左键点击: 揭开格子");
+    io.println("右键点击: 标记地雷");
+    io.println("按 R: 重新开始");
+    io.println("========================================");
+    
+    // 初始绘制
+    redraw_window(window);
+    
+    // 运行事件循环
+    run_event_loop(window);
+    
+    io.println("游戏结束!");
+    io.println("========================================");
+    
+    0
+}
