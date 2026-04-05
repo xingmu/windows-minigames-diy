@@ -1,0 +1,549 @@
+// main_window.zc - Zen-C Surfing（冲浪）游戏主程序
+// 窗体版本 - 在海浪上保持平衡，收集分数
+
+import std.io;
+import std.string;
+
+// 导入游戏逻辑和平台API
+import "game_logic.zc";
+import "platform_api.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: SurfingState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+
+// ==================== 图形绘制函数 ====================
+
+// 在画布上绘制像素（用于调试）
+fn draw_pixel_at(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.setPixel(x, y, color);
+}
+
+// 绘制实心椭圆
+fn draw_filled_ellipse(canvas: &Canvas, cx: i32, cy: i32, rx: i32, ry: i32, color: Color) {
+    for py in (-ry)..(ry + 1) {
+        for px in (-rx)..(rx + 1) {
+            let val = (px * px) as f64 / (rx * rx) as f64 + (py * py) as f64 / (ry * ry) as f64;
+            if val <= 1.0 {
+                canvas.setPixel(cx + px, cy + py, color);
+            }
+        }
+    }
+}
+
+// 绘制波浪
+fn draw_wave(canvas: &Canvas, wave_offset: i32, base_y: i32) {
+    let prev_y = 0;
+    let sky_bottom = base_y - 50;
+
+    // 绘制波浪填充
+    for x in 0..GAME_WIDTH {
+        let wave_y = get_wave_y(wave_offset, x, base_y);
+        let color = get_wave_color(wave_y, base_y);
+
+        // 从波浪顶部画到屏幕底部
+        for y in wave_y..GAME_HEIGHT {
+            canvas.setPixel(x, y, color);
+        }
+    }
+
+    // 绘制浪花效果（波浪线）
+    for x in 0..GAME_WIDTH {
+        let wave_y = get_wave_y(wave_offset, x, base_y);
+        let next_wave_y = get_wave_y(wave_offset, x + 1, base_y);
+        let next_next_wave_y = get_wave_y(wave_offset, x + 2, base_y);
+
+        // 绘制波浪轮廓
+        canvas.setPixel(x, wave_y, COLOR_WAVE_FOAM);
+
+        // 绘制浪花泡沫效果
+        if x % 8 == 0 && wave_y > 50 {
+            canvas.setPixel(x, wave_y - 1, COLOR_WAVE_FOAM);
+            canvas.setPixel(x + 1, wave_y - 1, COLOR_WAVE_FOAM);
+            canvas.setPixel(x - 1, wave_y - 1, COLOR_WAVE_FOAM);
+        }
+    }
+}
+
+// 绘制冲浪者和冲浪板
+fn draw_surfer(canvas: &Canvas, surfer: &Surfer, wave_offset: i32, base_y: i32) {
+    let cx = surfer.x + SURFER_WIDTH / 2;
+    let cy = surfer.y + SURFER_HEIGHT / 2;
+
+    // 根据倾斜角度绘制
+    let lean_offset = surfer.lean * 3;
+
+    // 绘制冲浪板（椭圆形）
+    let board_color = if surfer.on_wave { COLOR_SURFER_BOARD } else { COLOR_SURFER_BOARD };
+    draw_filled_ellipse(canvas, cx + lean_offset, cy + 8, SURFER_WIDTH / 2 + 2, 6, board_color);
+    // 冲浪板边缘
+    canvas.drawCircle(cx + lean_offset, cy + 8, SURFER_WIDTH / 2 + 2, COLOR.Brown());
+
+    // 绘制冲浪者身体（简笔画风格）
+    let body_color = if surfer.balance < BALANCE_DANGER { COLOR_DANGER } else { COLOR_SURFER };
+
+    // 身体
+    canvas.fillRect(cx - 6 + lean_offset, cy - 10, 12, 15, body_color);
+
+    // 头
+    draw_filled_ellipse(canvas, cx + lean_offset, cy - 16, 8, 8, COLOR_SURFER);
+
+    // 手臂（随倾斜伸展）
+    let arm_angle = surfer.lean * 20;
+    if surfer.lean <= 0 {
+        // 左手臂向上
+        canvas.drawLine(cx - 6 + lean_offset, cy - 5, cx - 18 + lean_offset, cy - 15 + arm_angle / 2, body_color);
+        // 右手臂向下
+        canvas.drawLine(cx + 6 + lean_offset, cy - 5, cx + 18 + lean_offset, cy + 5 - arm_angle / 2, body_color);
+    } else {
+        // 左手臂向下
+        canvas.drawLine(cx - 6 + lean_offset, cy - 5, cx - 18 + lean_offset, cy + 5 - arm_angle / 2, body_color);
+        // 右手臂向上
+        canvas.drawLine(cx + 6 + lean_offset, cy - 5, cx + 18 + lean_offset, cy - 15 + arm_angle / 2, body_color);
+    }
+
+    // 腿部（弯曲）
+    canvas.drawLine(cx - 3 + lean_offset, cy + 5, cx - 5 + lean_offset, cy + 12, body_color);
+    canvas.drawLine(cx + 3 + lean_offset, cy + 5, cx + 5 + lean_offset, cy + 12, body_color);
+}
+
+// 绘制星星（收集物）
+fn draw_star(canvas: &Canvas, cx: i32, cy: i32, radius: i32, color: Color) {
+    // 绘制5角星
+    let points: [10]i32 = [
+        0, -radius,                                    // 上
+        cx + radius / 4, -radius / 3,                  // 右上内
+        cx + radius, -radius / 3,                       // 右上
+        cx + radius / 2, radius / 4,                   // 右下
+        cx + radius * 3 / 4, radius,                   // 右下角
+        cx, radius / 2,                                // 下
+        cx - radius * 3 / 4, radius,                   // 左下角
+        cx - radius / 2, radius / 4,                   // 左下
+        cx - radius, -radius / 3,                       // 左上
+        cx - radius / 4, -radius / 3,                  // 左上内
+    ];
+
+    // 简化的星形绘制
+    canvas.fillCircle(cx, cy, radius, color);
+    canvas.fillCircle(cx - radius / 3, cy - radius / 3, radius / 3, COLOR_WAVE_FOAM);
+}
+
+// 绘制贝壳（收集物）
+fn draw_shell(canvas: &Canvas, cx: i32, cy: i32, radius: i32, color: Color) {
+    // 绘制贝壳形状（半椭圆）
+    draw_filled_ellipse(canvas, cx, cy, radius, radius * 2 / 3, color);
+    canvas.drawLine(cx - radius, cy, cx + radius, cy, Color.RGB(200, 150, 100));
+}
+
+// 绘制收集物品
+fn draw_collectibles(canvas: &Canvas, collectibles: &[COLLECTIBLE_COUNT]Collectible) {
+    for i in 0..COLLECTIBLE_COUNT {
+        if collectibles[i].active {
+            let cx = collectibles[i].x;
+            let cy = collectibles[i].y;
+            if collectibles[i].type_ == 0 {
+                draw_star(canvas, cx, cy, COLLECTIBLE_RADIUS, COLOR_STAR);
+            } else {
+                draw_shell(canvas, cx, cy, COLLECTIBLE_RADIUS, COLOR_PINK);
+            }
+        }
+    }
+}
+
+// 绘制云朵
+fn draw_cloud(canvas: &Canvas, cloud: &Cloud) {
+    let x = cloud.x;
+    let y = cloud.y;
+    let w = cloud.width;
+
+    // 绘制云朵（多个椭圆组成）
+    canvas.fillCircle(x, y, w / 4, COLOR_CLOUD);
+    canvas.fillCircle(x + w / 4, y - w / 8, w / 3, COLOR_CLOUD);
+    canvas.fillCircle(x + w / 2, y, w / 4, COLOR_CLOUD);
+    canvas.fillCircle(x + w * 3 / 4, y - w / 8, w / 5, COLOR_CLOUD);
+}
+
+// 绘制平衡条
+fn draw_balance_bar(canvas: &Canvas, x: i32, y: i32, balance: i32) {
+    let bar_width = 200;
+    let bar_height = 20;
+
+    // 背景
+    canvas.fillRect(x, y, bar_width, bar_height, Color.DarkGray());
+
+    // 平衡值
+    let fill_width = (balance * bar_width / BALANCE_MAX) as i32;
+    let bar_color = if balance < BALANCE_DANGER { COLOR_DANGER } else { COLOR_BALANCE_BAR };
+    canvas.fillRect(x, y, fill_width, bar_height, bar_color);
+
+    // 边框
+    canvas.drawRect(x, y, bar_width, bar_height, COLOR_UI_TEXT);
+}
+
+// 绘制分数UI
+fn draw_ui(canvas: &Canvas, score: i32, lives: i32, level: i32, balance: i32) {
+    // 顶部信息栏背景
+    canvas.fillRect(0, 0, GAME_WIDTH, 45, Color.RGB(0, 50, 80));
+
+    // 绘制分数文字（使用矩形模拟文字效果）
+    let text_x = 20;
+    let text_y = 15;
+
+    // 分数标签
+    canvas.fillRect(text_x, text_y, 8, 15, COLOR_UI_TEXT);
+    canvas.fillRect(text_x + 10, text_y, 8, 15, COLOR_UI_TEXT);
+    canvas.fillRect(text_x + 20, text_y, 8, 15, COLOR_UI_TEXT);
+
+    // 分数值
+    let score_x = 100;
+    draw_number(canvas, score_x, text_y, score);
+
+    // 生命（心形简化）
+    let hearts_x = 300;
+    for i in 0..lives {
+        draw_heart(canvas, hearts_x + i * 30, text_y + 5, 10);
+    }
+
+    // 等级
+    let level_x = 450;
+    canvas.fillRect(level_x, text_y, 8, 15, COLOR_STAR);
+    canvas.fillRect(level_x + 10, text_y, 8, 15, COLOR_STAR);
+    canvas.fillRect(level_x + 20, text_y, 8, 15, COLOR_UI_TEXT);
+    draw_number(canvas, level_x + 50, text_y, level);
+
+    // 平衡条
+    let balance_x = 600;
+    draw_balance_bar(canvas, balance_x, text_y, balance);
+}
+
+// 绘制心形
+fn draw_heart(canvas: &Canvas, cx: i32, cy: i32, size: i32) {
+    let color = COLOR_DANGER;
+    // 心形由两个圆和一个三角形组成，简化为画圆
+    canvas.fillCircle(cx, cy, size, color);
+    canvas.fillCircle(cx + size, cy, size, color);
+    canvas.fillRect(cx, cy - size, size * 2, size, color);
+}
+
+// 绘制数字（简化版）
+fn draw_number(canvas: &Canvas, x: i32, y: i32, num: i32) {
+    let digits: [6]i32 = [0; 6];
+    let temp = num;
+    let digit_count = 0;
+
+    if temp == 0 {
+        digits[0] = 0;
+        digit_count = 1;
+    } else {
+        while temp > 0 && digit_count < 6 {
+            digits[digit_count] = temp % 10;
+            temp = temp / 10;
+            digit_count = digit_count + 1;
+        }
+    }
+
+    let offset = 0;
+    for i in (0..digit_count).rev() {
+        draw_digit(canvas, x + offset, y, digits[i]);
+        offset = offset + 20;
+    }
+}
+
+// 绘制单个数字
+fn draw_digit(canvas: &Canvas, x: i32, y: i32, digit: i32) {
+    let color = COLOR_UI_TEXT;
+    // 简化的7段数码管风格
+    // 每个数字用矩形方块表示
+    let w = 12;
+    let h = 18;
+
+    match digit {
+        0 => {
+            canvas.fillRect(x, y, w, 3, color);
+            canvas.fillRect(x, y, 3, h, color);
+            canvas.fillRect(x + w - 3, y, 3, h, color);
+            canvas.fillRect(x, y + h - 3, w, 3, color);
+        },
+        1 => {
+            canvas.fillRect(x + w / 3, y, 3, h, color);
+        },
+        2 => {
+            canvas.fillRect(x, y, w, 3, color);
+            canvas.fillRect(x + w - 3, y, 3, h / 2, color);
+            canvas.fillRect(x, y + h / 2, w, 3, color);
+            canvas.fillRect(x, y + h / 2, 3, h / 2, color);
+            canvas.fillRect(x, y + h - 3, w, 3, color);
+        },
+        3 => {
+            canvas.fillRect(x, y, w, 3, color);
+            canvas.fillRect(x + w - 3, y, 3, h, color);
+            canvas.fillRect(x, y + h / 2, w, 3, color);
+            canvas.fillRect(x, y + h - 3, w, 3, color);
+        },
+        4 => {
+            canvas.fillRect(x, y, 3, h, color);
+            canvas.fillRect(x, y + h / 2, w, 3, color);
+            canvas.fillRect(x + w - 3, y, 3, h, color);
+        },
+        5 => {
+            canvas.fillRect(x, y, w, 3, color);
+            canvas.fillRect(x, y, 3, h / 2, color);
+            canvas.fillRect(x, y + h / 2, w, 3, color);
+            canvas.fillRect(x + w - 3, y + h / 2, 3, h / 2, color);
+            canvas.fillRect(x, y + h - 3, w, 3, color);
+        },
+        6 => {
+            canvas.fillRect(x, y, 3, h, color);
+            canvas.fillRect(x, y + h / 2, w, 3, color);
+            canvas.fillRect(x + w - 3, y + h / 2, 3, h / 2, color);
+            canvas.fillRect(x, y + h - 3, w, 3, color);
+        },
+        7 => {
+            canvas.fillRect(x, y, w, 3, color);
+            canvas.fillRect(x + w - 3, y, 3, h, color);
+        },
+        8 => {
+            canvas.fillRect(x, y, w, 3, color);
+            canvas.fillRect(x, y, 3, h, color);
+            canvas.fillRect(x + w - 3, y, 3, h, color);
+            canvas.fillRect(x, y + h / 2, w, 3, color);
+            canvas.fillRect(x, y + h - 3, w, 3, color);
+        },
+        9 => {
+            canvas.fillRect(x, y, w, 3, color);
+            canvas.fillRect(x, y, 3, h / 2, color);
+            canvas.fillRect(x + w - 3, y, 3, h, color);
+            canvas.fillRect(x, y + h / 2, w, 3, color);
+        },
+        _ => {}
+    }
+}
+
+// 绘制开始界面
+fn draw_ready_screen(canvas: &Canvas) {
+    // 标题
+    let title_x = GAME_WIDTH / 2 - 100;
+    let title_y = GAME_HEIGHT / 2 - 100;
+
+    // 绘制标题背景
+    canvas.fillRect(title_x - 20, title_y - 20, 240, 60, Color.RGB(0, 100, 150));
+    canvas.drawRect(title_x - 20, title_y - 20, 240, 60, COLOR_WAVE_FOAM);
+
+    // 标题文字（用矩形模拟）
+    let text_y = title_y;
+    canvas.fillRect(title_x, text_y, 15, 25, COLOR_STAR);
+    canvas.fillRect(title_x + 20, text_y, 15, 25, COLOR_STAR);
+    canvas.fillRect(title_x + 40, text_y, 15, 25, COLOR_STAR);
+    canvas.fillRect(title_x + 60, text_y, 15, 25, COLOR_STAR);
+    canvas.fillRect(title_x + 80, text_y, 15, 25, COLOR_STAR);
+    canvas.fillRect(title_x + 100, text_y, 15, 25, COLOR_STAR);
+    canvas.fillRect(title_x + 120, text_y, 15, 25, COLOR_STAR);
+    canvas.fillRect(title_x + 140, text_y, 15, 25, COLOR_STAR);
+
+    // 提示文字
+    let hint_y = GAME_HEIGHT / 2 + 20;
+    canvas.fillRect(GAME_WIDTH / 2 - 80, hint_y, 160, 20, COLOR_UI_TEXT);
+}
+
+// 绘制游戏结束界面
+fn draw_game_over_screen(canvas: &Canvas, score: i32, high_score: i32, reason: str) {
+    // 半透明覆盖
+    canvas.fillRect(0, GAME_HEIGHT / 2 - 100, GAME_WIDTH, 200, Color.RGB(0, 0, 0));
+
+    // 游戏结束标题
+    let go_y = GAME_HEIGHT / 2 - 70;
+    canvas.fillRect(GAME_WIDTH / 2 - 100, go_y, 200, 30, COLOR_DANGER);
+
+    // 原因
+    canvas.fillRect(GAME_WIDTH / 2 - 120, go_y + 40, 240, 20, COLOR_UI_TEXT);
+
+    // 分数
+    canvas.fillRect(GAME_WIDTH / 2 - 100, go_y + 80, 200, 20, COLOR_STAR);
+    draw_number(canvas, GAME_WIDTH / 2 - 20, go_y + 80, score);
+
+    // 最高分
+    canvas.fillRect(GAME_WIDTH / 2 - 100, go_y + 110, 200, 20, COLOR_WAVE_FOAM);
+    draw_number(canvas, GAME_WIDTH / 2 + 10, go_y + 110, high_score);
+
+    // 重新开始提示
+    canvas.fillRect(GAME_WIDTH / 2 - 80, go_y + 150, 160, 20, COLOR_BALANCE_BAR);
+}
+
+// 绘制暂停界面
+fn draw_paused_screen(canvas: &Canvas) {
+    canvas.fillRect(0, GAME_HEIGHT / 2 - 40, GAME_WIDTH, 80, Color.RGB(0, 50, 80));
+    canvas.drawRect(GAME_WIDTH / 2 - 80, GAME_HEIGHT / 2 - 30, 160, 60, COLOR_UI_TEXT);
+    canvas.fillRect(GAME_WIDTH / 2 - 60, GAME_HEIGHT / 2 - 10, 120, 20, COLOR_UI_TEXT);
+}
+
+// ==================== 事件处理 ====================
+
+// 处理键盘按下
+fn on_key_down(key_code: i32) -> bool {
+    return handle_input(&mut game, key_code);
+}
+
+// 处理键盘释放
+fn on_key_up(key_code: i32) {
+    release_input(&mut game, key_code);
+}
+
+// ==================== 主渲染函数 ====================
+
+// 渲染游戏画面
+fn render_game(canvas: &Canvas) {
+    let wave_base_y = GAME_HEIGHT / 2 + 20;
+
+    // 绘制天空渐变
+    for y in 0..wave_base_y - 50 {
+        let t = y as f64 / (wave_base_y - 50) as f64;
+        let r = lerp(135, 30, t) as u8;
+        let g = lerp(206, 80, t) as u8;
+        let b = lerp(235, 120, t) as u8;
+        canvas.fillRect(0, y, GAME_WIDTH, 1, Color.RGB(r, g, b));
+    }
+
+    // 绘制云朵
+    let clouds = get_clouds(&game);
+    for i in 0..5 {
+        draw_cloud(canvas, &clouds[i]);
+    }
+
+    // 绘制波浪
+    draw_wave(canvas, get_wave_offset(&game), wave_base_y);
+
+    // 绘制收集物品
+    let collectibles = get_collectibles(&game);
+    draw_collectibles(canvas, &collectibles);
+
+    // 绘制冲浪者
+    let surfer = get_surfer(&game);
+    draw_surfer(canvas, &surfer, get_wave_offset(&game), wave_base_y);
+
+    // 绘制UI
+    draw_ui(canvas, get_score(&game), get_lives(&game), get_level(&game), surfer.balance);
+
+    // 根据游戏状态绘制覆盖层
+    match get_game_status(&game) {
+        GameStatus.Ready => {
+            draw_ready_screen(canvas);
+        },
+        GameStatus.Paused => {
+            draw_paused_screen(canvas);
+        },
+        GameStatus.GameOver => {
+            draw_game_over_screen(canvas, get_score(&game), get_high_score(&game), get_game_over_reason(&game));
+        },
+        _ => {}
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C Surfing Game - 冲浪游戏");
+    io.println("在海浪上保持平衡，收集星星!");
+    io.println("========================================");
+
+    // 初始化游戏
+    game = SurfingState {
+        status: GameStatus.Ready,
+        score: 0,
+        high_score: 0,
+        lives: INITIAL_LIVES,
+        level: 1,
+        wave_offset: 0,
+        wave_speed: WAVE_SPEED,
+        surfer: Surfer {
+            x: GAME_WIDTH / 2 - SURFER_WIDTH / 2,
+            y: GAME_HEIGHT / 2,
+            vx: 0,
+            vy: 0,
+            balance: BALANCE_MAX,
+            on_wave: false,
+            lean: 0,
+        },
+        collectibles: [Collectible { x: 0, y: 0, active: false, type_: 0, anim_offset: 0 }; COLLECTIBLE_COUNT],
+        clouds: [Cloud { x: 0, y: 0, width: 0, speed: 0 }; 5],
+        time: 0,
+        game_over_reason: "",
+    };
+
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "Zen-C Surfing - 冲浪游戏";
+    window = createWindow(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == nil {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    io.println("窗口创建成功!");
+    io.println("控制: A/D 或 ←/→ 倾斜平衡, W/S 调整速度");
+    io.println("按 空格键/回车键 开始游戏");
+    io.println("按 ESC 退出");
+    io.println("========================================");
+
+    // 主循环（使用poll模式）
+    running = true;
+    let last_update = getTickCount();
+    let update_interval: u32 = 16; // ~60 FPS
+
+    while running {
+        var event = Event.{ msg: MessageType.None, mouse: MouseEvent.{ x: 0, y: 0, button: MouseButton.None }, key: KeyEvent.{ key: VirtualKey.None, pressed: false }, width: GAME_WIDTH, height: GAME_HEIGHT };
+
+        // 处理事件
+        while pollEvent(window, &event) {
+            match event.msg {
+                MessageType.Quit => {
+                    running = false;
+                },
+                MessageType.KeyDown => {
+                    if event.key.key == VirtualKey.Escape {
+                        running = false;
+                    } else {
+                        let handled = on_key_down(event.key.key as i32);
+                        if !handled {
+                            running = false;
+                        }
+                    }
+                },
+                MessageType.KeyUp => {
+                    on_key_up(event.key.key as i32);
+                },
+                _ => {}
+            }
+        }
+
+        // 更新游戏逻辑
+        let current_time = getTickCount();
+        if current_time - last_update >= update_interval {
+            update_game(&mut game, update_interval);
+
+            // 渲染
+            let fb = getFrameBuffer(window);
+            let pitch = getFrameBufferPitch(window);
+
+            // 创建简单的画布包装
+            // 实际渲染
+            render_game(window);
+
+            presentFrame(window);
+            last_update = current_time;
+        } else {
+            sleep(1);
+        }
+    }
+
+    io.println("游戏退出!");
+    io.println("最终分数: {}", get_score(&game));
+    io.println("========================================");
+
+    closeWindow(window);
+    0
+}

@@ -1,0 +1,500 @@
+// game_logic.zc - Zen-C Surfing（冲浪）游戏核心逻辑
+// 在海浪上保持平衡，收集分数
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 800;
+const GAME_HEIGHT: i32 = 600;
+const SURFER_WIDTH: i32 = 40;
+const SURFER_HEIGHT: i32 = 20;
+const GRAVITY: i32 = 2;
+const WAVE_AMPLITUDE: i32 = 80;
+const WAVE_FREQUENCY: f64 = 0.015;
+const WAVE_SPEED: i32 = 2;
+const BALANCE_MAX: i32 = 100;
+const BALANCE_DANGER: i32 = 30;
+const BALANCE_LOSS_RATE: i32 = 1;
+const BALANCE_GAIN_RATE: i32 = 2;
+const COLLECTIBLE_COUNT: i32 = 5;
+const COLLECTIBLE_RADIUS: i32 = 12;
+const POINTS_PER_COLLECT: i32 = 100;
+const SPEED_INCREASE_INTERVAL: i32 = 1000; // 每1000分加速
+const INITIAL_LIVES: i32 = 3;
+
+// ==================== 颜色定义 ====================
+
+const COLOR_SKY: Color = Color.RGB(135, 206, 235);        // 天蓝色
+const COLOR_OCEAN_DEEP: Color = Color.RGB(0, 105, 148);   // 深海蓝
+const COLOR_OCEAN_SURFACE: Color = Color.RGB(0, 150, 200);// 海面蓝
+const COLOR_WAVE_FOAM: Color = Color.RGB(255, 255, 255);   // 浪花白
+const COLOR_WAVE_BODY: Color = Color.RGB(30, 144, 200);    // 浪体蓝
+const COLOR_SURFER: Color = Color.RGB(255, 140, 0);        // 橙色冲浪者
+const COLOR_SURFER_BOARD: Color = Color.RGB(255, 255, 0);  // 黄色冲浪板
+const COLOR_STAR: Color = Color.RGB(255, 215, 0);          // 金色星星
+const COLOR_DANGER: Color = Color.RGB(255, 69, 0);         // 危险红色
+const COLOR_BALANCE_BAR: Color = Color.RGB(50, 205, 50);   // 平衡条绿色
+const COLOR_UI_TEXT: Color = Color.RGB(255, 255, 255);    // 白色文字
+const COLOR_CLOUD: Color = Color.RGB(255, 255, 255);       // 白云
+
+// ==================== 数据结构 ====================
+
+// 游戏状态枚举
+enum GameStatus {
+    Ready,
+    Playing,
+    Paused,
+    GameOver,
+}
+
+// 冲浪者
+struct Surfer {
+    x: i32,           // 世界坐标X
+    y: i32,           // 世界坐标Y
+    vx: i32,          // 水平速度
+    vy: i32,          // 垂直速度
+    balance: i32,     // 平衡值 0-100
+    on_wave: bool,    // 是否在浪上
+    lean: i32,        // 倾斜方向 -1左 +1右 0中
+}
+
+// 可收集物品（星星/贝壳）
+struct Collectible {
+    x: i32,
+    y: i32,
+    active: bool,
+    type_: i32,      // 0=星星 1=贝壳
+    anim_offset: i32, // 动画偏移
+}
+
+// 云朵
+struct Cloud {
+    x: i32,
+    y: i32,
+    width: i32,
+    speed: i32,
+}
+
+// 冲浪游戏状态
+struct SurfingState {
+    status: GameStatus,
+    score: i32,
+    high_score: i32,
+    lives: i32,
+    level: i32,
+    wave_offset: i32,       // 波浪偏移量
+    wave_speed: i32,        // 波浪速度
+    surfer: Surfer,
+    collectibles: [COLLECTIBLE_COUNT]Collectible,
+    clouds: [5]Cloud,
+    time: i32,
+    game_over_reason: str,
+}
+
+// ==================== 数学辅助函数 ====================
+
+fn abs_i(x: i32) -> i32 {
+    return if x < 0 { -x } else { x };
+}
+
+fn clamp_i(val: i32, min_val: i32, max_val: i32) -> i32 {
+    if val < min_val { return min_val; }
+    if val > max_val { return max_val; }
+    return val;
+}
+
+fn lerp(a: i32, b: i32, t: f64) -> i32 {
+    return (a as f64 + (b as f64 - a as f64) * t) as i32;
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 获取波浪在指定X位置的Y坐标
+fn get_wave_y(wave_offset: i32, x: i32, base_y: i32) -> i32 {
+    let phase = (x as f64 + wave_offset as f64) * WAVE_FREQUENCY * 3.14159;
+    let y_offset = (math.sin(phase) * WAVE_AMPLITUDE as f64) as i32;
+    return base_y + y_offset;
+}
+
+// 获取波浪表面斜率（用于判断平衡难度）
+fn get_wave_slope(wave_offset: i32, x: i32, base_y: i32) -> i32 {
+    let dx = 5;
+    let y1 = get_wave_y(wave_offset, x - dx, base_y);
+    let y2 = get_wave_y(wave_offset, x + dx, base_y);
+    return (y2 - y1) / (2 * dx);
+}
+
+// 初始化游戏
+fn init_game(state: &mut SurfingState) {
+    state.status = GameStatus.Ready;
+    state.score = 0;
+    state.level = 1;
+    state.wave_offset = 0;
+    state.wave_speed = WAVE_SPEED;
+    state.time = 0;
+    state.game_over_reason = "";
+
+    // 初始化冲浪者
+    state.surfer.x = GAME_WIDTH / 2;
+    state.surfer.y = GAME_HEIGHT / 2 + 50;
+    state.surfer.vx = 0;
+    state.surfer.vy = 0;
+    state.surfer.balance = BALANCE_MAX;
+    state.surfer.on_wave = false;
+    state.surfer.lean = 0;
+
+    // 初始化可收集物品
+    for i in 0..COLLECTIBLE_COUNT {
+        state.collectibles[i].active = false;
+        state.collectibles[i].type_ = i % 2;
+        state.collectibles[i].anim_offset = 0;
+    }
+
+    // 初始化云朵
+    for i in 0..5 {
+        state.clouds[i].x = (i * 180 + 50) as i32;
+        state.clouds[i].y = (60 + i * 20) as i32;
+        state.clouds[i].width = (80 + i * 30) as i32;
+        state.clouds[i].speed = (1 + i % 2) as i32;
+    }
+}
+
+// 开始新游戏
+fn start_game(state: &mut SurfingState) {
+    state.status = GameStatus.Playing;
+    state.score = 0;
+    state.level = 1;
+    state.lives = INITIAL_LIVES;
+    state.wave_offset = 0;
+    state.wave_speed = WAVE_SPEED;
+    state.time = 0;
+    state.game_over_reason = "";
+
+    state.surfer.x = GAME_WIDTH / 2;
+    state.surfer.y = GAME_HEIGHT / 2 + 50;
+    state.surfer.vx = 0;
+    state.surfer.vy = 0;
+    state.surfer.balance = BALANCE_MAX;
+    state.surfer.on_wave = false;
+    state.surfer.lean = 0;
+
+    // 生成初始收集物
+    spawn_collectibles(state);
+}
+
+// 处理输入
+fn handle_input(state: &mut SurfingState, key: i32) -> bool {
+    match state.status {
+        GameStatus.Ready => {
+            if key == 32 || key == 13 { // 空格或回车
+                start_game(state);
+                return true;
+            }
+        },
+        GameStatus.Playing => {
+            match key {
+                32 | 80 | 112 => { // 空格/P 暂停
+                    state.status = GameStatus.Paused;
+                    return true;
+                },
+                // 左方向/A
+                37 | 65 | 97 => {
+                    state.surfer.lean = -1;
+                },
+                // 右方向/D
+                39 | 68 | 100 => {
+                    state.surfer.lean = 1;
+                },
+                // 上方向/W
+                38 | 87 | 119 => {
+                    state.surfer.vx = state.surfer.vx + 2;
+                },
+                // 下方向/S
+                40 | 83 | 115 => {
+                    state.surfer.vx = state.surfer.vx - 2;
+                },
+                82 | 114 => { // R 重新开始
+                    start_game(state);
+                    return true;
+                },
+                27 => { // ESC 退出
+                    return false;
+                },
+                _ => {}
+            }
+        },
+        GameStatus.Paused => {
+            if key == 32 || key == 80 || key == 112 { // 空格/P 继续
+                state.status = GameStatus.Playing;
+                return true;
+            }
+            if key == 82 || key == 114 { // R 重新开始
+                start_game(state);
+                return true;
+            }
+            if key == 27 { // ESC 退出
+                return false;
+            }
+        },
+        GameStatus.GameOver => {
+            if key == 32 || key == 13 || key == 82 || key == 114 { // 空格/回车/R 重新开始
+                start_game(state);
+                return true;
+            }
+            if key == 27 { // ESC 退出
+                return false;
+            }
+        },
+    }
+    return true; // 继续运行
+}
+
+// 释放按键
+fn release_input(state: &mut SurfingState, key: i32) {
+    if state.status != GameStatus.Playing {
+        return;
+    }
+    match key {
+        37 | 65 | 97 => { // 左方向/A
+            if state.surfer.lean == -1 {
+                state.surfer.lean = 0;
+            }
+        },
+        39 | 68 | 100 => { // 右方向/D
+            if state.surfer.lean == 1 {
+                state.surfer.lean = 0;
+            }
+        },
+        38 | 87 | 119 | 40 | 83 | 115 => {
+            state.surfer.vx = 0;
+        },
+        _ => {}
+    }
+}
+
+// 生成收集物品
+fn spawn_collectibles(state: &mut SurfingState) {
+    let base_y = GAME_HEIGHT / 2 + 20;
+    for i in 0..COLLECTIBLE_COUNT {
+        if !state.collectibles[i].active {
+            state.collectibles[i].x = (100 + i * 140) as i32;
+            state.collectibles[i].y = get_wave_y(state.wave_offset, state.collectibles[i].x, base_y) - 40;
+            state.collectibles[i].active = true;
+            state.collectibles[i].type_ = i % 2;
+            state.collectibles[i].anim_offset = 0;
+        }
+    }
+}
+
+// 更新游戏状态
+fn update_game(state: &mut SurfingState, dt: u32) -> bool {
+    if state.status != GameStatus.Playing {
+        return true;
+    }
+
+    state.time = state.time + 1;
+
+    // 更新波浪偏移
+    state.wave_offset = state.wave_offset + state.wave_speed;
+
+    // 波浪基础Y位置
+    let wave_base_y = GAME_HEIGHT / 2 + 20;
+
+    // 更新冲浪者位置
+    let surfer_center_x = state.surfer.x + SURFER_WIDTH / 2;
+
+    // 根据倾斜方向移动
+    state.surfer.x = state.surfer.x + state.surfer.lean * 3;
+
+    // 限制冲浪者移动范围
+    if state.surfer.x < 50 {
+        state.surfer.x = 50;
+    }
+    if state.surfer.x > GAME_WIDTH - 50 - SURFER_WIDTH {
+        state.surfer.x = GAME_WIDTH - 50 - SURFER_WIDTH;
+    }
+
+    // 计算波浪上的目标Y位置
+    let wave_y = get_wave_y(state.wave_offset, surfer_center_x, wave_base_y);
+    let target_y = wave_y - SURFER_HEIGHT;
+
+    // 检查是否在浪上
+    let slope = get_wave_slope(state.wave_offset, surfer_center_x, wave_base_y);
+    let on_wave = abs_i(state.surfer.y - target_y) < 30;
+
+    state.surfer.on_wave = on_wave;
+
+    // 如果在浪上，调整平衡
+    if on_wave {
+        // 斜率越大，平衡越难
+        let slope_factor = abs_i(slope);
+        let balance_loss = BALANCE_LOSS_RATE + slope_factor / 2;
+        state.surfer.balance = state.surfer.balance - balance_loss;
+
+        // 玩家倾斜可以帮助平衡
+        if state.surfer.lean != 0 {
+            state.surfer.balance = state.surfer.balance + BALANCE_GAIN_RATE / 2;
+        }
+
+        // 保持在浪上获得分数
+        state.score = state.score + 1;
+    } else {
+        // 不在浪上，平衡快速下降
+        state.surfer.balance = state.surfer.balance - BALANCE_LOSS_RATE * 3;
+    }
+
+    // 限制平衡值
+    state.surfer.balance = clamp_i(state.surfer.balance, 0, BALANCE_MAX);
+
+    // 检查平衡是否耗尽
+    if state.surfer.balance <= 0 {
+        state.lives = state.lives - 1;
+        if state.lives <= 0 {
+            state.status = GameStatus.GameOver;
+            state.game_over_reason = "平衡失控，跌入海中!";
+            if state.score > state.high_score {
+                state.high_score = state.score;
+            }
+            return true;
+        } else {
+            // 重置平衡，继续游戏
+            state.surfer.balance = BALANCE_MAX;
+            state.surfer.x = GAME_WIDTH / 2;
+        }
+    }
+
+    // 让冲浪者跟随波浪Y坐标（平滑过渡）
+    if on_wave {
+        state.surfer.y = lerp(state.surfer.y, target_y, 0.3);
+    } else {
+        // 掉落效果
+        state.surfer.vy = state.surfer.vy + GRAVITY;
+        state.surfer.y = state.surfer.y + state.surfer.vy;
+        if state.surfer.y > wave_y {
+            state.surfer.y = wave_y - SURFER_HEIGHT;
+            state.surfer.vy = 0;
+        }
+    }
+
+    // 更新收集物品
+    for i in 0..COLLECTIBLE_COUNT {
+        let c = &mut state.collectibles[i];
+        if c.active {
+            // 物品跟随波浪
+            c.y = get_wave_y(state.wave_offset, c.x, wave_base_y) - 40 + c.anim_offset;
+            c.anim_offset = (c.anim_offset + 1) % 10 - 5;
+
+            // 检查是否被收集
+            let dx = abs_i(state.surfer.x + SURFER_WIDTH / 2 - c.x);
+            let dy = abs_i(state.surfer.y + SURFER_HEIGHT / 2 - c.y);
+            if dx < 30 && dy < 30 {
+                c.active = false;
+                state.score = state.score + POINTS_PER_COLLECT;
+            }
+        }
+    }
+
+    // 检查是否需要重新生成收集物
+    let active_count = count_active_collectibles(state);
+    if active_count == 0 {
+        spawn_collectibles(state);
+    }
+
+    // 更新云朵
+    for i in 0..5 {
+        state.clouds[i].x = state.clouds[i].x + state.clouds[i].speed;
+        if state.clouds[i].x > GAME_WIDTH as i32 + 100 {
+            state.clouds[i].x = -state.clouds[i].width;
+        }
+    }
+
+    // 等级提升（速度增加）
+    let new_level = state.score / SPEED_INCREASE_INTERVAL + 1;
+    if new_level > state.level {
+        state.level = new_level;
+        state.wave_speed = WAVE_SPEED + (state.level - 1) * 1;
+    }
+
+    return true;
+}
+
+// 统计活跃收集物数量
+fn count_active_collectibles(state: &SurfingState) -> i32 {
+    let count = 0;
+    for i in 0..COLLECTIBLE_COUNT {
+        if state.collectibles[i].active {
+            count = count + 1;
+        }
+    }
+    return count;
+}
+
+// 获取浪花颜色（根据位置变化）
+fn get_wave_color(y: i32, base_y: i32) -> Color {
+    let depth = (base_y - y) as i32;
+    if depth < 10 {
+        return COLOR_WAVE_FOAM;
+    } else if depth < 30 {
+        return Color.RGB(100, 180, 220);
+    } else {
+        return COLOR_WAVE_BODY;
+    }
+}
+
+// ==================== 导出函数（供渲染使用）====================
+
+// 获取冲浪者位置
+fn get_surfer(state: &SurfingState) -> Surfer {
+    return state.surfer;
+}
+
+// 获取分数
+fn get_score(state: &SurfingState) -> i32 {
+    return state.score;
+}
+
+// 获取生命数
+fn get_lives(state: &SurfingState) -> i32 {
+    return state.lives;
+}
+
+// 获取等级
+fn get_level(state: &SurfingState) -> i32 {
+    return state.level;
+}
+
+// 获取游戏状态
+fn get_game_status(state: &SurfingState) -> GameStatus {
+    return state.status;
+}
+
+// 获取波浪偏移
+fn get_wave_offset(state: &SurfingState) -> i32 {
+    return state.wave_offset;
+}
+
+// 获取波浪速度
+fn get_wave_speed(state: &SurfingState) -> i32 {
+    return state.wave_speed;
+}
+
+// 获取收集物品
+fn get_collectibles(state: &SurfingState) -> [COLLECTIBLE_COUNT]Collectible {
+    return state.collectibles;
+}
+
+// 获取云朵
+fn get_clouds(state: &SurfingState) -> [5]Cloud {
+    return state.clouds;
+}
+
+// 获取游戏结束原因
+fn get_game_over_reason(state: &SurfingState) -> str {
+    return state.game_over_reason;
+}
+
+// 获取高分
+fn get_high_score(state: &SurfingState) -> i32 {
+    return state.high_score;
+}
