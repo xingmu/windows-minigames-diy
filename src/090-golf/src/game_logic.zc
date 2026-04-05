@@ -1,0 +1,712 @@
+// game_logic.zc - Zen-C 高尔夫游戏核心逻辑
+// 俯视角高尔夫游戏
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 900;
+const GAME_HEIGHT: i32 = 550;
+
+// 球半径
+const BALL_RADIUS: i32 = 6;
+
+// 洞的半径
+const HOLE_RADIUS: i32 = 10;
+
+// 摩擦系数 (每帧速度衰减)
+const FRICTION: i32 = 3;
+
+// 最大击球力度
+const MAX_POWER: i32 = 25;
+
+// 最小速度阈值
+const MIN_VELOCITY: i32 = 1;
+
+// 重力 (用于坡度)
+const GRAVITY: i32 = 0;
+
+// 球的颜色
+const BALL_COLOR: Color = Color.White();
+
+// ==================== 地形类型 ====================
+
+enum TerrainType {
+    Grass,      // 普通草地 (标准摩擦)
+    Fairway,    // 球道 (低摩擦)
+    Rough,      // 长草区 (高摩擦)
+    Sand,       // 沙坑 (很高摩擦)
+    Water,      // 水障碍 (球停止)
+    Hole,       // 球洞区
+}
+
+// ==================== 障碍物类型 ====================
+
+enum ObstacleType {
+    Tree,       // 树 (阻挡)
+    Rock,       // 石头 (阻挡)
+}
+
+// ==================== 球洞数据结构 ====================
+
+struct Hole {
+    x: i32,
+    y: i32,
+    par: i32,       // 标准杆
+    name: string,   // 洞名
+}
+
+// ==================== 障碍物数据结构 ====================
+
+struct Obstacle {
+    x: i32,
+    y: i32,
+    radius: i32,
+    type: ObstacleType,
+}
+
+// ==================== 地形区域 ====================
+
+struct TerrainZone {
+    x: i32,         // 左上角X
+    y: i32,         // 左上角Y
+    w: i32,         // 宽度
+    h: i32,         // 高度
+    terrain: TerrainType,
+}
+
+// ==================== 发球台 ====================
+
+struct Tee {
+    x: i32,
+    y: i32,
+}
+
+// ==================== 球状态 ====================
+
+struct Ball {
+    x: f32,           // 球心X坐标 (浮点用于精确移动)
+    y: f32,           // 球心Y坐标
+    vx: f32,          // X方向速度
+    vy: f32,          // Y方向速度
+    active: bool,     // 是否在游戏中
+    inHole: bool,     // 是否进洞
+}
+
+// ==================== 游戏状态 ====================
+
+enum GameStatus {
+    Ready,      // 等待击球
+    Aiming,    // 瞄准中
+    Dragging,  // 拖拽蓄力
+    Moving,    // 球运动中
+    HoleComplete, // 本洞完成
+    GameOver,  // 游戏结束
+}
+
+struct GolfState {
+    ball: Ball,
+    status: GameStatus,
+    currentHole: i32,
+    totalStrokes: i32,
+    holeStrokes: i32,
+    mouseX: i32,
+    mouseY: i32,
+    dragStartX: i32,
+    dragStartY: i32,
+    power: i32,
+    aimAngle: f32,
+    width: i32,
+    height: i32,
+    wind: i32,          // 风力 (-5 到 5)
+    holes: [18]Hole,
+    obstacles: [30]Obstacle,
+    obstacleCount: i32,
+    terrains: [20]TerrainZone,
+    terrainCount: i32,
+    tees: [18]Tee,
+    cameraX: i32,       // 摄像机X偏移 (用于球道滚动)
+    courseWidth: i32,   // 球道总宽度
+}
+
+// ==================== 辅助函数 ====================
+
+fn abs(n: i32) -> i32 {
+    if n < 0 { -n } else { n }
+}
+
+fn fabs(n: f32) -> f32 {
+    if n < 0.0 { -n } else { n }
+}
+
+fn min(a: i32, b: i32) -> i32 {
+    if a < b { a } else { b }
+}
+
+fn max(a: i32, b: i32) -> i32 {
+    if a > b { a } else { b }
+}
+
+fn clamp(val: i32, minVal: i32, maxVal: i32) -> i32 {
+    if val < minVal { minVal } else if val > maxVal { maxVal } else { val }
+}
+
+// 计算两点距离的平方
+fn dist2(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    return dx * dx + dy * dy;
+}
+
+fn dist2f(x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    return dx * dx + dy * dy;
+}
+
+// 整数平方根
+fn sqrt_int(n: i32) -> i32 {
+    if n <= 0 {
+        return 0;
+    }
+    let mut x = n;
+    let mut y = 1;
+    while y < x {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    return x;
+}
+
+fn sqrt_f(n: f32) -> f32 {
+    if n <= 0.0 {
+        return 0.0;
+    }
+    let mut x = n;
+    let mut y = 1.0;
+    while y < x {
+        x = (x + y) / 2.0;
+        y = n / x;
+    }
+    return x;
+}
+
+// ==================== 获取地形摩擦系数 ====================
+
+fn getTerrainFriction(state: &GolfState, x: i32, y: i32) -> i32 {
+    for i in 0..state.terrainCount {
+        let t = state.terrains[i];
+        if x >= t.x && x < t.x + t.w && y >= t.y && y < t.y + t.h {
+            match t.terrain {
+                TerrainType.Fairway => return 2,
+                TerrainType.Rough => return 5,
+                TerrainType.Sand => return 8,
+                TerrainType.Water => return 2,
+                TerrainType.Hole => return 1,
+                _ => return FRICTION,
+            }
+        }
+    }
+    return FRICTION;
+}
+
+// ==================== 检查障碍物碰撞 ====================
+
+fn checkObstacleCollision(state: &GolfState, x: f32, y: f32) -> bool {
+    for i in 0..state.obstacleCount {
+        let obs = state.obstacles[i];
+        let dx = x - obs.x as f32;
+        let dy = y - obs.y as f32;
+        let dist = sqrt_f(dx * dx + dy * dy);
+        if dist < (obs.radius as f32 + BALL_RADIUS as f32) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// ==================== 球是否在水里 ====================
+
+fn isInWater(state: &GolfState, x: i32, y: i32) -> bool {
+    for i in 0..state.terrainCount {
+        let t = state.terrains[i];
+        if t.terrain == TerrainType.Water {
+            if x >= t.x && x < t.x + t.w && y >= t.y && y < t.y + t.h {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// ==================== 球是否在洞里 ====================
+
+fn isInHole(state: &GolfState, x: f32, y: f32) -> bool {
+    let hole = state.holes[state.currentHole];
+    let dx = x - hole.x as f32;
+    let dy = y - hole.y as f32;
+    let dist = sqrt_f(dx * dx + dy * dy);
+    // 进洞条件: 距离够近且速度足够低
+    return dist < HOLE_RADIUS as f32;
+}
+
+// ==================== 限制球在球场范围内 ====================
+
+fn clampBallToCourse(state: &mut GolfState) {
+    if state.ball.x < 20.0 {
+        state.ball.x = 20.0;
+        state.ball.vx = -state.ball.vx * 0.5;
+    }
+    if state.ball.x > state.courseWidth as f32 - 20.0 {
+        state.ball.x = state.courseWidth as f32 - 20.0;
+        state.ball.vx = -state.ball.vx * 0.5;
+    }
+    if state.ball.y < 20.0 {
+        state.ball.y = 20.0;
+        state.ball.vy = -state.ball.vy * 0.5;
+    }
+    if state.ball.y > GAME_HEIGHT - 20.0 {
+        state.ball.y = GAME_HEIGHT - 20.0;
+        state.ball.vy = -state.ball.vy * 0.5;
+    }
+}
+
+// ==================== 初始化球道数据 ====================
+
+fn initCourse(state: &mut GolfState) {
+    // 本游戏使用单一长球道设计 (18洞，每洞约500像素长)
+    state.courseWidth = 9000;
+
+    // 发球台
+    state.tees[0] = Tee.{ x: 80, y: 275 };
+
+    // 球洞位置 (沿球道排列)
+    // 洞1: Par 3, 短洞
+    state.holes[0] = Hole.{ x: 600, y: 275, par: 3, name: "Short One" };
+    // 洞2: Par 4
+    state.holes[1] = Hole.{ x: 1100, y: 275, par: 4, name: "Fairway" };
+    // 洞3: Par 4
+    state.holes[2] = Hole.{ x: 1600, y: 275, par: 4, name: "Bunker Bay" };
+    // 洞4: Par 3
+    state.holes[3] = Hole.{ x: 2000, y: 275, par: 3, name: "Water Hole" };
+    // 洞5: Par 5
+    state.holes[4] = Hole.{ x: 2600, y: 275, par: 5, name: "Long Drive" };
+    // 洞6: Par 4
+    state.holes[5] = Hole.{ x: 3100, y: 275, par: 4, name: "Dogleg" };
+    // 洞7: Par 3
+    state.holes[6] = Hole.{ x: 3500, y: 275, par: 3, name: "Sand Trap" };
+    // 洞8: Par 4
+    state.holes[7] = Hole.{ x: 4000, y: 275, par: 4, name: "Tree Line" };
+    // 洞9: Par 5
+    state.holes[8] = Hole.{ x: 4600, y: 275, par: 5, name: "The Lake" };
+    // 洞10: Par 4
+    state.holes[9] = Hole.{ x: 5100, y: 275, par: 4, name: "Back Nine" };
+    // 洞11: Par 3
+    state.holes[10] = Hole.{ x: 5450, y: 275, par: 3, name: "Island Green" };
+    // 洞12: Par 4
+    state.holes[11] = Hole.{ x: 5900, y: 275, par: 4, name: "Narrow" };
+    // 洞13: Par 5
+    state.holes[13] = Hole.{ x: 6500, y: 275, par: 5, name: "Final Push" };
+    // 洞14: Par 4
+    state.holes[14] = Hole.{ x: 7000, y: 275, par: 4, name: "Cliff Edge" };
+    // 洞15: Par 3
+    state.holes[15] = Hole.{ x: 7300, y: 275, par: 3, name: "Quick Three" };
+    // 洞16: Par 4
+    state.holes[16] = Hole.{ x: 7800, y: 275, par: 4, name: "Home Stretch" };
+    // 洞17: Par 5
+    state.holes[17] = Hole.{ x: 8400, y: 275, par: 5, name: "Finale" };
+    // 洞18: Par 3 (最后一洞)
+    state.holes[12] = Hole.{ x: 8800, y: 275, par: 3, name: "Club House" };
+
+    // 地形区域
+    state.terrainCount = 0;
+
+    // 基础草地 (整个球场)
+    // 地形在渲染时绘制，这里主要记录特殊区域
+
+    // 球道区域 (低摩擦)
+    for holeIdx in 0..18 {
+        let hole = state.holes[holeIdx];
+        let startX = if holeIdx == 0 { 50 } else { state.holes[holeIdx - 1].x + 50 };
+        let endX = hole.x;
+
+        // 球道 (中间80像素宽)
+        state.terrains[state.terrainCount] = TerrainZone.{
+            x: startX, y: 200, w: endX - startX, h: 150,
+            terrain: TerrainType.Fairway
+        };
+        state.terrainCount = state.terrainCount + 1;
+
+        // 果岭 (洞周围20像素)
+        state.terrains[state.terrainCount] = TerrainZone.{
+            x: hole.x - 60, y: hole.y - 60, w: 120, h: 120,
+            terrain: TerrainType.Hole
+        };
+        state.terrainCount = state.terrainCount + 1;
+    }
+
+    // 沙坑 (在一些洞旁边)
+    // 洞3沙坑
+    state.terrains[state.terrainCount] = TerrainZone.{
+        x: 1550, y: 220, w: 80, h: 50, terrain: TerrainType.Sand
+    };
+    state.terrainCount = state.terrainCount + 1;
+
+    // 洞7沙坑
+    state.terrains[state.terrainCount] = TerrainZone.{
+        x: 3450, y: 320, w: 80, h: 60, terrain: TerrainType.Sand
+    };
+    state.terrainCount = state.terrainCount + 1;
+
+    // 水障碍 (洞4和洞9)
+    state.terrains[state.terrainCount] = TerrainZone.{
+        x: 1850, y: 350, w: 150, h: 80, terrain: TerrainType.Water
+    };
+    state.terrainCount = state.terrainCount + 1;
+
+    state.terrains[state.terrainCount] = TerrainZone.{
+        x: 4450, y: 180, w: 200, h: 60, terrain: TerrainType.Water
+    };
+    state.terrainCount = state.terrainCount + 1;
+
+    // 洞11果岭是岛型(周围有水)
+    state.terrains[state.terrainCount] = TerrainZone.{
+        x: 5400, y: 220, w: 100, h: 110, terrain: TerrainType.Water
+    };
+    state.terrainCount = state.terrainCount + 1;
+
+    // 障碍物 (树)
+    state.obstacleCount = 0;
+
+    // 洞2旁的大树
+    state.obstacles[state.obstacleCount] = Obstacle.{ x: 1000, y: 200, radius: 25, type: ObstacleType.Tree };
+    state.obstacleCount = state.obstacleCount + 1;
+    state.obstacles[state.obstacleCount] = Obstacle.{ x: 1050, y: 340, radius: 25, type: ObstacleType.Tree };
+    state.obstacleCount = state.obstacleCount + 1;
+
+    // 洞6狗腿处的树
+    state.obstacles[state.obstacleCount] = Obstacle.{ x: 3000, y: 200, radius: 30, type: ObstacleType.Tree };
+    state.obstacleCount = state.obstacleCount + 1;
+    state.obstacles[state.obstacleCount] = Obstacle.{ x: 3050, y: 350, radius: 25, type: ObstacleType.Tree };
+    state.obstacleCount = state.obstacleCount + 1;
+
+    // 洞8树线
+    for i in 0..5 {
+        state.obstacles[state.obstacleCount] = Obstacle.{ x: 3900 + i * 40, y: 180, radius: 20, type: ObstacleType.Tree };
+        state.obstacleCount = state.obstacleCount + 1;
+        state.obstacles[state.obstacleCount] = Obstacle.{ x: 3900 + i * 40, y: 370, radius: 20, type: ObstacleType.Tree };
+        state.obstacleCount = state.obstacleCount + 1;
+    }
+
+    // 洞12窄洞的树
+    for i in 0..3 {
+        state.obstacles[state.obstacleCount] = Obstacle.{ x: 5800 + i * 50, y: 180, radius: 22, type: ObstacleType.Tree };
+        state.obstacleCount = state.obstacleCount + 1;
+        state.obstacles[state.obstacleCount] = Obstacle.{ x: 5800 + i * 50, y: 370, radius: 22, type: ObstacleType.Tree };
+        state.obstacleCount = state.obstacleCount + 1;
+    }
+}
+
+// ==================== 初始化游戏 ====================
+
+fn init_game(state: &mut GolfState) {
+    state.width = GAME_WIDTH;
+    state.height = GAME_HEIGHT;
+    state.status = GameStatus.Ready;
+    state.mouseX = 0;
+    state.mouseY = 0;
+    state.power = 0;
+    state.currentHole = 0;
+    state.totalStrokes = 0;
+    state.holeStrokes = 0;
+    state.wind = 0;
+
+    // 初始化球道
+    initCourse(state);
+
+    // 重置球到发球台
+    resetBall(state);
+}
+
+fn resetBall(state: &mut GolfState) {
+    let tee = state.tees[state.currentHole];
+    state.ball.x = tee.x as f32;
+    state.ball.y = tee.y as f32;
+    state.ball.vx = 0.0;
+    state.ball.vy = 0.0;
+    state.ball.active = true;
+    state.ball.inHole = false;
+    state.status = GameStatus.Ready;
+    state.holeStrokes = 0;
+    state.cameraX = 0;
+
+    // 随机风力
+    state.wind = randInt(-3, 3);
+}
+
+// ==================== 随机数 ====================
+
+private var rng_seed: u32 = 1;
+
+pub fn setRandomSeed(seed: u32) {
+    rng_seed = seed;
+}
+
+pub fn randInt(min: i32, max: i32) -> i32 {
+    rng_seed = rng_seed * 1103515245 + 12345;
+    let r = rng_seed as i32;
+    var result = r % (max - min + 1);
+    if result < 0 {
+        result = result + max - min + 1;
+    }
+    return min + result;
+}
+
+// ==================== 击球 ====================
+
+fn shoot(state: &mut GolfState, power: i32, dx: i32, dy: i32) {
+    let dist = sqrt_int(dx * dx + dy * dy);
+    if dist == 0 {
+        return;
+    }
+
+    // 标准化方向并应用力度
+    let speed = power as f32 * 0.8;
+
+    // 击球方向与拖拽方向相反
+    state.ball.vx = -(dx as f32) / dist as f32 * speed;
+    state.ball.vy = -(dy as f32) / dist as f32 * speed;
+
+    state.status = GameStatus.Moving;
+    state.holeStrokes = state.holeStrokes + 1;
+    state.totalStrokes = state.totalStrokes + 1;
+    state.power = 0;
+}
+
+// ==================== 更新球的物理 ====================
+
+fn updateBall(state: &mut GolfState) -> bool {
+    if state.status != GameStatus.Moving {
+        return false;
+    }
+
+    if state.ball.inHole {
+        state.status = GameStatus.HoleComplete;
+        return false;
+    }
+
+    let mut ball = state.ball;
+    var stillMoving = false;
+
+    // 应用风力
+    ball.vx = ball.vx + state.wind as f32 * 0.01;
+
+    // 移动球
+    ball.x = ball.x + ball.vx;
+    ball.y = ball.y + ball.vy;
+
+    // 获取当前位置的地形摩擦
+    let bx = ball.x as i32;
+    let by = ball.y as i32;
+    let friction = getTerrainFriction(state, bx, by);
+
+    // 应用摩擦力减速
+    if ball.vx != 0.0 || ball.vy != 0.0 {
+        ball.vx = ball.vx * (1.0 - friction as f32 * 0.02);
+        ball.vy = ball.vy * (1.0 - friction as f32 * 0.02);
+
+        // 检查是否停止
+        let speed = sqrt_f(ball.vx * ball.vx + ball.vy * ball.vy);
+        if speed < 0.1 {
+            ball.vx = 0.0;
+            ball.vy = 0.0;
+        } else {
+            stillMoving = true;
+        }
+    }
+
+    // 检查障碍物碰撞
+    if checkObstacleCollision(state, ball.x, ball.y) {
+        // 反弹
+        ball.vx = -ball.vx * 0.3;
+        ball.vy = -ball.vy * 0.3;
+        ball.x = ball.x + ball.vx * 2;
+        ball.y = ball.y + ball.vy * 2;
+    }
+
+    // 检查水障碍
+    if isInWater(state, bx, by) {
+        // 球落水，罚一杆，回原位
+        ball.vx = 0.0;
+        ball.vy = 0.0;
+        let tee = state.tees[state.currentHole];
+        ball.x = tee.x as f32;
+        ball.y = tee.y as f32;
+        state.totalStrokes = state.totalStrokes + 1;
+        state.holeStrokes = state.holeStrokes + 1;
+        state.status = GameStatus.Ready;
+        state.ball = ball;
+        return false;
+    }
+
+    // 检查进洞
+    if isInHole(state, ball.x, ball.y) {
+        let speed = sqrt_f(ball.vx * ball.vx + ball.vy * ball.vy);
+        if speed < 5.0 {
+            // 成功进洞
+            let hole = state.holes[state.currentHole];
+            ball.x = hole.x as f32;
+            ball.y = hole.y as f32;
+            ball.vx = 0.0;
+            ball.vy = 0.0;
+            ball.inHole = true;
+            state.status = GameStatus.HoleComplete;
+            state.ball = ball;
+            return false;
+        }
+    }
+
+    // 限制在球场范围内
+    if ball.x < 20.0 {
+        ball.x = 20.0;
+        ball.vx = -ball.vx * 0.5;
+    }
+    if ball.x > state.courseWidth as f32 - 20.0 {
+        ball.x = state.courseWidth as f32 - 20.0;
+        ball.vx = -ball.vx * 0.5;
+    }
+    if ball.y < 20.0 {
+        ball.y = 20.0;
+        ball.vy = -ball.vy * 0.5;
+    }
+    if ball.y > GAME_HEIGHT - 20.0 {
+        ball.y = GAME_HEIGHT - 20.0;
+        ball.vy = -ball.vy * 0.5;
+    }
+
+    state.ball = ball;
+
+    if !stillMoving {
+        state.status = GameStatus.Ready;
+    }
+
+    return stillMoving;
+}
+
+// 更新摄像机 (让球保持在屏幕中间)
+fn updateCamera(state: &mut GolfState) {
+    let targetX = state.ball.x as i32 - GAME_WIDTH / 2;
+    let targetX = clamp(targetX, 0, state.courseWidth - GAME_WIDTH);
+
+    // 平滑滚动
+    state.cameraX = state.cameraX + (targetX - state.cameraX) / 5;
+}
+
+// ==================== 鼠标处理 ====================
+
+fn onMouseDown(state: &mut GolfState, x: i32, y: i32) {
+    if state.status == GameStatus.HoleComplete {
+        // 进入下一洞
+        state.currentHole = state.currentHole + 1;
+        if state.currentHole >= 18 {
+            state.status = GameStatus.GameOver;
+        } else {
+            resetBall(state);
+        }
+        return;
+    }
+
+    if state.status == GameStatus.GameOver {
+        // 重新开始
+        state.currentHole = 0;
+        state.totalStrokes = 0;
+        resetBall(state);
+        return;
+    }
+
+    if state.status == GameStatus.Moving {
+        return;
+    }
+
+    state.status = GameStatus.Dragging;
+    state.dragStartX = x + state.cameraX;
+    state.dragStartY = y;
+    state.mouseX = x + state.cameraX;
+    state.mouseY = y;
+}
+
+fn onMouseMove(state: &mut GolfState, x: i32, y: i32) {
+    state.mouseX = x + state.cameraX;
+    state.mouseY = y;
+
+    if state.status == GameStatus.Dragging {
+        // 计算蓄力
+        let dragDist = sqrt_int(dist2(state.dragStartX, state.dragStartY, state.mouseX, state.mouseY));
+        state.power = clamp(dragDist / 4, 0, MAX_POWER);
+
+        // 计算瞄准角度
+        let dx = state.mouseX - state.dragStartX;
+        let dy = state.mouseY - state.dragStartY;
+        if dx != 0 || dy != 0 {
+            state.aimAngle = atan2f(dy as f32, dx as f32);
+        }
+    }
+}
+
+fn onMouseUp(state: &mut GolfState, x: i32, y: i32) {
+    if state.status == GameStatus.Dragging {
+        if state.power > 1 {
+            // 从起点到终点的方向就是击球方向 (相反)
+            let dx = state.dragStartX - (x + state.cameraX);
+            let dy = state.dragStartY - y;
+            shoot(state, state.power, dx, dy);
+        } else {
+            state.status = GameStatus.Ready;
+        }
+    }
+}
+
+// ==================== 状态查询 ====================
+
+fn getStatusText(state: &GolfState) -> string {
+    match state.status {
+        GameStatus.Ready => return "点击并拖拽击球",
+        GameStatus.Aiming => return "瞄准中...",
+        GameStatus.Dragging => return "蓄力: " ++ state.power.toString() ++ "  按住越久力度越大",
+        GameStatus.Moving => return "球运动中...",
+        GameStatus.HoleComplete => return "进洞! 第" ++ state.holeStrokes.toString() ++ "杆 | 点击进入下一洞",
+        GameStatus.GameOver => return "游戏结束! 总杆数: " ++ state.totalStrokes.toString() ++ " 点击重新开始",
+    }
+}
+
+fn getHoleInfo(state: &GolfState) -> string {
+    let hole = state.holes[state.currentHole];
+    return "第" ++ (state.currentHole + 1).toString() ++ "洞: " ++ hole.name ++ " | Par " ++ hole.par.toString()
+}
+
+fn getControlsText() -> string {
+    "控制: 点击球后方拖拽瞄准 | 松开击球 | ESC 退出"
+}
+
+// ==================== 浮点数反正切 ====================
+
+fn atan2f(y: f32, x: f32) -> f32 {
+    if x > 0.0 {
+        return atanf(y / x);
+    } else if x < 0.0 && y >= 0.0 {
+        return atanf(y / x) + 3.14159;
+    } else if x < 0.0 && y < 0.0 {
+        return atanf(y / x) - 3.14159;
+    } else if x == 0.0 && y > 0.0 {
+        return 3.14159 / 2.0;
+    } else if x == 0.0 && y < 0.0 {
+        return -3.14159 / 2.0;
+    }
+    return 0.0;
+}
+
+fn atanf(x: f32) -> f32 {
+    // 简化的反正切近似
+    if fabs(x) > 1.0 {
+        return 3.14159 / 2.0 - atanf(1.0 / x);
+    }
+    return x - x * x * x / 3.0 + x * x * x * x * x / 5.0;
+}
