@@ -1,0 +1,511 @@
+// game_logic.zc - Pong游戏逻辑
+// 006-Pong 乒乓球游戏
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const WINDOW_WIDTH: int = 800;
+const WINDOW_HEIGHT: int = 600;
+
+const PADDLE_WIDTH: int = 10;
+const PADDLE_HEIGHT: int = 80;
+const PADDLE_SPEED: int = 8;
+const PADDLE_MARGIN: int = 30;
+
+const BALL_SIZE: int = 10;
+const BALL_SPEED: int = 6;
+const BALL_MAX_SPEED: int = 12;
+
+const WINNING_SCORE: int = 11;
+
+const AI_REACTION_DELAY: int = 100;
+const AI_ERROR_RANGE: int = 30;
+
+// ==================== 数据结构 ====================
+
+// 挡板
+struct Paddle {
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    score: int,
+}
+
+// 球
+struct Ball {
+    x: float,
+    y: float,
+    vx: float,
+    vy: float,
+    speed: int,
+}
+
+// ==================== Pong游戏类 ====================
+
+pub class PongGame extends Game {
+    // 玩家挡板
+    playerPaddleX: int;
+    playerPaddleY: int;
+    playerPaddleWidth: int;
+    playerPaddleHeight: int;
+    playerPaddleScore: int;
+    
+    // 电脑挡板
+    cpuPaddleX: int;
+    cpuPaddleY: int;
+    cpuPaddleWidth: int;
+    cpuPaddleHeight: int;
+    cpuPaddleScore: int;
+    
+    // 球
+    ballX: float;
+    ballY: float;
+    ballVX: float;
+    ballVY: float;
+    ballSpeed: int;
+    
+    // 游戏状态
+    gameStarted: bool;
+    gameOver: bool;
+    winner: str;
+    
+    // 按键状态
+    keyUp: bool;
+    keyDown: bool;
+    
+    // AI相关
+    aiTargetY: int;
+    aiLastUpdate: u32;
+    aiError: int;
+    
+    // 边框颜色
+    borderColor: Color;
+    
+    // onInit - 初始化游戏
+    pub fn onInit() {
+        self.setState(GameState.Playing);
+        self.gameStarted = false;
+        self.gameOver = false;
+        self.winner = "";
+        self.borderColor = Color.White();
+        
+        // 初始化玩家挡板
+        self.playerPaddleX = PADDLE_MARGIN;
+        self.playerPaddleY = (self.height - PADDLE_HEIGHT) / 2;
+        self.playerPaddleWidth = PADDLE_WIDTH;
+        self.playerPaddleHeight = PADDLE_HEIGHT;
+        self.playerPaddleScore = 0;
+        
+        // 初始化电脑挡板
+        self.cpuPaddleX = self.width - PADDLE_MARGIN - PADDLE_WIDTH;
+        self.cpuPaddleY = (self.height - PADDLE_HEIGHT) / 2;
+        self.cpuPaddleWidth = PADDLE_WIDTH;
+        self.cpuPaddleHeight = PADDLE_HEIGHT;
+        self.cpuPaddleScore = 0;
+        
+        // 重置按键状态
+        self.keyUp = false;
+        self.keyDown = false;
+        
+        // AI初始化
+        self.aiTargetY = self.height / 2;
+        self.aiLastUpdate = 0;
+        self.aiError = 0;
+        
+        // 重置球
+        self.resetBall(false);
+    }
+    
+    // onShutdown - 关闭清理
+    pub fn onShutdown() {
+    }
+    
+    // onUpdate - 每帧更新
+    pub fn onUpdate(dt: u32) {
+        if self.gameOver {
+            return;
+        }
+        
+        // 更新玩家挡板
+        self.updatePlayerPaddle();
+        
+        // 更新电脑AI
+        self.updateCPU(dt);
+        
+        // 如果游戏开始了，更新球
+        if self.gameStarted {
+            self.updateBall();
+        }
+        
+        // 检查胜负
+        self.checkWinCondition();
+    }
+    
+    // 更新玩家挡板
+    private fn updatePlayerPaddle() {
+        if self.keyUp {
+            self.playerPaddleY = self.playerPaddleY - PADDLE_SPEED;
+        }
+        if self.keyDown {
+            self.playerPaddleY = self.playerPaddleY + PADDLE_SPEED;
+        }
+        
+        // 确保挡板在边界内
+        if self.playerPaddleY < 50 {
+            self.playerPaddleY = 50;
+        }
+        if self.playerPaddleY + self.playerPaddleHeight > self.height - 10 {
+            self.playerPaddleY = self.height - 10 - self.playerPaddleHeight;
+        }
+    }
+    
+    // 更新电脑AI
+    private fn updateCPU(dt: u32) {
+        // 限制AI更新频率
+        var currentTime = getTickCount();
+        if currentTime - self.aiLastUpdate < AI_REACTION_DELAY as u32 {
+            return;
+        }
+        self.aiLastUpdate = currentTime;
+        
+        // 预测球的位置
+        if self.ballVX > 0.0 {
+            var predictedY = self.ballY + self.ballVY * 10.0;
+            
+            // 添加失误
+            if math.rand() % 3 == 0 {
+                self.aiError = math.rand() % (AI_ERROR_RANGE * 2) - AI_ERROR_RANGE;
+            }
+            
+            self.aiTargetY = predictedY as int + self.aiError + PADDLE_HEIGHT / 2;
+        }
+        
+        // 让AI挡板移向目标位置
+        var cpuCenter = self.cpuPaddleY + PADDLE_HEIGHT / 2;
+        var diff = self.aiTargetY - cpuCenter;
+        
+        // AI移动速度
+        var aiSpeed = PADDLE_SPEED - 2;
+        
+        if diff > aiSpeed {
+            self.cpuPaddleY = self.cpuPaddleY + aiSpeed;
+        } else if diff < -aiSpeed {
+            self.cpuPaddleY = self.cpuPaddleY - aiSpeed;
+        }
+        
+        // 确保挡板在边界内
+        if self.cpuPaddleY < 50 {
+            self.cpuPaddleY = 50;
+        }
+        if self.cpuPaddleY + self.cpuPaddleHeight > self.height - 10 {
+            self.cpuPaddleY = self.height - 10 - self.cpuPaddleHeight;
+        }
+    }
+    
+    // 更新球
+    private fn updateBall() {
+        // 移动球
+        self.ballX = self.ballX + self.ballVX;
+        self.ballY = self.ballY + self.ballVY;
+        
+        // 上下边界碰撞
+        if self.ballY <= 50.0 + BALL_SIZE as float / 2.0 {
+            self.ballY = 50.0 + BALL_SIZE as float / 2.0;
+            self.ballVY = -self.ballVY;
+        }
+        if self.ballY >= self.height as float - 10.0 - BALL_SIZE as float / 2.0 {
+            self.ballY = self.height as float - 10.0 - BALL_SIZE as float / 2.0;
+            self.ballVY = -self.ballVY;
+        }
+        
+        // 玩家挡板碰撞
+        if self.checkPaddleCollision(self.playerPaddleX, self.playerPaddleY, self.playerPaddleWidth, self.playerPaddleHeight) {
+            self.ballVX = self.absFloat(self.ballVX);
+            
+            var paddleCenter = self.playerPaddleY as float + PADDLE_HEIGHT as float / 2.0;
+            var hitPos = self.ballY - paddleCenter;
+            self.ballVY = hitPos / (PADDLE_HEIGHT as float / 2.0) * self.ballSpeed as float;
+            
+            // 增加速度
+            if self.ballSpeed < BALL_MAX_SPEED {
+                self.ballSpeed = self.ballSpeed + 1;
+                var currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
+                self.ballVX = self.ballVX / currentSpeed * self.ballSpeed as float;
+                self.ballVY = self.ballVY / currentSpeed * self.ballSpeed as float;
+            }
+        }
+        
+        // 电脑挡板碰撞
+        if self.checkPaddleCollision(self.cpuPaddleX, self.cpuPaddleY, self.cpuPaddleWidth, self.cpuPaddleHeight) {
+            self.ballVX = -self.absFloat(self.ballVX);
+            
+            var paddleCenter = self.cpuPaddleY as float + PADDLE_HEIGHT as float / 2.0;
+            var hitPos = self.ballY - paddleCenter;
+            self.ballVY = hitPos / (PADDLE_HEIGHT as float / 2.0) * self.ballSpeed as float;
+            
+            // 增加速度
+            if self.ballSpeed < BALL_MAX_SPEED {
+                self.ballSpeed = self.ballSpeed + 1;
+                var currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
+                self.ballVX = self.ballVX / currentSpeed * self.ballSpeed as float;
+                self.ballVY = self.ballVY / currentSpeed * self.ballSpeed as float;
+            }
+        }
+        
+        // 边界出界 - 计分
+        if self.ballX < 0.0 {
+            self.cpuPaddleScore = self.cpuPaddleScore + 1;
+            self.resetBall(true);
+        }
+        
+        if self.ballX > self.width as float {
+            self.playerPaddleScore = self.playerPaddleScore + 1;
+            self.resetBall(false);
+        }
+    }
+    
+    // 检查挡板碰撞
+    private fn checkPaddleCollision(px: int, py: int, pw: int, ph: int) -> bool {
+        var ballLeft = self.ballX - BALL_SIZE as float / 2.0;
+        var ballRight = self.ballX + BALL_SIZE as float / 2.0;
+        var ballTop = self.ballY - BALL_SIZE as float / 2.0;
+        var ballBottom = self.ballY + BALL_SIZE as float / 2.0;
+        
+        var paddleLeft = px as float;
+        var paddleRight = (px + pw) as float;
+        var paddleTop = py as float;
+        var paddleBottom = (py + ph) as float;
+        
+        return ballRight >= paddleLeft && ballLeft <= paddleRight &&
+               ballBottom >= paddleTop && ballTop <= paddleBottom;
+    }
+    
+    // 重置球
+    private fn resetBall(toPlayer: bool) {
+        self.ballX = self.width as float / 2.0;
+        self.ballY = self.height as float / 2.0;
+        self.ballSpeed = BALL_SPEED;
+        self.ballVX = 0.0;
+        self.ballVY = 0.0;
+        self.gameStarted = false;
+    }
+    
+    // 检查胜负
+    private fn checkWinCondition() {
+        if self.playerPaddleScore >= WINNING_SCORE {
+            self.gameOver = true;
+            self.winner = "玩家";
+            self.setState(GameState.Won);
+        } else if self.cpuPaddleScore >= WINNING_SCORE {
+            self.gameOver = true;
+            self.winner = "电脑";
+            self.setState(GameState.Lost);
+        }
+    }
+    
+    // onRender - 渲染画面
+    pub fn onRender(canvas: Canvas) {
+        canvas.clear(Color.Black());
+        
+        self.drawBorder(canvas);
+        self.drawCenterLine(canvas);
+        self.drawScore(canvas);
+        self.drawPaddle(canvas, self.playerPaddleX, self.playerPaddleY, self.playerPaddleWidth, self.playerPaddleHeight);
+        self.drawPaddle(canvas, self.cpuPaddleX, self.cpuPaddleY, self.cpuPaddleWidth, self.cpuPaddleHeight);
+        self.drawBall(canvas);
+        
+        if !self.gameStarted && !self.gameOver {
+            self.drawStartMessage(canvas);
+        }
+        
+        if self.gameOver {
+            self.drawGameOver(canvas);
+        }
+    }
+    
+    // 绘制边框
+    private fn drawBorder(canvas: Canvas) {
+        canvas.drawLine(0, 50, self.width, 50, self.borderColor);
+        canvas.drawLine(0, self.height - 10, self.width, self.height - 10, self.borderColor);
+        canvas.drawLine(0, 50, 0, self.height - 10, self.borderColor);
+        canvas.drawLine(self.width - 1, 50, self.width - 1, self.height - 10, self.borderColor);
+    }
+    
+    // 绘制中线
+    private fn drawCenterLine(canvas: Canvas) {
+        var centerX = self.width / 2;
+        var dashHeight = 20;
+        var gapHeight = 10;
+        var y = 60;
+        
+        while y < self.height - 20 {
+            canvas.drawLine(centerX, y, centerX, y + dashHeight, Color.Gray());
+            y = y + dashHeight + gapHeight;
+        }
+    }
+    
+    // 绘制分数
+    private fn drawScore(canvas: Canvas) {
+        var font = Font.("Arial", 36);
+        
+        var playerText = self.intToString(self.playerPaddleScore);
+        canvas.drawText(self.width / 4, 15, playerText, Color.White(), font);
+        
+        var cpuText = self.intToString(self.cpuPaddleScore);
+        canvas.drawText(self.width * 3 / 4 - 30, 15, cpuText, Color.White(), font);
+        
+        canvas.drawText(self.width / 2 - 10, 15, "-", Color.Gray(), font);
+        
+        var smallFont = Font.("Arial", 14);
+        canvas.drawText(self.width / 4 - 20, 2, "玩家", Color.LightGray(), smallFont);
+        canvas.drawText(self.width * 3 / 4 - 30, 2, "电脑", Color.LightGray(), smallFont);
+    }
+    
+    // 绘制挡板
+    private fn drawPaddle(canvas: Canvas, x: int, y: int, w: int, h: int) {
+        canvas.fillRect(x, y, w, h, Color.White());
+    }
+    
+    // 绘制球
+    private fn drawBall(canvas: Canvas) {
+        canvas.fillCircle(self.ballX as int, self.ballY as int, BALL_SIZE / 2, Color.White());
+    }
+    
+    // 绘制开始提示
+    private fn drawStartMessage(canvas: Canvas) {
+        var font = Font.("Arial", 20);
+        var text = "按 空格键 开始发球";
+        canvas.drawText(self.width / 2 - 120, self.height / 2, text, Color.Yellow(), font);
+    }
+    
+    // 绘制游戏结束
+    private fn drawGameOver(canvas: Canvas) {
+        canvas.fillRect(0, 0, self.width, self.height, Color.ARGB(180, 0, 0, 0));
+        
+        var font = Font.("Arial", 48);
+        var text = self.winner ++ " 获胜!";
+        canvas.drawText(self.width / 2 - 140, self.height / 2 - 50, text, Color.Yellow(), font);
+        
+        var smallFont = Font.("Arial", 20);
+        var restartText = "按 R 键重新开始";
+        canvas.drawText(self.width / 2 - 100, self.height / 2 + 20, restartText, Color.White(), smallFont);
+    }
+    
+    // onKeyDown - 键盘按下
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.Up | VirtualKey.KeyW => {
+                self.keyUp = true;
+            }
+            VirtualKey.Down | VirtualKey.KeyS => {
+                self.keyDown = true;
+            }
+            VirtualKey.Space => {
+                if !self.gameStarted && !self.gameOver {
+                    self.gameStarted = true;
+                    var angle = (math.rand() % 60 - 30) as float;
+                    var direction: float = if math.rand() % 2 == 0 { 1.0 } else { -1.0 };
+                    self.ballVX = (self.ballSpeed as float) * self.cos(angle) * direction;
+                    self.ballVY = (self.ballSpeed as float) * self.sin(angle);
+                }
+            }
+            VirtualKey.KeyR => {
+                if self.gameOver {
+                    self.onInit();
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    // onKeyUp - 键盘释放
+    pub fn onKeyUp(key: VirtualKey) {
+        match key {
+            VirtualKey.Up | VirtualKey.KeyW => {
+                self.keyUp = false;
+            }
+            VirtualKey.Down | VirtualKey.KeyS => {
+                self.keyDown = false;
+            }
+            _ => {}
+        }
+    }
+    
+    // onMouseDown - 鼠标按下
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        if !self.gameStarted && !self.gameOver {
+            self.gameStarted = true;
+            var angle = (math.rand() % 60 - 30) as float;
+            var direction: float = if math.rand() % 2 == 0 { 1.0 } else { -1.0 };
+            self.ballVX = (self.ballSpeed as float) * self.cos(angle) * direction;
+            self.ballVY = (self.ballSpeed as float) * self.sin(angle);
+        }
+    }
+    
+    // onMouseUp - 鼠标释放
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+    }
+    
+    // ============ 辅助函数 ============
+    
+    fn absFloat(x: float) -> float {
+        return if x < 0.0 { -x } else { x };
+    }
+    
+    fn sqrtFloat(n: float) -> float {
+        if n < 0.0 {
+            return 0.0;
+        }
+        var x = n;
+        var y = 1.0;
+        while y < x {
+            x = (x + y) / 2.0;
+            y = n / x;
+        }
+        return x;
+    }
+    
+    fn cos(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = 1.0;
+        var term = 1.0;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn sin(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = rad;
+        var term = rad;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn intToString(n: int) -> str {
+        if n == 0 {
+            return "0";
+        }
+        var result = "";
+        var negative = false;
+        var num = n;
+        if num < 0 {
+            negative = true;
+            num = -num;
+        }
+        while num > 0 {
+            var digit = num % 10;
+            result = (digit as char + "") ++ result;
+            num = num / 10;
+        }
+        return if negative { "-" ++ result } else { result };
+    }
+}
