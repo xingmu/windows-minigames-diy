@@ -1,0 +1,829 @@
+// game_logic.zc - 赛艇游戏 (Boat Racing)
+// 063-Boat 水上赛道赛艇游戏
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const WINDOW_WIDTH: int = 800;
+const WINDOW_HEIGHT: int = 600;
+const LANE_COUNT: int = 4;
+const LANE_WIDTH: int = 80;
+const TRACK_LEFT: int = 120;
+const TRACK_RIGHT: int = TRACK_LEFT + LANE_COUNT * LANE_WIDTH;
+const WATER_TOP: int = 50;
+const WATER_BOTTOM: int = WATER_TOP + 500;
+
+const BOAT_WIDTH: int = 50;
+const BOAT_HEIGHT: int = 20;
+const BOAT_SPEED: int = 5;
+const ROWING_SPEED: int = 3;
+const ROWING_COOLDOWN: int = 300;
+
+const OBSTACLE_COUNT: int = 6;
+const FINISH_LINE_Y: int = 80;
+
+const MAX_LAPS_OR_TIME: int = 3;
+
+// ==================== 数据结构 ====================
+
+// 船只
+struct Boat {
+    x: float;
+    y: float;
+    vx: float;
+    vy: float;
+    lane: int;
+    rowing: bool;
+    rowingTimer: u32;
+    rowingFrame: int;
+    color: u32;
+    finished: bool;
+    finishTime: u32;
+    startTime: u32;
+}
+
+// 障碍物 / 其他船只
+struct Obstacle {
+    x: float;
+    y: float;
+    width: int;
+    height: int;
+    lane: int;
+    active: bool;
+    vy: float;
+    color: u32;
+}
+
+// 波浪点
+struct WavePoint {
+    x: float;
+    y: float;
+    phase: float;
+    amp: float;
+}
+
+// ==================== 赛艇游戏类 ====================
+
+pub class BoatGame extends Game {
+    // 玩家船只
+    playerBoat: Boat;
+    
+    // AI对手船只
+    aiBoats: Boat[3];
+    
+    // 障碍物
+    obstacles: Obstacle[OBSTACLE_COUNT];
+    
+    // 波浪点
+    wavePoints: WavePoint[32];
+    
+    // 赛道滚动偏移
+    trackOffset: int;
+    scrollSpeed: int;
+    
+    // 游戏状态
+    gameStarted: bool;
+    gameOver: bool;
+    winner: str;
+    raceTime: u32;
+    playerProgress: int;
+    aiFinished: int;
+    
+    // 按键状态
+    keyLeft: bool;
+    keyRight: bool;
+    keyUp: bool;
+    keyDown: bool;
+    keyRow: bool;
+    lastRowTime: u32;
+    
+    // 动画帧
+    animFrame: int;
+    animTimer: u32;
+    
+    // 水颜色
+    waterColors: u32[5];
+    
+    // onInit - 初始化游戏
+    pub fn onInit() {
+        self.setState(GameState.Playing);
+        self.gameStarted = false;
+        self.gameOver = false;
+        self.winner = "";
+        self.trackOffset = 0;
+        self.scrollSpeed = 2;
+        self.raceTime = 0;
+        self.playerProgress = 0;
+        self.aiFinished = 0;
+        
+        // 按键状态
+        self.keyLeft = false;
+        self.keyRight = false;
+        self.keyUp = false;
+        self.keyDown = false;
+        self.keyRow = false;
+        self.lastRowTime = 0;
+        
+        // 动画
+        self.animFrame = 0;
+        self.animTimer = getTickCount();
+        
+        // 水颜色渐变
+        self.waterColors[0] = Color.RGB(30, 90, 160);
+        self.waterColors[1] = Color.RGB(40, 110, 180);
+        self.waterColors[2] = Color.RGB(50, 130, 200);
+        self.waterColors[3] = Color.RGB(60, 140, 210);
+        self.waterColors[4] = Color.RGB(35, 100, 170);
+        
+        // 初始化玩家船只
+        self.initPlayerBoat();
+        
+        // 初始化AI船只
+        self.initAIBoats();
+        
+        // 初始化障碍物
+        self.initObstacles();
+        
+        // 初始化波浪
+        self.initWaves();
+    }
+    
+    fn initPlayerBoat() {
+        self.playerBoat.x = (TRACK_LEFT + TRACK_RIGHT) as float / 2.0;
+        self.playerBoat.y = WATER_BOTTOM - 80.0;
+        self.playerBoat.vx = 0.0;
+        self.playerBoat.vy = 0.0;
+        self.playerBoat.lane = LANE_COUNT / 2;
+        self.playerBoat.rowing = false;
+        self.playerBoat.rowingTimer = 0;
+        self.playerBoat.rowingFrame = 0;
+        self.playerBoat.color = Color.RGB(200, 80, 60);
+        self.playerBoat.finished = false;
+        self.playerBoat.finishTime = 0;
+        self.playerBoat.startTime = getTickCount();
+    }
+    
+    fn initAIBoats() {
+        var colors = [Color.RGB(60, 140, 60), Color.RGB(140, 60, 140), Color.RGB(180, 160, 40)];
+        var lanes = [0, 1, 3];
+        
+        for i in 0..3 {
+            self.aiBoats[i].x = (TRACK_LEFT + lanes[i] * LANE_WIDTH + LANE_WIDTH / 2) as float;
+            self.aiBoats[i].y = WATER_BOTTOM - 30.0 - i * 25 as float;
+            self.aiBoats[i].vx = 0.0;
+            self.aiBoats[i].vy = -(ROWING_SPEED as float + (i as float) * 0.3);
+            self.aiBoats[i].lane = lanes[i];
+            self.aiBoats[i].rowing = false;
+            self.aiBoats[i].rowingTimer = 0;
+            self.aiBoats[i].rowingFrame = i;
+            self.aiBoats[i].color = colors[i];
+            self.aiBoats[i].finished = false;
+            self.aiBoats[i].finishTime = 0;
+            self.aiBoats[i].startTime = getTickCount() - (i as u32) * 500;
+        }
+    }
+    
+    fn initObstacles() {
+        var colors = [Color.RGB(100, 80, 50), Color.RGB(80, 100, 50), Color.RGB(100, 100, 80)];
+        
+        for i in 0..OBSTACLE_COUNT {
+            var lane = i % LANE_COUNT;
+            self.obstacles[i].x = (TRACK_LEFT + lane * LANE_WIDTH + LANE_WIDTH / 2) as float;
+            self.obstacles[i].y = FINISH_LINE_Y + 100 + i * 80.0;
+            self.obstacles[i].width = 30 + (i % 3) * 10;
+            self.obstacles[i].height = 20 + (i % 2) * 8;
+            self.obstacles[i].lane = lane;
+            self.obstacles[i].active = true;
+            self.obstacles[i].vy = 0.5 + (i % 3) as float * 0.2;
+            self.obstacles[i].color = colors[i % 3];
+        }
+    }
+    
+    fn initWaves() {
+        for i in 0..32 {
+            self.wavePoints[i].x = (i * 25) as float;
+            self.wavePoints[i].y = 0.0;
+            self.wavePoints[i].phase = (i as float) * 0.5;
+            self.wavePoints[i].amp = 3.0 + (i % 4) as float * 1.5;
+        }
+    }
+    
+    // onShutdown - 关闭清理
+    pub fn onShutdown() {
+    }
+    
+    // onUpdate - 每帧更新
+    pub fn onUpdate(dt: u32) {
+        if self.gameOver {
+            return;
+        }
+        
+        self.raceTime = getTickCount() - self.playerBoat.startTime;
+        
+        // 更新动画帧
+        var now = getTickCount();
+        if now - self.animTimer > 100 {
+            self.animTimer = now;
+            self.animFrame = (self.animFrame + 1) % 4;
+        }
+        
+        // 如果游戏开始了，更新船只
+        if self.gameStarted {
+            self.updatePlayerBoat(dt);
+            self.updateAIBoats(dt);
+            self.updateObstacles(dt);
+            self.updateWaves(dt);
+            self.checkCollisions();
+            self.checkFinish();
+        }
+    }
+    
+    fn updatePlayerBoat(dt: u32) {
+        var currentTime = getTickCount();
+        
+        // 划船前进
+        if self.keyRow && currentTime - self.lastRowTime > ROWING_COOLDOWN as u32 {
+            self.lastRowTime = currentTime;
+            self.playerBoat.vy = -(ROWING_SPEED as float);
+            self.playerBoat.rowing = true;
+            self.playerBoat.rowingTimer = currentTime;
+        }
+        
+        // 更新划船动画
+        if self.playerBoat.rowing && currentTime - self.playerBoat.rowingTimer > 200 {
+            self.playerBoat.rowing = false;
+        }
+        
+        // 左右移动
+        if self.keyLeft {
+            self.playerBoat.vx = -BOAT_SPEED as float;
+        } else if self.keyRight {
+            self.playerBoat.vx = BOAT_SPEED as float;
+        } else {
+            self.playerBoat.vx = self.playerBoat.vx * 0.85;
+        }
+        
+        // 前进阻力
+        self.playerBoat.vy = self.playerBoat.vy * 0.95;
+        
+        // 更新位置
+        self.playerBoat.x = self.playerBoat.x + self.playerBoat.vx;
+        self.playerBoat.y = self.playerBoat.y + self.playerBoat.vy;
+        
+        // 边界检测
+        var boatLeft = self.playerBoat.x - BOAT_WIDTH as float / 2.0;
+        var boatRight = self.playerBoat.x + BOAT_WIDTH as float / 2.0;
+        
+        if boatLeft < TRACK_LEFT as float {
+            self.playerBoat.x = TRACK_LEFT as float + BOAT_WIDTH as float / 2.0;
+            self.playerBoat.vx = 0.0;
+        }
+        if boatRight > TRACK_RIGHT as float {
+            self.playerBoat.x = TRACK_RIGHT as float - BOAT_WIDTH as float / 2.0;
+            self.playerBoat.vx = 0.0;
+        }
+        
+        // 垂直边界
+        if self.playerBoat.y < FINISH_LINE_Y as float {
+            self.playerBoat.y = FINISH_LINE_Y as float;
+            self.playerBoat.vy = 0.0;
+        }
+        if self.playerBoat.y > WATER_BOTTOM as float - BOAT_HEIGHT as float {
+            self.playerBoat.y = WATER_BOTTOM as float - BOAT_HEIGHT as float;
+            self.playerBoat.vy = 0.0;
+        }
+        
+        // 更新进度
+        self.playerProgress = WATER_BOTTOM - self.playerBoat.y as int;
+    }
+    
+    fn updateAIBoats(dt: u32) {
+        for i in 0..3 {
+            if self.aiBoats[i].finished {
+                continue;
+            }
+            
+            // AI划船节奏
+            var currentTime = getTickCount();
+            var cycleTime = 400 + (i as u32) * 100;
+            if currentTime % cycleTime < 150 {
+                self.aiBoats[i].vy = -(ROWING_SPEED as float + (i as float) * 0.3);
+                self.aiBoats[i].rowing = true;
+                self.aiBoats[i].rowingTimer = currentTime;
+            } else {
+                self.aiBoats[i].rowing = false;
+                self.aiBoats[i].vy = self.aiBoats[i].vy * 0.9;
+            }
+            
+            // AI偶尔左右偏移
+            if currentTime % 2000 < 50 {
+                var dir = if currentTime % 400 < 200 { 1 } else { -1 };
+                self.aiBoats[i].vx = dir * (1.0 + i as float * 0.5);
+            } else {
+                self.aiBoats[i].vx = self.aiBoats[i].vx * 0.9;
+            }
+            
+            self.aiBoats[i].x = self.aiBoats[i].x + self.aiBoats[i].vx;
+            self.aiBoats[i].y = self.aiBoats[i].y + self.aiBoats[i].vy;
+            
+            // 边界
+            var laneCenter = TRACK_LEFT + self.aiBoats[i].lane * LANE_WIDTH + LANE_WIDTH / 2;
+            if self.aiBoats[i].x < TRACK_LEFT as float + 20.0 {
+                self.aiBoats[i].x = TRACK_LEFT as float + 20.0;
+            }
+            if self.aiBoats[i].x > TRACK_RIGHT as float - 20.0 {
+                self.aiBoats[i].x = TRACK_RIGHT as float - 20.0;
+            }
+            if self.aiBoats[i].y < FINISH_LINE_Y as float {
+                self.aiBoats[i].y = FINISH_LINE_Y as float;
+                self.aiBoats[i].finished = true;
+                self.aiBoats[i].finishTime = getTickCount() - self.aiBoats[i].startTime;
+            }
+        }
+    }
+    
+    fn updateObstacles(dt: u32) {
+        for i in 0..OBSTACLE_COUNT {
+            if !self.obstacles[i].active {
+                continue;
+            }
+            
+            self.obstacles[i].y = self.obstacles[i].y + self.obstacles[i].vy;
+            
+            // 重新出现在上方
+            if self.obstacles[i].y > WATER_BOTTOM as float + 50.0 {
+                self.obstacles[i].y = FINISH_LINE_Y as float - 20.0;
+                self.obstacles[i].lane = (self.obstacles[i].lane + 1) % LANE_COUNT;
+                self.obstacles[i].x = (TRACK_LEFT + self.obstacles[i].lane * LANE_WIDTH + LANE_WIDTH / 2) as float;
+            }
+        }
+    }
+    
+    fn updateWaves(dt: u32) {
+        for i in 0..32 {
+            self.wavePoints[i].phase = self.wavePoints[i].phase + 0.08;
+            self.wavePoints[i].y = self.wavePoints[i].amp * self.sin2(self.wavePoints[i].phase);
+        }
+    }
+    
+    fn checkCollisions() {
+        if self.playerBoat.finished {
+            return;
+        }
+        
+        for i in 0..OBSTACLE_COUNT {
+            if !self.obstacles[i].active {
+                continue;
+            }
+            
+            if self.boatObstacleCollision(self.playerBoat, self.obstacles[i]) {
+                // 撞到障碍物，速度降低
+                self.playerBoat.vx = self.playerBoat.vx * 0.3;
+                self.playerBoat.vy = self.playerBoat.vy * 0.5;
+                self.playerBoat.y = self.playerBoat.y + 10.0;
+            }
+        }
+        
+        // 与AI船碰撞
+        for i in 0..3 {
+            if self.aiBoats[i].finished {
+                continue;
+            }
+            
+            if self.boatsCollision(self.playerBoat, self.aiBoats[i]) {
+                self.playerBoat.vx = self.playerBoat.vx * -0.5;
+                self.playerBoat.vy = self.playerBoat.vy * 0.5;
+            }
+        }
+    }
+    
+    fn boatObstacleCollision(boat: Boat, obs: Obstacle) -> bool {
+        var bx = boat.x - BOAT_WIDTH as float / 2.0;
+        var by = boat.y - BOAT_HEIGHT as float / 2.0;
+        var bw = BOAT_WIDTH;
+        var bh = BOAT_HEIGHT;
+        
+        var ox = obs.x - obs.width as float / 2.0;
+        var oy = obs.y - obs.height as float / 2.0;
+        
+        return bx < ox + obs.width as float && bx + bw as float > ox &&
+               by < oy + obs.height as float && by + bh as float > oy;
+    }
+    
+    fn boatsCollision(b1: Boat, b2: Boat) -> bool {
+        var dx = b1.x - b2.x;
+        var dy = b1.y - b2.y;
+        var dist = self.sqrtFloat(dx*dx + dy*dy);
+        return dist < (BOAT_WIDTH as float);
+    }
+    
+    fn checkFinish() {
+        if !self.playerBoat.finished && self.playerBoat.y <= FINISH_LINE_Y as float + 5.0 {
+            self.playerBoat.finished = true;
+            self.playerBoat.finishTime = self.raceTime;
+            self.gameOver = true;
+            self.winner = "玩家";
+            self.setState(GameState.Won);
+            return;
+        }
+        
+        var allFinished = self.playerBoat.finished;
+        for i in 0..3 {
+            if !self.aiBoats[i].finished {
+                allFinished = false;
+            }
+        }
+        
+        if allFinished {
+            self.gameOver = true;
+            self.winner = "玩家";
+            self.setState(GameState.Won);
+        }
+    }
+    
+    // onRender - 渲染画面
+    pub fn onRender(canvas: Canvas) {
+        self.drawWater(canvas);
+        self.drawTrack(canvas);
+        self.drawWaves(canvas);
+        self.drawLaneMarkers(canvas);
+        self.drawObstacles(canvas);
+        self.drawAIBoats(canvas);
+        self.drawPlayerBoat(canvas);
+        self.drawFinishLine(canvas);
+        self.drawHUD(canvas);
+        
+        if !self.gameStarted && !self.gameOver {
+            self.drawStartMessage(canvas);
+        }
+        
+        if self.gameOver {
+            self.drawGameOver(canvas);
+        }
+    }
+    
+    fn drawWater(canvas: Canvas) {
+        // 背景 - 天空渐变
+        for y in 0..WATER_TOP {
+            var t = y as float / WATER_TOP as float;
+            var r = 135 + (200 - 135) as float * t;
+            var g = 206 + (235 - 206) as float * t;
+            var b = 235 + (255 - 235) as float * t;
+            canvas.drawLine(0, y, WINDOW_WIDTH, y, Color.RGB(r as int, g as int, b as int));
+        }
+        
+        // 水面
+        var waterTop = WATER_TOP;
+        for y in waterTop..WATER_BOTTOM {
+            var wave = self.sin2((y as float) * 0.05 + (self.animFrame as float) * 0.3) * 3.0;
+            var colorIdx = ((y + wave as int) % 50) / 10;
+            if colorIdx < 0 { colorIdx = 0; }
+            if colorIdx > 4 { colorIdx = 4; }
+            
+            var yWave = y + wave as int;
+            canvas.drawLine(0, y, WINDOW_WIDTH, y, self.waterColors[colorIdx as int]);
+        }
+        
+        // 水底区域
+        for y in WATER_BOTTOM..WINDOW_HEIGHT {
+            canvas.drawLine(0, y, WINDOW_WIDTH, y, Color.RGB(80, 60, 40));
+        }
+    }
+    
+    fn drawTrack(canvas: Canvas) {
+        // 赛道边框
+        canvas.drawLine(TRACK_LEFT, WATER_TOP, TRACK_LEFT, WATER_BOTTOM, Color.White());
+        canvas.drawLine(TRACK_RIGHT, WATER_TOP, TRACK_RIGHT, WATER_BOTTOM, Color.White());
+        
+        // 顶部边框
+        canvas.drawLine(0, WATER_TOP, WINDOW_WIDTH, WATER_TOP, Color.White());
+        canvas.drawLine(0, WATER_BOTTOM, WINDOW_WIDTH, WATER_BOTTOM, Color.White());
+    }
+    
+    fn drawWaves(canvas: Canvas) {
+        // 水面波纹
+        for lane in 0..LANE_COUNT {
+            var x = TRACK_LEFT + lane * LANE_WIDTH;
+            var prevY = WATER_TOP;
+            
+            for px in x..(x + LANE_WIDTH) {
+                var waveIdx = (px / 25) % 32;
+                var y = WATER_TOP + 5 + self.wavePoints[waveIdx].y as int;
+                if px > x && px < x + LANE_WIDTH - 1 {
+                    canvas.setPixel(px, y, Color.RGB(150, 200, 240));
+                }
+                prevY = y;
+            }
+        }
+    }
+    
+    fn drawLaneMarkers(canvas: Canvas) {
+        // 赛道分界线
+        for lane in 1..LANE_COUNT {
+            var x = TRACK_LEFT + lane * LANE_WIDTH;
+            var y = WATER_TOP + 10;
+            var dashLen = 0;
+            
+            while y < WATER_BOTTOM - 10 {
+                if dashLen < 20 {
+                    canvas.setPixel(x, y, Color.RGB(200, 220, 240));
+                }
+                y = y + 1;
+                dashLen = (dashLen + 1) % 40;
+            }
+        }
+    }
+    
+    fn drawObstacles(canvas: Canvas) {
+        for i in 0..OBSTACLE_COUNT {
+            if !self.obstacles[i].active {
+                continue;
+            }
+            
+            var x = self.obstacles[i].x as int - self.obstacles[i].width / 2;
+            var y = self.obstacles[i].y as int - self.obstacles[i].height / 2;
+            var w = self.obstacles[i].width;
+            var h = self.obstacles[i].height;
+            
+            // 木桩/岩石
+            canvas.fillRect(x, y, w, h, self.obstacles[i].color);
+            canvas.drawRect(x, y, w, h, Color.RGB(60, 40, 20));
+            
+            // 高光
+            canvas.fillRect(x + 2, y + 2, 4, 4, Color.RGB(180, 160, 120));
+        }
+    }
+    
+    fn drawPlayerBoat(canvas: Canvas) {
+        self.drawBoat(canvas, self.playerBoat, true);
+    }
+    
+    fn drawAIBoats(canvas: Canvas) {
+        for i in 0..3 {
+            self.drawBoat(canvas, self.aiBoats[i], false);
+        }
+    }
+    
+    fn drawBoat(canvas: Canvas, boat: Boat, isPlayer: bool) {
+        var cx = boat.x as int;
+        var cy = boat.y as int;
+        var w = BOAT_WIDTH;
+        var h = BOAT_HEIGHT;
+        
+        // 船体
+        var hullColor = boat.color;
+        canvas.fillRect(cx - w/2, cy - h/2, w, h, hullColor);
+        
+        // 船体描边
+        canvas.drawRect(cx - w/2, cy - h/2, w, h, Color.RGB(40, 20, 10));
+        
+        // 船头
+        canvas.fillCircle(cx, cy - h/2 - 5, 5, hullColor);
+        
+        // 划桨动画
+        var oarOffset = 0;
+        if boat.rowing {
+            oarOffset = self.animFrame % 2 == 0 ? -8 : 8;
+        }
+        
+        // 左侧划桨
+        canvas.drawLine(cx - w/2 - 5, cy, cx - w/2 - 20 + oarOffset, cy - 10, Color.RGB(139, 90, 43));
+        canvas.fillRect(cx - w/2 - 22 + oarOffset, cy - 14, 8, 12, Color.RGB(180, 140, 80));
+        
+        // 右侧划桨
+        canvas.drawLine(cx + w/2 + 5, cy, cx + w/2 + 20 - oarOffset, cy - 10, Color.RGB(139, 90, 43));
+        canvas.fillRect(cx + w/2 + 14 - oarOffset, cy - 14, 8, 12, Color.RGB(180, 140, 80));
+        
+        // 玩家标记
+        if isPlayer {
+            // 旗帜
+            canvas.fillRect(cx - 2, cy - h/2 - 15, 4, 12, Color.RGB(220, 200, 50));
+            canvas.fillRect(cx + 2, cy - h/2 - 15, 8, 6, Color.RGB(220, 50, 50));
+        }
+        
+        // 船体细节
+        canvas.drawLine(cx - w/3, cy - h/3, cx - w/3, cy + h/3, Color.RGB(40, 20, 10));
+        canvas.drawLine(cx + w/3, cy - h/3, cx + w/3, cy + h/3, Color.RGB(40, 20, 10));
+    }
+    
+    fn drawFinishLine(canvas: Canvas) {
+        var x = TRACK_LEFT;
+        var y = FINISH_LINE_Y;
+        var w = TRACK_RIGHT - TRACK_LEFT;
+        var h = 15;
+        
+        // 终点线 - 黑白格子
+        var squareSize = 15;
+        for row in 0..1 {
+            for col in 0..(w / squareSize) {
+                var sx = x + col * squareSize;
+                var sy = y + row * squareSize;
+                var color = if (row + col) % 2 == 0 { Color.Black() } else { Color.White() };
+                canvas.fillRect(sx, sy, squareSize, squareSize, color);
+            }
+        }
+        
+        // 终点杆
+        canvas.fillRect(x - 5, y - 30, 5, 50, Color.Red());
+        canvas.fillRect(x + w, y - 30, 5, 50, Color.Red());
+        
+        canvas.drawText(WINDOW_WIDTH / 2 - 40, FINISH_LINE_Y - 35, "终点线", Color.Yellow(), Font.("Arial", 12));
+    }
+    
+    fn drawHUD(canvas: Canvas) {
+        var font = Font.("Arial", 16);
+        var bigFont = Font.("Arial", 24);
+        
+        // 标题
+        canvas.drawText(10, 10, "赛艇大赛", Color.RGB(50, 50, 100), bigFont);
+        
+        // 玩家位置信息
+        var progressText = "距离终点: " ++ self.intToString(WATER_BOTTOM - self.playerBoat.y as int) ++ " 米";
+        canvas.drawText(10, 38, progressText, Color.White(), font);
+        
+        // 时间
+        var timeText = "时间: " ++ self.formatTime(self.raceTime);
+        canvas.drawText(WINDOW_WIDTH - 150, 10, timeText, Color.White(), font);
+        
+        // 玩家标记
+        canvas.drawText(10, WATER_TOP - 25, "玩家", Color.Yellow(), font);
+        
+        // AI标记
+        canvas.drawText(10, WATER_TOP - 10, "对手", Color.LightGray(), font);
+        
+        // 控制说明
+        if !self.gameStarted && !self.gameOver {
+            return;
+        }
+        canvas.drawText(WINDOW_WIDTH - 200, WATER_TOP - 25, "←→ 移动 空格 划船", Color.LightGray(), font);
+    }
+    
+    fn drawStartMessage(canvas: Canvas) {
+        canvas.fillRect(WINDOW_WIDTH/2 - 180, WINDOW_HEIGHT/2 - 80, 360, 160, Color.ARGB(200, 0, 50, 100));
+        canvas.drawRect(WINDOW_WIDTH/2 - 180, WINDOW_HEIGHT/2 - 80, 360, 160, Color.Yellow());
+        
+        var bigFont = Font.("Arial", 28);
+        var font = Font.("Arial", 16);
+        
+        canvas.drawText(WINDOW_WIDTH/2 - 80, WINDOW_HEIGHT/2 - 65, "赛艇大赛", Color.Yellow(), bigFont);
+        canvas.drawText(WINDOW_WIDTH/2 - 140, WINDOW_HEIGHT/2 - 30, "← →  左右移动", Color.White(), font);
+        canvas.drawText(WINDOW_WIDTH/2 - 140, WINDOW_HEIGHT/2 - 5, "空格键  划船前进", Color.White(), font);
+        canvas.drawText(WINDOW_WIDTH/2 - 100, WINDOW_HEIGHT/2 + 20, "按 空格键 开始", Color.LightGreen(), font);
+        canvas.drawText(WINDOW_WIDTH/2 - 100, WINDOW_HEIGHT/2 + 45, "率先到达终点即获胜!", Color.LightYellow(), font);
+    }
+    
+    fn drawGameOver(canvas: Canvas) {
+        canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(150, 0, 0, 50));
+        
+        var bigFont = Font.("Arial", 48);
+        var font = Font.("Arial", 20);
+        
+        if self.playerBoat.finished {
+            canvas.drawText(WINDOW_WIDTH/2 - 120, WINDOW_HEIGHT/2 - 80, "🎉 玩家获胜! 🎉", Color.Yellow(), bigFont);
+        } else {
+            canvas.drawText(WINDOW_WIDTH/2 - 120, WINDOW_HEIGHT/2 - 80, "比赛结束!", Color.Yellow(), bigFont);
+        }
+        
+        canvas.drawText(WINDOW_WIDTH/2 - 100, WINDOW_HEIGHT/2 - 20, "用时: " ++ self.formatTime(self.playerBoat.finishTime), Color.White(), font);
+        
+        // AI成绩
+        for i in 0..3 {
+            var name = "对手" ++ (i as str);
+            var time = self.formatTime(self.aiBoats[i].finishTime);
+            var color = if self.aiBoats[i].finished { Color.LightGray() } else { Color.Gray() };
+            canvas.drawText(WINDOW_WIDTH/2 - 80, WINDOW_HEIGHT/2 + 20 + i * 25, name ++ ": " ++ time, color, font);
+        }
+        
+        canvas.drawText(WINDOW_WIDTH/2 - 100, WINDOW_HEIGHT/2 + 110, "按 R 键重新开始", Color.LightGreen(), font);
+    }
+    
+    // onKeyDown - 键盘按下
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.Left | VirtualKey.KeyA => {
+                self.keyLeft = true;
+            }
+            VirtualKey.Right | VirtualKey.KeyD => {
+                self.keyRight = true;
+            }
+            VirtualKey.Up | VirtualKey.KeyW => {
+                self.keyUp = true;
+            }
+            VirtualKey.Down | VirtualKey.KeyS => {
+                self.keyDown = true;
+            }
+            VirtualKey.Space => {
+                if !self.gameStarted && !self.gameOver {
+                    self.gameStarted = true;
+                    self.playerBoat.startTime = getTickCount();
+                } else {
+                    self.keyRow = true;
+                }
+            }
+            VirtualKey.KeyR => {
+                if self.gameOver {
+                    self.onInit();
+                    self.gameStarted = true;
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    // onKeyUp - 键盘释放
+    pub fn onKeyUp(key: VirtualKey) {
+        match key {
+            VirtualKey.Left | VirtualKey.KeyA => {
+                self.keyLeft = false;
+            }
+            VirtualKey.Right | VirtualKey.KeyD => {
+                self.keyRight = false;
+            }
+            VirtualKey.Up | VirtualKey.KeyW => {
+                self.keyUp = false;
+            }
+            VirtualKey.Down | VirtualKey.KeyS => {
+                self.keyDown = false;
+            }
+            VirtualKey.Space => {
+                self.keyRow = false;
+            }
+            _ => {}
+        }
+    }
+    
+    // onMouseDown - 鼠标按下
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        if !self.gameStarted && !self.gameOver {
+            self.gameStarted = true;
+            self.playerBoat.startTime = getTickCount();
+        }
+    }
+    
+    // onMouseUp - 鼠标释放
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+    }
+    
+    // ============ 辅助函数 ============
+    
+    fn sin2(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = rad;
+        var term = rad;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn sqrtFloat(n: float) -> float {
+        if n < 0.0 {
+            return 0.0;
+        }
+        var x = n;
+        var y = 1.0;
+        while y < x {
+            x = (x + y) / 2.0;
+            y = n / x;
+        }
+        return x;
+    }
+    
+    fn formatTime(ms: u32) -> str {
+        var seconds = ms / 1000;
+        var minutes = seconds / 60;
+        var secs = seconds % 60;
+        var msecs = ms % 1000;
+        
+        var minStr = self.intToString(minutes as int);
+        var secStr = self.intToString(secs as int);
+        var msStr = self.intToString((msecs / 10) as int);
+        
+        if secs < 10 {
+            secStr = "0" ++ secStr;
+        }
+        return minStr ++ ":" ++ secStr ++ "." ++ msStr;
+    }
+    
+    fn intToString(n: int) -> str {
+        if n == 0 {
+            return "0";
+        }
+        var result = "";
+        var negative = false;
+        var num = n;
+        if num < 0 {
+            negative = true;
+            num = -num;
+        }
+        while num > 0 {
+            var digit = num % 10;
+            result = (digit as char + "") ++ result;
+            num = num / 10;
+        }
+        return if negative { "-" ++ result } else { result };
+    }
+}
