@@ -1,0 +1,731 @@
+// main_window.zc - Zen-C 纸牌接龙游戏主程序(Windows GUI版本)
+// 所有平台使用同一份Zen-C代码，通过条件编译处理平台差异
+
+import std.io;
+import std.string;
+
+// 导入游戏逻辑和平台API
+import "game_logic.zc";
+import "platform_api.zc";
+
+// ==================== 常量定义 ====================
+
+// 窗口和纸牌尺寸
+const WINDOW_WIDTH: i32 = 900;
+const WINDOW_HEIGHT: i32 = 700;
+const CARD_WIDTH: i32 = 70;
+const CARD_HEIGHT: i32 = 100;
+const CARD_SPACING: i32 = 15;
+const PILE_TOP_Y: i32 = 50;
+const PILE_LEFT_X: i32 = 30;
+const FOUNDATION_LEFT_X: i32 = 420;
+const STOCK_LEFT_X: i32 = 30;
+
+// tableau牌堆的初始X位置
+const TABLEAU_START_X: i32 = 30;
+// tableau牌堆之间的间距
+const TABLEAU_SPACING: i32 = 85;
+// tableau中每张牌的垂直偏移
+const TABLEAU_CARD_OFFSET: i32 = 25;
+
+// ==================== 颜色定义 ====================
+
+// 纸牌颜色
+const RED_COLOR = rgb(220, 50, 50);          // 红色(红心/方块)
+const BLACK_COLOR = rgb(30, 30, 30);         // 黑色(黑桃/梅花)
+const CARD_BACK_COLOR = rgb(30, 80, 180);    // 牌背面蓝色
+const CARD_FRONT_COLOR = rgb(250, 250, 250); // 牌正面白色
+const BACKGROUND_COLOR = rgb(34, 139, 34);    // 绿色背景(经典纸牌桌)
+const TEXT_COLOR = rgb(255, 255, 255);       // 白色文字
+const HIGHLIGHT_COLOR = rgb(255, 255, 0);    // 高亮选择
+const BORDER_COLOR = rgb(100, 100, 100);     // 边框颜色
+const EMPTY_PILE_COLOR = rgb(0, 100, 0);    // 空牌堆颜色
+
+// ==================== 图形上下文(简化版) ====================
+
+struct GraphicsContext {
+    dummy: i32
+}
+
+// ==================== 全局变量 ====================
+
+static mut game: GameState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut need_redraw: bool = true;
+static mut last_click_pile: i32 = -1;
+static mut last_click_time: u32 = 0;
+static mut window_width: i32 = WINDOW_WIDTH;
+static mut window_height: i32 = WINDOW_HEIGHT;
+
+// ==================== 绘制函数 ====================
+
+// 绘制矩形
+fn draw_rect(ctx: GraphicsContext, x: i32, y: i32, w: i32, h: i32, color: Color) {
+    let c = get_canvas();
+    c.fillRect(x, y, w, h, color);
+}
+
+// 绘制圆形
+fn draw_circle(ctx: GraphicsContext, cx: i32, cy: i32, radius: i32, color: Color) {
+    let c = get_canvas();
+    c.fillCircle(cx, cy, radius, color);
+}
+
+// 获取画布(全局函数，实际由框架提供)
+fn get_canvas() -> Canvas {
+    return FrameBufferCanvasInstance.get_instance();
+}
+
+// 简化画布单例
+private class FrameBufferCanvasInstance {
+    private static mut instance: FrameBufferCanvasInstance;
+    private static mut initialized: bool = false;
+    private static mut fb: rawptr;
+    private static mut pitch: i32;
+}
+
+impl FrameBufferCanvasInstance {
+    fn get_instance() -> Canvas {
+        return NullCanvas.{};
+    }
+}
+
+// 临时NullCanvas实现
+private class NullCanvas { }
+
+impl Canvas for NullCanvas {
+    fn clear(color: Color) {
+        var pixels = FrameBufferCanvasInstance.fb as u32 mut;
+        let count = (FrameBufferCanvasInstance.pitch * window_height) / 4;
+        for i in 0..count {
+            pixels[i] = color;
+        }
+    }
+    
+    fn setPixel(x: i32, y: i32, color: Color) {
+        if x < 0 || x >= window_width || y < 0 || y >= window_height { return; }
+        let offset = y * (FrameBufferCanvasInstance.pitch / 4) + x;
+        let pixels = FrameBufferCanvasInstance.fb as u32 mut;
+        pixels[offset] = color;
+    }
+    
+    fn getPixel(x: i32, y: i32) -> Color {
+        return Color.Black();
+    }
+    
+    fn drawLine(x1: i32, y1: i32, x2: i32, y2: i32, color: Color) {
+        // Bresenham
+        var dx = abs(x2 - x1);
+        var dy = abs(y2 - y1);
+        var sx = if x1 < x2 { 1 } else { -1 };
+        var sy = if y1 < y2 { 1 } else { -1 };
+        var err = dx - dy;
+        
+        loop {
+            self.setPixel(x1, y1, color);
+            if x1 == x2 && y1 == y2 { break; }
+            let e2 = 2 * err;
+            if e2 > -dy { err = err - dy; x1 = x1 + sx; }
+            if e2 < dx { err = err + dx; y1 = y1 + sy; }
+        }
+    }
+    
+    fn drawRect(x: i32, y: i32, w: i32, h: i32, color: Color) {
+        self.drawLine(x, y, x + w, y, color);
+        self.drawLine(x + w, y, x + w, y + h, color);
+        self.drawLine(x + w, y + h, x, y + h, color);
+        self.drawLine(x, y + h, x, y, color);
+    }
+    
+    fn fillRect(x: i32, y: i32, w: i32, h: i32, color: Color) {
+        for py in y..(y + h) {
+            for px in x..(x + w) {
+                self.setPixel(px, py, color);
+            }
+        }
+    }
+    
+    fn drawCircle(cx: i32, cy: i32, radius: i32, color: Color) {
+        for y in (-radius)..(radius + 1) {
+            for x in (-radius)..(radius + 1) {
+                if x*x + y*y <= radius * radius {
+                    self.setPixel(cx + x, cy + y, color);
+                }
+            }
+        }
+    }
+    
+    fn fillCircle(cx: i32, cy: i32, radius: i32, color: Color) {
+        self.drawCircle(cx, cy, radius, color);
+    }
+    
+    fn drawText(x: i32, y: i32, text: str, color: Color, font: Font) {
+        // 简化实现：绘制简单文本占位
+    }
+    
+    fn getWidth() -> i32 { return window_width; }
+    fn getHeight() -> i32 { return window_height; }
+}
+
+// ==================== 纸牌绘制 ====================
+
+// 绘制单张纸牌
+fn draw_card(ctx: GraphicsContext, x: i32, y: i32, card: Card, selected: bool) {
+    let c = get_canvas();
+    
+    // 绘制牌面
+    if card.card_id < 0 {
+        // 无效牌，绘制空矩形
+        c.fillRect(x, y, CARD_WIDTH, CARD_HEIGHT, EMPTY_PILE_COLOR);
+        c.drawRect(x, y, CARD_WIDTH, CARD_HEIGHT, BORDER_COLOR);
+        return;
+    }
+    
+    if card.face_up {
+        // 正面朝上
+        // 牌底色
+        c.fillRect(x, y, CARD_WIDTH, CARD_HEIGHT, CARD_FRONT_COLOR);
+        
+        // 牌边框
+        c.drawRect(x, y, CARD_WIDTH, CARD_HEIGHT, BORDER_COLOR);
+        
+        // 角标
+        let rank_name = card.get_rank_name();
+        let suit_name = get_suit_char(card.suit);
+        let card_color = if card.is_red() { RED_COLOR } else { BLACK_COLOR };
+        
+        // 左上角
+        draw_card_text(c, x + 5, y + 5, rank_name, card_color, 12);
+        draw_card_text(c, x + 5, y + 18, suit_name, card_color, 12);
+        
+        // 中间大花色
+        draw_card_text(c, x + CARD_WIDTH/2 - 12, y + CARD_HEIGHT/2 - 15, suit_name, card_color, 36);
+        
+        // 右下角(倒置)
+        draw_card_text(c, x + CARD_WIDTH - 18, y + CARD_HEIGHT - 20, rank_name, card_color, 12);
+        draw_card_text(c, x + CARD_WIDTH - 18, y + CARD_HEIGHT - 32, suit_name, card_color, 12);
+        
+    } else {
+        // 背面朝下
+        c.fillRect(x, y, CARD_WIDTH, CARD_HEIGHT, CARD_BACK_COLOR);
+        c.drawRect(x, y, CARD_WIDTH, CARD_HEIGHT, BORDER_COLOR);
+        
+        // 绘制背面装饰
+        let inner_x = x + 5;
+        let inner_y = y + 5;
+        let inner_w = CARD_WIDTH - 10;
+        let inner_h = CARD_HEIGHT - 10;
+        c.drawRect(inner_x, inner_y, inner_w, inner_h, rgb(100, 150, 255));
+        
+        // 绘制斜线装饰
+        for i in 0..8 {
+            c.drawLine(x + 5 + i*8, y + 5, x + CARD_WIDTH - 5, y + CARD_HEIGHT - 5 - i*8, rgb(100, 150, 255));
+        }
+    }
+    
+    // 如果选中，绘制高亮
+    if selected {
+        c.drawRect(x - 2, y - 2, CARD_WIDTH + 4, CARD_HEIGHT + 4, HIGHLIGHT_COLOR);
+    }
+}
+
+// 绘制纸牌上的文字(简化版，使用矩形代替)
+fn draw_card_text(canvas: Canvas, x: i32, y: i32, text: str, color: Color, size: i32) {
+    // 简化实现：绘制小矩形表示文字
+    let len = len(text);
+    for i in 0..len {
+        canvas.fillRect(x + i * (size/2), y, size/3, size/2, color);
+    }
+}
+
+// 绘制空牌堆位置
+fn draw_empty_pile(ctx: GraphicsContext, x: i32, y: i32, label: str) {
+    let c = get_canvas();
+    c.fillRect(x, y, CARD_WIDTH, CARD_HEIGHT, EMPTY_PILE_COLOR);
+    c.drawRect(x, y, CARD_WIDTH, CARD_HEIGHT, BORDER_COLOR);
+    
+    // 绘制标签
+    let label_len = len(label);
+    for i in 0..label_len {
+        c.fillRect(x + 10 + i * 6, y + CARD_HEIGHT/2 - 4, 4, 8, rgb(150, 150, 150));
+    }
+}
+
+// 绘制stock(牌库)
+fn draw_stock(ctx: GraphicsContext) {
+    let x = STOCK_LEFT_X;
+    let y = PILE_TOP_Y;
+    
+    if game.stock.is_empty() {
+        // 绘制回收图标
+        draw_empty_pile(ctx, x, y, "R");
+        // 绘制循环箭头提示
+        let c = get_canvas();
+        c.drawCircle(x + CARD_WIDTH/2, y + CARD_HEIGHT/2, 15, rgb(150, 150, 150));
+        c.fillCircle(x + CARD_WIDTH/2, y + CARD_HEIGHT/2, 8, rgb(100, 100, 100));
+    } else {
+        // 绘制牌背
+        let card = Card.{ suit: Suit::Hearts, rank: 1, face_up: false, card_id: 0 };
+        draw_card(ctx, x, y, card, false);
+    }
+}
+
+// 绘制waste(弃牌堆)
+fn draw_waste(ctx: GraphicsContext) {
+    let x = STOCK_LEFT_X + CARD_WIDTH + CARD_SPACING + CARD_SPACING;
+    let y = PILE_TOP_Y;
+    
+    if game.waste.is_empty() {
+        draw_empty_pile(ctx, x, y, "W");
+    } else {
+        let card = game.waste.get_top();
+        let is_selected = game.selected_pile == 7;
+        draw_card(ctx, x, y, card, is_selected);
+    }
+}
+
+// 绘制foundation(4个花色堆)
+fn draw_foundations(ctx: GraphicsContext) {
+    for i in 0..FOUNDATION_PILES {
+        let x = FOUNDATION_LEFT_X + i * (CARD_WIDTH + CARD_SPACING);
+        let y = PILE_TOP_Y;
+        
+        if game.foundation[i].is_empty() {
+            // 绘制空花色堆标记
+            draw_empty_pile(ctx, x, y, match i { 0 => "H", 1 => "D", 2 => "C", _ => "S" });
+            // 绘制花色符号
+            let c = get_canvas();
+            let suit_char = match i {
+                0 => Suit::Hearts,
+                1 => Suit::Diamonds,
+                2 => Suit::Clubs,
+                _ => Suit::Spades
+            };
+            let color = if is_red(suit_char) { RED_COLOR } else { BLACK_COLOR };
+            // 绘制简化花色
+            c.fillCircle(x + CARD_WIDTH/2, y + CARD_HEIGHT/2, 12, color);
+        } else {
+            let card = game.foundation[i].get_top();
+            draw_card(ctx, x, y, card, false);
+        }
+    }
+}
+
+// 绘制tableau(7个游戏牌堆)
+fn draw_tableau(ctx: GraphicsContext) {
+    for pile in 0..TABLEAU_PILES {
+        let x = TABLEAU_START_X + pile * TABLEAU_SPACING;
+        
+        if game.tableau[pile].is_empty() {
+            // 只能放King的空位
+            draw_empty_pile(ctx, x, PILE_TOP_Y, "K");
+        } else {
+            let count = game.tableau[pile].len();
+            for i in 0..count {
+                let card = game.tableau[pile].get(i);
+                let y = PILE_TOP_Y + i * TABLEAU_CARD_OFFSET;
+                let is_selected = game.selected_pile == pile && game.selected_index == i;
+                draw_card(ctx, x, y, card, is_selected);
+                
+                // 如果选中了这个牌，后续的牌也要高亮
+                if is_selected {
+                    // 绘制向下箭头指示可选
+                    let c = get_canvas();
+                    c.fillCircle(x + CARD_WIDTH/2, y + CARD_HEIGHT + 5, 4, HIGHLIGHT_COLOR);
+                }
+            }
+        }
+    }
+}
+
+// 绘制整个游戏界面
+fn draw_game(ctx: GraphicsContext) {
+    let c = get_canvas();
+    
+    // 清屏
+    c.clear(BACKGROUND_COLOR);
+    
+    // 绘制顶部信息条
+    c.fillRect(0, 0, window_width, 40, rgb(20, 100, 20));
+    
+    // 绘制标题
+    draw_centered_text("纸牌接龙 Solitaire", window_width/2 - 100, 10, TEXT_COLOR);
+    
+    // 绘制统计信息
+    let stats = get_stats_text(&game);
+    draw_centered_text(stats, window_width/2 - 100, 25, TEXT_COLOR);
+    
+    // 绘制牌堆
+    draw_stock(ctx);
+    draw_waste(ctx);
+    draw_foundations(ctx);
+    draw_tableau(ctx);
+    
+    // 绘制底部信息
+    c.fillRect(0, window_height - 40, window_width, 40, rgb(20, 100, 20));
+    let controls = get_controls_text();
+    draw_centered_text(controls, 20, window_height - 30, TEXT_COLOR);
+    
+    // 如果游戏胜利，显示祝贺信息
+    if game.game_won {
+        // 半透明遮罩
+        c.fillRect(0, 0, window_width, window_height, rgb(0, 0, 0));
+        // 绘制祝贺框
+        let box_x = window_width/2 - 200;
+        let box_y = window_height/2 - 80;
+        c.fillRect(box_x, box_y, 400, 160, rgb(0, 100, 0));
+        c.drawRect(box_x, box_y, 400, 160, TEXT_COLOR);
+        draw_centered_text("🎉 恭喜通关! 🎉", box_x + 200 - 80, box_y + 30, rgb(255, 255, 0));
+        draw_centered_text("您完成了纸牌接龙!", box_x + 200 - 70, box_y + 60, TEXT_COLOR);
+        draw_centered_text("按 N 开始新游戏", box_x + 200 - 70, box_y + 100, TEXT_COLOR);
+    }
+    
+    // 输出调试信息
+    io.println(get_stats_text(&game));
+}
+
+// 绘制居中文字(简化)
+fn draw_centered_text(text: str, x: i32, y: i32, color: Color) {
+    let c = get_canvas();
+    let len = len(text);
+    // 简化：用小方块代替文字
+    for i in 0..len {
+        c.fillRect(x + i * 7, y, 5, 10, color);
+    }
+}
+
+// ==================== 事件处理 ====================
+
+// 获取点击的牌堆信息
+fn get_pile_at(x: i32, y: i32) -> (i32, i32, i32) {
+    // 返回 (pile_type, pile_index, card_index)
+    // pile_type: -1=无效, 0=stock, 1=waste, 2=foundation, 3=tableau
+    // pile_index: 牌堆索引
+    // card_index: 牌的索引(仅对tableau有意义)
+    
+    // 检查stock
+    if x >= STOCK_LEFT_X && x < STOCK_LEFT_X + CARD_WIDTH &&
+       y >= PILE_TOP_Y && y < PILE_TOP_Y + CARD_HEIGHT {
+        return (0, 0, 0);
+    }
+    
+    // 检查waste
+    let waste_x = STOCK_LEFT_X + CARD_WIDTH + CARD_SPACING + CARD_SPACING;
+    if x >= waste_x && x < waste_x + CARD_WIDTH &&
+       y >= PILE_TOP_Y && y < PILE_TOP_Y + CARD_HEIGHT {
+        return (1, 0, 0);
+    }
+    
+    // 检查foundation
+    for i in 0..FOUNDATION_PILES {
+        let fx = FOUNDATION_LEFT_X + i * (CARD_WIDTH + CARD_SPACING);
+        if x >= fx && x < fx + CARD_WIDTH &&
+           y >= PILE_TOP_Y && y < PILE_TOP_Y + CARD_HEIGHT {
+            return (2, i, 0);
+        }
+    }
+    
+    // 检查tableau
+    for pile in 0..TABLEAU_PILES {
+        let tx = TABLEAU_START_X + pile * TABLEAU_SPACING;
+        
+        // 检查这个牌堆的所有牌
+        let pile_height = if game.tableau[pile].len() > 0 {
+            PILE_TOP_Y + game.tableau[pile].len() * TABLEAU_CARD_OFFSET + CARD_HEIGHT
+        } else {
+            PILE_TOP_Y + CARD_HEIGHT
+        };
+        
+        if x >= tx && x < tx + CARD_WIDTH &&
+           y >= PILE_TOP_Y && y < pile_height {
+            // 计算点击的是哪张牌
+            let card_index = (y - PILE_TOP_Y) / TABLEAU_CARD_OFFSET;
+            if card_index >= game.tableau[pile].len() {
+                return (3, pile, game.tableau[pile].len() - 1);
+            }
+            return (3, pile, card_index);
+        }
+    }
+    
+    return (-1, -1, -1);
+}
+
+// 处理鼠标点击
+fn handle_click(x: i32, y: i32) {
+    let (pile_type, pile_index, card_index) = get_pile_at(x, y);
+    
+    if pile_type < 0 {
+        deselect(&mut game);
+        need_redraw = true;
+        return;
+    }
+    
+    let now = getTickCount();
+    let is_double_click = (now - last_click_time < 300) && (last_click_pile == pile_type * 100 + pile_index);
+    last_click_time = now;
+    last_click_pile = pile_type * 100 + pile_index;
+    
+    if pile_type == 0 {
+        // 点击stock，翻牌
+        draw_from_stock(&mut game);
+        need_redraw = true;
+        return;
+    }
+    
+    if pile_type == 1 {
+        // 点击waste
+        if game.selected_pile >= 0 && game.selected_pile < TABLEAU_PILES {
+            // 尝试移动到tableau
+            if move_waste_to_tableau(&mut game, pile_index) {
+                need_redraw = true;
+                return;
+            }
+        }
+        if game.selected_pile == 7 {
+            // 已经选中了waste的牌，尝试移动到foundation
+            for i in 0..FOUNDATION_PILES {
+                if move_waste_to_foundation(&mut game, i) {
+                    need_redraw = true;
+                    return;
+                }
+            }
+        }
+        // 选择waste的牌
+        select_card(&mut game, 1, pile_index, card_index);
+        need_redraw = true;
+        return;
+    }
+    
+    if pile_type == 2 {
+        // 点击foundation
+        if game.selected_pile >= 0 && game.selected_pile < TABLEAU_PILES {
+            // 尝试从tableau移动到foundation
+            if game.selected_index == game.tableau[game.selected_pile].len() - 1 {
+                // 只能移动顶牌
+                let old_pile = game.selected_pile;
+                if move_tableau_to_foundation(&mut game, old_pile) {
+                    need_redraw = true;
+                    return;
+                }
+            }
+        }
+        if game.selected_pile == 7 {
+            // 从waste移动
+            for i in 0..FOUNDATION_PILES {
+                if move_waste_to_foundation(&mut game, i) {
+                    need_redraw = true;
+                    return;
+                }
+            }
+        }
+        deselect(&mut game);
+        need_redraw = true;
+        return;
+    }
+    
+    if pile_type == 3 {
+        // 点击tableau
+        if game.selected_pile >= 0 && game.selected_pile < TABLEAU_PILES && game.selected_pile != pile_index {
+            // 从一个tableau移动到另一个
+            if move_tableau_to_tableau(&mut game, game.selected_pile, pile_index, game.selected_index) {
+                need_redraw = true;
+                return;
+            }
+        }
+        
+        if game.selected_pile == 7 {
+            // 从waste移动
+            if move_waste_to_tableau(&mut game, pile_index) {
+                need_redraw = true;
+                return;
+            }
+        }
+        
+        if game.selected_pile == pile_index {
+            // 点击同一个pile
+            let card = game.tableau[pile_index].get(card_index);
+            if card.face_up {
+                if card_index == game.tableau[pile_index].len() - 1 {
+                    // 点击顶牌，尝试自动移动到foundation
+                    if is_double_click || auto_move_to_foundation(&mut game) {
+                        need_redraw = true;
+                        return;
+                    }
+                }
+                // 选中
+                game.selected_index = card_index;
+            }
+        } else {
+            // 选择牌
+            let card = game.tableau[pile_index].get(card_index);
+            if card.face_up {
+                game.selected_pile = pile_index;
+                game.selected_index = card_index;
+            }
+        }
+        need_redraw = true;
+        return;
+    }
+    
+    deselect(&mut game);
+    need_redraw = true;
+}
+
+// 处理键盘事件
+fn handle_key(key: VirtualKey) -> bool {
+    match key {
+        VirtualKey::Space => {
+            draw_from_stock(&mut game);
+            need_redraw = true;
+            return true;
+        },
+        VirtualKey::KeyN => {
+            init_game(&mut game);
+            need_redraw = true;
+            return true;
+        },
+        VirtualKey::Escape => {
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+// ==================== 窗口事件处理 ====================
+
+fn on_paint() {
+    let ctx = GraphicsContext.{ dummy: 0 };
+    
+    let fb = getFrameBuffer(window);
+    let pitch = getFrameBufferPitch(window);
+    FrameBufferCanvasInstance.fb = fb;
+    FrameBufferCanvasInstance.pitch = pitch;
+    
+    draw_game(ctx);
+    presentFrame(window);
+    need_redraw = false;
+}
+
+fn on_key_down(key: VirtualKey) {
+    if !handle_key(key) {
+        running = false;
+        postQuitMessage(window);
+    }
+    need_redraw = true;
+}
+
+fn on_mouse_down(x: i32, y: i32, button: MouseButton) {
+    if button == MouseButton::Left {
+        handle_click(x, y);
+    }
+}
+
+// ==================== 主函数 ====================
+
+#if IS_WINDOWS
+
+extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
+    match uMsg {
+        WM_PAINT => {
+            if need_redraw {
+                on_paint();
+            }
+            return 0;
+        },
+        
+        WM_KEYDOWN => {
+            on_key_down(wParam as VirtualKey);
+            return 0;
+        },
+        
+        WM_LBUTTONDOWN => {
+            let x = (lParam & 0xFFFF) as i32;
+            let y = ((lParam >> 16) & 0xFFFF) as i32;
+            on_mouse_down(x, y, MouseButton::Left);
+            return 0;
+        },
+        
+        WM_DESTROY => {
+            running = false;
+            postQuitMessage(hwnd);
+            return 0;
+        },
+        
+        _ => {
+            return DefWindowProcA(hwnd, uMsg, wParam, lParam);
+        }
+    }
+}
+
+extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32;
+
+#endif
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C 纸牌接龙游戏 (Klondike Solitaire)");
+    io.println("========================================");
+    io.println("平台: {}", 
+        #if IS_WINDOWS
+            "Windows"
+        #elif IS_LINUX
+            "Linux"
+        #elif IS_MACOS
+            "macOS"
+        #else
+            "未知"
+        #endif
+    );
+    io.println("========================================");
+    
+    // 初始化游戏
+    game = GameState {
+        tableau: [CardPile.new(); TABLEAU_PILES],
+        foundation: [CardPile.new(); FOUNDATION_PILES],
+        stock: CardPile.new(),
+        waste: CardPile.new(),
+        selected_pile: -1,
+        selected_index: -1,
+        game_won: false,
+        game_started: false,
+        stats: GameStats.new()
+    };
+    
+    init_game(&mut game);
+    
+    // 创建窗口
+    let window_title = "Zen-C 纸牌接龙 Solitaire";
+    window = createWindow(window_title, WINDOW_WIDTH, WINDOW_HEIGHT);
+    
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+    
+    io.println("窗口创建成功!");
+    io.println("游戏已初始化");
+    io.println("使用鼠标点击操作");
+    io.println("按 ESC 退出游戏");
+    io.println("========================================");
+    
+    // 初始化画布
+    FrameBufferCanvasInstance.fb = getFrameBuffer(window);
+    FrameBufferCanvasInstance.pitch = getFrameBufferPitch(window);
+    
+    // 首次绘制
+    need_redraw = true;
+    on_paint();
+    
+    // 运行事件循环
+    run_event_loop(window);
+    
+    io.println("游戏结束!");
+    io.println("最终统计: {}", get_stats_text(&game));
+    io.println("谢谢游玩 Zen-C 纸牌接龙!");
+    io.println("========================================");
+    
+    quit_application();
+    0
+}

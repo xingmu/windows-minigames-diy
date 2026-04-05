@@ -1,0 +1,29 @@
+# Zen-C 编译输出
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 构建目录
+build/
+dist/
+
+# 临时文件
+*.tmp
+*.bak
+*.swp
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log

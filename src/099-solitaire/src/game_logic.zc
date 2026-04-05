@@ -1,0 +1,643 @@
+// game_logic.zc - Zen-C 纸牌接龙(Klondike Solitaire)游戏逻辑
+// 所有平台共用相同的游戏逻辑代码
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const TOTAL_CARDS: i32 = 52;
+const SUITS: i32 = 4;
+const RANKS_PER_SUIT: i32 = 13;
+const TABLEAU_PILES: i32 = 7;
+const FOUNDATION_PILES: i32 = 4;
+
+// ==================== 颜色定义 ====================
+
+// 纸牌颜色
+enum Suit {
+    Hearts,   // 红心
+    Diamonds, // 方块
+    Clubs,    // 梅花
+    Spades    // 黑桃
+}
+
+// 花色判断 - 红桃/方块为红色，黑桃/梅花为黑色
+fn is_red(suit: Suit) -> bool {
+    match suit {
+        Suit::Hearts, Suit::Diamonds => true,
+        _ => false
+    }
+}
+
+// ==================== 数据结构 ====================
+
+// 扑克牌
+struct Card {
+    suit: Suit,
+    rank: i32,      // 1=Ace, 2=2, ..., 10=10, 11=Jack, 12=Queen, 13=King
+    face_up: bool,
+    card_id: i32    // 0-51 唯一标识
+}
+
+impl Card {
+    // 获取花色名称
+    fn get_suit_name(self) -> string {
+        match self.suit {
+            Suit::Hearts => "H",
+            Suit::Diamonds => "D",
+            Suit::Clubs => "C",
+            Suit::Spades => "S"
+        }
+    }
+    
+    // 获取点数名称
+    fn get_rank_name(self) -> string {
+        match self.rank {
+            1 => "A",
+            2 => "2",
+            3 => "3",
+            4 => "4",
+            5 => "5",
+            6 => "6",
+            7 => "7",
+            8 => "8",
+            9 => "9",
+            10 => "10",
+            11 => "J",
+            12 => "Q",
+            13 => "K",
+            _ => "?"
+        }
+    }
+    
+    // 是否红色
+    fn is_red(self) -> bool {
+        is_red(self.suit)
+    }
+}
+
+// 纸牌堆（动态数组）
+struct CardPile {
+    cards: [TOTAL_CARDS]Card,
+    count: i32
+}
+
+impl CardPile {
+    fn new() -> CardPile {
+        CardPile {
+            cards: [Card.{ suit: Suit::Hearts, rank: 1, face_up: false, card_id: 0 }; TOTAL_CARDS],
+            count: 0
+        }
+    }
+    
+    fn push(mut self, card: Card) {
+        if self.count < TOTAL_CARDS {
+            self.cards[self.count] = card;
+            self.count += 1;
+        }
+    }
+    
+    fn pop(mut self) -> Card {
+        if self.count > 0 {
+            self.count -= 1;
+            return self.cards[self.count];
+        }
+        return Card.{ suit: Suit::Hearts, rank: 1, face_up: false, card_id: -1 };
+    }
+    
+    fn get(self, index: i32) -> Card {
+        if index >= 0 && index < self.count {
+            return self.cards[index];
+        }
+        return Card.{ suit: Suit::Hearts, rank: 1, face_up: false, card_id: -1 };
+    }
+    
+    fn get_top(self) -> Card {
+        if self.count > 0 {
+            return self.cards[self.count - 1];
+        }
+        return Card.{ suit: Suit::Hearts, rank: 1, face_up: false, card_id: -1 };
+    }
+    
+    fn remove_top(mut self) {
+        if self.count > 0 {
+            self.count -= 1;
+        }
+    }
+    
+    fn is_empty(self) -> bool {
+        self.count == 0
+    }
+    
+    fn len(self) -> i32 {
+        self.count
+    }
+}
+
+// 游戏中所有牌堆的位置信息
+struct PilePosition {
+    x: i32,
+    y: i32
+}
+
+// 游戏统计
+struct GameStats {
+    moves: i32,
+    start_time: u64,
+    elapsed_seconds: i32
+}
+
+impl GameStats {
+    fn new() -> GameStats {
+        GameStats {
+            moves: 0,
+            start_time: 0,
+            elapsed_seconds: 0
+        }
+    }
+    
+    fn increment_moves(mut self) {
+        self.moves += 1;
+    }
+    
+    fn update_elapsed(mut self) {
+        if self.start_time > 0 {
+            let now = time.now().nanos() / 1_000_000_000;
+            self.elapsed_seconds = (now - self.start_time) as i32;
+        }
+    }
+}
+
+// 游戏状态
+struct GameState {
+    // 7个tableau牌堆
+    tableau: [TABLEAU_PILES]CardPile,
+    // 4个foundation牌堆(从A到K按花色叠放)
+    foundation: [FOUNDATION_PILES]CardPile,
+    // 牌库(剩余的牌)
+    stock: CardPile,
+    // 弃牌堆(当前可见的牌)
+    waste: CardPile,
+    // 已选择的牌信息
+    selected_pile: i32,     // -1=未选中, 0-6=tableau, 7=waste
+    selected_index: i32,    // 在牌堆中的索引
+    // 游戏状态
+    game_won: bool,
+    game_started: bool,
+    // 统计
+    stats: GameStats
+}
+
+// ==================== 初始化函数 ====================
+
+// 创建一副新牌
+fn create_deck() -> CardPile {
+    let mut deck = CardPile.new();
+    let mut card_id = 0;
+    
+    for suit in 0..SUITS {
+        for rank in 1..=RANKS_PER_SUIT {
+            let card = Card {
+                suit: match suit {
+                    0 => Suit::Hearts,
+                    1 => Suit::Diamonds,
+                    2 => Suit::Clubs,
+                    _ => Suit::Spades
+                },
+                rank: rank,
+                face_up: false,
+                card_id: card_id
+            };
+            deck.push(card);
+            card_id += 1;
+        }
+    }
+    
+    return deck;
+}
+
+// 洗牌 - Fisher-Yates 算法
+fn shuffle_deck(mut deck: CardPile) {
+    let seed = time.now().nanos();
+    math.srand(seed as u32);
+    
+    for i in (1..deck.count).rev() {
+        let j = math.rand() % (i + 1);
+        // 交换cards[i]和cards[j]
+        let temp = deck.cards[i];
+        deck.cards[i] = deck.cards[j];
+        deck.cards[j] = temp;
+    }
+}
+
+// 初始化游戏
+fn init_game(game: &mut GameState) {
+    // 初始化随机数种子
+    let seed = time.now().nanos();
+    math.srand(seed as u32);
+    
+    // 创建并洗牌
+    let mut deck = create_deck();
+    shuffle_deck(deck);
+    
+    // 初始化各牌堆
+    for i in 0..TABLEAU_PILES {
+        game.tableau[i] = CardPile.new();
+    }
+    for i in 0..FOUNDATION_PILES {
+        game.foundation[i] = CardPile.new();
+    }
+    game.stock = CardPile.new();
+    game.waste = CardPile.new();
+    
+    // 发牌到7个tableau
+    let mut card_index = 0;
+    for pile in 0..TABLEAU_PILES {
+        for card_num in 0..=pile {
+            let mut card = deck.get(card_index);
+            card_index += 1;
+            // 每摞最上面的牌要翻开
+            if card_num == pile {
+                card.face_up = true;
+            }
+            game.tableau[pile].push(card);
+        }
+    }
+    
+    // 剩余的牌放入stock
+    while card_index < TOTAL_CARDS {
+        let mut card = deck.get(card_index);
+        card.face_up = false;  // stock中的牌默认不翻开
+        game.stock.push(card);
+        card_index += 1;
+    }
+    
+    // 初始化游戏状态
+    game.selected_pile = -1;
+    game.selected_index = -1;
+    game.game_won = false;
+    game.game_started = true;
+    game.stats = GameStats.new();
+    game.stats.start_time = (time.now().nanos() / 1_000_000_000) as u64;
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 从stock翻牌到waste
+fn draw_from_stock(game: &mut GameState) {
+    if game.stock.is_empty() {
+        // stock为空，把waste的牌全部回收(正面朝下)
+        while !game.waste.is_empty() {
+            let mut card = game.waste.pop();
+            card.face_up = false;
+            game.stock.push(card);
+        }
+    } else {
+        // 从stock翻一张牌到waste
+        let mut card = game.stock.pop();
+        card.face_up = true;
+        game.waste.push(card);
+    }
+    game.stats.increment_moves();
+}
+
+// 移动waste的牌(只能移动顶牌)
+fn move_waste_to_tableau(game: &mut GameState, tableau_index: i32) -> bool {
+    if game.waste.is_empty() {
+        return false;
+    }
+    
+    let waste_card = game.waste.get_top();
+    
+    // 检查是否可以放到tableau
+    if can_place_on_tableau(waste_card, game.tableau[tableau_index]) {
+        let card = game.waste.pop();
+        game.tableau[tableau_index].push(card);
+        game.selected_pile = -1;
+        game.selected_index = -1;
+        game.stats.increment_moves();
+        check_win_condition(game);
+        return true;
+    }
+    
+    return false;
+}
+
+// 移动waste的牌到foundation
+fn move_waste_to_foundation(game: &mut GameState, foundation_index: i32) -> bool {
+    if game.waste.is_empty() {
+        return false;
+    }
+    
+    let waste_card = game.waste.get_top();
+    
+    // 检查是否可以放到foundation
+    if can_place_on_foundation(waste_card, game.foundation[foundation_index], foundation_index) {
+        let card = game.waste.pop();
+        game.foundation[foundation_index].push(card);
+        game.selected_pile = -1;
+        game.selected_index = -1;
+        game.stats.increment_moves();
+        check_win_condition(game);
+        return true;
+    }
+    
+    return false;
+}
+
+// 移动tableau的牌到另一个tableau
+fn move_tableau_to_tableau(game: &mut GameState, from_pile: i32, to_pile: i32, card_index: i32) -> bool {
+    if from_pile < 0 || from_pile >= TABLEAU_PILES || to_pile < 0 || to_pile >= TABLEAU_PILES {
+        return false;
+    }
+    
+    if card_index < 0 || card_index >= game.tableau[from_pile].len() {
+        return false;
+    }
+    
+    let moving_card = game.tableau[from_pile].get(card_index);
+    
+    // 检查是否可以放到目标tableau
+    if can_place_on_tableau(moving_card, game.tableau[to_pile]) {
+        // 移动从card_index开始的所有牌
+        for i in card_index..game.tableau[from_pile].len() {
+            let card = game.tableau[from_pile].get(i);
+            game.tableau[to_pile].push(card);
+        }
+        
+        // 移除源牌堆
+        let new_count = card_index;
+        game.tableau[from_pile].count = new_count;
+        
+        // 翻开新的顶牌
+        if game.tableau[from_pile].count > 0 {
+            let mut top_card = game.tableau[from_pile].get_top();
+            if !top_card.face_up {
+                top_card.face_up = true;
+                game.tableau[from_pile].cards[game.tableau[from_pile].count - 1] = top_card;
+            }
+        }
+        
+        game.selected_pile = -1;
+        game.selected_index = -1;
+        game.stats.increment_moves();
+        check_win_condition(game);
+        return true;
+    }
+    
+    return false;
+}
+
+// 移动tableau的牌到foundation
+fn move_tableau_to_foundation(game: &mut GameState, tableau_index: i32) -> bool {
+    if tableau_index < 0 || tableau_index >= TABLEAU_PILES {
+        return false;
+    }
+    
+    if game.tableau[tableau_index].is_empty() {
+        return false;
+    }
+    
+    let moving_card = game.tableau[tableau_index].get_top();
+    
+    // 只能移动最上面的牌
+    for i in 0..FOUNDATION_PILES {
+        if can_place_on_foundation(moving_card, game.foundation[i], i) {
+            let card = game.tableau[tableau_index].pop();
+            game.foundation[i].push(card);
+            
+            // 翻开新的顶牌
+            if !game.tableau[tableau_index].is_empty() {
+                let mut top_card = game.tableau[tableau_index].get_top();
+                if !top_card.face_up {
+                    top_card.face_up = true;
+                    game.tableau[tableau_index].cards[game.tableau[tableau_index].count - 1] = top_card;
+                }
+            }
+            
+            game.selected_pile = -1;
+            game.selected_index = -1;
+            game.stats.increment_moves();
+            check_win_condition(game);
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// 移动foundation的牌到tableau
+fn move_foundation_to_tableau(game: &mut GameState, foundation_index: i32, tableau_index: i32) -> bool {
+    if foundation_index < 0 || foundation_index >= FOUNDATION_PILES {
+        return false;
+    }
+    
+    if game.foundation[foundation_index].is_empty() {
+        return false;
+    }
+    
+    let foundation_card = game.foundation[foundation_index].get_top();
+    
+    if can_place_on_tableau(foundation_card, game.tableau[tableau_index]) {
+        let card = game.foundation[foundation_index].pop();
+        game.tableau[tableau_index].push(card);
+        game.selected_pile = -1;
+        game.selected_index = -1;
+        game.stats.increment_moves();
+        return true;
+    }
+    
+    return false;
+}
+
+// 检查纸牌是否可以放到tableau牌堆
+fn can_place_on_tableau(card: Card, pile: CardPile) -> bool {
+    if pile.is_empty() {
+        // 空位只能放King
+        return card.rank == 13;
+    }
+    
+    let top_card = pile.get_top();
+    
+    // 必须交替颜色
+    if card.is_red() == top_card.is_red() {
+        return false;
+    }
+    
+    // 必须比顶牌小1
+    return card.rank == top_card.rank - 1;
+}
+
+// 检查纸牌是否可以放到foundation牌堆
+fn can_place_on_foundation(card: Card, pile: CardPile, foundation_index: i32) -> bool {
+    if pile.is_empty() {
+        // 空位只能放A
+        return card.rank == 1;
+    }
+    
+    let top_card = pile.get_top();
+    
+    // 必须是同一花色
+    if card.suit != top_card.suit {
+        return false;
+    }
+    
+    // 必须比顶牌大1
+    return card.rank == top_card.rank + 1;
+}
+
+// 检查胜利条件
+fn check_win_condition(game: &mut GameState) {
+    var total_foundation = 0;
+    for i in 0..FOUNDATION_PILES {
+        total_foundation += game.foundation[i].len();
+    }
+    
+    if total_foundation == 52 {
+        game.game_won = true;
+    }
+}
+
+// 选择牌堆中的牌
+fn select_card(game: &mut GameState, pile_type: i32, pile_index: i32, card_index: i32) {
+    // pile_type: 0=tableau, 1=waste, 2=foundation
+    // pile_index: 牌堆索引
+    // card_index: 牌在堆中的索引(仅tableau有效)
+    
+    if pile_type == 0 && pile_index >= 0 && pile_index < TABLEAU_PILES {
+        // 点击了tableau
+        if card_index >= 0 && card_index < game.tableau[pile_index].len() {
+            let card = game.tableau[pile_index].get(card_index);
+            if card.face_up {
+                game.selected_pile = pile_index;
+                game.selected_index = card_index;
+            }
+        }
+    } else if pile_type == 1 && pile_index == 0 {
+        // 点击了waste的顶牌
+        if !game.waste.is_empty() {
+            game.selected_pile = 7;  // waste的标识
+            game.selected_index = game.waste.len() - 1;
+        }
+    }
+}
+
+// 取消选择
+fn deselect(game: &mut GameState) {
+    game.selected_pile = -1;
+    game.selected_index = -1;
+}
+
+// 尝试自动移动到foundation
+fn auto_move_to_foundation(game: &mut GameState) -> bool {
+    // 优先处理选中的牌
+    if game.selected_pile == 7 {
+        // waste顶牌
+        let card = game.waste.get_top();
+        for i in 0..FOUNDATION_PILES {
+            if can_place_on_foundation(card, game.foundation[i], i) {
+                let c = game.waste.pop();
+                game.foundation[i].push(c);
+                game.selected_pile = -1;
+                game.selected_index = -1;
+                game.stats.increment_moves();
+                check_win_condition(game);
+                return true;
+            }
+        }
+    } else if game.selected_pile >= 0 && game.selected_pile < TABLEAU_PILES {
+        // tableau牌
+        let pile = game.selected_pile;
+        if game.tableau[pile].len() > 0 && game.selected_index == game.tableau[pile].len() - 1 {
+            // 选中的必须是顶牌
+            let card = game.tableau[pile].get_top();
+            for i in 0..FOUNDATION_PILES {
+                if can_place_on_foundation(card, game.foundation[i], i) {
+                    let c = game.tableau[pile].pop();
+                    game.foundation[i].push(c);
+                    
+                    // 翻开新的顶牌
+                    if !game.tableau[pile].is_empty() {
+                        let mut top_card = game.tableau[pile].get_top();
+                        if !top_card.face_up {
+                            top_card.face_up = true;
+                            game.tableau[pile].cards[game.tableau[pile].count - 1] = top_card;
+                        }
+                    }
+                    
+                    game.selected_pile = -1;
+                    game.selected_index = -1;
+                    game.stats.increment_moves();
+                    check_win_condition(game);
+                    return true;
+                }
+            }
+        }
+    }
+    
+    return false;
+}
+
+// ==================== 获取信息函数 ====================
+
+// 获取游戏状态文本
+fn get_game_status_text(game: &GameState) -> string {
+    if game.game_won {
+        return "恭喜通关! 按 N 重新开始";
+    } else {
+        return "纸牌接龙 - 空格键翻牌, 双击自动完成";
+    }
+}
+
+// 获取统计信息文本
+fn get_stats_text(game: &GameState) -> string {
+    let mins = game.stats.elapsed_seconds / 60;
+    let secs = game.stats.elapsed_seconds % 60;
+    let mut foundation_total = 0;
+    for i in 0..FOUNDATION_PILES {
+        foundation_total += game.foundation[i].len();
+    }
+    return format("步数: {}  时间: {}:{:02}  完成: {}/52", 
+                  game.stats.moves, mins, secs, foundation_total)
+}
+
+// 获取控制说明
+fn get_controls_text() -> string {
+    "控制: 点击选择牌, 点击目标位置移动  空格:翻牌  N:新游戏  ESC:退出"
+}
+
+// 获取纸牌花色名称
+fn get_suit_char(suit: Suit) -> string {
+    match suit {
+        Suit::Hearts => "♥",
+        Suit::Diamonds => "♦",
+        Suit::Clubs => "♣",
+        Suit::Spades => "♠"
+    }
+}
+
+// ==================== 撤销功能 ====================
+
+// 简化版本不包含撤销功能，保留接口
+struct UndoMove {
+    move_type: i32,
+    from_pile: i32,
+    to_pile: i32,
+    card_count: i32
+}
+
+static mut undo_stack: [100]UndoMove;
+static mut undo_count: i32 = 0;
+
+fn add_undo(move_type: i32, from_pile: i32, to_pile: i32, card_count: i32) {
+    if undo_count < 100 {
+        undo_stack[undo_count] = UndoMove {
+            move_type: move_type,
+            from_pile: from_pile,
+            to_pile: to_pile,
+            card_count: card_count
+        };
+        undo_count += 1;
+    }
+}
