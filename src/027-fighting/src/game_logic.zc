@@ -1,0 +1,820 @@
+// game_logic.zc - 格斗游戏逻辑
+// 027-FightingGame 玩家 vs 电脑
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const WINDOW_WIDTH: int = 800;
+const WINDOW_HEIGHT: int = 600;
+
+const GROUND_Y: int = 480;        // 地面Y位置
+const GRAVITY: int = 2;            // 重力
+const JUMP_FORCE: int = -18;      // 跳跃力度
+
+const PLAYER_WIDTH: int = 60;
+const PLAYER_HEIGHT: int = 100;
+const PLAYER_SPEED: int = 6;
+const PLAYER_START_X: int = 150;
+const PLAYER_START_X2: int = 590;
+
+const CPU_START_X: int = 590;
+
+// 攻击参数
+const PUNCH_RANGE: int = 80;       // 拳攻击范围
+const PUNCH_DAMAGE: int = 8;       // 拳伤害
+const PUNCH_DURATION: int = 15;    // 拳持续帧数
+const KICK_RANGE: int = 100;       // 脚攻击范围
+const KICK_DAMAGE: int = 12;       // 脚伤害
+const KICK_DURATION: int = 20;     // 脚持续帧数
+const ATTACK_COOLDOWN: int = 20;   // 攻击冷却
+
+// 防御参数
+const BLOCK_DAMAGE_REDUCTION: int = 0.7;  // 防御减伤比例
+
+const MAX_HP: int = 100;           // 最大生命值
+const WIN_HP: int = 0;            // 获胜血量
+
+const AI_REACTION_DELAY: int = 200;
+const AI_ATTACK_DELAY: int = 500;
+
+// ==================== 角色数据结构 ====================
+
+struct Fighter {
+    x: int,
+    y: int,
+    vx: int,
+    vy: int,
+    width: int,
+    height: int,
+    hp: int,
+    maxHp: int,
+    facingRight: bool,
+    
+    // 动作状态
+    isJumping: bool,
+    isPunching: bool,
+    isKicking: bool,
+    isBlocking: bool,
+    isHit: bool,
+    isDead: bool,
+    
+    // 攻击计时
+    attackTimer: int,
+    attackCooldown: int,
+    hitStun: int,
+    
+    // 颜色
+    bodyColor: Color,
+    accentColor: Color,
+}
+
+// ==================== 全局变量 ====================
+
+static mut player: Fighter;
+static mut cpu: Fighter;
+static mut gameStarted: bool;
+static mut gameOver: bool;
+static mut winner: str;
+static mut roundStartTime: u32;
+static mut roundNumber: int;
+
+// 按键状态
+static mut keyLeft: bool;
+static mut keyRight: bool;
+static mut keyJump: bool;
+static mut keyPunch: bool;
+static mut keyKick: bool;
+static mut keyBlock: bool;
+
+// ==================== 格斗游戏类 ====================
+
+pub class FightingGame extends Game {
+    // 玩家角色
+    playerX: int;
+    playerY: int;
+    playerHp: int;
+    playerFacingRight: bool;
+    playerIsJumping: bool;
+    playerIsPunching: bool;
+    playerIsKicking: bool;
+    playerIsBlocking: bool;
+    playerIsHit: bool;
+    playerAttackTimer: int;
+    playerAttackCooldown: int;
+    playerHitStun: int;
+    
+    // CPU角色
+    cpuX: int;
+    cpuY: int;
+    cpuHp: int;
+    cpuFacingRight: bool;
+    cpuIsJumping: bool;
+    cpuIsPunching: bool;
+    cpuIsKicking: bool;
+    cpuIsBlocking: bool;
+    cpuIsHit: bool;
+    cpuAttackTimer: int;
+    cpuAttackCooldown: int;
+    cpuHitStun: int;
+    
+    // 游戏状态
+    gameStarted: bool;
+    gameOver: bool;
+    winner: str;
+    roundNumber: int;
+    roundStartTime: u32;
+    
+    // 按键状态
+    keyLeft: bool;
+    keyRight: bool;
+    keyJump: bool;
+    keyPunch: bool;
+    keyKick: bool;
+    keyBlock: bool;
+    
+    // 特效
+    hitEffectTimer: int;
+    hitEffectX: int;
+    hitEffectY: int;
+    
+    // AI相关
+    aiTargetX: int;
+    aiLastDecision: u32;
+    aiNextAttack: u32;
+    
+    // onInit - 初始化游戏
+    pub fn onInit() {
+        self.setState(GameState.Playing);
+        self.gameStarted = false;
+        self.gameOver = false;
+        self.winner = "";
+        self.roundNumber = 1;
+        self.roundStartTime = getTickCount();
+        self.hitEffectTimer = 0;
+        
+        // 初始化玩家
+        self.playerX = PLAYER_START_X;
+        self.playerY = GROUND_Y;
+        self.playerHp = MAX_HP;
+        self.playerFacingRight = true;
+        self.playerIsJumping = false;
+        self.playerIsPunching = false;
+        self.playerIsKicking = false;
+        self.playerIsBlocking = false;
+        self.playerIsHit = false;
+        self.playerAttackTimer = 0;
+        self.playerAttackCooldown = 0;
+        self.playerHitStun = 0;
+        
+        // 初始化CPU
+        self.cpuX = CPU_START_X;
+        self.cpuY = GROUND_Y;
+        self.cpuHp = MAX_HP;
+        self.cpuFacingRight = false;
+        self.cpuIsJumping = false;
+        self.cpuIsPunching = false;
+        self.cpuIsKicking = false;
+        self.cpuIsBlocking = false;
+        self.cpuIsHit = false;
+        self.cpuAttackTimer = 0;
+        self.cpuAttackCooldown = 0;
+        self.cpuHitStun = 0;
+        
+        // AI初始化
+        self.aiTargetX = CPU_START_X;
+        self.aiLastDecision = 0;
+        self.aiNextAttack = getTickCount() + 1000;
+        
+        // 重置按键
+        self.keyLeft = false;
+        self.keyRight = false;
+        self.keyJump = false;
+        self.keyPunch = false;
+        self.keyKick = false;
+        self.keyBlock = false;
+    }
+    
+    // onShutdown - 关闭清理
+    pub fn onShutdown() {
+    }
+    
+    // onUpdate - 每帧更新
+    pub fn onUpdate(dt: u32) {
+        if self.gameOver {
+            return;
+        }
+        
+        // 更新攻击冷却
+        if self.playerAttackCooldown > 0 {
+            self.playerAttackCooldown = self.playerAttackCooldown - 1;
+        }
+        if self.cpuAttackCooldown > 0 {
+            self.cpuAttackCooldown = self.cpuAttackCooldown - 1;
+        }
+        
+        // 更新攻击计时
+        if self.playerIsPunching {
+            self.playerAttackTimer = self.playerAttackTimer - 1;
+            if self.playerAttackTimer <= 0 {
+                self.playerIsPunching = false;
+            }
+        }
+        if self.playerIsKicking {
+            self.playerAttackTimer = self.playerAttackTimer - 1;
+            if self.playerAttackTimer <= 0 {
+                self.playerIsKicking = false;
+            }
+        }
+        if self.cpuIsPunching {
+            self.cpuAttackTimer = self.cpuAttackTimer - 1;
+            if self.cpuAttackTimer <= 0 {
+                self.cpuIsPunching = false;
+            }
+        }
+        if self.cpuIsKicking {
+            self.cpuAttackTimer = self.cpuAttackTimer - 1;
+            if self.cpuAttackTimer <= 0 {
+                self.cpuIsKicking = false;
+            }
+        }
+        
+        // 更新受击状态
+        if self.playerHitStun > 0 {
+            self.playerHitStun = self.playerHitStun - 1;
+            if self.playerHitStun <= 0 {
+                self.playerIsHit = false;
+            }
+        }
+        if self.cpuHitStun > 0 {
+            self.cpuHitStun = self.cpuHitStun - 1;
+            if self.cpuHitStun <= 0 {
+                self.cpuIsHit = false;
+            }
+        }
+        
+        // 更新特效
+        if self.hitEffectTimer > 0 {
+            self.hitEffectTimer = self.hitEffectTimer - 1;
+        }
+        
+        // 更新玩家
+        if self.playerHitStun == 0 {
+            self.updatePlayer();
+        }
+        
+        // 更新CPU AI
+        if self.cpuHitStun == 0 {
+            self.updateCPU(dt);
+        }
+        
+        // 更新位置和重力
+        self.updatePhysics(&self.playerX, &self.playerY, &self.playerIsJumping);
+        self.updatePhysics(&self.cpuX, &self.cpuY, &self.cpuIsJumping);
+        
+        // 碰撞检测
+        self.checkAttackCollision();
+        
+        // 胜负检测
+        self.checkWinCondition();
+        
+        // 始终面向对方
+        self.playerFacingRight = self.cpuX > self.playerX;
+        self.cpuFacingRight = self.playerX > self.cpuX;
+    }
+    
+    // 更新玩家
+    private fn updatePlayer() {
+        // 移动
+        if !self.playerIsPunching && !self.playerIsKicking {
+            if self.keyLeft {
+                self.playerX = self.playerX - PLAYER_SPEED;
+            }
+            if self.keyRight {
+                self.playerX = self.playerX + PLAYER_SPEED;
+            }
+        }
+        
+        // 跳跃
+        if self.keyJump && !self.playerIsJumping {
+            self.playerY = self.playerY + JUMP_FORCE;
+            self.playerIsJumping = true;
+        }
+        
+        // 攻击
+        if self.keyPunch && !self.playerIsPunching && !self.playerIsKicking && self.playerAttackCooldown == 0 {
+            self.playerIsPunching = true;
+            self.playerAttackTimer = PUNCH_DURATION;
+            self.playerAttackCooldown = ATTACK_COOLDOWN;
+        }
+        if self.keyKick && !self.playerIsKicking && !self.playerIsPunching && self.playerAttackCooldown == 0 {
+            self.playerIsKicking = true;
+            self.playerAttackTimer = KICK_DURATION;
+            self.playerAttackCooldown = ATTACK_COOLDOWN;
+        }
+        
+        // 防御
+        self.playerIsBlocking = self.keyBlock;
+        
+        // 边界限制
+        if self.playerX < 10 {
+            self.playerX = 10;
+        }
+        if self.playerX + PLAYER_WIDTH > self.width - 10 {
+            self.playerX = self.width - 10 - PLAYER_WIDTH;
+        }
+    }
+    
+    // 更新CPU AI
+    private fn updateCPU(dt: u32) {
+        var currentTime = getTickCount();
+        
+        // 决策间隔
+        if currentTime - self.aiLastDecision < AI_REACTION_DELAY as u32 {
+            return;
+        }
+        self.aiLastDecision = currentTime;
+        
+        var distToPlayer = self.absInt(self.playerX - self.cpuX);
+        
+        // 距离判断
+        if distToPlayer > PUNCH_RANGE + 20 {
+            // 太远，靠近
+            if self.playerX < self.cpuX {
+                self.cpuX = self.cpuX - PLAYER_SPEED + 1;
+            } else {
+                self.cpuX = self.cpuX + PLAYER_SPEED - 1;
+            }
+        } else if distToPlayer < KICK_RANGE - 20 {
+            // 太近，后退一点
+            if self.playerX < self.cpuX {
+                self.cpuX = self.cpuX + PLAYER_SPEED - 2;
+            } else {
+                self.cpuX = self.cpuX - PLAYER_SPEED + 2;
+            }
+        }
+        
+        // 攻击决策
+        if currentTime > self.aiNextAttack && !self.cpuIsPunching && !self.cpuIsKicking && self.cpuAttackCooldown == 0 {
+            if distToPlayer <= PUNCH_RANGE {
+                // 在拳范围内，出拳
+                if math.rand() % 3 == 0 {
+                    self.cpuIsKicking = true;
+                    self.cpuAttackTimer = KICK_DURATION;
+                    self.cpuAttackCooldown = ATTACK_COOLDOWN + 5;
+                } else {
+                    self.cpuIsPunching = true;
+                    self.cpuAttackTimer = PUNCH_DURATION;
+                    self.cpuAttackCooldown = ATTACK_COOLDOWN;
+                }
+                self.aiNextAttack = currentTime + (AI_ATTACK_DELAY as u32) + (math.rand() % 500 as u32);
+            } else if distToPlayer <= KICK_RANGE {
+                // 在脚范围内
+                if math.rand() % 2 == 0 {
+                    self.cpuIsKicking = true;
+                    self.cpuAttackTimer = KICK_DURATION;
+                    self.cpuAttackCooldown = ATTACK_COOLDOWN;
+                    self.aiNextAttack = currentTime + AI_ATTACK_DELAY as u32;
+                }
+            }
+        }
+        
+        // 随机跳跃
+        if math.rand() % 50 == 0 && !self.cpuIsJumping {
+            self.cpuY = self.cpuY + JUMP_FORCE;
+            self.cpuIsJumping = true;
+        }
+        
+        // 边界限制
+        if self.cpuX < 10 {
+            self.cpuX = 10;
+        }
+        if self.cpuX + PLAYER_WIDTH > self.width - 10 {
+            self.cpuX = self.width - 10 - PLAYER_WIDTH;
+        }
+    }
+    
+    // 更新物理 (重力/落地)
+    private fn updatePhysics(x: &int, y: &int, isJumping: &bool) {
+        if *isJumping {
+            *y = *y + 8;  // 简化的重力
+            
+            if *y >= GROUND_Y {
+                *y = GROUND_Y;
+                *isJumping = false;
+            }
+        }
+    }
+    
+    // 检查攻击碰撞
+    private fn checkAttackCollision() {
+        // 玩家攻击CPU
+        if self.playerIsPunching && self.playerAttackTimer == PUNCH_DURATION - 3 {
+            var damage = PUNCH_DAMAGE;
+            if self.cpuIsBlocking {
+                damage = (damage as float * BLOCK_DAMAGE_REDUCTION as float) as int;
+            }
+            if self.isInRange(self.playerX, PLAYER_WIDTH, self.cpuX, PUNCH_RANGE) {
+                if !self.cpuIsHit {
+                    self.cpuHp = self.cpuHp - damage;
+                    self.cpuIsHit = true;
+                    self.cpuHitStun = 10;
+                    self.hitEffectX = self.cpuX + PLAYER_WIDTH / 2;
+                    self.hitEffectY = self.cpuY - PLAYER_HEIGHT / 2;
+                    self.hitEffectTimer = 10;
+                }
+            }
+        }
+        if self.playerIsKicking && self.playerAttackTimer == KICK_DURATION - 3 {
+            var damage = KICK_DAMAGE;
+            if self.cpuIsBlocking {
+                damage = (damage as float * BLOCK_DAMAGE_REDUCTION as float) as int;
+            }
+            if self.isInRange(self.playerX, PLAYER_WIDTH, self.cpuX, KICK_RANGE) {
+                if !self.cpuIsHit {
+                    self.cpuHp = self.cpuHp - damage;
+                    self.cpuIsHit = true;
+                    self.cpuHitStun = 15;
+                    self.hitEffectX = self.cpuX + PLAYER_WIDTH / 2;
+                    self.hitEffectY = self.cpuY - PLAYER_HEIGHT / 2;
+                    self.hitEffectTimer = 12;
+                }
+            }
+        }
+        
+        // CPU攻击玩家
+        if self.cpuIsPunching && self.cpuAttackTimer == PUNCH_DURATION - 3 {
+            var damage = PUNCH_DAMAGE;
+            if self.playerIsBlocking {
+                damage = (damage as float * BLOCK_DAMAGE_REDUCTION as float) as int;
+            }
+            if self.isInRange(self.cpuX, PLAYER_WIDTH, self.playerX, PUNCH_RANGE) {
+                if !self.playerIsHit {
+                    self.playerHp = self.playerHp - damage;
+                    self.playerIsHit = true;
+                    self.playerHitStun = 10;
+                    self.hitEffectX = self.playerX + PLAYER_WIDTH / 2;
+                    self.hitEffectY = self.playerY - PLAYER_HEIGHT / 2;
+                    self.hitEffectTimer = 10;
+                }
+            }
+        }
+        if self.cpuIsKicking && self.cpuAttackTimer == KICK_DURATION - 3 {
+            var damage = KICK_DAMAGE;
+            if self.playerIsBlocking {
+                damage = (damage as float * BLOCK_DAMAGE_REDUCTION as float) as int;
+            }
+            if self.isInRange(self.cpuX, PLAYER_WIDTH, self.playerX, KICK_RANGE) {
+                if !self.playerIsHit {
+                    self.playerHp = self.playerHp - damage;
+                    self.playerIsHit = true;
+                    self.playerHitStun = 15;
+                    self.hitEffectX = self.playerX + PLAYER_WIDTH / 2;
+                    self.hitEffectY = self.playerY - PLAYER_HEIGHT / 2;
+                    self.hitEffectTimer = 12;
+                }
+            }
+        }
+        
+        // 限制HP
+        if self.playerHp < 0 {
+            self.playerHp = 0;
+        }
+        if self.cpuHp < 0 {
+            self.cpuHp = 0;
+        }
+    }
+    
+    // 检查范围
+    private fn isInRange(attackerX: int, attackerW: int, targetX: int, range: int) -> bool {
+        var attackerCenter = attackerX + attackerW / 2;
+        var targetCenter = targetX + PLAYER_WIDTH / 2;
+        var dist = self.absInt(attackerCenter - targetCenter);
+        return dist < range;
+    }
+    
+    // 胜负检测
+    private fn checkWinCondition() {
+        if self.cpuHp <= WIN_HP {
+            self.gameOver = true;
+            self.winner = "玩家";
+            self.setState(GameState.Won);
+        } else if self.playerHp <= WIN_HP {
+            self.gameOver = true;
+            self.winner = "电脑";
+            self.setState(GameState.Lost);
+        }
+    }
+    
+    // onRender - 渲染画面
+    pub fn onRender(canvas: Canvas) {
+        canvas.clear(Color.Black());
+        
+        self.drawBackground(canvas);
+        self.drawGround(canvas);
+        self.drawHPBar(canvas);
+        self.drawControls(canvas);
+        
+        // 绘制玩家
+        self.drawFighter(canvas, self.playerX, self.playerY, self.playerFacingRight,
+                        self.playerIsPunching, self.playerIsKicking, self.playerIsBlocking, self.playerIsHit, true);
+        
+        // 绘制CPU
+        self.drawFighter(canvas, self.cpuX, self.cpuY, self.cpuFacingRight,
+                        self.cpuIsPunching, self.cpuIsKicking, self.cpuIsBlocking, self.cpuIsHit, false);
+        
+        // 绘制命中特效
+        if self.hitEffectTimer > 0 {
+            self.drawHitEffect(canvas);
+        }
+        
+        // 绘制动作提示
+        self.drawActionIndicator(canvas);
+        
+        if !self.gameStarted && !self.gameOver {
+            self.drawStartMessage(canvas);
+        }
+        
+        if self.gameOver {
+            self.drawGameOver(canvas);
+        }
+    }
+    
+    // 绘制背景
+    private fn drawBackground(canvas: Canvas) {
+        // 渐变背景
+        for y in 0..(GROUND_Y) {
+            var ratio = y as float / GROUND_Y as float;
+            var r = (30.0 * ratio + 20.0) as int;
+            var g = (30.0 * ratio + 20.0) as int;
+            var b = (60.0 * ratio + 80.0) as int;
+            canvas.drawLine(0, y, self.width, y, Color.RGB(r as u8, g as u8, b as u8));
+        }
+    }
+    
+    // 绘制地面
+    private fn drawGround(canvas: Canvas) {
+        // 地面
+        canvas.fillRect(0, GROUND_Y + PLAYER_HEIGHT, self.width, self.height - GROUND_Y - PLAYER_HEIGHT, Color.RGB(80, 60, 40));
+        
+        // 地面线
+        canvas.drawLine(0, GROUND_Y + PLAYER_HEIGHT, self.width, GROUND_Y + PLAYER_HEIGHT, Color.RGB(120, 90, 60));
+        
+        // 地面纹理
+        for x in 0..self.width step 40 {
+            canvas.drawLine(x, GROUND_Y + PLAYER_HEIGHT + 5, x + 20, GROUND_Y + PLAYER_HEIGHT + 5, Color.RGB(100, 75, 50));
+        }
+    }
+    
+    // 绘制HP条
+    private fn drawHPBar(canvas: Canvas) {
+        var barWidth = 250;
+        var barHeight = 20;
+        var barY = 15;
+        
+        // 玩家HP背景
+        canvas.fillRect(20, barY, barWidth, barHeight, Color.RGB(40, 40, 40));
+        // 玩家HP
+        var playerHpWidth = (self.playerHp as float / MAX_HP as float * barWidth as float) as int;
+        canvas.fillRect(20, barY, playerHpWidth, barHeight, Color.Red());
+        // 玩家HP边框
+        canvas.drawRect(20, barY, barWidth, barHeight, Color.White());
+        
+        // CPU HP背景
+        canvas.fillRect(self.width - 20 - barWidth, barY, barWidth, barHeight, Color.RGB(40, 40, 40));
+        // CPU HP
+        var cpuHpWidth = (self.cpuHp as float / MAX_HP as float * barWidth as float) as int;
+        canvas.fillRect(self.width - 20 - barWidth, barY, cpuHpWidth, barHeight, Color.Red());
+        // CPU HP边框
+        canvas.drawRect(self.width - 20 - barWidth, barY, barWidth, barHeight, Color.White());
+        
+        // 标签
+        var font = Font.("Arial", 14);
+        canvas.drawText(25, barY + 3, "玩家", Color.White(), font);
+        canvas.drawText(self.width - 25 - 30, barY + 3, "CPU", Color.White(), font);
+    }
+    
+    // 绘制角色
+    private fn drawFighter(canvas: Canvas, x: int, y: int, facingRight: bool,
+                          isPunching: bool, isKicking: bool, isBlocking: bool, isHit: bool, isPlayer: bool) {
+        var bodyColor: Color;
+        var accentColor: Color;
+        
+        if isPlayer {
+            bodyColor = Color.RGB(50, 120, 220);   // 蓝色
+            accentColor = Color.RGB(30, 80, 180);
+        } else {
+            bodyColor = Color.RGB(220, 50, 50);    // 红色
+            accentColor = Color.RGB(180, 30, 30);
+        }
+        
+        // 受击时闪白
+        if isHit && math.rand() % 3 == 0 {
+            bodyColor = Color.White();
+            accentColor = Color.LightGray();
+        }
+        
+        // 身体
+        var bodyX = x + 10;
+        var bodyY = y;
+        var bodyW = PLAYER_WIDTH - 20;
+        var bodyH = PLAYER_HEIGHT - 20;
+        canvas.fillRect(bodyX, bodyY, bodyW, bodyH, bodyColor);
+        
+        // 头
+        var headX = x + 15;
+        var headY = y - 25;
+        var headSize = 30;
+        canvas.fillCircle(headX + headSize / 2, headY + headSize / 2, headSize / 2, bodyColor);
+        
+        // 眼睛方向
+        var eyeOffsetX = if facingRight { 5 } else { -5 };
+        canvas.fillRect(headX + 8 + eyeOffsetX, headY + 10, 4, 4, Color.White());
+        canvas.fillRect(headX + 18 + eyeOffsetX, headY + 10, 4, 4, Color.White());
+        
+        // 手臂/腿
+        if isPunching {
+            // 出拳
+            var armX = if facingRight { x + PLAYER_WIDTH - 5 } else { x - PUNCH_RANGE + 10 };
+            canvas.fillRect(armX, y + 15, PUNCH_RANGE - 20, 12, accentColor);
+            // 拳头
+            canvas.fillCircle(armX + (if facingRight { PUNCH_RANGE - 25 } else { 5 }), y + 21, 8, bodyColor);
+        } else if isKicking {
+            // 出脚
+            var legX = if facingRight { x + PLAYER_WIDTH - 10 } else { x - KICK_RANGE + 15 };
+            canvas.fillRect(legX, y + bodyH - 20, KICK_RANGE - 20, 14, accentColor);
+            // 脚
+            canvas.fillRect(legX + (if facingRight { KICK_RANGE - 25 } else { 5 }), y + bodyH - 18, 15, 10, bodyColor);
+        } else if isBlocking {
+            // 防御姿势
+            canvas.fillRect(x + 5, y + 10, 15, 30, accentColor);
+            canvas.fillRect(x + PLAYER_WIDTH - 20, y + 10, 15, 30, accentColor);
+        } else {
+            // 站立 - 手臂
+            canvas.fillRect(x + 5, y + 15, 12, 35, accentColor);
+            canvas.fillRect(x + PLAYER_WIDTH - 17, y + 15, 12, 35, accentColor);
+            // 腿
+            canvas.fillRect(x + 12, y + bodyH - 5, 15, 25, accentColor);
+            canvas.fillRect(x + PLAYER_WIDTH - 27, y + bodyH - 5, 15, 25, accentColor);
+        }
+        
+        // 防御护盾效果
+        if isBlocking {
+            var shieldColor = Color.ARGB(100, 255, 255, 100);
+            var shieldX = if facingRight { x + PLAYER_WIDTH - 5 } else { x - 10 };
+            canvas.drawLine(shieldX, y + 5, shieldX, y + bodyH, shieldColor);
+            canvas.drawLine(shieldX + 5, y + 5, shieldX + 5, y + bodyH, shieldColor);
+        }
+    }
+    
+    // 绘制命中特效
+    private fn drawHitEffect(canvas: Canvas) {
+        var size = 20 + (12 - self.hitEffectTimer) * 3;
+        canvas.drawCircle(self.hitEffectX, self.hitEffectY, size / 2, Color.Yellow());
+        canvas.drawCircle(self.hitEffectX, self.hitEffectY, size / 3, Color.White());
+    }
+    
+    // 绘制动作指示
+    private fn drawActionIndicator(canvas: Canvas) {
+        var font = Font.("Arial", 12);
+        
+        // 玩家当前动作
+        if self.playerIsPunching {
+            canvas.drawText(self.playerX + 5, self.playerY - 45, "拳!", Color.Yellow(), font);
+        }
+        if self.playerIsKicking {
+            canvas.drawText(self.playerX + 5, self.playerY - 45, "脚!", Color.Yellow(), font);
+        }
+        if self.playerIsBlocking {
+            canvas.drawText(self.playerX + 5, self.playerY - 45, "防", Color.Cyan(), font);
+        }
+        
+        // CPU当前动作
+        if self.cpuIsPunching {
+            canvas.drawText(self.cpuX + 5, self.cpuY - 45, "拳!", Color.Yellow(), font);
+        }
+        if self.cpuIsKicking {
+            canvas.drawText(self.cpuX + 5, self.cpuY - 45, "脚!", Color.Yellow(), font);
+        }
+        if self.cpuIsBlocking {
+            canvas.drawText(self.cpuX + 5, self.cpuY - 45, "防", Color.Cyan(), font);
+        }
+    }
+    
+    // 绘制控制说明
+    private fn drawControls(canvas: Canvas) {
+        var font = Font.("Arial", 12);
+        var text = "A/D: 移动  W: 跳跃  J: 拳  K: 脚  S: 防御";
+        canvas.drawText(self.width / 2 - 180, self.height - 25, text, Color.LightGray(), font);
+    }
+    
+    // 绘制开始提示
+    private fn drawStartMessage(canvas: Canvas) {
+        canvas.fillRect(self.width / 2 - 180, self.height / 2 - 60, 360, 120, Color.ARGB(180, 0, 0, 0));
+        canvas.drawRect(self.width / 2 - 180, self.height / 2 - 60, 360, 120, Color.Yellow());
+        
+        var font = Font.("Arial", 28);
+        canvas.drawText(self.width / 2 - 110, self.height / 2 - 45, "格斗游戏", Color.Yellow(), font);
+        
+        font = Font.("Arial", 18);
+        canvas.drawText(self.width / 2 - 140, self.height / 2, "按 J 开始战斗!", Color.White(), font);
+        
+        font = Font.("Arial", 14);
+        canvas.drawText(self.width / 2 - 120, self.height / 2 + 35, "A/D移动 W跳跃 J拳 K脚 S防御", Color.LightGray(), font);
+    }
+    
+    // 绘制游戏结束
+    private fn drawGameOver(canvas: Canvas) {
+        canvas.fillRect(0, 0, self.width, self.height, Color.ARGB(180, 0, 0, 0));
+        
+        var font = Font.("Arial", 48);
+        var text = self.winner ++ " 获胜!";
+        var textColor = if self.winner == "玩家" { Color.Yellow() } else { Color.Red() };
+        canvas.drawText(self.width / 2 - 130, self.height / 2 - 50, text, textColor, font);
+        
+        var smallFont = Font.("Arial", 20);
+        canvas.drawText(self.width / 2 - 80, self.height / 2 + 20, "按 R 重新开始", Color.White(), smallFont);
+    }
+    
+    // onKeyDown - 键盘按下
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.A | VirtualKey.Left => {
+                self.keyLeft = true;
+            }
+            VirtualKey.D | VirtualKey.Right => {
+                self.keyRight = true;
+            }
+            VirtualKey.W | VirtualKey.Up => {
+                self.keyJump = true;
+            }
+            VirtualKey.S | VirtualKey.Down => {
+                self.keyBlock = true;
+            }
+            VirtualKey.KeyJ => {
+                if !self.gameStarted && !self.gameOver {
+                    self.gameStarted = true;
+                }
+                self.keyPunch = true;
+            }
+            VirtualKey.KeyK => {
+                self.keyKick = true;
+            }
+            VirtualKey.KeyR => {
+                if self.gameOver {
+                    self.onInit();
+                    self.gameStarted = true;
+                }
+            }
+            VirtualKey.Space => {
+                if !self.gameStarted && !self.gameOver {
+                    self.gameStarted = true;
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    // onKeyUp - 键盘释放
+    pub fn onKeyUp(key: VirtualKey) {
+        match key {
+            VirtualKey.A | VirtualKey.Left => {
+                self.keyLeft = false;
+            }
+            VirtualKey.D | VirtualKey.Right => {
+                self.keyRight = false;
+            }
+            VirtualKey.W | VirtualKey.Up => {
+                self.keyJump = false;
+            }
+            VirtualKey.S | VirtualKey.Down => {
+                self.keyBlock = false;
+            }
+            VirtualKey.KeyJ => {
+                self.keyPunch = false;
+            }
+            VirtualKey.KeyK => {
+                self.keyKick = false;
+            }
+            _ => {}
+        }
+    }
+    
+    // onMouseDown - 鼠标按下
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        if !self.gameStarted && !self.gameOver {
+            self.gameStarted = true;
+        }
+    }
+    
+    // onMouseUp - 鼠标释放
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+    }
+    
+    // ============ 辅助函数 ============
+    
+    fn absInt(x: int) -> int {
+        return if x < 0 { -x } else { x };
+    }
+}
