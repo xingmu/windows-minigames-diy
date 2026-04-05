@@ -1,0 +1,435 @@
+// game_logic.zc - 扫雷增强版核心逻辑
+// 框架版本: 1.0.0
+// 提供扫雷游戏的核心数据结构和算法
+
+import "platform_api.zc";
+
+// 难度级别
+pub type Difficulty = enum {
+    Beginner,  // 初级 9x9 10雷
+    Intermediate, // 中级 16x16 40雷
+    Advanced,  // 高级 30x16 99雷
+};
+
+// 游戏配置
+pub struct GameConfig {
+    rows: int,
+    cols: int,
+    mines: int,
+}
+
+pub impl GameConfig {
+    pub static fn beginner() -> GameConfig {
+        return GameConfig.{ rows: 9, cols: 9, mines: 10 };
+    }
+    
+    pub static fn intermediate() -> GameConfig {
+        return GameConfig.{ rows: 16, cols: 16, mines: 40 };
+    }
+    
+    pub static fn advanced() -> GameConfig {
+        return GameConfig.{ rows: 16, cols: 30, mines: 99 };
+    }
+}
+
+// 格子状态
+pub type CellState = enum {
+    Hidden,   // 未揭开
+    Revealed, // 已揭开
+    Flagged,  // 已标记
+    Question, // 问号标记
+};
+
+// 单个格子
+pub struct Cell {
+    pub isMine: bool;      // 是否是地雷
+    pub state: CellState;  // 格子状态
+    pub adjacentMines: int; // 周围地雷数 (0-8)
+}
+
+impl Cell {
+    pub fn new() -> Cell {
+        return Cell.{
+            isMine: false,
+            state: CellState.Hidden,
+            adjacentMines: 0,
+        };
+    }
+    
+    pub fn reset(self mut) {
+        self.isMine = false;
+        self.state = CellState.Hidden;
+        self.adjacentMines = 0;
+    }
+}
+
+// 扫雷游戏板
+pub class MineBoard {
+    // 游戏板尺寸
+    pub rows: int;
+    pub cols: int;
+    pub totalMines: int;
+    
+    // 格子数组
+    board: [][]Cell;
+    
+    // 游戏状态
+    pub firstClick: bool;     // 是否第一次点击（首次安全）
+    pub gameOver: bool;
+    pub victory: bool;
+    pub revealedCount: int;   // 已揭开的格子数
+    pub flaggedCount: int;    // 已标记的格子数
+    
+    // 计时
+    pub startTime: u32;
+    pub elapsedTime: u32;
+    
+    // 难度
+    pub difficulty: Difficulty;
+    
+    // 构造函数
+    pub fn create(rows: int, cols: int, mines: int) {
+        self.rows = rows;
+        self.cols = cols;
+        self.totalMines = mines;
+        self.firstClick = true;
+        self.gameOver = false;
+        self.victory = false;
+        self.revealedCount = 0;
+        self.flaggedCount = 0;
+        self.elapsedTime = 0;
+        self.difficulty = Difficulty.Beginner;
+        
+        // 分配二维数组
+        self.board = [][]Cell.alloc(rows);
+        for i in 0..rows {
+            self.board[i] = []Cell.alloc(cols);
+            for j in 0..cols {
+                self.board[i][j] = Cell.new();
+            }
+        }
+    }
+    
+    pub fn destroy(self mut) {
+        // 释放内存
+        for i in 0..self.rows {
+            []Cell.free(self.board[i]);
+        }
+        [][]Cell.free(self.board);
+    }
+    
+    // 重置游戏板
+    pub fn reset(self mut) {
+        self.firstClick = true;
+        self.gameOver = false;
+        self.victory = false;
+        self.revealedCount = 0;
+        self.flaggedCount = 0;
+        self.elapsedTime = 0;
+        
+        for i in 0..self.rows {
+            for j in 0..self.cols {
+                self.board[i][j].reset();
+            }
+        }
+    }
+    
+    // 设置难度
+    pub fn setDifficulty(self mut, diff: Difficulty) {
+        self.difficulty = diff;
+        match diff {
+            Difficulty.Beginner => {
+                self.resize(9, 9, 10);
+            }
+            Difficulty.Intermediate => {
+                self.resize(16, 16, 40);
+            }
+            Difficulty.Advanced => {
+                self.resize(16, 30, 99);
+            }
+        }
+    }
+    
+    // 调整游戏板大小
+    private fn resize(self mut, rows: int, cols: int, mines: int) {
+        self.destroy();
+        self.create(rows, cols, mines);
+    }
+    
+    // 布置地雷（首次点击后调用）
+    pub fn placeMines(self mut, safeRow: int, safeCol: int) {
+        // 设置随机种子
+        var seed = getTickCount();
+        setRandomSeed(seed);
+        
+        // 计算安全区域（第一次点击的格子及其周围8格）
+        var safeCells = [][]bool.alloc(self.rows);
+        for i in 0..self.rows {
+            safeCells[i] = []bool.alloc(self.cols);
+            for j in 0..self.cols {
+                safeCells[i][j] = false;
+            }
+        }
+        
+        // 标记安全区域
+        for dr in -1..=1 {
+            for dc in -1..=1 {
+                var nr = safeRow + dr;
+                var nc = safeCol + dc;
+                if nr >= 0 && nr < self.rows && nc >= 0 && nc < self.cols {
+                    safeCells[nr][nc] = true;
+                }
+            }
+        }
+        
+        // 随机放置地雷
+        var placed = 0;
+        while placed < self.totalMines {
+            var r = randInt(0, self.rows - 1);
+            var c = randInt(0, self.cols - 1);
+            
+            if !self.board[r][c].isMine && !safeCells[r][c] {
+                self.board[r][c].isMine = true;
+                placed = placed + 1;
+            }
+        }
+        
+        // 计算每个格子的周围雷数
+        for r in 0..self.rows {
+            for c in 0..self.cols {
+                if !self.board[r][c].isMine {
+                    self.board[r][c].adjacentMines = self.countAdjacentMines(r, c);
+                }
+            }
+        }
+        
+        // 释放安全区域内存
+        for i in 0..self.rows {
+            []bool.free(safeCells[i]);
+        }
+        [][]bool.free(safeCells);
+        
+        self.firstClick = false;
+        self.startTime = getTickCount();
+    }
+    
+    // 计算周围地雷数
+    fn countAdjacentMines(self, row: int, col: int) -> int {
+        var count = 0;
+        for dr in -1..=1 {
+            for dc in -1..=1 {
+                if dr == 0 && dc == 0 {
+                    continue;
+                }
+                var nr = row + dr;
+                var nc = col + dc;
+                if nr >= 0 && nr < self.rows && nc >= 0 && nc < self.cols {
+                    if self.board[nr][nc].isMine {
+                        count = count + 1;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+    
+    // 获取格子
+    pub fn getCell(self, row: int, col: int) -> &Cell {
+        if row < 0 || row >= self.rows || col < 0 || col >= self.cols {
+            return nil;
+        }
+        return &self.board[row][col];
+    }
+    
+    // 检查坐标是否有效
+    pub fn isValid(self, row: int, col: int) -> bool {
+        return row >= 0 && row < self.rows && col >= 0 && col < self.cols;
+    }
+    
+    // 左键点击 - 揭开格子
+    pub fn reveal(self mut, row: int, col: int) -> bool {
+        if !self.isValid(row, col) {
+            return false;
+        }
+        
+        var cell = &self.board[row][col];
+        
+        // 已揭开或已标记的不能揭开
+        if cell.state == CellState.Revealed {
+            return false;
+        }
+        
+        // 第一次点击 - 布置地雷
+        if self.firstClick {
+            self.placeMines(row, col);
+            cell = &self.board[row][col];
+        }
+        
+        // 踩到地雷
+        if cell.isMine {
+            cell.state = CellState.Revealed;
+            self.gameOver = true;
+            self.elapsedTime = getTickCount() - self.startTime;
+            return true;
+        }
+        
+        // 揭开格子
+        cell.state = CellState.Revealed;
+        self.revealedCount = self.revealedCount + 1;
+        
+        // 如果周围没有地雷，连锁揭开
+        if cell.adjacentMines == 0 {
+            self.chainReveal(row, col);
+        }
+        
+        // 检查胜利
+        self.checkVictory();
+        
+        return true;
+    }
+    
+    // 连锁揭开 - 递归展开空白区域
+    fn chainReveal(self mut, row: int, col: int) {
+        for dr in -1..=1 {
+            for dc in -1..=1 {
+                if dr == 0 && dc == 0 {
+                    continue;
+                }
+                var nr = row + dr;
+                var nc = col + dc;
+                
+                if !self.isValid(nr, nc) {
+                    continue;
+                }
+                
+                var neighbor = &self.board[nr][nc];
+                if neighbor.state != CellState.Hidden {
+                    continue;
+                }
+                
+                if neighbor.isMine {
+                    continue;
+                }
+                
+                neighbor.state = CellState.Revealed;
+                self.revealedCount = self.revealedCount + 1;
+                
+                // 继续递归展开
+                if neighbor.adjacentMines == 0 {
+                    self.chainReveal(nr, nc);
+                }
+            }
+        }
+    }
+    
+    // 右键点击 - 标记/取消标记
+    pub fn toggleFlag(self mut, row: int, col: int) -> bool {
+        if !self.isValid(row, col) {
+            return false;
+        }
+        
+        var cell = &self.board[row][col];
+        
+        // 已揭开的不能标记
+        if cell.state == CellState.Revealed {
+            return false;
+        }
+        
+        // 切换状态
+        match cell.state {
+            CellState.Hidden => {
+                cell.state = CellState.Flagged;
+                self.flaggedCount = self.flaggedCount + 1;
+            }
+            CellState.Flagged => {
+                cell.state = CellState.Hidden;
+                self.flaggedCount = self.flaggedCount - 1;
+            }
+            CellState.Question => {
+                cell.state = CellState.Hidden;
+            }
+            _ => {}
+        }
+        
+        return true;
+    }
+    
+    // 中键点击 - 数字地毯（智能展开）
+    pub fn chordReveal(self mut, row: int, col: int) -> bool {
+        if !self.isValid(row, col) {
+            return false;
+        }
+        
+        var cell = &self.board[row][col];
+        
+        // 必须是已揭开的数字格
+        if cell.state != CellState.Revealed || cell.adjacentMines == 0 {
+            return false;
+        }
+        
+        // 统计周围标记数
+        var flaggedAround = 0;
+        for dr in -1..=1 {
+            for dc in -1..=1 {
+                if dr == 0 && dc == 0 {
+                    continue;
+                }
+                var nr = row + dr;
+                var nc = col + dc;
+                if self.isValid(nr, nc) {
+                    if self.board[nr][nc].state == CellState.Flagged {
+                        flaggedAround = flaggedAround + 1;
+                    }
+                }
+            }
+        }
+        
+        // 标记数等于数字，展开周围未标记的格子
+        if flaggedAround == cell.adjacentMines {
+            for dr in -1..=1 {
+                for dc in -1..=1 {
+                    if dr == 0 && dc == 0 {
+                        continue;
+                    }
+                    var nr = row + dr;
+                    var nc = col + dc;
+                    if self.isValid(nr, nc) {
+                        var neighbor = &self.board[nr][nc];
+                        if neighbor.state == CellState.Hidden {
+                            self.reveal(nr, nc);
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+        
+        return false;
+    }
+    
+    // 检查胜利条件
+    fn checkVictory(self mut) {
+        var nonMineCells = self.rows * self.cols - self.totalMines;
+        if self.revealedCount >= nonMineCells {
+            self.victory = true;
+            self.gameOver = true;
+            self.elapsedTime = getTickCount() - self.startTime;
+        }
+    }
+    
+    // 获取剩余雷数
+    pub fn getRemainingMines(self) -> int {
+        return self.totalMines - self.flaggedCount;
+    }
+    
+    // 获取已用时间（秒）
+    pub fn getElapsedSeconds(self) -> int {
+        if self.firstClick {
+            return 0;
+        }
+        if self.gameOver {
+            return self.elapsedTime / 1000;
+        }
+        return (getTickCount() - self.startTime) / 1000;
+    }
+}

@@ -1,0 +1,457 @@
+// main_window.zc - 扫雷增强版主窗口
+// 框架版本: 1.0.0
+
+import "platform_api.zc";
+import "game.zc";
+import "game_logic.zc";
+
+// 格子大小
+private val CELL_SIZE = 24;
+private val CELL_MARGIN = 1;
+private val CELL_TOTAL = CELL_SIZE + CELL_MARGIN * 2;
+
+// 游戏主类
+class MinesweeperPlusGame extends Game {
+    // 游戏板
+    board: MineBoard;
+    
+    // 界面偏移
+    boardX: int;
+    boardY: int;
+    
+    // 按钮区域
+    resetButtonX: int;
+    resetButtonY: int;
+    resetButtonSize: int;
+    
+    // 状态显示
+    mineCountX: int;
+    timeX: int;
+    statusY: int;
+    
+    // 当前难度
+    currentDifficulty: Difficulty;
+    
+    // 表情状态 (0=正常, 1=失败, 2=胜利)
+    faceState: int;
+    
+    // 鼠标按下状态
+    mouseDown: bool;
+    mouseDownRow: int;
+    mouseDownCol: int;
+    
+    // 颜色调色板
+    cellColors: []Color;
+    
+    fn onInit() {
+        // 初始化调色板
+        self.cellColors = []Color.alloc(9);
+        self.cellColors[0] = Color.Gray();
+        self.cellColors[1] = Color.RGB(0, 0, 255);    // 蓝色
+        self.cellColors[2] = Color.RGB(0, 128, 0);   // 绿色
+        self.cellColors[3] = Color.RGB(255, 0, 0);     // 红色
+        self.cellColors[4] = Color.RGB(0, 0, 128);    // 深蓝
+        self.cellColors[5] = Color.RGB(128, 0, 0);     // 深红
+        self.cellColors[6] = Color.RGB(0, 128, 128);  // 青色
+        self.cellColors[7] = Color.RGB(0, 0, 0);      // 黑色
+        self.cellColors[8] = Color.Gray();             // 灰色
+        
+        // 默认难度
+        self.currentDifficulty = Difficulty.Beginner;
+        self.newGame();
+        
+        self.setState(GameState.Playing);
+    }
+    
+    fn onShutdown() {
+        self.board.destroy();
+        []Color.free(self.cellColors);
+    }
+    
+    fn onUpdate(dt: u32) {
+        // 游戏逻辑在事件处理中完成
+    }
+    
+    fn onRender(canvas: Canvas) {
+        // 清屏
+        canvas.clear(Color.RGB(192, 192, 192));
+        
+        // 绘制状态栏背景
+        canvas.fillRect(0, 0, self.width, 50, Color.RGB(128, 128, 128));
+        canvas.drawRect(0, 0, self.width, 50, Color.White());
+        canvas.drawLine(0, 1, self.width, 1, Color.Black());
+        canvas.drawLine(1, 0, 1, 50, Color.White());
+        
+        // 绘制计时器
+        self.drawDigitalDisplay(canvas, self.timeX, 8, self.board.getElapsedSeconds());
+        
+        // 绘制剩余雷数
+        self.drawDigitalDisplay(canvas, self.mineCountX, 8, self.board.getRemainingMines());
+        
+        // 绘制重置按钮
+        self.drawResetButton(canvas);
+        
+        // 绘制游戏板
+        self.drawBoard(canvas);
+    }
+    
+    fn drawDigitalDisplay(self, canvas: Canvas, x: int, y: int, value: int) {
+        // 七段数码管显示
+        var displayWidth = 60;
+        var displayHeight = 30;
+        
+        // 背景
+        canvas.fillRect(x, y, displayWidth, displayHeight, Color.Black());
+        canvas.drawRect(x, y, displayWidth, displayHeight, Color.RGB(64, 64, 64));
+        
+        // 显示数字
+        var text = "";
+        if value < 0 {
+            text = "-" ++ (-value).toString();
+        } else {
+            text = value.toString();
+        }
+        
+        // 简单文字显示
+        canvas.drawText(x + 5, y + 5, text, Color.Red(), Font.("Consolas", 18));
+    }
+    
+    fn drawResetButton(self, canvas: Canvas) {
+        var cx = self.resetButtonX;
+        var cy = self.resetButtonY;
+        var size = self.resetButtonSize;
+        
+        // 按钮背景
+        canvas.fillRect(cx, cy, size, size, Color.RGB(192, 192, 192));
+        canvas.drawRect(cx, cy, size, size, Color.White());
+        canvas.drawRect(cx + 1, cy + 1, size - 2, size - 2, Color.Black());
+        
+        // 表情
+        var faceColor = Color.Black();
+        if self.board.gameOver {
+            if self.board.victory {
+                // 胜利表情
+                faceColor = Color.Black();
+            } else {
+                // 失败表情
+                faceColor = Color.Red();
+            }
+        }
+        
+        // 眼睛
+        var eyeY = cy + size / 3;
+        var leftEyeX = cx + size / 3;
+        var rightEyeX = cx + 2 * size / 3;
+        canvas.fillCircle(leftEyeX, eyeY, 3, faceColor);
+        canvas.fillCircle(rightEyeX, eyeY, 3, faceColor);
+        
+        // 嘴巴
+        var mouthY = cy + 2 * size / 3;
+        if self.board.victory {
+            // 笑脸
+            canvas.drawCircle(cx + size / 2, mouthY - 2, size / 4, faceColor);
+        } else if self.board.gameOver {
+            // 哭脸
+            canvas.drawCircle(cx + size / 2, mouthY + 2, size / 4, faceColor);
+        } else {
+            // 正常嘴巴
+            canvas.fillRect(cx + size / 3, mouthY, size / 3, 3, faceColor);
+        }
+    }
+    
+    fn drawBoard(self, canvas: Canvas) {
+        for row in 0..self.board.rows {
+            for col in 0..self.board.cols {
+                self.drawCell(canvas, row, col);
+            }
+        }
+    }
+    
+    fn drawCell(self, canvas: Canvas, row: int, col: int) {
+        var cell = self.board.getCell(row, col);
+        if cell == nil {
+            return;
+        }
+        
+        var x = self.boardX + col * CELL_TOTAL;
+        var y = self.boardY + row * CELL_TOTAL;
+        
+        // 判断是否为按下状态
+        var isPressed = false;
+        if self.mouseDown && row == self.mouseDownRow && col == self.mouseDownCol {
+            isPressed = true;
+        }
+        
+        match cell.state {
+            CellState.Hidden => {
+                self.drawHiddenCell(canvas, x, y, isPressed);
+            }
+            CellState.Revealed => {
+                self.drawRevealedCell(canvas, x, y, cell.adjacentMines);
+            }
+            CellState.Flagged => {
+                self.drawFlaggedCell(canvas, x, y, isPressed);
+            }
+            CellState.Question => {
+                self.drawQuestionCell(canvas, x, y, isPressed);
+            }
+        }
+    }
+    
+    fn drawHiddenCell(self, Canvas canvas, x: int, y: int, pressed: bool) {
+        if pressed {
+            // 按下的单元格 - 下凹效果
+            canvas.fillRect(x, y, CELL_SIZE, CELL_SIZE, Color.RGB(128, 128, 128));
+        } else {
+            // 凸起的单元格 - 3D效果
+            canvas.fillRect(x, y, CELL_SIZE, CELL_SIZE, Color.RGB(192, 192, 192));
+            canvas.drawLine(x, y, x + CELL_SIZE - 1, y, Color.White);
+            canvas.drawLine(x, y, x, y + CELL_SIZE - 1, Color.White);
+            canvas.drawLine(x + CELL_SIZE - 1, y, x + CELL_SIZE - 1, y + CELL_SIZE - 1, Color.Black);
+            canvas.drawLine(x, y + CELL_SIZE - 1, x + CELL_SIZE - 1, y + CELL_SIZE - 1, Color.Black);
+        }
+    }
+    
+    fn drawRevealedCell(self, canvas: Canvas, x: int, y: int, adjacent: int) {
+        // 已揭开的格子 - 下凹效果
+        canvas.fillRect(x, y, CELL_SIZE, CELL_SIZE, Color.RGB(192, 192, 192));
+        
+        // 绘制数字
+        if adjacent > 0 {
+            var color = self.cellColors[adjacent];
+            var text = adjacent.toString();
+            canvas.drawText(x + 6, y + 4, text, color, Font.("Arial", 14));
+        }
+    }
+    
+    fn drawFlaggedCell(self, canvas: Canvas, x: int, y: int, pressed: bool) {
+        if pressed {
+            canvas.fillRect(x, y, CELL_SIZE, CELL_SIZE, Color.RGB(128, 128, 128));
+        } else {
+            canvas.fillRect(x, y, CELL_SIZE, CELL_SIZE, Color.RGB(192, 192, 192));
+            canvas.drawLine(x, y, x + CELL_SIZE - 1, y, Color.White);
+            canvas.drawLine(x, y, x, y + CELL_SIZE - 1, Color.White);
+            canvas.drawLine(x + CELL_SIZE - 1, y, x + CELL_SIZE - 1, y + CELL_SIZE - 1, Color.Black);
+            canvas.drawLine(x, y + CELL_SIZE - 1, x + CELL_SIZE - 1, y + CELL_SIZE - 1, Color.Black);
+        }
+        
+        // 绘制旗帜
+        self.drawFlag(canvas, x + CELL_SIZE / 2, y + CELL_SIZE / 2, Color.Red());
+    }
+    
+    fn drawQuestionCell(self, canvas: Canvas, x: int, y: int, pressed: bool) {
+        if pressed {
+            canvas.fillRect(x, y, CELL_SIZE, CELL_SIZE, Color.RGB(128, 128, 128));
+        } else {
+            canvas.fillRect(x, y, CELL_SIZE, CELL_SIZE, Color.RGB(192, 192, 192));
+            canvas.drawLine(x, y, x + CELL_SIZE - 1, y, Color.White);
+            canvas.drawLine(x, y, x, y + CELL_SIZE - 1, Color.White);
+            canvas.drawLine(x + CELL_SIZE - 1, y, x + CELL_SIZE - 1, y + CELL_SIZE - 1, Color.Black);
+            canvas.drawLine(x, y + CELL_SIZE - 1, x + CELL_SIZE - 1, y + CELL_SIZE - 1, Color.Black);
+        }
+        
+        // 绘制问号
+        canvas.drawText(x + 6, y + 4, "?", Color.Blue(), Font.("Arial", 14));
+    }
+    
+    fn drawFlag(self, canvas: Canvas, cx: int, cy: int, color: Color) {
+        // 旗杆
+        canvas.fillRect(cx - 1, cy - 6, 2, 12, Color.Black());
+        
+        // 旗帜
+        canvas.fillRect(cx - 1, cy - 6, 8, 6, color);
+        
+        // 旗角
+        canvas.drawLine(cx + 7, cy - 6, cx + 7, cy, color);
+    }
+    
+    fn drawMine(self, canvas: Canvas, cx: int, cy: int) {
+        // 地雷中心
+        canvas.fillCircle(cx, cy, 6, Color.Black());
+        
+        // 地雷高光
+        canvas.fillCircle(cx - 2, cy - 2, 2, Color.White());
+        
+        // 触须
+        for i in 0..8 {
+            var angle = i * 45;
+            var rad = angle * 3.14159 / 180;
+            var x1 = cx + (6 * sin(rad)) as int;
+            var y1 = cy + (6 * cos(rad)) as int;
+            var x2 = cx + (10 * sin(rad)) as int;
+            var y2 = cy + (10 * cos(rad)) as int;
+            canvas.drawLine(x1, y1, x2, y2, Color.Black());
+        }
+    }
+    
+    fn onKeyDown(self, key: VirtualKey) {
+        match key {
+            VirtualKey.F2 => {
+                self.newGame();
+            }
+            VirtualKey.Key1 => {
+                self.currentDifficulty = Difficulty.Beginner;
+                self.newGame();
+            }
+            VirtualKey.Key2 => {
+                self.currentDifficulty = Difficulty.Intermediate;
+                self.newGame();
+            }
+            VirtualKey.Key3 => {
+                self.currentDifficulty = Difficulty.Advanced;
+                self.newGame();
+            }
+            _ => {}
+        }
+    }
+    
+    fn onMouseDown(self, x: int, y: int, button: MouseButton) {
+        // 检查是否点击重置按钮
+        if x >= self.resetButtonX && x <= self.resetButtonX + self.resetButtonSize &&
+           y >= self.resetButtonY && y <= self.resetButtonY + self.resetButtonSize {
+            self.newGame();
+            return;
+        }
+        
+        // 检查是否点击游戏板
+        var col = (x - self.boardX) / CELL_TOTAL;
+        var row = (y - self.boardY) / CELL_TOTAL;
+        
+        if !self.board.isValid(row, col) {
+            return;
+        }
+        
+        if self.board.gameOver {
+            return;
+        }
+        
+        match button {
+            MouseButton.Left => {
+                self.mouseDown = true;
+                self.mouseDownRow = row;
+                self.mouseDownCol = col;
+            }
+            MouseButton.Right => {
+                self.board.toggleFlag(row, col);
+            }
+            MouseButton.Middle => {
+                self.board.chordReveal(row, col);
+            }
+            _ => {}
+        }
+    }
+    
+    fn onMouseUp(self, x: int, y: int, button: MouseButton) {
+        if !self.mouseDown {
+            return;
+        }
+        
+        var col = (x - self.boardX) / CELL_TOTAL;
+        var row = (y - self.boardY) / CELL_TOTAL;
+        
+        match button {
+            MouseButton.Left => {
+                if self.board.isValid(row, col) && row == self.mouseDownRow && col == self.mouseDownCol {
+                    self.board.reveal(row, col);
+                }
+            }
+            _ => {}
+        }
+        
+        self.mouseDown = false;
+    }
+    
+    fn newGame() {
+        if self.board != nil {
+            self.board.destroy();
+        }
+        
+        match self.currentDifficulty {
+            Difficulty.Beginner => {
+                self.board = MineBoard.(9, 9, 10);
+            }
+            Difficulty.Intermediate => {
+                self.board = MineBoard.(16, 16, 40);
+            }
+            Difficulty.Advanced => {
+                self.board = MineBoard.(16, 30, 99);
+            }
+        }
+        
+        // 计算界面偏移
+        var boardWidth = self.board.cols * CELL_TOTAL;
+        var boardHeight = self.board.rows * CELL_TOTAL;
+        
+        self.boardX = (self.width - boardWidth) / 2;
+        self.boardY = 60;
+        
+        // 重置按钮位置
+        self.resetButtonX = self.width / 2 - 15;
+        self.resetButtonY = 8;
+        self.resetButtonSize = 30;
+        
+        // 状态显示位置
+        self.mineCountX = 20;
+        self.timeX = self.width - 80;
+        self.statusY = 10;
+        
+        self.mouseDown = false;
+    }
+    
+    fn resizeWindow() {
+        // 根据难度调整窗口大小
+        match self.currentDifficulty {
+            Difficulty.Beginner => {
+                self.width = 280;
+                self.height = 340;
+            }
+            Difficulty.Intermediate => {
+                self.width = 480;
+                self.height = 520;
+            }
+            Difficulty.Advanced => {
+                self.width = 800;
+                self.height = 560;
+            }
+        }
+    }
+}
+
+// 主函数 - 程序入口
+pub fn main() {
+    println("===========================================");
+    println("  Zen-C MinesweeperPlus 扫雷增强版");
+    println("  Zen-C 现代系统编程");
+    println("===========================================");
+    
+    // 初始化平台
+    initPlatform();
+    
+    // 创建游戏实例
+    var game = MinesweeperPlusGame.("MinesweeperPlus 扫雷增强版", 280, 340, 60);
+    
+    // 运行游戏
+    game.run();
+    
+    // 清理
+    game.destroy();
+    shutdownPlatform();
+    
+    println("游戏结束");
+}
+
+// 数学函数
+fn sin(x: float) -> float {
+    // 简化实现
+    var result = x;
+    var term = x;
+    for i in 1..10 {
+        term = -term * x * x / ((2 * i) as float) / ((2 * i + 1) as float);
+        result = result + term;
+    }
+    return result;
+}
+
+fn cos(x: float) -> float {
+    return sin(1.5708 - x);
+}
