@@ -1,0 +1,824 @@
+// game_logic.zc - 击剑游戏逻辑
+// 068-Fencing 玩家 vs 电脑
+
+import std.math;
+
+const WINDOW_WIDTH: int = 800;
+const WINDOW_HEIGHT: int = 600;
+
+const STRIP_WIDTH: int = 700;
+const STRIP_X: int = 50;
+const GROUND_Y: int = 420;
+
+const FENCER_WIDTH: int = 40;
+const FENCER_HEIGHT: int = 120;
+const MOVE_SPEED: int = 5;
+
+const SWORD_LENGTH: int = 90;
+const THRUST_RANGE: int = 100;
+const LUNGE_RANGE: int = 140;
+const PARRY_RANGE: int = 80;
+
+const WIN_SCORE: int = 5;
+
+const ATTACK_DURATION: int = 18;
+const PARRY_DURATION: int = 25;
+const LUNGE_DURATION: int = 30;
+const ATTACK_COOLDOWN: int = 15;
+const HIT_STUN: int = 20;
+const SIMULTANEOUS_WINDOW: int = 5;
+
+const AI_DECISION_DELAY: int = 150;
+const AI_ATTACK_DELAY: int = 600;
+
+enum FencerState {
+    Idle,
+    Attacking,
+    Lunging,
+    Parrying,
+    Hit,
+    Celebrating,
+}
+
+enum GamePhase {
+    Ready,
+    Fighting,
+    PointScored,
+    MatchOver,
+}
+
+struct FencerData {
+    x: int,
+    hp: int,
+    score: int,
+    state: FencerState,
+    stateTimer: int,
+    cooldown: int,
+    facingRight: bool,
+    isMovingForward: bool,
+    isMovingBack: bool,
+    isHit: bool,
+    hitTimer: int,
+    hasScored: bool,
+    bodyColor: Color,
+    accentColor: Color,
+}
+
+pub class FightingGame extends Game {
+    player: FencerData;
+    cpu: FencerData;
+    phase: GamePhase;
+    roundNumber: int;
+    pointPauseTimer: int;
+    hitX: int;
+    hitY: int;
+    hitEffectTimer: int;
+    rightOfWay: bool;
+    aiLastDecision: u32;
+    aiNextAttack: u32;
+    simultaneousHit: bool;
+
+    keyForward: bool;
+    keyBackward: bool;
+    keyAttack: bool;
+    keyLunge: bool;
+    keyParry: bool;
+
+    pub fn onInit() {
+        self.setState(GameState.Playing);
+        self.phase = GamePhase.Ready;
+        self.roundNumber = 1;
+        self.pointPauseTimer = 0;
+        self.hitEffectTimer = 0;
+        self.simultaneousHit = false;
+
+        self.player = FencerData.{
+            x: 250,
+            hp: 100,
+            score: 0,
+            state: FencerState.Idle,
+            stateTimer: 0,
+            cooldown: 0,
+            facingRight: true,
+            isMovingForward: false,
+            isMovingBack: false,
+            isHit: false,
+            hitTimer: 0,
+            hasScored: false,
+            bodyColor: Color.RGB(40, 90, 200),
+            accentColor: Color.RGB(20, 60, 160),
+        };
+
+        self.cpu = FencerData.{
+            x: 550,
+            hp: 100,
+            score: 0,
+            state: FencerState.Idle,
+            stateTimer: 0,
+            cooldown: 0,
+            facingRight: false,
+            isMovingForward: false,
+            isMovingBack: false,
+            isHit: false,
+            hitTimer: 0,
+            hasScored: false,
+            bodyColor: Color.RGB(200, 40, 40),
+            accentColor: Color.RGB(160, 20, 20),
+        };
+
+        self.aiLastDecision = 0;
+        self.aiNextAttack = getTickCount() + 800;
+
+        self.keyForward = false;
+        self.keyBackward = false;
+        self.keyAttack = false;
+        self.keyLunge = false;
+        self.keyParry = false;
+    }
+
+    pub fn onShutdown() {
+    }
+
+    pub fn onUpdate(dt: u32) {
+        if self.phase == GamePhase.MatchOver {
+            return;
+        }
+
+        if self.phase == GamePhase.PointScored {
+            self.pointPauseTimer = self.pointPauseTimer - 1;
+            if self.pointPauseTimer <= 0 {
+                self.startNewRound();
+            }
+            if self.hitEffectTimer > 0 {
+                self.hitEffectTimer = self.hitEffectTimer - 1;
+            }
+            return;
+        }
+
+        if self.phase == GamePhase.Ready {
+            return;
+        }
+
+        // Update cooldowns
+        if self.player.cooldown > 0 {
+            self.player.cooldown = self.player.cooldown - 1;
+        }
+        if self.cpu.cooldown > 0 {
+            self.cpu.cooldown = self.cpu.cooldown - 1;
+        }
+
+        // Update state timers
+        self.updateFencerState(&self.player);
+        self.updateFencerState(&self.cpu);
+
+        // Update hit stun
+        if self.player.hitTimer > 0 {
+            self.player.hitTimer = self.player.hitTimer - 1;
+            if self.player.hitTimer <= 0 {
+                self.player.isHit = false;
+            }
+        }
+        if self.cpu.hitTimer > 0 {
+            self.cpu.hitTimer = self.cpu.hitTimer - 1;
+            if self.cpu.hitTimer <= 0 {
+                self.cpu.isHit = false;
+            }
+        }
+
+        // Player movement
+        if self.player.hitTimer == 0 && self.player.state == FencerState.Idle {
+            if self.keyForward {
+                self.player.x = self.player.x + MOVE_SPEED;
+                self.player.isMovingForward = true;
+            } else {
+                self.player.isMovingForward = false;
+            }
+            if self.keyBackward {
+                self.player.x = self.player.x - MOVE_SPEED;
+                self.player.isMovingBack = true;
+            } else {
+                self.player.isMovingBack = false;
+            }
+
+            // Actions
+            if self.keyAttack && self.player.cooldown == 0 && self.player.state == FencerState.Idle {
+                self.player.state = FencerState.Attacking;
+                self.player.stateTimer = ATTACK_DURATION;
+                self.player.cooldown = ATTACK_COOLDOWN;
+            }
+            if self.keyLunge && self.player.cooldown == 0 && self.player.state == FencerState.Idle {
+                self.player.state = FencerState.Lunging;
+                self.player.stateTimer = LUNGE_DURATION;
+                self.player.cooldown = ATTACK_COOLDOWN + 5;
+            }
+            if self.keyParry && self.player.cooldown == 0 && self.player.state == FencerState.Idle {
+                self.player.state = FencerState.Parrying;
+                self.player.stateTimer = PARRY_DURATION;
+                self.player.cooldown = ATTACK_COOLDOWN + 3;
+            }
+        }
+
+        // CPU AI
+        self.updateCPUAI(dt);
+
+        // Boundary
+        self.clampFencer(&self.player);
+        self.clampFencer(&self.cpu);
+
+        // Always face opponent
+        self.player.facingRight = self.cpu.x > self.player.x;
+        self.cpu.facingRight = self.player.x > self.cpu.x;
+
+        // Collision detection
+        self.checkHit();
+    }
+
+    private fn updateFencerState(f: &FencerData) {
+        if f.stateTimer > 0 {
+            f.stateTimer = f.stateTimer - 1;
+            if f.stateTimer <= 0 {
+                f.state = FencerState.Idle;
+            }
+        }
+    }
+
+    private fn updateCPUAI(dt: u32) {
+        var currentTime = getTickCount();
+        if currentTime - self.aiLastDecision < AI_DECISION_DELAY as u32 {
+            return;
+        }
+        self.aiLastDecision = currentTime;
+
+        var dist = self.abs(self.cpu.x - self.player.x);
+
+        if self.cpu.hitTimer > 0 || self.cpu.state != FencerState.Idle {
+            return;
+        }
+
+        // Movement
+        if dist > THRUST_RANGE + 30 {
+            if self.player.x < self.cpu.x {
+                self.cpu.x = self.cpu.x - MOVE_SPEED + 1;
+            } else {
+                self.cpu.x = self.cpu.x + MOVE_SPEED - 1;
+            }
+        } else if dist < THRUST_RANGE - 10 {
+            if self.player.x < self.cpu.x {
+                self.cpu.x = self.cpu.x + MOVE_SPEED - 2;
+            } else {
+                self.cpu.x = self.cpu.x - MOVE_SPEED + 2;
+            }
+        }
+
+        // Attack decision
+        if currentTime > self.aiNextAttack && self.cpu.cooldown == 0 && self.cpu.state == FencerState.Idle {
+            if dist <= THRUST_RANGE {
+                var r = math.rand() % 5;
+                if r == 0 {
+                    self.cpu.state = FencerState.Lunging;
+                    self.cpu.stateTimer = LUNGE_DURATION;
+                } else if r == 1 {
+                    self.cpu.state = FencerState.Parrying;
+                    self.cpu.stateTimer = PARRY_DURATION;
+                } else {
+                    self.cpu.state = FencerState.Attacking;
+                    self.cpu.stateTimer = ATTACK_DURATION;
+                }
+                self.cpu.cooldown = ATTACK_COOLDOWN + (math.rand() % 10 as int);
+                self.aiNextAttack = currentTime + AI_ATTACK_DELAY as u32 + (math.rand() % 400 as u32);
+            }
+        }
+
+        // Random dodge
+        if math.rand() % 80 == 0 && dist < THRUST_RANGE + 20 {
+            self.cpu.state = FencerState.Parrying;
+            self.cpu.stateTimer = PARRY_DURATION;
+            self.cpu.cooldown = ATTACK_COOLDOWN;
+        }
+    }
+
+    private fn checkHit() {
+        var pHit = false;
+        var cHit = false;
+        var range: int;
+        var timerCheck: int;
+
+        // Player hits CPU
+        if self.player.state == FencerState.Attacking {
+            range = THRUST_RANGE;
+            timerCheck = ATTACK_DURATION - 4;
+        } else if self.player.state == FencerState.Lunging {
+            range = LUNGE_RANGE;
+            timerCheck = LUNGE_DURATION - 5;
+        } else {
+            range = 0;
+            timerCheck = -1;
+        }
+
+        if self.player.stateTimer == timerCheck && range > 0 {
+            if self.isInRange(self.player.x, self.cpu.x, range) {
+                if self.cpu.state == FencerState.Parrying {
+                    // Blocked!
+                    self.hitX = (self.player.x + self.cpu.x) / 2;
+                    self.hitY = GROUND_Y - FENCER_HEIGHT / 2;
+                    self.hitEffectTimer = 15;
+                } else {
+                    cHit = true;
+                }
+            }
+        }
+
+        // CPU hits player
+        range = 0;
+        timerCheck = -1;
+        if self.cpu.state == FencerState.Attacking {
+            range = THRUST_RANGE;
+            timerCheck = ATTACK_DURATION - 4;
+        } else if self.cpu.state == FencerState.Lunging {
+            range = LUNGE_RANGE;
+            timerCheck = LUNGE_DURATION - 5;
+        }
+
+        if self.cpu.stateTimer == timerCheck && range > 0 {
+            if self.isInRange(self.cpu.x, self.player.x, range) {
+                if self.player.state == FencerState.Parrying {
+                    // Player blocked!
+                    self.hitX = (self.player.x + self.cpu.x) / 2;
+                    self.hitY = GROUND_Y - FENCER_HEIGHT / 2;
+                    self.hitEffectTimer = 15;
+                } else {
+                    pHit = true;
+                }
+            }
+        }
+
+        // Score
+        if pHit && cHit {
+            // Simultaneous
+            self.simultaneousHit = true;
+            self.hitX = (self.player.x + self.cpu.x) / 2;
+            self.hitY = GROUND_Y - FENCER_HEIGHT / 2;
+            self.hitEffectTimer = 20;
+            self.phase = GamePhase.PointScored;
+            self.pointPauseTimer = 90;
+            self.player.state = FencerState.Idle;
+            self.cpu.state = FencerState.Idle;
+        } else if pHit {
+            self.player.score = self.player.score + 1;
+            self.cpu.isHit = true;
+            self.cpu.hitTimer = HIT_STUN;
+            self.hitX = self.cpu.x;
+            self.hitY = GROUND_Y - FENCER_HEIGHT / 2;
+            self.hitEffectTimer = 25;
+            self.phase = GamePhase.PointScored;
+            self.pointPauseTimer = 90;
+            self.player.state = FencerState.Celebrating;
+            self.player.stateTimer = 60;
+            self.cpu.state = FencerState.Hit;
+        } else if cHit {
+            self.cpu.score = self.cpu.score + 1;
+            self.player.isHit = true;
+            self.player.hitTimer = HIT_STUN;
+            self.hitX = self.player.x;
+            self.hitY = GROUND_Y - FENCER_HEIGHT / 2;
+            self.hitEffectTimer = 25;
+            self.phase = GamePhase.PointScored;
+            self.pointPauseTimer = 90;
+            self.cpu.state = FencerState.Celebrating;
+            self.cpu.stateTimer = 60;
+            self.player.state = FencerState.Hit;
+        }
+
+        // Win check
+        if self.player.score >= WIN_SCORE {
+            self.phase = GamePhase.MatchOver;
+            self.setState(GameState.Won);
+        } else if self.cpu.score >= WIN_SCORE {
+            self.phase = GamePhase.MatchOver;
+            self.setState(GameState.Lost);
+        }
+    }
+
+    private fn isInRange(attackerX: int, targetX: int, range: int) -> bool {
+        var dist = self.abs(attackerX - targetX);
+        return dist < range;
+    }
+
+    private fn startNewRound() {
+        self.roundNumber = self.roundNumber + 1;
+        self.phase = GamePhase.Ready;
+        self.player.x = 250;
+        self.cpu.x = 550;
+        self.player.state = FencerState.Idle;
+        self.cpu.state = FencerState.Idle;
+        self.player.isHit = false;
+        self.cpu.isHit = false;
+        self.player.hitTimer = 0;
+        self.cpu.hitTimer = 0;
+        self.player.cooldown = 0;
+        self.cpu.cooldown = 0;
+        self.player.isMovingForward = false;
+        self.player.isMovingBack = false;
+    }
+
+    private fn clampFencer(f: &FencerData) {
+        if f.x < STRIP_X + 10 {
+            f.x = STRIP_X + 10;
+        }
+        if f.x > STRIP_X + STRIP_WIDTH - FENCER_WIDTH - 10 {
+            f.x = STRIP_X + STRIP_WIDTH - FENCER_WIDTH - 10;
+        }
+    }
+
+    pub fn onRender(canvas: Canvas) {
+        canvas.clear(Color.Black());
+        self.drawBackground(canvas);
+        self.drawStrip(canvas);
+        self.drawScore(canvas);
+        self.drawFencer(canvas, &self.player, true);
+        self.drawFencer(canvas, &self.cpu, false);
+
+        if self.hitEffectTimer > 0 {
+            self.drawHitEffect(canvas);
+        }
+
+        if self.phase == GamePhase.Ready {
+            self.drawReadyScreen(canvas);
+        }
+
+        if self.phase == GamePhase.MatchOver {
+            self.drawMatchOver(canvas);
+        }
+
+        self.drawControls(canvas);
+    }
+
+    private fn drawBackground(canvas: Canvas) {
+        for y in 0..GROUND_Y {
+            var t = y as float / GROUND_Y as float;
+            var r = (20.0 + 15.0 * t) as int;
+            var g = (25.0 + 20.0 * t) as int;
+            var b = (50.0 + 30.0 * t) as int;
+            canvas.drawLine(0, y, self.width, y, Color.RGB(r as u8, g as u8, b as u8));
+        }
+    }
+
+    private fn drawStrip(canvas: Canvas) {
+        // Strip floor
+        canvas.fillRect(STRIP_X, GROUND_Y, STRIP_WIDTH, 50, Color.RGB(60, 45, 30));
+        // Strip lines
+        canvas.drawLine(STRIP_X, GROUND_Y, STRIP_X, GROUND_Y + 50, Color.White());
+        canvas.drawLine(STRIP_X + STRIP_WIDTH, GROUND_Y, STRIP_X + STRIP_WIDTH, GROUND_Y + 50, Color.White());
+        canvas.drawLine(STRIP_X, GROUND_Y + 25, STRIP_X + STRIP_WIDTH, GROUND_Y + 25, Color.RGB(150, 130, 100));
+        // Center line
+        var centerX = STRIP_X + STRIP_WIDTH / 2;
+        canvas.drawLine(centerX, GROUND_Y, centerX, GROUND_Y + 50, Color.Yellow());
+
+        // Lane markers
+        for i in 0..7 {
+            var lx = STRIP_X + i * (STRIP_WIDTH / 6);
+            canvas.drawLine(lx, GROUND_Y + 45, lx + 30, GROUND_Y + 45, Color.RGB(100, 85, 60));
+        }
+    }
+
+    private fn drawScore(canvas: Canvas) {
+        var font = Font.("Arial", 16);
+        var largeFont = Font.("Arial", 36);
+
+        // Player score
+        canvas.fillRect(20, 15, 120, 50, Color.ARGB(200, 0, 0, 0));
+        canvas.drawRect(20, 15, 120, 50, Color.RGB(40, 90, 200));
+        canvas.drawText(25, 20, "玩家", Color.RGB(40, 90, 200), font);
+        canvas.drawText(80, 18, self.player.score.toString(), Color.White(), largeFont);
+
+        // CPU score
+        canvas.fillRect(self.width - 140, 15, 120, 50, Color.ARGB(200, 0, 0, 0));
+        canvas.drawRect(self.width - 140, 15, 120, 50, Color.RGB(200, 40, 40));
+        canvas.drawText(self.width - 135, 20, "CPU", Color.RGB(200, 40, 40), font);
+        var scoreText = self.cpu.score.toString();
+        canvas.drawText(self.width - 95, 18, scoreText, Color.White(), largeFont);
+
+        // Round indicator
+        var roundFont = Font.("Arial", 14);
+        var roundText = "第 " ++ self.roundNumber.toString() ++ " 回合";
+        canvas.drawText(self.width / 2 - 30, 20, roundText, Color.LightGray(), roundFont);
+
+        // Win target
+        var winText = "先得 " ++ WIN_SCORE.toString() ++ " 分获胜";
+        canvas.drawText(self.width / 2 - 45, 38, winText, Color.Gray(), roundFont);
+
+        // Score dots
+        for i in 0..WIN_SCORE {
+            var dotX = self.width / 2 - (WIN_SCORE * 12) / 2 + i * 12;
+            if i < self.player.score {
+                canvas.fillCircle(dotX, 60, 4, Color.RGB(40, 90, 200));
+            } else {
+                canvas.drawCircle(dotX, 60, 4, Color.RGB(100, 100, 100));
+            }
+            var dotX2 = self.width / 2 - (WIN_SCORE * 12) / 2 + i * 12;
+            if i < self.cpu.score {
+                canvas.fillCircle(dotX2, 75, 4, Color.RGB(200, 40, 40));
+            } else {
+                canvas.drawCircle(dotX2, 75, 4, Color.RGB(100, 100, 100));
+            }
+        }
+    }
+
+    private fn drawFencer(canvas: Canvas, f: &FencerData, isPlayer: bool) {
+        var cx = f.x + FENCER_WIDTH / 2;
+        var by = GROUND_Y;
+        var bodyColor = f.bodyColor;
+        var accentColor = f.accentColor;
+
+        // Hit flash
+        if f.isHit && f.hitTimer > 0 && math.rand() % 3 == 0 {
+            bodyColor = Color.White();
+            accentColor = Color.LightGray();
+        }
+
+        // Celebrating
+        if f.state == FencerState.Celebrating {
+            if math.rand() % 5 == 0 {
+                bodyColor = Color.Yellow();
+            }
+        }
+
+        // Legs
+        var legSpread = 0;
+        if f.state == FencerState.Lunging {
+            legSpread = 35;
+        } else if f.state == FencerState.Attacking {
+            legSpread = 5;
+        } else {
+            legSpread = 12;
+        }
+
+        var legColor = accentColor;
+        var legY = by - 35;
+        canvas.fillRect(cx - legSpread - 6, legY, 12, 35, legColor);
+        canvas.fillRect(cx + legSpread - 6, legY, 12, 35, legColor);
+
+        // Feet
+        canvas.fillRect(cx - legSpread - 8, by - 8, 16, 8, Color.RGB(30, 30, 30));
+        canvas.fillRect(cx + legSpread - 8, by - 8, 16, 8, Color.RGB(30, 30, 30));
+
+        // Body / Torso
+        var torsoH = 55;
+        var torsoY = legY - torsoH;
+        var torsoW = FENCER_WIDTH - 14;
+        canvas.fillRect(cx - torsoW / 2, torsoY, torsoW, torsoH, bodyColor);
+
+        // Jacket detail
+        canvas.fillRect(cx - torsoW / 2, torsoY, torsoW / 3, torsoH, accentColor);
+
+        // Head / Mask
+        var headCY = torsoY - 18;
+        var headR = 16;
+        canvas.fillCircle(cx, headCY, headR, Color.RGB(220, 220, 220));
+        // Visor
+        var visorX = if f.facingRight { cx + 2 } else { cx - 10 };
+        canvas.fillRect(visorX, headCY - 5, 8, 6, Color.RGB(30, 30, 30));
+
+        // Sword arm
+        var armY = torsoY + 10;
+        var swordTipX: int;
+        var swordTipY: int;
+        var handX: int;
+        var handY: int;
+
+        if f.state == FencerState.Attacking {
+            // Thrust pose
+            var thrustX = if f.facingRight { cx + 20 } else { cx - 60 };
+            canvas.fillRect(thrustX - 6, armY, 50, 10, accentColor);
+            handX = if f.facingRight { thrustX + 44 } else { thrustX + 6 };
+            handY = armY + 5;
+            // Sword
+            swordTipX = if f.facingRight { handX + SWORD_LENGTH - 10 } else { handX - SWORD_LENGTH + 10 };
+            swordTipY = handY;
+        } else if f.state == FencerState.Lunging {
+            // Lunge pose
+            var lungeX = if f.facingRight { cx + 30 } else { cx - 70 };
+            canvas.fillRect(lungeX - 6, armY, 60, 10, accentColor);
+            handX = if f.facingRight { lungeX + 54 } else { lungeX + 6 };
+            handY = armY + 5;
+            swordTipX = if f.facingRight { handX + SWORD_LENGTH - 5 } else { handX - SWORD_LENGTH + 5 };
+            swordTipY = handY;
+        } else if f.state == FencerState.Parrying {
+            // Parry pose - sword raised
+            var parryX = if f.facingRight { cx + 5 } else { cx - 35 };
+            canvas.fillRect(parryX, armY - 20, 10, 40, accentColor);
+            handX = parryX + 5;
+            handY = armY - 20;
+            swordTipX = if f.facingRight { handX + SWORD_LENGTH - 10 } else { handX - SWORD_LENGTH + 10 };
+            swordTipY = handY - 30;
+        } else {
+            // Guard position
+            var guardX = if f.facingRight { cx + 8 } else { cx - 28 };
+            canvas.fillRect(guardX, armY, 20, 10, accentColor);
+            handX = if f.facingRight { guardX + 18 } else { guardX + 2 };
+            handY = armY + 5;
+            swordTipX = if f.facingRight { handX + SWORD_LENGTH - 20 } else { handX - SWORD_LENGTH + 20 };
+            swordTipY = handY - 15;
+        }
+
+        // Off arm
+        var offArmX = if f.facingRight { cx - 25 } else { cx + 15 };
+        canvas.fillRect(offArmX, armY, 12, 35, accentColor);
+
+        // Sword
+        if f.state == FencerState.Parrying {
+            // Vertical sword for parry
+            self.drawSwordVertical(canvas, handX, handY, swordTipX, swordTipY, f.facingRight);
+        } else {
+            // Horizontal/diagonal sword
+            self.drawSword(canvas, handX, handY, swordTipX, swordTipY);
+        }
+
+        // Action label
+        var labelFont = Font.("Arial", 12);
+        var labelY = torsoY - 45;
+        if f.state == FencerState.Attacking {
+            canvas.drawText(cx - 15, labelY, "刺!", Color.Yellow(), labelFont);
+        } else if f.state == FencerState.Lunging {
+            canvas.drawText(cx - 20, labelY, "弓步!", Color.Yellow(), labelFont);
+        } else if f.state == FencerState.Parrying {
+            canvas.drawText(cx - 15, labelY, "防守", Color.Cyan(), labelFont);
+        } else if f.state == FencerState.Celebrating {
+            canvas.drawText(cx - 15, labelY, "得分!", Color.Green(), labelFont);
+        } else if f.state == FencerState.Hit {
+            canvas.drawText(cx - 10, labelY, "被击中!", Color.Red(), labelFont);
+        }
+    }
+
+    private fn drawSword(canvas: Canvas, hx: int, hy: int, tx: int, ty: int) {
+        // Blade
+        canvas.drawLine(hx, hy, tx, ty, Color.RGB(200, 200, 210));
+        canvas.drawLine(hx, hy + 2, tx, ty + 2, Color.RGB(200, 200, 210));
+        // Handle / guard
+        canvas.fillRect(hx - 4, hy - 3, 8, 6, Color.RGB(180, 150, 50));
+        // Tip
+        canvas.drawLine(tx - 3, ty - 1, tx + 3, ty, Color.RGB(200, 200, 210));
+    }
+
+    private fn drawSwordVertical(canvas: Canvas, hx: int, hy: int, tx: int, ty: int, facingRight: bool) {
+        canvas.drawLine(hx, hy, tx, ty, Color.RGB(200, 200, 210));
+        canvas.drawLine(hx + 2, hy, tx + 2, ty, Color.RGB(200, 200, 210));
+        canvas.fillRect(hx - 4, hy - 4, 8, 6, Color.RGB(180, 150, 50));
+    }
+
+    private fn drawHitEffect(canvas: Canvas) {
+        var size = (25 - self.hitEffectTimer) * 4;
+        var alpha = (self.hitEffectTimer as float / 25.0 * 255.0) as int;
+        var color1 = Color.ARGB(alpha as u8, 255, 200, 50);
+        var color2 = Color.ARGB((alpha / 2) as u8, 255, 100, 50);
+        canvas.drawCircle(self.hitX, self.hitY, size / 2, color1);
+        canvas.drawCircle(self.hitX, self.hitY, size / 3, color2);
+
+        // Star bursts
+        for i in 0..6 {
+            var angle = i * 60;
+            var ex = self.hitX + (self.cos(angle) * size / 2 as float) as int;
+            var ey = self.hitY + (self.sin(angle) * size / 2 as float) as int;
+            canvas.drawLine(self.hitX, self.hitY, ex, ey, color1);
+        }
+    }
+
+    private fn drawReadyScreen(canvas: Canvas) {
+        canvas.fillRect(self.width / 2 - 180, self.height / 2 - 80, 360, 160, Color.ARGB(200, 0, 0, 0));
+        canvas.drawRect(self.width / 2 - 180, self.height / 2 - 80, 360, 160, Color.Yellow());
+
+        var titleFont = Font.("Arial", 32);
+        canvas.drawText(self.width / 2 - 75, self.height / 2 - 65, "击剑比赛", Color.Yellow(), titleFont);
+
+        var smallFont = Font.("Arial", 18);
+        var scoreText = self.player.score.toString() ++ " : " ++ self.cpu.score.toString();
+        canvas.drawText(self.width / 2 - 25, self.height / 2 - 20, scoreText, Color.White(), smallFont);
+
+        canvas.drawText(self.width / 2 - 120, self.height / 2 + 10, "按 J 开始回合", Color.LightGray(), smallFont);
+    }
+
+    private fn drawMatchOver(canvas: Canvas) {
+        canvas.fillRect(0, 0, self.width, self.height, Color.ARGB(180, 0, 0, 0));
+
+        var font = Font.("Arial", 48);
+        var winner: str;
+        var textColor: Color;
+
+        if self.player.score >= WIN_SCORE {
+            winner = "玩家获胜!";
+            textColor = Color.Yellow();
+        } else {
+            winner = "CPU获胜!";
+            textColor = Color.Red();
+        }
+
+        canvas.drawText(self.width / 2 - 130, self.height / 2 - 60, winner, textColor, font);
+
+        var finalScore = self.player.score.toString() ++ " - " ++ self.cpu.score.toString();
+        var smallFont = Font.("Arial", 24);
+        canvas.drawText(self.width / 2 - 50, self.height / 2, finalScore, Color.White(), smallFont);
+
+        canvas.drawText(self.width / 2 - 90, self.height / 2 + 40, "按 R 重新开始", Color.LightGray(), smallFont);
+    }
+
+    private fn drawControls(canvas: Canvas) {
+        var font = Font.("Arial", 12);
+        var text = "A/D: 前后移动  J: 刺剑  K: 弓步  S: 防守";
+        canvas.drawText(self.width / 2 - 150, self.height - 25, text, Color.DarkGray(), font);
+    }
+
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.A | VirtualKey.Left => {
+                self.keyBackward = true;
+            }
+            VirtualKey.D | VirtualKey.Right => {
+                self.keyForward = true;
+            }
+            VirtualKey.KeyJ => {
+                if self.phase == GamePhase.Ready {
+                    self.phase = GamePhase.Fighting;
+                }
+                self.keyAttack = true;
+            }
+            VirtualKey.KeyK => {
+                self.keyLunge = true;
+            }
+            VirtualKey.KeyS | VirtualKey.Down => {
+                self.keyParry = true;
+            }
+            VirtualKey.KeyR => {
+                if self.phase == GamePhase.MatchOver {
+                    self.onInit();
+                    self.phase = GamePhase.Ready;
+                }
+            }
+            VirtualKey.Space => {
+                if self.phase == GamePhase.Ready {
+                    self.phase = GamePhase.Fighting;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn onKeyUp(key: VirtualKey) {
+        match key {
+            VirtualKey.A | VirtualKey.Left => {
+                self.keyBackward = false;
+            }
+            VirtualKey.D | VirtualKey.Right => {
+                self.keyForward = false;
+            }
+            VirtualKey.KeyJ => {
+                self.keyAttack = false;
+            }
+            VirtualKey.KeyK => {
+                self.keyLunge = false;
+            }
+            VirtualKey.KeyS | VirtualKey.Down => {
+                self.keyParry = false;
+            }
+            _ => {}
+        }
+    }
+
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        if self.phase == GamePhase.Ready {
+            self.phase = GamePhase.Fighting;
+        }
+    }
+
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+    }
+
+    fn abs(x: int) -> int {
+        return if x < 0 { -x } else { x };
+    }
+
+    fn cos(deg: int) -> float {
+        var rad = deg as float * 3.14159 / 180.0;
+        var r = 0.0;
+        var x = 1.0;
+        var f = 1.0;
+        for i in 0..10 {
+            r = r + x / f;
+            x = x * (-rad * rad);
+            f = f * (2 * i + 2) * (2 * i + 3);
+        }
+        return r;
+    }
+
+    fn sin(deg: int) -> float {
+        var rad = deg as float * 3.14159 / 180.0;
+        var r = 0.0;
+        var x = rad;
+        var f = 1.0;
+        for i in 0..10 {
+            r = r + x / f;
+            x = x * (-rad * rad);
+            f = f * (2 * i + 2) * (2 * i + 3);
+        }
+        return r;
+    }
+}
