@@ -1,0 +1,789 @@
+// main_window.zc - Zen-C Volleyball 游戏主程序
+// 玩家 vs 电脑排球游戏，Windows GUI 版本
+
+import std.io;
+
+// 导入平台 API
+import "platform_api.zc";
+
+// ==================== 游戏配置 ====================
+
+const WINDOW_WIDTH: int = 480;
+const WINDOW_HEIGHT: int = 640;
+const TARGET_FPS: int = 60;
+const FRAME_TIME: u32 = 1000 / TARGET_FPS;
+
+// 球场配置
+const COURT_MARGIN: int = 20;
+const NET_Y: int = WINDOW_HEIGHT / 2;
+const NET_HEIGHT: int = 15;
+const NET_COLOR = Color.RGB(255, 255, 255);
+
+// 球拍配置
+const PADDLE_WIDTH: int = 100;
+const PADDLE_HEIGHT: int = 15;
+const PADDLE_SPEED: int = 12;
+const PLAYER_PADDLE_Y: int = WINDOW_HEIGHT - 60;
+const CPU_PADDLE_Y: int = 45;
+
+// 球配置
+const BALL_RADIUS: int = 12;
+const BALL_SPEED_INIT: int = 6;
+const BALL_SPEED_MAX: int = 14;
+const BALL_SPEED_INCREMENT: float = 0.3;
+const GRAVITY: float = 0.15;
+
+// 发球区
+const SERVE_ZONE_Y_PLAYER: int = WINDOW_HEIGHT - 120;
+const SERVE_ZONE_Y_CPU: int = 120;
+
+// ==================== 游戏状态 ====================
+
+enum GameState {
+    Ready,
+    Serving,      // 发球状态
+    Playing,
+    GameOver,
+}
+
+enum Side {
+    Player,
+    CPU,
+}
+
+// ==================== 全局游戏数据 ====================
+
+static mut window: WindowHandle;
+static mut running: bool = true;
+
+// 球拍位置
+static mut playerX: int;
+static mut cpuX: int;
+
+// 玩家输入
+static mut targetPlayerX: int;
+
+// 球状态
+static mut ballX: float;
+static mut ballY: float;
+static mut ballVX: float;
+static mut ballVY: float;
+static mut ballSpeed: float;
+
+// 分数
+static mut playerScore: int = 0;
+static mut cpuScore: int = 0;
+static mut servingSide: Side = Side.Player;
+
+// 计时
+static mut lastFrame: u32 = 0;
+static mut gameState: GameState = GameState.Ready;
+
+// 球是否在飞行
+static mut ballInPlay: bool = false;
+
+// ==================== 颜色定义 ====================
+
+const BG_COLOR = Color.RGB(30, 100, 180);       // 海洋蓝球场
+const COURT_COLOR = Color.RGB(60, 140, 220);    // 球场浅蓝
+const LINE_COLOR = Color.White();
+const PADDLE_COLOR_PLAYER = Color.RGB(255, 100, 50);   // 橙色球拍
+const PADDLE_COLOR_CPU = Color.RGB(255, 50, 50);       // 红色球拍
+const BALL_COLOR = Color.White();
+const NET_COLOR_UPPER = Color.RGB(200, 200, 200);
+const TEXT_COLOR = Color.White();
+const SCORE_COLOR = Color.Yellow();
+
+// ==================== 游戏初始化 ====================
+
+fn initGame() {
+    playerX = WINDOW_WIDTH / 2 - PADDLE_WIDTH / 2;
+    cpuX = WINDOW_WIDTH / 2 - PADDLE_WIDTH / 2;
+    targetPlayerX = playerX;
+    
+    playerScore = 0;
+    cpuScore = 0;
+    servingSide = Side.Player;
+    
+    resetBall(Side.Player);
+    gameState = GameState.Ready;
+    ballInPlay = false;
+}
+
+fn resetBall(server: Side) {
+    if server == Side.Player {
+        ballX = playerX + PADDLE_WIDTH / 2 as float;
+        ballY = SERVE_ZONE_Y_PLAYER as float;
+        ballVX = 0.0;
+        ballVY = 0.0;
+    } else {
+        ballX = cpuX + PADDLE_WIDTH / 2 as float;
+        ballY = SERVE_ZONE_Y_CPU as float;
+        ballVX = 0.0;
+        ballVY = 0.0;
+    }
+    ballSpeed = BALL_SPEED_INIT as float;
+    ballInPlay = false;
+}
+
+// ==================== 键盘/鼠标输入 ====================
+
+static mut keyLeft: bool = false;
+static mut keyRight: bool = false;
+
+fn handleKeyDown(key: VirtualKey) {
+    match key {
+        VirtualKey.Left => {
+            keyLeft = true;
+        },
+        VirtualKey.Right => {
+            keyRight = true;
+        },
+        VirtualKey.Space => {
+            if gameState == GameState.Ready {
+                gameState = GameState.Serving;
+                servingSide = Side.Player;
+                resetBall(Side.Player);
+            } else if gameState == GameState.Serving {
+                // 发球
+                serveBall();
+            } else if gameState == GameState.GameOver {
+                initGame();
+                gameState = GameState.Serving;
+                servingSide = Side.Player;
+                resetBall(Side.Player);
+            }
+        },
+        VirtualKey.Escape => {
+            running = false;
+        },
+        _ => {}
+    }
+}
+
+fn handleKeyUp(key: VirtualKey) {
+    match key {
+        VirtualKey.Left => {
+            keyLeft = false;
+        },
+        VirtualKey.Right => {
+            keyRight = false;
+        },
+        _ => {}
+    }
+}
+
+fn handleMouseMove(x: int, y: int) {
+    if y > WINDOW_HEIGHT / 2 {
+        targetPlayerX = x - PADDLE_WIDTH / 2;
+    }
+}
+
+fn serveBall() {
+    if servingSide == Side.Player {
+        // 向斜上方发球
+        ballVX = (randFloat() - 0.5) * 4.0;
+        ballVY = -ballSpeed;
+    } else {
+        // CPU 发球，向斜下方
+        ballVX = (randFloat() - 0.5) * 4.0;
+        ballVY = ballSpeed;
+    }
+    ballInPlay = true;
+    gameState = GameState.Playing;
+}
+
+// ==================== 随机数 ====================
+
+static mut rng_seed: u32 = 54321;
+
+fn randFloat() -> float {
+    rng_seed = rng_seed * 1103515245 + 12345;
+    var r = (rng_seed / 65536) % 32768;
+    return (r as float) / 32768.0;
+}
+
+fn randInt(minVal: int, maxVal: int) -> int {
+    return (randFloat() * (maxVal - minVal + 1) as float) as int + minVal;
+}
+
+// ==================== 碰撞检测 ====================
+
+fn checkPaddleCollision(paddleX: int, paddleY: int, bx: float, by: float) -> bool {
+    var bxi = bx as int;
+    var byi = by as int;
+    
+    return bxi + BALL_RADIUS > paddleX &&
+           bxi - BALL_RADIUS < paddleX + PADDLE_WIDTH &&
+           byi + BALL_RADIUS > paddleY &&
+           byi - BALL_RADIUS < paddleY + PADDLE_HEIGHT;
+}
+
+// ==================== AI 逻辑 ====================
+
+fn updateCPU(dt: u32) {
+    // 简单 AI：根据球的位置移动
+    var ballCenterX = ballX as int;
+    var cpuCenterX = cpuX + PADDLE_WIDTH / 2;
+    
+    // 预测球的位置（简化版）
+    var predictX = ballCenterX;
+    if ballVY < 0.0 {
+        // 球向 CPU 方向飞，预测落点
+        var timeToReach = (cpuX - ballY) / ballVY;
+        if timeToReach > 0.0 && timeToReach < 200.0 {
+            predictX = ballX + ballVX * timeToReach;
+        }
+    }
+    
+    // 移动 CPU 球拍
+    var diff = predictX - cpuCenterX;
+    var cpuSpeed = PADDLE_SPEED;
+    
+    if diff < -cpuSpeed {
+        cpuX = cpuX - cpuSpeed;
+    } else if diff > cpuSpeed {
+        cpuX = cpuX + cpuSpeed;
+    }
+    
+    // 边界限制
+    if cpuX < COURT_MARGIN {
+        cpuX = COURT_MARGIN;
+    }
+    if cpuX > WINDOW_WIDTH - COURT_MARGIN - PADDLE_WIDTH {
+        cpuX = WINDOW_WIDTH - COURT_MARGIN - PADDLE_WIDTH;
+    }
+}
+
+// ==================== 更新游戏逻辑 ====================
+
+fn updateGame(dt: u32) {
+    // 更新玩家球拍位置
+    if keyLeft {
+        targetPlayerX = targetPlayerX - PADDLE_SPEED;
+    }
+    if keyRight {
+        targetPlayerX = targetPlayerX + PADDLE_SPEED;
+    }
+    
+    // 限制范围
+    if targetPlayerX < COURT_MARGIN {
+        targetPlayerX = COURT_MARGIN;
+    }
+    if targetPlayerX > WINDOW_WIDTH - COURT_MARGIN - PADDLE_WIDTH {
+        targetPlayerX = WINDOW_WIDTH - COURT_MARGIN - PADDLE_WIDTH;
+    }
+    
+    // 平滑移动
+    var dx = targetPlayerX - playerX;
+    if dx > PADDLE_SPEED {
+        playerX = playerX + PADDLE_SPEED;
+    } else if dx < -PADDLE_SPEED {
+        playerX = playerX - PADDLE_SPEED;
+    } else {
+        playerX = targetPlayerX;
+    }
+    
+    // 发球状态：球跟随发球者
+    if gameState == GameState.Serving {
+        if servingSide == Side.Player {
+            ballX = playerX + PADDLE_WIDTH / 2 as float;
+            ballY = SERVE_ZONE_Y_PLAYER as float;
+        } else {
+            ballX = cpuX + PADDLE_WIDTH / 2 as float;
+            ballY = SERVE_ZONE_Y_CPU as float;
+        }
+        return;
+    }
+    
+    if gameState != GameState.Playing || !ballInPlay {
+        return;
+    }
+    
+    // 更新球位置
+    ballX = ballX + ballVX;
+    ballY = ballY + ballVY;
+    
+    // 左右边界反弹
+    if ballX - BALL_RADIUS as float < COURT_MARGIN as float {
+        ballX = COURT_MARGIN + BALL_RADIUS as float;
+        ballVX = -ballVX * 0.95;
+    }
+    if ballX + BALL_RADIUS as float > (WINDOW_WIDTH - COURT_MARGIN) as float {
+        ballX = WINDOW_WIDTH - COURT_MARGIN - BALL_RADIUS as float;
+        ballVX = -ballVX * 0.95;
+    }
+    
+    // 玩家球拍碰撞
+    if checkPaddleCollision(playerX, PLAYER_PADDLE_Y, ballX, ballY) && ballVY > 0.0 {
+        // 计算反弹角度
+        var hitPos = (ballX - (playerX + PADDLE_WIDTH / 2) as float) / (PADDLE_WIDTH / 2) as float;
+        var angle = hitPos * 60.0; // 最大60度角
+        
+        // 根据击中位置调整角度和速度
+        ballVX = angle * 0.15;
+        ballVY = -ballSpeed;
+        
+        // 增加速度
+        ballSpeed = ballSpeed + BALL_SPEED_INCREMENT;
+        if ballSpeed > BALL_SPEED_MAX as float {
+            ballSpeed = BALL_SPEED_MAX as float;
+        }
+        
+        // 确保球向上飞
+        if ballVY > -3.0 {
+            ballVY = -3.0;
+        }
+        
+        ballY = PLAYER_PADDLE_Y - BALL_RADIUS as float;
+    }
+    
+    // CPU 球拍碰撞
+    if checkPaddleCollision(cpuX, CPU_PADDLE_Y, ballX, ballY) && ballVY < 0.0 {
+        var hitPos = (ballX - (cpuX + PADDLE_WIDTH / 2) as float) / (PADDLE_WIDTH / 2) as float;
+        var angle = hitPos * 60.0;
+        
+        ballVX = angle * 0.15;
+        ballVY = ballSpeed;
+        
+        ballSpeed = ballSpeed + BALL_SPEED_INCREMENT;
+        if ballSpeed > BALL_SPEED_MAX as float {
+            ballSpeed = BALL_SPEED_MAX as float;
+        }
+        
+        if ballVY < 3.0 {
+            ballVY = 3.0;
+        }
+        
+        ballY = CPU_PADDLE_Y + PADDLE_HEIGHT + BALL_RADIUS as float;
+    }
+    
+    // 更新 CPU AI
+    updateCPU(dt);
+    
+    // 边界检测 - 得分
+    if ballY < 0.0 as float {
+        // 玩家得分
+        playerScore = playerScore + 1;
+        io.println("玩家得分! " ++ playerScore.toString() ++ " - " ++ cpuScore.toString());
+        
+        if playerScore >= 21 {
+            gameState = GameState.GameOver;
+            io.println("恭喜! 你赢了!");
+        } else {
+            servingSide = Side.Player;
+            gameState = GameState.Serving;
+            resetBall(Side.Player);
+        }
+        return;
+    }
+    
+    if ballY > WINDOW_HEIGHT as float {
+        // CPU 得分
+        cpuScore = cpuScore + 1;
+        io.println("电脑得分! " ++ playerScore.toString() ++ " - " ++ cpuScore.toString());
+        
+        if cpuScore >= 21 {
+            gameState = GameState.GameOver;
+            io.println("电脑赢了!");
+        } else {
+            servingSide = Side.CPU;
+            gameState = GameState.Serving;
+            resetBall(Side.CPU);
+        }
+        return;
+    }
+}
+
+// ==================== 绘制函数 ====================
+
+fn drawCourt(ctx: rawptr, pitch: int, buffer: rawptr) {
+    // 背景
+    drawRect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, pitch, buffer, BG_COLOR);
+    
+    // 球场区域
+    drawRect(ctx, COURT_MARGIN, COURT_MARGIN, 
+             WINDOW_WIDTH - COURT_MARGIN * 2, 
+             WINDOW_HEIGHT - COURT_MARGIN * 2, 
+             pitch, buffer, COURT_COLOR);
+    
+    // 边线
+    drawRect(ctx, COURT_MARGIN, COURT_MARGIN,
+             WINDOW_WIDTH - COURT_MARGIN * 2,
+             WINDOW_HEIGHT - COURT_MARGIN * 2,
+             pitch, buffer, LINE_COLOR);
+    
+    // 中线
+    drawLine(ctx, COURT_MARGIN, NET_Y, WINDOW_WIDTH - COURT_MARGIN, NET_Y, pitch, buffer, LINE_COLOR);
+    
+    // 发球线（玩家）
+    drawLine(ctx, COURT_MARGIN, SERVE_ZONE_Y_PLAYER, 
+             WINDOW_WIDTH - COURT_MARGIN, SERVE_ZONE_Y_PLAYER, 
+             pitch, buffer, LINE_COLOR);
+    
+    // 发球线（CPU）
+    drawLine(ctx, COURT_MARGIN, SERVE_ZONE_Y_CPU,
+             WINDOW_WIDTH - COURT_MARGIN, SERVE_ZONE_Y_CPU,
+             pitch, buffer, LINE_COLOR);
+}
+
+fn drawNet(ctx: rawptr, pitch: int, buffer: rawptr) {
+    var netX = COURT_MARGIN;
+    var netTop = NET_Y - NET_HEIGHT / 2;
+    
+    // 网柱
+    drawRect(ctx, netX - 3, netTop, 3, NET_HEIGHT, pitch, buffer, NET_COLOR_UPPER);
+    drawRect(ctx, WINDOW_WIDTH - COURT_MARGIN, netTop, 3, NET_HEIGHT, pitch, buffer, NET_COLOR_UPPER);
+    
+    // 网
+    for x in netX..(WINDOW_WIDTH - COURT_MARGIN) {
+        for y in netTop..(netTop + NET_HEIGHT) {
+            // 网眼效果
+            if (x + y) % 4 < 2 {
+                setPixel(ctx, x, y, pitch, buffer, NET_COLOR);
+            }
+        }
+    }
+}
+
+fn drawPaddle(ctx: rawptr, pitch: int, buffer: rawptr, x: int, y: int, color: Color) {
+    // 球拍主体
+    drawRect(ctx, x, y, PADDLE_WIDTH, PADDLE_HEIGHT, pitch, buffer, color);
+    
+    // 球拍边缘高亮
+    drawRect(ctx, x, y, PADDLE_WIDTH, 2, pitch, buffer, Color.White());
+}
+
+fn drawBall(ctx: rawptr, pitch: int, buffer: rawptr) {
+    if !ballInPlay && gameState == GameState.Serving {
+        // 发球时画虚影
+        drawBallShadow(ctx, pitch, buffer);
+    }
+    
+    // 球
+    fillCircle(ctx, ballX as int, ballY as int, BALL_RADIUS, pitch, buffer, BALL_COLOR);
+    
+    // 球上的线条（排球纹理）
+    var bx = ballX as int;
+    var by = ballY as int;
+    drawLine(ctx, bx - 6, by, bx + 6, by, pitch, buffer, Color.RGB(200, 200, 200));
+    drawLine(ctx, bx, by - 6, bx, by + 6, pitch, buffer, Color.RGB(200, 200, 200));
+}
+
+fn drawBallShadow(ctx: rawptr, pitch: int, buffer: rawptr) {
+    // 画一个半透明的球影表示发球位置
+    var bx = ballX as int;
+    var by = ballY as int;
+    for y in (-BALL_RADIUS)..(BALL_RADIUS + 1) {
+        for x in (-BALL_RADIUS)..(BALL_RADIUS + 1) {
+            if x*x + y*y <= BALL_RADIUS * BALL_RADIUS {
+                var px = bx + x;
+                var py = by + y;
+                var c = getPixel(ctx, px, py, pitch, buffer);
+                // 简单半透明混合
+                var alpha: u8 = 100;
+                var r = ((c >> 16) & 0xFF) as u32;
+                var g = ((c >> 8) & 0xFF) as u32;
+                var b = (c & 0xFF) as u32;
+                r = (r * 2 + 255) / 3;
+                g = (g * 2 + 255) / 3;
+                b = (b * 2 + 255) / 3;
+                var newColor = 0xFF000000 as Color | (r as Color << 16) | (g as Color << 8) | b as Color;
+                setPixel(ctx, px, py, pitch, buffer, newColor);
+            }
+        }
+    }
+}
+
+fn drawScores(ctx: rawptr, pitch: int, buffer: rawptr) {
+    // CPU 分数（上方）
+    var cpuText = cpuScore.toString();
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 15, 10, cpuText, pitch, buffer, SCORE_COLOR);
+    
+    // 玩家分数（下方）
+    var playerText = playerScore.toString();
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 15, WINDOW_HEIGHT - 35, playerText, pitch, buffer, SCORE_COLOR);
+}
+
+fn drawReadyScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT / 2 - 80, "排球 Volleyball", pitch, buffer, TEXT_COLOR);
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 - 20, "按 空格键 开始发球", pitch, buffer, Color.Yellow());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 + 20, "左右方向键移动球拍", pitch, buffer, Color.LightGray());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 40, WINDOW_HEIGHT / 2 + 60, "ESC 退出", pitch, buffer, Color.LightGray());
+}
+
+fn drawServePrompt(ctx: rawptr, pitch: int, buffer: rawptr) {
+    if servingSide == Side.Player {
+        drawTextSimple(ctx, WINDOW_WIDTH / 2 - 55, WINDOW_HEIGHT / 2 + 100, "按空格发球!", pitch, buffer, Color.Yellow());
+    } else {
+        drawTextSimple(ctx, WINDOW_WIDTH / 2 - 55, WINDOW_HEIGHT / 2 - 130, "电脑发球...", pitch, buffer, Color.Yellow());
+    }
+}
+
+fn drawGameOverScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT / 2 - 60, "游戏结束!", pitch, buffer, Color.Red());
+    
+    if playerScore >= 21 {
+        drawTextSimple(ctx, WINDOW_WIDTH / 2 - 50, WINDOW_HEIGHT / 2, "你赢了!", pitch, buffer, Color.Yellow());
+    } else {
+        drawTextSimple(ctx, WINDOW_WIDTH / 2 - 50, WINDOW_HEIGHT / 2, "电脑赢了!", pitch, buffer, Color.Yellow());
+    }
+    
+    var scoreText = playerScore.toString() ++ " - " ++ cpuScore.toString();
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 30, WINDOW_HEIGHT / 2 + 40, scoreText, pitch, buffer, TEXT_COLOR);
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2 + 80, "按空格重新开始", pitch, buffer, Color.LightGray());
+}
+
+// ==================== 底层绘制函数 ====================
+
+fn setPixel(ctx: rawptr, x: int, y: int, pitch: int, buffer: rawptr, color: Color) {
+    if x < 0 || x >= WINDOW_WIDTH || y < 0 || y >= WINDOW_HEIGHT {
+        return;
+    }
+    var offset = y * (pitch / 4) + x;
+    var pixels = buffer as u32 mut;
+    pixels[offset] = color;
+}
+
+fn getPixel(ctx: rawptr, x: int, y: int, pitch: int, buffer: rawptr) -> Color {
+    if x < 0 || x >= WINDOW_WIDTH || y < 0 || y >= WINDOW_HEIGHT {
+        return Color.Black();
+    }
+    var offset = y * (pitch / 4) + x;
+    var pixels = buffer as u32;
+    return pixels[offset];
+}
+
+fn drawRect(ctx: rawptr, x: int, y: int, w: int, h: int, pitch: int, buffer: rawptr, color: Color) {
+    for py in y..(y + h) {
+        for px in x..(x + w) {
+            setPixel(ctx, px, py, pitch, buffer, color);
+        }
+    }
+}
+
+fn drawLine(ctx: rawptr, x1: int, y1: int, x2: int, y2: int, pitch: int, buffer: rawptr, color: Color) {
+    var dx = x2 - x1;
+    var dy = y2 - y1;
+    var sx = if x1 < x2 { 1 } else { -1 };
+    var sy = if y1 < y2 { 1 } else { -1 };
+    var err = dx - dy;
+    
+    var x = x1;
+    var y = y1;
+    
+    loop {
+        setPixel(ctx, x, y, pitch, buffer, color);
+        
+        if x == x2 && y == y2 {
+            break;
+        }
+        
+        var e2 = 2 * err;
+        if e2 > -dy {
+            err = err - dy;
+            x = x + sx;
+        }
+        if e2 < dx {
+            err = err + dx;
+            y = y + sy;
+        }
+    }
+}
+
+fn fillCircle(ctx: rawptr, cx: int, cy: int, radius: int, pitch: int, buffer: rawptr, color: Color) {
+    for y in (-radius)..(radius + 1) {
+        for x in (-radius)..(radius + 1) {
+            if x*x + y*y <= radius * radius {
+                setPixel(ctx, cx + x, cy + y, pitch, buffer, color);
+            }
+        }
+    }
+}
+
+// 简化文字绘制
+fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, pitch: int, buffer: rawptr, color: Color) {
+    var px = x;
+    var py = y;
+    var charW = 8;
+    var charH = 8;
+    
+    for i in 0..len(text) {
+        var charCode = text[i] as u32;
+        
+        for cy in 0..charH {
+            for cx in 0..charW {
+                // 简单字符图案
+                var isFilled = false;
+                if charCode > 32 {
+                    // 不同字符有不同的图案
+                    isFilled = ((charCode + cx * 3 + cy * 7) % 5) != 0;
+                }
+                
+                if isFilled {
+                    setPixel(ctx, px + cx, py + cy, pitch, buffer, color);
+                }
+            }
+        }
+        px = px + charW;
+        if px > WINDOW_WIDTH - charW {
+            py = py + charH;
+            px = x;
+        }
+    }
+}
+
+fn clearScreen(pitch: int, buffer: rawptr, color: Color) {
+    var pixels = buffer as u32 mut;
+    var count = (pitch * WINDOW_HEIGHT) / 4;
+    for i in 0..count {
+        pixels[i] = color;
+    }
+}
+
+// ==================== 事件处理 ====================
+
+fn processEvents() {
+    var event = Event.{};
+    
+    while pollEvent(window, &event) {
+        match event.msg {
+            MessageType.Quit => {
+                running = false;
+            },
+            MessageType.KeyDown => {
+                handleKeyDown(event.key.key);
+            },
+            MessageType.KeyUp => {
+                handleKeyUp(event.key.key);
+            },
+            MessageType.MouseMove => {
+                handleMouseMove(event.mouse.x, event.mouse.y);
+            },
+            MessageType.MouseDown => {
+                if event.mouse.button == MouseButton.Left {
+                    if gameState == GameState.Ready {
+                        gameState = GameState.Serving;
+                        servingSide = Side.Player;
+                        resetBall(Side.Player);
+                    } else if gameState == GameState.Serving && servingSide == Side.Player {
+                        serveBall();
+                    } else if gameState == GameState.GameOver {
+                        initGame();
+                        gameState = GameState.Serving;
+                        servingSide = Side.Player;
+                        resetBall(Side.Player);
+                    }
+                }
+            },
+            _ => {}
+        }
+    }
+}
+
+// ==================== 游戏主循环 ====================
+
+fn gameLoop() {
+    lastFrame = getTickCount();
+    
+    // CPU 发球延迟
+    var cpuServeTimer: u32 = 0;
+    
+    while running {
+        processEvents();
+        
+        var current = getTickCount();
+        var dt = current - lastFrame;
+        
+        // 更新游戏逻辑
+        updateGame(dt);
+        
+        // CPU 发球延迟
+        if gameState == GameState.Serving && servingSide == Side.CPU {
+            cpuServeTimer = cpuServeTimer + dt;
+            if cpuServeTimer > 1000 {
+                cpuServeTimer = 0;
+                serveBall();
+            }
+        } else {
+            cpuServeTimer = 0;
+        }
+        
+        // 渲染
+        var fb = getFrameBuffer(window);
+        var pitch = getFrameBufferPitch(window);
+        
+        clearScreen(pitch, fb, BG_COLOR);
+        
+        drawCourt(window, pitch, fb);
+        drawNet(window, pitch, fb);
+        
+        // 球拍
+        drawPaddle(window, pitch, fb, playerX, PLAYER_PADDLE_Y, PADDLE_COLOR_PLAYER);
+        drawPaddle(window, pitch, fb, cpuX, CPU_PADDLE_Y, PADDLE_COLOR_CPU);
+        
+        // 球
+        if gameState != GameState.Ready {
+            drawBall(window, pitch, fb);
+        }
+        
+        // 分数
+        drawScores(window, pitch, fb);
+        
+        // 界面文字
+        if gameState == GameState.Ready {
+            drawReadyScreen(window, pitch, fb);
+        } else if gameState == GameState.Serving {
+            drawServePrompt(window, pitch, fb);
+        } else if gameState == GameState.GameOver {
+            drawGameOverScreen(window, pitch, fb);
+        }
+        
+        presentFrame(window);
+        
+        lastFrame = current;
+        
+        // 帧率控制
+        var elapsed = getTickCount() - lastFrame;
+        if elapsed < FRAME_TIME {
+            sleep(FRAME_TIME - elapsed);
+        }
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() {
+    io.println("===========================================");
+    io.println("  Volleyball - Zen-C");
+    io.println("  玩家 vs 电脑 排球游戏");
+    io.println("  版本: 1.0.0");
+    io.println("===========================================");
+    
+    // 初始化平台
+    initPlatform();
+    
+    // 创建窗口
+    window = createWindow("Volleyball - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT);
+    
+    if window == nil {
+        io.println("错误: 无法创建窗口");
+        return;
+    }
+    
+    io.println("窗口创建成功!");
+    
+    // 初始化游戏
+    initGame();
+    io.println("按空格开始游戏");
+    io.println("左右方向键移动球拍");
+    io.println("按 ESC 退出");
+    
+    // 运行游戏主循环
+    gameLoop();
+    
+    // 清理
+    shutdownPlatform();
+    
+    io.println("游戏结束!");
+}

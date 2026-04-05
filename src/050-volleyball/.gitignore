@@ -1,0 +1,19 @@
+# Zen-C Volleyball .gitignore
+
+# 构建输出
+build/*.exe
+build/*.o
+build/*.obj
+build/*.d
+
+# 临时文件
+*.tmp
+*.bak
+*~
+
+# 日志
+*.log
+
+# Windows 临时文件
+Thumbs.db
+.DS_Store
