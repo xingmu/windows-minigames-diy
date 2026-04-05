@@ -1,0 +1,376 @@
+// platform_api_windows.zc - Windows 平台实现
+// 框架版本: 1.0.0
+
+// Windows API 常量
+private val WS_OVERLAPPEDWINDOW = 0x00CF0000;
+private val WS_EX_CLIENTEDGE = 0x00000200;
+private val WM_DESTROY = 0x0002;
+private val WM_QUIT = 0x0012;
+private val WM_SIZE = 0x0005;
+private val WM_PAINT = 0x000F;
+private val WM_KEYDOWN = 0x0100;
+private val WM_KEYUP = 0x0101;
+private val WM_LBUTTONDOWN = 0x0201;
+private val WM_LBUTTONUP = 0x0202;
+private val WM_RBUTTONDOWN = 0x0204;
+private val WM_RBUTTONUP = 0x0205;
+private val WM_MBUTTONDOWN = 0x0207;
+private val WM_MBUTTONUP = 0x0208;
+private val WM_MOUSEMOVE = 0x0200;
+private val WM_MOUSEWHEEL = 0x020A;
+
+private val VK_ESCAPE = 0x1B;
+private val VK_SPACE = 0x20;
+private val VK_RETURN = 0x0D;
+private val VK_LEFT = 0x25;
+private val VK_UP = 0x26;
+private val VK_RIGHT = 0x27;
+private val VK_DOWN = 0x28;
+
+// 内部结构
+private struct WinData {
+    hwnd: rawptr,
+    dc: rawptr,
+    memDC: rawptr,
+    bitmap: rawptr,
+    buffer: rawptr,
+    width: int,
+    height: int,
+    running: bool,
+}
+
+// 窗口注册和创建
+fn createWindow(title: str, width: int, height: int) -> WindowHandle {
+    return nil;
+}
+
+fn closeWindow(handle: WindowHandle) {
+    if handle == nil {
+        return;
+    }
+}
+
+fn setWindowTitle(handle: WindowHandle, title: str) {
+}
+
+fn getWindowSize(handle: WindowHandle) -> (int, int) {
+    return (800, 600);
+}
+
+// 事件处理
+fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
+    event.msg = MessageType.None;
+    return false;
+}
+
+fn waitEvent(handle: WindowHandle, event: &Event) {
+}
+
+fn isKeyDown(key: VirtualKey) -> bool {
+    return false;
+}
+
+// 帧缓冲
+fn getFrameBuffer(handle: WindowHandle) -> rawptr {
+    return nil;
+}
+
+fn getFrameBufferPitch(handle: WindowHandle) -> int {
+    return 800 * 4;
+}
+
+fn presentFrame(handle: WindowHandle) {
+}
+
+// 计时器
+fn getTickCount() -> u32 {
+    return 0;
+}
+
+fn sleep(ms: u32) {
+}
+
+// 初始化 Windows 平台
+pub fn initPlatform() {
+}
+
+// 清理 Windows 平台资源
+pub fn shutdownPlatform() {
+}
+
+// ============================================================================
+// 简化 API 实现（供实际游戏使用）
+// ============================================================================
+
+// 帧缓冲数据
+pub struct FrameBufferData {
+    valid: bool,
+    width: int,
+    height: int,
+    pitch: int,
+    buffer: rawptr,
+}
+
+pub var fb_data = FrameBufferData.{ valid: false, width: 0, height: 0, pitch: 0, buffer: null };
+
+pub fn fb_init(window: WindowHandle, width: int, height: int) {
+    fb_data.valid = true;
+    fb_data.width = width;
+    fb_data.height = height;
+    fb_data.pitch = width * 4;
+}
+
+pub fn fb_shutdown() {
+    fb_data.valid = false;
+}
+
+pub fn fb_clear(color: u32) {
+    if !fb_data.valid { return; }
+    var pixels = fb_data.buffer as u32 mut;
+    var count = (fb_data.pitch * fb_data.height) / 4;
+    for i in 0..count {
+        pixels[i] = color;
+    }
+}
+
+pub fn fb_set_pixel(x: int, y: int, color: u32) {
+    if !fb_data.valid { return; }
+    if x < 0 || x >= fb_data.width || y < 0 || y >= fb_data.height { return; }
+    var offset = y * (fb_data.pitch / 4) + x;
+    var pixels = fb_data.buffer as u32 mut;
+    pixels[offset] = color;
+}
+
+pub fn fb_get_pixel(x: int, y: int) -> u32 {
+    if !fb_data.valid { return 0xFF000000; }
+    if x < 0 || x >= fb_data.width || y < 0 || y >= fb_data.height { return 0xFF000000; }
+    var offset = y * (fb_data.pitch / 4) + x;
+    var pixels = fb_data.buffer as u32;
+    return pixels[offset];
+}
+
+pub fn fb_draw_line(x1: int, y1: int, x2: int, y2: int, color: u32) {
+    var dx = abs(x2 - x1);
+    var dy = abs(y2 - y1);
+    var sx = if x1 < x2 { 1 } else { -1 };
+    var sy = if y1 < y2 { 1 } else { -1 };
+    var err = dx - dy;
+    
+    loop {
+        fb_set_pixel(x1, y1, color);
+        if x1 == x2 && y1 == y2 { break; }
+        var e2 = 2 * err;
+        if e2 > -dy { err = err - dy; x1 = x1 + sx; }
+        if e2 < dx { err = err + dx; y1 = y1 + sy; }
+    }
+}
+
+pub fn fb_draw_rect(x: int, y: int, w: int, h: int, color: u32) {
+    fb_draw_line(x, y, x + w, y, color);
+    fb_draw_line(x + w, y, x + w, y + h, color);
+    fb_draw_line(x + w, y + h, x, y + h, color);
+    fb_draw_line(x, y + h, x, y, color);
+}
+
+pub fn fb_fill_rect(x: int, y: int, w: int, h: int, color: u32) {
+    for py in y..(y + h) {
+        for px in x..(x + w) {
+            fb_set_pixel(px, py, color);
+        }
+    }
+}
+
+pub fn fb_draw_circle(cx: int, cy: int, radius: int, color: u32) {
+    var d = 3 - 2 * radius;
+    var x = 0;
+    var y = radius;
+    
+    loop {
+        fb_set_pixel(cx + x, cy + y, color);
+        fb_set_pixel(cx - x, cy + y, color);
+        fb_set_pixel(cx + x, cy - y, color);
+        fb_set_pixel(cx - x, cy - y, color);
+        fb_set_pixel(cx + y, cy + x, color);
+        fb_set_pixel(cx - y, cy + x, color);
+        fb_set_pixel(cx + y, cy - x, color);
+        fb_set_pixel(cx - y, cy - x, color);
+        
+        if d < 0 {
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            y = y - 1;
+        }
+        x = x + 1;
+        if x > y { break; }
+    }
+}
+
+pub fn fb_draw_text_size(x: int, y: int, text: str, color: u32, size: int) {
+    // 简化实现
+    var px = x;
+    var py = y;
+    var charW = size * 8 / 10;
+    var charH = size;
+    
+    for i in 0..len(text) {
+        if text[i] == '\n' {
+            py = py + charH;
+            px = x;
+            continue;
+        }
+        fb_fill_rect(px, py, charW, charH, color);
+        px = px + charW;
+        if px > fb_data.width - charW {
+            py = py + charH;
+            px = x;
+        }
+    }
+}
+
+pub fn fb_present() {
+    // 呈现画面
+}
+
+// 窗口操作
+pub fn create_window(title: str, width: int, height: int) -> WindowHandle {
+    return nil;
+}
+
+pub fn get_window_client_size(window: WindowHandle, width: &mut int, height: &mut int) {
+    width = 0;
+    height = 0;
+}
+
+pub fn set_client_size(width: int, height: int) {
+}
+
+pub fn show_window(window: WindowHandle) {
+}
+
+pub fn redraw_window(window: WindowHandle) {
+}
+
+pub fn run_event_loop(window: WindowHandle) {
+}
+
+pub fn set_game_timer(window: WindowHandle, interval: int) {
+}
+
+// 事件处理器类型
+pub type KeyHandler = fn(key: KeyCode) -> bool;
+pub type TimerHandler = fn() -> bool;
+pub type PaintHandler = fn(w: int, h: int);
+pub type MouseHandler = fn(x: int, y: int, button: MouseButton);
+pub type DestroyHandler = fn();
+pub type UpdateHandler = fn();
+
+// 事件处理器变量
+private var key_handler: KeyHandler = nil;
+private var timer_handler: TimerHandler = nil;
+private var paint_handler: PaintHandler = nil;
+private var mouse_handler: MouseHandler = nil;
+private var destroy_handler: DestroyHandler = nil;
+private var update_handler: UpdateHandler = nil;
+
+// 设置事件处理器
+pub fn set_key_handler(handler: KeyHandler) {
+    key_handler = handler;
+}
+
+pub fn set_timer_handler(handler: TimerHandler) {
+    timer_handler = handler;
+}
+
+pub fn set_paint_handler(handler: PaintHandler) {
+    paint_handler = handler;
+}
+
+pub fn set_mouse_handler(handler: MouseHandler) {
+    mouse_handler = handler;
+}
+
+pub fn set_destroy_handler(handler: DestroyHandler) {
+    destroy_handler = handler;
+}
+
+pub fn set_update_handler(handler: UpdateHandler) {
+    update_handler = handler;
+}
+
+// 键盘码
+pub type KeyCode = enum {
+    None = 0,
+    Escape = 0x1B,
+    Space = 0x20,
+    Enter = 0x0D,
+    Tab = 0x09,
+    Backspace = 0x08,
+    Left = 0x25,
+    Up = 0x26,
+    Right = 0x27,
+    Down = 0x28,
+    Key0 = 0x30,
+    Key1 = 0x31,
+    Key2 = 0x32,
+    Key3 = 0x33,
+    Key4 = 0x34,
+    Key5 = 0x35,
+    Key6 = 0x36,
+    Key7 = 0x37,
+    Key8 = 0x38,
+    Key9 = 0x39,
+    A = 0x41,
+    B = 0x42,
+    C = 0x43,
+    D = 0x44,
+    E = 0x45,
+    F = 0x46,
+    G = 0x47,
+    H = 0x48,
+    I = 0x49,
+    J = 0x4A,
+    K = 0x4B,
+    L = 0x4C,
+    M = 0x4D,
+    N = 0x4E,
+    O = 0x4F,
+    P = 0x50,
+    Q = 0x51,
+    R = 0x52,
+    S = 0x53,
+    T = 0x54,
+    U = 0x55,
+    V = 0x56,
+    W = 0x57,
+    X = 0x58,
+    Y = 0x59,
+    Z = 0x5A,
+};
+
+// 鼠标按钮
+pub type MouseButton = enum {
+    None = 0,
+    Left = 1,
+    Right = 2,
+    Middle = 3,
+};
+
+// 图形上下文
+pub type GraphicsContext = rawptr;
+
+pub fn draw_rect(ctx: GraphicsContext, x: int, y: int, w: int, h: int, color: u32) {
+    fb_draw_rect(x, y, w, h, color);
+}
+
+pub fn draw_circle(ctx: GraphicsContext, cx: int, cy: int, radius: int, color: u32) {
+    fb_draw_circle(cx, cy, radius, color);
+}
+
+fn abs(x: int) -> int {
+    return if x < 0 { -x } else { x };
+}
+
+fn rgb(r: u8, g: u8, b: u8) -> u32 {
+    return 0xFF000000 as u32 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+}

@@ -1,0 +1,432 @@
+// game_logic.zc - TetrisAttack 俄罗斯方块消消乐游戏逻辑
+// 框架版本: 1.0.0
+
+import std.io;
+
+// ==================== 常量定义 ====================
+
+// 游戏区域 - 12列 x 18行
+const GRID_COLS: int = 12;
+const GRID_ROWS: int = 18;
+
+// 方块大小
+const BLOCK_SIZE: int = 28;
+const BLOCK_GAP: int = 2;
+const GRID_OFFSET_X: int = 30;
+const GRID_OFFSET_Y: int = 70;
+
+// 游戏时间（秒）
+const GAME_TIME: int = 180;  // 3分钟
+
+// 方块颜色调色板
+const BLOCK_COLORS: [6]u32 = [
+    rgb(231, 76, 60),   // 红色
+    rgb(52, 152, 219),  // 蓝色
+    rgb(46, 204, 113),  // 绿色
+    rgb(155, 89, 182),  // 紫色
+    rgb(241, 196, 15),  // 黄色
+    rgb(230, 126, 34),  // 橙色
+];
+
+const BG_COLOR = rgb(20, 20, 30);
+const GRID_BG_COLOR = rgb(40, 40, 55);
+const GRID_LINE_COLOR = rgb(60, 60, 80);
+const CURSOR_COLOR = rgb(255, 255, 100);
+
+// ==================== 数据结构 ====================
+
+// 方块类型
+pub struct Block {
+    colorType: int,    // 颜色类型 (0-5)
+    row: int,          // 行索引
+    col: int,          // 列索引
+    visible: bool,     // 是否可见
+}
+
+// 落下的两个方块
+pub struct FallingPair {
+    col: int,          // 所在列
+    row: int,          // 行位置（两个方块连续）
+    color1: int,      // 上方圆块颜色
+    color2: int,      // 下方方块颜色
+    active: bool,      // 是否正在下落
+}
+
+// 游戏状态
+pub struct TetrisAttackState {
+    grid: [GRID_ROWS][GRID_COLS]Block,    // 游戏网格
+    falling: FallingPair,                  // 正在下落的方块对
+    cursorCol: int,                         // 光标列位置
+    score: int,                            // 当前分数
+    timeLeft: int,                         // 剩余时间（秒）
+    gameOver: bool,                        // 游戏是否结束
+    gameWon: bool,                         // 是否获胜
+    combo: int,                            // 连击计数
+    lastMatch: bool,                       // 上次是否消除了方块
+    fallSpeed: int,                        // 下落速度（毫秒）
+    lastFallTime: u32,                     // 上次下落时间
+    cursorVisible: bool,                   // 光标闪烁
+    cursorToggleTime: u32,                 // 光标闪烁切换时间
+}
+
+// ==================== 辅助函数 ====================
+
+fn rgb(r: u8, g: u8, b: u8) -> u32 {
+    return 0xFF000000 as u32 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+}
+
+fn abs(x: int) -> int {
+    return if x < 0 { -x } else { x };
+}
+
+// 获取方块颜色
+pub fn get_block_color(colorType: int) -> u32 {
+    return BLOCK_COLORS[colorType % 6];
+}
+
+// 获取方块位置（屏幕坐标）
+pub fn get_block_position(row: int, col: int) -> (int, int) {
+    let x = GRID_OFFSET_X + col * (BLOCK_SIZE + BLOCK_GAP);
+    let y = GRID_OFFSET_Y + row * (BLOCK_SIZE + BLOCK_GAP);
+    return (x, y);
+}
+
+// ==================== 游戏逻辑 ====================
+
+// 初始化随机数生成器
+fn init_random(state: &mut TetrisAttackState) {
+    // 使用当前时间初始化随机种子
+    var seed = (getTickCount() % 10000) as u32;
+    if seed == 0 { seed = 12345; }
+    rng_seed = seed;
+}
+
+// 初始化游戏
+pub fn init_game(state: &mut TetrisAttackState) {
+    // 初始化网格为空
+    for r in 0..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            state.grid[r][c].colorType = -1;
+            state.grid[r][c].row = r;
+            state.grid[r][c].col = c;
+            state.grid[r][c].visible = false;
+        }
+    }
+    
+    // 初始化游戏状态
+    state.cursorCol = GRID_COLS / 2;
+    state.score = 0;
+    state.timeLeft = GAME_TIME;
+    state.gameOver = false;
+    state.gameWon = false;
+    state.combo = 0;
+    state.lastMatch = false;
+    state.fallSpeed = 500;  // 500ms下落一次
+    state.lastFallTime = getTickCount();
+    state.cursorVisible = true;
+    state.cursorToggleTime = getTickCount();
+    
+    // 初始化随机种子
+    init_random(state);
+    
+    // 生成初始方块（填满底部几行）
+    generate_initial_blocks(state);
+    
+    // 生成第一个下落方块对
+    spawn_new_pair(state);
+}
+
+// 生成初始方块（底部6行）
+fn generate_initial_blocks(state: &mut TetrisAttackState) {
+    let startRow = GRID_ROWS - 6;
+    
+    for r in startRow..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            state.grid[r][c].colorType = randInt(0, 5);
+            state.grid[r][c].visible = true;
+        }
+    }
+    
+    // 检查并消除初始的相同颜色（避免过多初始消除）
+    // 不做处理，让玩家自己玩
+}
+
+// 生成新的下落方块对
+pub fn spawn_new_pair(state: &mut TetrisAttackState) {
+    // 检查顶部是否有空间
+    if state.grid[0][state.cursorCol].visible || state.grid[1][state.cursorCol].visible {
+        // 顶部已满，游戏结束
+        state.gameOver = true;
+        state.falling.active = false;
+        return;
+    }
+    
+    // 随机生成两个颜色
+    state.falling.col = state.cursorCol;
+    state.falling.row = 0;
+    state.falling.color1 = randInt(0, 5);
+    state.falling.color2 = randInt(0, 5);
+    state.falling.active = true;
+    
+    // 更新光标位置
+    state.cursorCol = clamp(state.cursorCol, 0, GRID_COLS - 1);
+}
+
+// 将下落方块放到网格中
+fn place_falling_pair(state: &mut TetrisAttackState) {
+    let col = state.falling.col;
+    let row = state.falling.row;
+    
+    // 放置两个方块
+    state.grid[row][col].colorType = state.falling.color1;
+    state.grid[row][col].visible = true;
+    
+    if row + 1 < GRID_ROWS {
+        state.grid[row + 1][col].colorType = state.falling.color2;
+        state.grid[row + 1][col].visible = true;
+    }
+    
+    state.falling.active = false;
+}
+
+// 下落方块向下移动一格
+pub fn move_falling_down(state: &mut TetrisAttackState) -> bool {
+    if !state.falling.active {
+        return false;
+    }
+    
+    let col = state.falling.col;
+    let nextRow = state.falling.row + 2;  // 两个方块一起移动
+    
+    // 检查是否能下落
+    if nextRow >= GRID_ROWS {
+        // 已经到底，放置方块
+        place_falling_pair(state);
+        return true;
+    }
+    
+    // 检查下一位置是否被占用
+    if state.grid[nextRow][col].visible || state.grid[nextRow - 1][col].visible {
+        // 被占用，放置方块
+        place_falling_pair(state);
+        return true;
+    }
+    
+    // 可以下落
+    state.falling.row = state.falling.row + 1;
+    return true;
+}
+
+// 左右移动下落方块
+pub fn move_falling_horizontal(state: &mut TetrisAttackState, direction: int) {
+    if !state.falling.active {
+        return;
+    }
+    
+    let col = state.falling.col;
+    let newCol = col + direction;
+    
+    // 检查边界
+    if newCol < 0 || newCol >= GRID_COLS {
+        return;
+    }
+    
+    // 检查该列是否为空（当前下落位置）
+    let row = state.falling.row;
+    if state.grid[row][newCol].visible {
+        return;
+    }
+    if row + 1 < GRID_ROWS && state.grid[row + 1][newCol].visible {
+        return;
+    }
+    
+    state.falling.col = newCol;
+    state.cursorCol = newCol;
+}
+
+// 交换两个下落方块的位置
+pub fn swap_falling_blocks(state: &mut TetrisAttackState) {
+    if !state.falling.active {
+        return;
+    }
+    
+    let temp = state.falling.color1;
+    state.falling.color1 = state.falling.color2;
+    state.falling.color2 = temp;
+}
+
+// 应用重力 - 让悬空的方块下落
+fn apply_gravity(state: &mut TetrisAttackState) -> bool {
+    var moved = false;
+    
+    // 从倒数第二行开始向上检查
+    for r in (1..GRID_ROWS).rev() {
+        for c in 0..GRID_COLS {
+            if state.grid[r][c].visible && !state.grid[r - 1][c].visible {
+                // 这个方块可以下落
+                state.grid[r - 1][c].colorType = state.grid[r][c].colorType;
+                state.grid[r - 1][c].visible = true;
+                state.grid[r][c].visible = false;
+                moved = true;
+            }
+        }
+    }
+    
+    return moved;
+}
+
+// 检查并消除相同的方块
+pub fn check_and_clear_matches(state: &mut TetrisAttackState) -> int {
+    var cleared = 0;
+    var toClear: [GRID_ROWS][GRID_COLS]bool;
+    
+    // 初始化
+    for r in 0..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            toClear[r][c] = false;
+        }
+    }
+    
+    // 水平方向检查
+    for r in 0..GRID_ROWS {
+        var c = 0;
+        while c < GRID_COLS {
+            if !state.grid[r][c].visible {
+                c = c + 1;
+                continue;
+            }
+            
+            let color = state.grid[r][c].colorType;
+            var count = 1;
+            var next = c + 1;
+            
+            while next < GRID_COLS && state.grid[r][next].visible && state.grid[r][next].colorType == color {
+                count = count + 1;
+                next = next + 1;
+            }
+            
+            // 3个或更多连续相同颜色消除
+            if count >= 3 {
+                for i in c..next {
+                    toClear[r][i] = true;
+                }
+                cleared = cleared + count;
+            }
+            
+            c = next;
+        }
+    }
+    
+    // 垂直方向检查
+    for c in 0..GRID_COLS {
+        var r = 0;
+        while r < GRID_ROWS {
+            if !state.grid[r][c].visible {
+                r = r + 1;
+                continue;
+            }
+            
+            let color = state.grid[r][c].colorType;
+            var count = 1;
+            var next = r + 1;
+            
+            while next < GRID_ROWS && state.grid[next][c].visible && state.grid[next][c].colorType == color {
+                count = count + 1;
+                next = next + 1;
+            }
+            
+            // 3个或更多连续相同颜色消除
+            if count >= 3 {
+                for i in r..next {
+                    toClear[i][c] = true;
+                }
+                cleared = cleared + count;
+            }
+            
+            r = next;
+        }
+    }
+    
+    // 清除标记的方块
+    if cleared > 0 {
+        for r in 0..GRID_ROWS {
+            for c in 0..GRID_COLS {
+                if toClear[r][c] {
+                    state.grid[r][c].visible = false;
+                }
+            }
+        }
+        
+        // 更新分数（考虑连击）
+        state.combo = state.combo + 1;
+        let comboBonus = if state.combo > 1 { state.combo - 1 } else { 0 };
+        state.score = state.score + cleared * 10 + comboBonus * 5;
+    } else {
+        state.combo = 0;
+    }
+    
+    return cleared;
+}
+
+// 更新游戏时间
+pub fn update_time(state: &mut TetrisAttackState) -> bool {
+    if state.gameOver {
+        return false;
+    }
+    
+    state.timeLeft = state.timeLeft - 1;
+    
+    if state.timeLeft <= 0 {
+        state.timeLeft = 0;
+        state.gameOver = true;
+        return true;
+    }
+    
+    return false;
+}
+
+// 重新开始游戏
+pub fn restart_game(state: &mut TetrisAttackState) {
+    init_game(state);
+}
+
+// 获取分数文本
+pub fn get_score_text(state: &TetrisAttackState) -> str {
+    return "分数: " ++ state.score.toString();
+}
+
+// 获取时间文本
+pub fn get_time_text(state: &TetrisAttackState) -> str {
+    let minutes = state.timeLeft / 60;
+    let seconds = state.timeLeft % 60;
+    return if minutes < 10 {
+        "0" ++ minutes.toString() ++ ":" ++ (if seconds < 10 { "0" } else { "" }) ++ seconds.toString()
+    } else {
+        minutes.toString() ++ ":" ++ (if seconds < 10 { "0" } else { "" }) ++ seconds.toString()
+    };
+}
+
+// 获取状态文本
+pub fn get_status_text(state: &TetrisAttackState) -> str {
+    if state.gameWon {
+        return "恭喜通关！最终得分: " ++ state.score.toString();
+    } else if state.gameOver {
+        return "时间到！游戏结束！得分: " ++ state.score.toString();
+    }
+    if state.combo > 1 {
+        return "连击 x" ++ state.combo.toString() ++ " !";
+    }
+    return "相同颜色3个以上消除";
+}
+
+// 获取控制说明
+pub fn get_controls_text() -> str {
+    return "←→移动 | ↑↓交换/下落 | R重新开始 | ESC退出";
+}
+
+// 限制值在范围内
+fn clamp(value: int, minVal: int, maxVal: int) -> int {
+    if value < minVal { return minVal; }
+    if value > maxVal { return maxVal; }
+    return value;
+}

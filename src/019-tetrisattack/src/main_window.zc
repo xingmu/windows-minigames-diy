@@ -1,0 +1,378 @@
+// main_window.zc - Zen-C TetrisAttack 俄罗斯方块消消乐主程序
+
+import std.io;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 常量 ====================
+
+const WINDOW_WIDTH = 420;
+const WINDOW_HEIGHT = 600;
+const TIMER_INTERVAL = 1000;  // 1秒
+
+// ==================== 全局变量 ====================
+
+static mut game: TetrisAttackState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut lastTimerUpdate: u32 = 0;
+static mut fallingTimer: u32 = 0;
+
+// ==================== 事件处理 ====================
+
+// 绘制圆角矩形
+fn draw_rounded_rect(ctx: GraphicsContext, x: i32, y: i32, w: i32, h: i32, radius: i32, color: u32) {
+    // 绘制主体矩形
+    draw_rect(ctx, x + radius, y, w - 2 * radius, h, color);
+    draw_rect(ctx, x, y + radius, w, h - 2 * radius, color);
+    
+    // 绘制四个角的圆形
+    draw_circle(ctx, x + radius, y + radius, radius, color);
+    draw_circle(ctx, x + w - radius, y + radius, radius, color);
+    draw_circle(ctx, x + radius, y + h - radius, radius, color);
+    draw_circle(ctx, x + w - radius, y + h - radius, radius, color);
+}
+
+// 绘制方块
+fn draw_block(ctx: GraphicsContext, x: i32, y: i32, size: i32, colorType: i32) {
+    let color = get_block_color(colorType);
+    let margin = 2;
+    
+    // 绘制方块主体
+    draw_rounded_rect(ctx, x + margin, y + margin, size - 2 * margin, size - 2 * margin, 4, color);
+    
+    // 绘制高光效果
+    let lightColor = add_color(color, 40);
+    let darkColor = sub_color(color, 30);
+    
+    // 顶部高光
+    draw_rect(ctx, x + margin + 2, y + margin + 2, size - margin * 2 - 4, 3, lightColor);
+    // 左侧高光
+    draw_rect(ctx, x + margin + 2, y + margin + 2, 3, size - margin * 2 - 4, lightColor);
+    
+    // 底部阴影
+    draw_rect(ctx, x + margin + 2, y + size - margin - 5, size - margin * 2 - 4, 3, darkColor);
+    // 右侧阴影
+    draw_rect(ctx, x + size - margin - 5, y + margin + 2, 3, size - margin * 2 - 4, darkColor);
+}
+
+// 颜色加亮
+fn add_color(color: u32, amount: i32) -> u32 {
+    let r = ((color >> 16) & 0xFF) as i32;
+    let g = ((color >> 8) & 0xFF) as i32;
+    let b = (color & 0xFF) as i32;
+    
+    r = min(255, r + amount);
+    g = min(255, g + amount);
+    b = min(255, b + amount);
+    
+    return 0xFF000000 as u32 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+}
+
+// 颜色变暗
+fn sub_color(color: u32, amount: i32) -> u32 {
+    let r = ((color >> 16) & 0xFF) as i32;
+    let g = ((color >> 8) & 0xFF) as i32;
+    let b = (color & 0xFF) as i32;
+    
+    r = max(0, r - amount);
+    g = max(0, g - amount);
+    b = max(0, b - amount);
+    
+    return 0xFF000000 as u32 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+}
+
+fn min(a: i32, b: i32) -> i32 { return if a < b { a } else { b }; }
+fn max(a: i32, b: i32) -> i32 { return if a > b { a } else { b }; }
+
+fn on_paint(w: i32, h: i32) {
+    // 确保帧缓冲初始化
+    if !fb_data.valid {
+        fb_init(window, w, h);
+    }
+
+    // 清屏
+    fb_clear(rgb(20, 20, 30));
+
+    // 绘制标题栏背景
+    fb_draw_rect(0, 0, WINDOW_WIDTH, 55, rgb(41, 128, 185));
+    
+    // 绘制分数
+    let scoreText = get_score_text(&game);
+    fb_draw_text_size(15, 15, scoreText, rgb(255, 255, 255), 20);
+    
+    // 绘制时间
+    let timeText = "时间: " ++ get_time_text(&game);
+    fb_draw_text_size(WINDOW_WIDTH - 130, 15, timeText, rgb(255, 255, 255), 20);
+    
+    // 绘制游戏网格背景
+    let gridW = GRID_COLS * (BLOCK_SIZE + BLOCK_GAP) - BLOCK_GAP;
+    let gridH = GRID_ROWS * (BLOCK_SIZE + BLOCK_GAP) - BLOCK_GAP;
+    fb_draw_rect(GRID_OFFSET_X - 2, GRID_OFFSET_Y - 2, gridW + 4, gridH + 4, rgb(60, 60, 80));
+    fb_draw_rect(GRID_OFFSET_X, GRID_OFFSET_Y, gridW, gridH, GRID_BG_COLOR);
+    
+    // 绘制网格线（可选）
+    for r in 0..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            let (bx, by) = get_block_position(r, c);
+            // 绘制每个方块位置
+            if game.grid[r][c].visible {
+                draw_block(ctx, bx, by, BLOCK_SIZE, game.grid[r][c].colorType);
+            }
+        }
+    }
+    
+    // 绘制正在下落的方块对
+    if game.falling.active {
+        let (bx1, by1) = get_block_position(game.falling.row, game.falling.col);
+        let (bx2, by2) = get_block_position(game.falling.row + 1, game.falling.col);
+        
+        draw_block(ctx, bx1, by1, BLOCK_SIZE, game.falling.color1);
+        draw_block(ctx, bx2, by2, BLOCK_SIZE, game.falling.color2);
+        
+        // 绘制下落位置指示器（半透明）
+        let indicatorX = GRID_OFFSET_X + game.falling.col * (BLOCK_SIZE + BLOCK_GAP);
+        fb_draw_rect(indicatorX, GRID_OFFSET_Y, BLOCK_SIZE, gridH, rgb(255, 255, 100, 30));
+    }
+    
+    // 绘制光标
+    if game.cursorVisible && !game.falling.active {
+        let cursorX = GRID_OFFSET_X + game.cursorCol * (BLOCK_SIZE + BLOCK_GAP);
+        let cursorY = GRID_OFFSET_Y;
+        fb_draw_rect(cursorX - 1, cursorY - 1, BLOCK_SIZE + 2, 2, CURSOR_COLOR);
+        fb_draw_rect(cursorX - 1, cursorY + BLOCK_SIZE - 1, BLOCK_SIZE + 2, 2, CURSOR_COLOR);
+        fb_draw_rect(cursorX - 1, cursorY - 1, 2, BLOCK_SIZE + 2, CURSOR_COLOR);
+        fb_draw_rect(cursorX + BLOCK_SIZE - 1, cursorY - 1, 2, BLOCK_SIZE + 2, CURSOR_COLOR);
+    }
+    
+    // 绘制状态信息
+    let statusText = get_status_text(&game);
+    fb_draw_text_size(15, WINDOW_HEIGHT - 80, statusText, rgb(255, 255, 0), 18);
+    
+    // 绘制控制说明
+    let controlsText = get_controls_text();
+    fb_draw_text_size(15, WINDOW_HEIGHT - 55, controlsText, rgb(180, 180, 180), 14);
+    
+    // 绘制游戏结束时显示提示
+    if game.gameOver {
+        fb_draw_rect(WINDOW_WIDTH/2 - 150, WINDOW_HEIGHT/2 - 60, 300, 100, rgb(0, 0, 0));
+        fb_draw_rect(WINDOW_WIDTH/2 - 152, WINDOW_HEIGHT/2 - 62, 304, 104, rgb(255, 255, 0));
+        
+        let msg = if game.gameWon { "恭喜通关！" } else { "时间到！" };
+        fb_draw_text_size(WINDOW_WIDTH/2 - 60, WINDOW_HEIGHT/2 - 35, msg, rgb(255, 255, 0), 24);
+        
+        let finalScore = "得分: " ++ game.score.toString();
+        fb_draw_text_size(WINDOW_WIDTH/2 - 55, WINDOW_HEIGHT/2, finalScore, rgb(255, 255, 255), 20);
+        fb_draw_text_size(WINDOW_WIDTH/2 - 70, WINDOW_HEIGHT/2 + 25, "按 R 重新开始", rgb(200, 200, 200), 16);
+    }
+
+    // 呈现画面
+    fb_present();
+}
+
+fn on_key(key: KeyCode) -> bool {
+    match key {
+        KeyCode.Escape => {
+            running = false;
+            return false;
+        },
+        KeyCode.KeyR => {
+            restart_game(&mut game);
+            fallingTimer = getTickCount();
+            return true;
+        },
+        KeyCode.Left => {
+            if !game.gameOver {
+                if game.falling.active {
+                    move_falling_horizontal(&mut game, -1);
+                } else {
+                    game.cursorCol = game.cursorCol - 1;
+                    if game.cursorCol < 0 { game.cursorCol = 0; }
+                }
+            }
+            return true;
+        },
+        KeyCode.Right => {
+            if !game.gameOver {
+                if game.falling.active {
+                    move_falling_horizontal(&mut game, 1);
+                } else {
+                    game.cursorCol = game.cursorCol + 1;
+                    if game.cursorCol >= GRID_COLS { game.cursorCol = GRID_COLS - 1; }
+                }
+            }
+            return true;
+        },
+        KeyCode.Up => {
+            if !game.gameOver && game.falling.active {
+                swap_falling_blocks(&mut game);
+            }
+            return true;
+        },
+        KeyCode.Down => {
+            if !game.gameOver {
+                if game.falling.active {
+                    // 快速下落
+                    if move_falling_down(&mut game) {
+                        // 方块已放置，应用重力并检查消除
+                        apply_gravity(&mut game);
+                        var cleared = check_and_clear_matches(&mut game);
+                        // 如果消除了方块，继续应用重力
+                        while cleared > 0 {
+                            apply_gravity(&mut game);
+                            cleared = check_and_clear_matches(&mut game);
+                        }
+                        
+                        // 生成新的下落方块
+                        if !game.gameOver {
+                            spawn_new_pair(&mut game);
+                        }
+                    }
+                }
+            }
+            return true;
+        },
+        KeyCode.Space => {
+            if !game.gameOver && !game.falling.active {
+                // 将光标位置的方块上移（换位置）
+                // 简化处理：只是提示
+            }
+            return true;
+        },
+        _ => {},
+    }
+    return true;
+}
+
+fn on_timer() -> bool {
+    if !game.gameOver {
+        let updated = update_time(&mut game);
+        return updated;
+    }
+    return false;
+}
+
+// 定期更新游戏逻辑
+fn on_update() {
+    if game.gameOver {
+        return;
+    }
+    
+    let currentTime = getTickCount();
+    
+    // 更新光标闪烁
+    if currentTime - game.cursorToggleTime > 300 {
+        game.cursorVisible = !game.cursorVisible;
+        game.cursorToggleTime = currentTime;
+    }
+    
+    // 处理下落方块的自动下落
+    if game.falling.active {
+        if currentTime - fallingTimer > game.fallingSpeed as u32 {
+            fallingTimer = currentTime;
+            
+            if move_falling_down(&mut game) {
+                // 方块已放置，应用重力并检查消除
+                apply_gravity(&mut game);
+                var cleared = check_and_clear_matches(&mut game);
+                // 如果消除了方块，继续应用重力
+                while cleared > 0 {
+                    apply_gravity(&mut game);
+                    cleared = check_and_clear_matches(&mut game);
+                }
+                
+                // 生成新的下落方块
+                if !game.gameOver {
+                    spawn_new_pair(&mut game);
+                }
+            }
+        }
+    }
+}
+
+fn on_mouse(x: i32, y: i32, button: MouseButton) {
+    // 鼠标点击用于选择位置
+    if game.gameOver || game.falling.active {
+        return;
+    }
+    
+    // 计算点击的列位置
+    let col = (x - GRID_OFFSET_X) / (BLOCK_SIZE + BLOCK_GAP);
+    
+    if col >= 0 && col < GRID_COLS {
+        game.cursorCol = col;
+    }
+}
+
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C TetrisAttack 俄罗斯方块消消乐");
+    io.println("========================================");
+
+    // 初始化游戏状态
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "TetrisAttack 俄罗斯方块消消乐";
+    window = create_window(title, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 获取实际客户区大小
+    let mut cw = 0;
+    let mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        set_client_size(cw, ch);
+    }
+
+    // 设置事件处理器
+    set_key_handler(on_key);
+    set_timer_handler(on_timer);
+    set_paint_handler(on_paint);
+    set_mouse_handler(on_mouse);
+    set_destroy_handler(on_destroy);
+    set_update_handler(on_update);
+
+    // 显示窗口
+    show_window(window);
+
+    // 设置游戏定时器
+    set_game_timer(window, TIMER_INTERVAL);
+
+    io.println("窗口创建成功!");
+    io.println("游戏规则:");
+    io.println("  - 两个方块一起下落");
+    io.println("  - 相同颜色3个以上相连可消除");
+    io.println("  - 使用方向键控制：");
+    io.println("    ← → 移动方块");
+    io.println("    ↑ 交换两个方块颜色");
+    io.println("    ↓ 快速下落");
+    io.println("  - 限时 3 分钟，尽量获得高分!");
+    io.println("========================================");
+    
+    fallingTimer = getTickCount();
+
+    // 初始绘制
+    redraw_window(window);
+
+    // 运行事件循环
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("最终得分: " ++ game.score.toString());
+    io.println("========================================");
+
+    0
+}

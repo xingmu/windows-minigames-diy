@@ -1,0 +1,21 @@
+# Zen-C Game Build Artifacts
+build/
+*.exe
+*.o
+*.obj
+*.dll
+*.so
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
