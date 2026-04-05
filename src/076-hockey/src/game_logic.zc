@@ -1,0 +1,698 @@
+// game_logic.zc - Air Hockey (冰球) 游戏逻辑
+// 076-Hockey 冰球游戏
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const WINDOW_WIDTH: int = 800;
+const WINDOW_HEIGHT: int = 500;
+
+// 冰球场尺寸
+const RINK_LEFT: int = 20;
+const RINK_TOP: int = 50;
+const RINK_RIGHT: int = 780;
+const RINK_BOTTOM: int = 450;
+const RINK_WIDTH: int = RINK_RIGHT - RINK_LEFT;
+const RINK_HEIGHT: int = RINK_BOTTOM - RINK_TOP;
+
+// 球门尺寸
+const GOAL_WIDTH: int = 10;
+const GOAL_HEIGHT: int = 120;
+const GOAL_Y: int = RINK_TOP + (RINK_HEIGHT - GOAL_HEIGHT) / 2;
+
+// 球杆（桨）尺寸
+const PADDLE_RADIUS: int = 25;
+const PADDLE_SPEED: int = 8;
+
+// 冰球尺寸
+const PUCK_RADIUS: int = 12;
+const PUCK_SPEED: int = 8;
+const PUCK_MAX_SPEED: int = 15;
+const PUCK_FRICTION: int = 1;
+
+// 获胜分数
+const WINNING_SCORE: int = 7;
+
+// AI难度
+const AI_REACTION_DELAY: int = 80;
+const AI_ERROR_RANGE: int = 25;
+
+// ==================== 数据结构 ====================
+
+// 冰球
+struct Puck {
+    x: float,
+    y: float,
+    vx: float,
+    vy: float,
+}
+
+// 球杆/桨
+struct Paddle {
+    x: float,
+    y: float,
+    radius: int,
+}
+
+// ==================== 冰球游戏类 ====================
+
+pub class HockeyGame extends Game {
+    // 玩家球杆
+    playerX: float;
+    playerY: float;
+    playerRadius: int;
+    
+    // AI球杆
+    aiX: float;
+    aiY: float;
+    aiRadius: int;
+    
+    // 冰球
+    puckX: float;
+    puckY: float;
+    puckVX: float;
+    puckVY: float;
+    puckRadius: int;
+    
+    // 分数
+    playerScore: int;
+    aiScore: int;
+    
+    // 游戏状态
+    gameStarted: bool;
+    gameOver: bool;
+    winner: str;
+    serveTo: int; // 0=玩家, 1=AI
+    
+    // 按键状态
+    keyUp: bool;
+    keyDown: bool;
+    keyLeft: bool;
+    keyRight: bool;
+    
+    // AI相关
+    aiTargetX: float;
+    aiTargetY: float;
+    aiLastUpdate: u32;
+    aiErrorX: int;
+    aiErrorY: int;
+    
+    // 球门位置
+    leftGoalX: int;
+    rightGoalX: int;
+    goalY: int;
+    goalHeight: int;
+    
+    // onInit - 初始化游戏
+    pub fn onInit() {
+        self.setState(GameState.Playing);
+        self.gameStarted = false;
+        self.gameOver = false;
+        self.winner = "";
+        
+        // 初始化分数
+        self.playerScore = 0;
+        self.aiScore = 0;
+        
+        // 初始化球杆
+        self.playerRadius = PADDLE_RADIUS;
+        self.aiRadius = PADDLE_RADIUS;
+        self.playerX = RINK_LEFT + 80.0;
+        self.playerY = (RINK_TOP + RINK_BOTTOM) as float / 2.0;
+        self.aiX = RINK_RIGHT - 80.0;
+        self.aiY = (RINK_TOP + RINK_BOTTOM) as float / 2.0;
+        
+        // 初始化冰球
+        self.puckRadius = PUCK_RADIUS;
+        
+        // 初始化球门
+        self.leftGoalX = RINK_LEFT;
+        self.rightGoalX = RINK_RIGHT - GOAL_WIDTH;
+        self.goalY = GOAL_Y;
+        self.goalHeight = GOAL_HEIGHT;
+        
+        // 重置按键状态
+        self.keyUp = false;
+        self.keyDown = false;
+        self.keyLeft = false;
+        self.keyRight = false;
+        
+        // AI初始化
+        self.aiTargetX = self.aiX;
+        self.aiTargetY = self.aiY;
+        self.aiLastUpdate = 0;
+        self.aiErrorX = 0;
+        self.aiErrorY = 0;
+        
+        // 随机决定发球方
+        self.serveTo = math.rand() % 2;
+        
+        // 重置冰球位置
+        self.resetPuck();
+    }
+    
+    // onShutdown - 关闭清理
+    pub fn onShutdown() {
+    }
+    
+    // onUpdate - 每帧更新
+    pub fn onUpdate(dt: u32) {
+        if self.gameOver {
+            return;
+        }
+        
+        // 更新玩家球杆
+        self.updatePlayerPaddle();
+        
+        // 更新AI
+        self.updateAI(dt);
+        
+        // 如果游戏开始了，更新冰球
+        if self.gameStarted {
+            self.updatePuck();
+        }
+        
+        // 检测进球
+        self.checkGoal();
+        
+        // 检查胜负
+        self.checkWinCondition();
+    }
+    
+    // 更新玩家球杆
+    private fn updatePlayerPaddle() {
+        if self.keyUp {
+            self.playerY = self.playerY - PADDLE_SPEED as float;
+        }
+        if self.keyDown {
+            self.playerY = self.playerY + PADDLE_SPEED as float;
+        }
+        if self.keyLeft {
+            self.playerX = self.playerX - PADDLE_SPEED as float;
+        }
+        if self.keyRight {
+            self.playerX = self.playerX + PADDLE_SPEED as float;
+        }
+        
+        // 确保球杆在冰场内
+        var halfR = self.playerRadius as float;
+        if self.playerY - halfR < RINK_TOP as float {
+            self.playerY = RINK_TOP as float + halfR;
+        }
+        if self.playerY + halfR > RINK_BOTTOM as float {
+            self.playerY = RINK_BOTTOM as float - halfR;
+        }
+        if self.playerX - halfR < RINK_LEFT as float {
+            self.playerX = RINK_LEFT as float + halfR;
+        }
+        if self.playerX + halfR > RINK_RIGHT as float {
+            self.playerX = RINK_RIGHT as float - halfR;
+        }
+    }
+    
+    // 更新AI
+    private fn updateAI(dt: u32) {
+        // 限制AI更新频率
+        var currentTime = getTickCount();
+        if currentTime - self.aiLastUpdate < AI_REACTION_DELAY as u32 {
+            return;
+        }
+        self.aiLastUpdate = currentTime;
+        
+        // 预测冰球位置
+        if self.puckVX > 0.0 {
+            // 冰球向AI方向移动，预测位置
+            var timeToReach = (self.aiX - self.puckX) / self.puckVX;
+            var predictedX = self.puckX + self.puckVX * timeToReach;
+            var predictedY = self.puckY + self.puckVY * timeToReach;
+            
+            // 添加失误
+            if math.rand() % 4 == 0 {
+                self.aiErrorX = math.rand() % (AI_ERROR_RANGE * 2) - AI_ERROR_RANGE;
+                self.aiErrorY = math.rand() % (AI_ERROR_RANGE * 2) - AI_ERROR_RANGE;
+            }
+            
+            self.aiTargetX = predictedX + self.aiErrorX as float;
+            self.aiTargetY = predictedY + self.aiErrorY as float;
+        } else {
+            // 冰球远离AI，回到防守位置
+            self.aiTargetX = self.aiX;
+            self.aiTargetY = (RINK_TOP + RINK_BOTTOM) as float / 2.0 + (math.rand() % 40 - 20) as float;
+        }
+        
+        // 让AI球杆移向目标位置
+        var aiSpeed = PADDLE_SPEED as float - 1.0;
+        
+        var dx = self.aiTargetX - self.aiX;
+        var dy = self.aiTargetY - self.aiY;
+        
+        if dx > aiSpeed {
+            self.aiX = self.aiX + aiSpeed;
+        } else if dx < -aiSpeed {
+            self.aiX = self.aiX - aiSpeed;
+        } else {
+            self.aiX = self.aiTargetX;
+        }
+        
+        if dy > aiSpeed {
+            self.aiY = self.aiY + aiSpeed;
+        } else if dy < -aiSpeed {
+            self.aiY = self.aiY - aiSpeed;
+        } else {
+            self.aiY = self.aiTargetY;
+        }
+        
+        // 确保AI球杆在冰场内
+        var halfR = self.aiRadius as float;
+        if self.aiY - halfR < RINK_TOP as float {
+            self.aiY = RINK_TOP as float + halfR;
+        }
+        if self.aiY + halfR > RINK_BOTTOM as float {
+            self.aiY = RINK_BOTTOM as float - halfR;
+        }
+        if self.aiX - halfR < RINK_LEFT as float {
+            self.aiX = RINK_LEFT as float + halfR;
+        }
+        if self.aiX + halfR > RINK_RIGHT as float {
+            self.aiX = RINK_RIGHT as float - halfR;
+        }
+    }
+    
+    // 更新冰球
+    private fn updatePuck() {
+        // 移动冰球
+        self.puckX = self.puckX + self.puckVX;
+        self.puckY = self.puckY + self.puckVY;
+        
+        // 摩擦力
+        if self.puckVX > 0.0 {
+            self.puckVX = self.puckVX - PUCK_FRICTION as float;
+            if self.puckVX < 0.0 { self.puckVX = 0.0; }
+        } else if self.puckVX < 0.0 {
+            self.puckVX = self.puckVX + PUCK_FRICTION as float;
+            if self.puckVX > 0.0 { self.puckVX = 0.0; }
+        }
+        
+        if self.puckVY > 0.0 {
+            self.puckVY = self.puckVY - PUCK_FRICTION as float;
+            if self.puckVY < 0.0 { self.puckVY = 0.0; }
+        } else if self.puckVY < 0.0 {
+            self.puckVY = self.puckVY + PUCK_FRICTION as float;
+            if self.puckVY > 0.0 { self.puckVY = 0.0; }
+        }
+        
+        // 上下边界碰撞
+        if self.puckY - self.puckRadius as float <= RINK_TOP as float {
+            self.puckY = RINK_TOP as float + self.puckRadius as float;
+            self.puckVY = -self.puckVY * 0.9;
+        }
+        if self.puckY + self.puckRadius as float >= RINK_BOTTOM as float {
+            self.puckY = RINK_BOTTOM as float - self.puckRadius as float;
+            self.puckVY = -self.puckVY * 0.9;
+        }
+        
+        // 左右边界碰撞（除了球门区域）
+        // 左边界
+        if self.puckX - self.puckRadius as float <= RINK_LEFT as float {
+            // 检查是否在球门区域
+            if self.puckY < self.goalY as float || self.puckY > (self.goalY + self.goalHeight) as float {
+                self.puckX = RINK_LEFT as float + self.puckRadius as float;
+                self.puckVX = -self.puckVX * 0.9;
+            }
+        }
+        
+        // 右边界
+        if self.puckX + self.puckRadius as float >= RINK_RIGHT as float {
+            // 检查是否在球门区域
+            if self.puckY < self.goalY as float || self.puckY > (self.goalY + self.goalHeight) as float {
+                self.puckX = RINK_RIGHT as float - self.puckRadius as float;
+                self.puckVX = -self.puckVX * 0.9;
+            }
+        }
+        
+        // 玩家球杆碰撞
+        if self.checkPaddleCollision(self.playerX, self.playerY, self.playerRadius, 
+                                      self.puckX, self.puckY, self.puckRadius) {
+            self.handlePaddleHit(self.playerX, self.playerY, true);
+        }
+        
+        // AI球杆碰撞
+        if self.checkPaddleCollision(self.aiX, self.aiY, self.aiRadius,
+                                      self.puckX, self.puckY, self.puckRadius) {
+            self.handlePaddleHit(self.aiX, self.aiY, false);
+        }
+    }
+    
+    // 检查球杆碰撞
+    private fn checkPaddleCollision(px: float, py: float, pr: int, 
+                                     puckX: float, puckY: float, puckR: int) -> bool {
+        var dx = px - puckX;
+        var dy = py - puckY;
+        var dist = self.sqrtFloat(dx * dx + dy * dy);
+        return dist <= (pr + puckR) as float;
+    }
+    
+    // 处理球杆击球
+    private fn handlePaddleHit(px: float, py: float, isPlayer: bool) {
+        var dx = self.puckX - px;
+        var dy = self.puckY - py;
+        var dist = self.sqrtFloat(dx * dx + dy * dy);
+        
+        if dist == 0.0 {
+            dist = 1.0;
+        }
+        
+        // 计算碰撞后的速度方向
+        var nx = dx / dist;
+        var ny = dy / dist;
+        
+        // 速度增加
+        var currentSpeed = self.sqrtFloat(self.puckVX * self.puckVX + self.puckVY * self.puckVY);
+        var newSpeed = currentSpeed + 2.0;
+        if newSpeed > PUCK_MAX_SPEED as float {
+            newSpeed = PUCK_MAX_SPEED as float;
+        }
+        
+        self.puckVX = nx * newSpeed;
+        self.puckVY = ny * newSpeed;
+        
+        // 确保冰球离开球杆
+        var minDist = (self.playerRadius + self.puckRadius + 2) as float;
+        self.puckX = px + nx * minDist;
+        self.puckY = py + ny * minDist;
+    }
+    
+    // 检测进球
+    private fn checkGoal() {
+        // 左边球门（AI得分）
+        if self.puckX - self.puckRadius as float <= self.leftGoalX as float {
+            if self.puckY >= self.goalY as float && 
+               self.puckY <= (self.goalY + self.goalHeight) as float {
+                self.aiScore = self.aiScore + 1;
+                self.serveTo = 0; // 给玩家发球
+                self.resetPuck();
+            }
+        }
+        
+        // 右边球门（玩家得分）
+        if self.puckX + self.puckRadius as float >= self.rightGoalX as float {
+            if self.puckY >= self.goalY as float && 
+               self.puckY <= (self.goalY + self.goalHeight) as float {
+                self.playerScore = self.playerScore + 1;
+                self.serveTo = 1; // 给AI发球
+                self.resetPuck();
+            }
+        }
+    }
+    
+    // 重置冰球
+    private fn resetPuck() {
+        self.puckX = (RINK_LEFT + RINK_RIGHT) as float / 2.0;
+        self.puckY = (RINK_TOP + RINK_BOTTOM) as float / 2.0;
+        self.puckVX = 0.0;
+        self.puckVY = 0.0;
+        self.gameStarted = false;
+    }
+    
+    // 发球
+    private fn servePuck() {
+        var angle = (math.rand() % 30 - 15) as float;
+        var speed = PUCK_SPEED as float;
+        
+        if self.serveTo == 0 {
+            // 给玩家发球，向右
+            self.puckVX = speed * self.cos(angle);
+            self.puckVY = speed * self.sin(angle);
+        } else {
+            // 给AI发球，向左
+            self.puckVX = -speed * self.cos(angle);
+            self.puckVY = speed * self.sin(angle);
+        }
+        self.gameStarted = true;
+    }
+    
+    // 检查胜负
+    private fn checkWinCondition() {
+        if self.playerScore >= WINNING_SCORE {
+            self.gameOver = true;
+            self.winner = "玩家";
+            self.setState(GameState.Won);
+        } else if self.aiScore >= WINNING_SCORE {
+            self.gameOver = true;
+            self.winner = "电脑";
+            self.setState(GameState.Lost);
+        }
+    }
+    
+    // onRender - 渲染画面
+    pub fn onRender(canvas: Canvas) {
+        canvas.clear(Color.Black());
+        
+        self.drawRink(canvas);
+        self.drawGoals(canvas);
+        self.drawCenterLine(canvas);
+        self.drawScore(canvas);
+        self.drawPaddle(canvas, self.playerX as int, self.playerY as int, self.playerRadius, true);
+        self.drawPaddle(canvas, self.aiX as int, self.aiY as int, self.aiRadius, false);
+        self.drawPuck(canvas);
+        
+        if !self.gameStarted && !self.gameOver {
+            self.drawStartMessage(canvas);
+        }
+        
+        if self.gameOver {
+            self.drawGameOver(canvas);
+        }
+    }
+    
+    // 绘制冰场
+    private fn drawRink(canvas: Canvas) {
+        // 冰场背景
+        var iceColor = Color.RGB(200, 230, 255);
+        canvas.fillRect(RINK_LEFT, RINK_TOP, RINK_WIDTH, RINK_HEIGHT, iceColor);
+        
+        // 冰场边框
+        var borderColor = Color.RGB(100, 100, 150);
+        canvas.drawRect(RINK_LEFT, RINK_TOP, RINK_WIDTH, RINK_HEIGHT, borderColor);
+        
+        // 中线和圆
+        var centerX = (RINK_LEFT + RINK_RIGHT) / 2;
+        var centerY = (RINK_TOP + RINK_BOTTOM) / 2;
+        
+        // 中线
+        canvas.drawLine(centerX, RINK_TOP, centerX, RINK_BOTTOM, Color.RGB(150, 150, 200));
+        
+        // 中圈
+        canvas.drawCircle(centerX, centerY, 60, Color.RGB(150, 150, 200));
+        
+        // 球门区
+        var goalAreaColor = Color.RGB(180, 180, 220);
+        canvas.drawRect(RINK_LEFT, self.goalY, 40, self.goalHeight, goalAreaColor);
+        canvas.drawRect(RINK_RIGHT - 40, self.goalY, 40, self.goalHeight, goalAreaColor);
+    }
+    
+    // 绘制球门
+    private fn drawGoals(canvas: Canvas) {
+        var goalColor = Color.RGB(80, 80, 200);
+        
+        // 左球门（玩家进攻方向）
+        canvas.fillRect(self.leftGoalX, self.goalY, GOAL_WIDTH, self.goalHeight, goalColor);
+        
+        // 右球门（AI进攻方向）
+        canvas.fillRect(self.rightGoalX, self.goalY, GOAL_WIDTH, self.goalHeight, goalColor);
+    }
+    
+    // 绘制中线
+    private fn drawCenterLine(canvas: Canvas) {
+        var centerX = (RINK_LEFT + RINK_RIGHT) / 2;
+        var centerY = (RINK_TOP + RINK_BOTTOM) / 2;
+        
+        // 中圈
+        canvas.drawCircle(centerX, centerY, 50, Color.RGB(100, 100, 180));
+    }
+    
+    // 绘制分数
+    private fn drawScore(canvas: Canvas) {
+        var font = Font.("Arial", 32);
+        var smallFont = Font.("Arial", 14);
+        
+        var playerText = self.intToString(self.playerScore);
+        canvas.drawText(WINDOW_WIDTH / 4 - 20, 10, playerText, Color.White(), font);
+        
+        var aiText = self.intToString(self.aiScore);
+        canvas.drawText(WINDOW_WIDTH * 3 / 4 - 20, 10, aiText, Color.White(), font);
+        
+        canvas.drawText(WINDOW_WIDTH / 2 - 10, 10, "-", Color.Gray(), font);
+        
+        canvas.drawText(WINDOW_WIDTH / 4 - 30, 2, "玩家", Color.LightGray(), smallFont);
+        canvas.drawText(WINDOW_WIDTH * 3 / 4 - 30, 2, "电脑", Color.LightGray(), smallFont);
+    }
+    
+    // 绘制球杆
+    private fn drawPaddle(canvas: Canvas, x: int, y: int, radius: int, isPlayer: bool) {
+        var color: Color;
+        if isPlayer {
+            color = Color.RGB(50, 150, 255); // 蓝色
+        } else {
+            color = Color.RGB(255, 80, 80); // 红色
+        }
+        
+        // 球杆外圈
+        canvas.fillCircle(x, y, radius, color);
+        
+        // 球杆内圈
+        var innerColor = Color.White();
+        canvas.fillCircle(x, y, radius / 2, innerColor);
+    }
+    
+    // 绘制冰球
+    private fn drawPuck(canvas: Canvas) {
+        var puckColor = Color.RGB(30, 30, 30);
+        canvas.fillCircle(self.puckX as int, self.puckY as int, self.puckRadius, puckColor);
+        
+        // 冰球高光
+        var highlightColor = Color.RGB(80, 80, 80);
+        canvas.fillCircle(self.puckX as int - 3, self.puckY as int - 3, self.puckRadius / 3, highlightColor);
+    }
+    
+    // 绘制开始提示
+    private fn drawStartMessage(canvas: Canvas) {
+        var font = Font.("Arial", 18);
+        var text = "按 空格键 发球";
+        canvas.drawText(WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT - 30, text, Color.Yellow(), font);
+    }
+    
+    // 绘制游戏结束
+    private fn drawGameOver(canvas: Canvas) {
+        canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(180, 0, 0, 0));
+        
+        var font = Font.("Arial", 42);
+        var text = self.winner ++ " 获胜!";
+        canvas.drawText(WINDOW_WIDTH / 2 - 120, WINDOW_HEIGHT / 2 - 40, text, Color.Yellow(), font);
+        
+        var smallFont = Font.("Arial", 18);
+        var restartText = "按 R 键重新开始";
+        canvas.drawText(WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 + 20, restartText, Color.White(), smallFont);
+    }
+    
+    // onKeyDown - 键盘按下
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.Up | VirtualKey.KeyW => {
+                self.keyUp = true;
+            }
+            VirtualKey.Down | VirtualKey.KeyS => {
+                self.keyDown = true;
+            }
+            VirtualKey.Left | VirtualKey.KeyA => {
+                self.keyLeft = true;
+            }
+            VirtualKey.Right | VirtualKey.KeyD => {
+                self.keyRight = true;
+            }
+            VirtualKey.Space => {
+                if !self.gameStarted && !self.gameOver {
+                    self.servePuck();
+                }
+            }
+            VirtualKey.KeyR => {
+                if self.gameOver {
+                    self.onInit();
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    // onKeyUp - 键盘释放
+    pub fn onKeyUp(key: VirtualKey) {
+        match key {
+            VirtualKey.Up | VirtualKey.KeyW => {
+                self.keyUp = false;
+            }
+            VirtualKey.Down | VirtualKey.KeyS => {
+                self.keyDown = false;
+            }
+            VirtualKey.Left | VirtualKey.KeyA => {
+                self.keyLeft = false;
+            }
+            VirtualKey.Right | VirtualKey.KeyD => {
+                self.keyRight = false;
+            }
+            _ => {}
+        }
+    }
+    
+    // onMouseDown - 鼠标按下
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        if !self.gameStarted && !self.gameOver {
+            self.servePuck();
+        } else {
+            // 鼠标控制球杆
+            self.playerX = x as float;
+            self.playerY = y as float;
+        }
+    }
+    
+    // onMouseUp - 鼠标释放
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+    }
+    
+    // ============ 辅助函数 ============
+    
+    fn sqrtFloat(n: float) -> float {
+        if n < 0.0 {
+            return 0.0;
+        }
+        var x = n;
+        var y = 1.0;
+        while y < x {
+            x = (x + y) / 2.0;
+            y = n / x;
+        }
+        return x;
+    }
+    
+    fn cos(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = 1.0;
+        var term = 1.0;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn sin(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = rad;
+        var term = rad;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn intToString(n: int) -> str {
+        if n == 0 {
+            return "0";
+        }
+        var result = "";
+        var negative = false;
+        var num = n;
+        if num < 0 {
+            negative = true;
+            num = -num;
+        }
+        while num > 0 {
+            var digit = num % 10;
+            result = (digit as char + "") ++ result;
+            num = num / 10;
+        }
+        return if negative { "-" ++ result } else { result };
+    }
+}

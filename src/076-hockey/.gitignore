@@ -1,0 +1,22 @@
+# 编译输出
+build/
+*.exe
+*.o
+*.obj
+*.dll
+*.so
+*.a
+
+# 临时文件
+*.tmp
+*.bak
+*.swp
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# 日志
+*.log
