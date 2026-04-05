@@ -1,0 +1,465 @@
+// game_logic.zc - Memory 记忆翻牌游戏逻辑
+// Zen-C 游戏框架 v1.0.0
+// 097-Memory - 增强版记忆翻牌 (5x4 网格, 10对)
+
+import std.io;
+
+// ==================== 常量定义 ====================
+
+// 游戏尺寸 - 5x4 = 20 cards = 10 pairs
+const GRID_ROWS: int = 4;
+const GRID_COLS: int = 5;
+const TOTAL_CARDS: int = GRID_ROWS * GRID_COLS;
+const TOTAL_PAIRS: int = TOTAL_CARDS / 2;
+
+// 卡牌尺寸
+const CARD_WIDTH: int = 70;
+const CARD_HEIGHT: int = 85;
+const CARD_GAP: int = 8;
+
+// 布局
+const GRID_OFFSET_X: int = 20;
+const GRID_OFFSET_Y: int = 95;
+
+// 卡牌图案数量 (10种不同图案)
+const PATTERN_TYPES: int = 10;
+
+// 匹配后消失延迟
+const MATCH_DELAY: int = 600;
+
+// ==================== 颜色定义 ====================
+
+const BG_COLOR = rgb(25, 25, 40);
+const HEADER_BG = rgb(35, 35, 55);
+const CARD_BACK_COLOR = rgb(65, 85, 115);
+const CARD_FRONT_COLOR = rgb(45, 55, 75);
+const CARD_BORDER_COLOR = rgb(100, 130, 160);
+const CARD_FLIP_BORDER = rgb(255, 215, 0);
+const MATCH_GLOW = rgb(50, 220, 130);
+const TEXT_COLOR = rgb(255, 255, 255);
+const TEXT_DIM = rgb(180, 180, 200);
+const GOLD_COLOR = rgb(255, 215, 0);
+const GREEN_COLOR = rgb(50, 220, 130);
+
+// 卡牌颜色调色板 (10种颜色)
+const PATTERN_COLORS: [10]u32 = [
+    rgb(220, 60, 60),    // 红色
+    rgb(60, 150, 220),   // 蓝色
+    rgb(60, 200, 120),   // 绿色
+    rgb(180, 90, 200),   // 紫色
+    rgb(255, 180, 50),   // 橙黄
+    rgb(50, 200, 200),   // 青色
+    rgb(255, 130, 180),  // 粉色
+    rgb(200, 200, 80),   // 淡黄
+    rgb(150, 100, 60),    // 棕色
+    rgb(100, 200, 160),   // 薄荷绿
+];
+
+// ==================== 数据结构 ====================
+
+// 卡牌状态
+pub enum CardState {
+    Hidden,    // 背面朝上
+    Flipped,   // 正面朝上(显示图案)
+    Matched,   // 已配对(带光晕效果)
+}
+
+// 卡牌
+pub struct Card {
+    pattern: int,      // 图案类型 (0-9)
+    state: CardState,  // 卡牌状态
+    row: int,          // 行索引
+    col: int,          // 列索引
+    flipTime: u32,     // 翻转时间戳
+}
+
+// 游戏状态
+pub struct MemoryGameState {
+    cards: [GRID_ROWS][GRID_COLS]Card,
+    firstCardRow: int,      // 第一次翻牌的行 (-1表示无)
+    firstCardCol: int,      // 第一次翻牌的列
+    secondCardRow: int,     // 第二次翻牌的行
+    secondCardCol: int,     // 第二次翻牌的列
+    score: int,             // 当前分数
+    moves: int,             // 移动次数
+    pairsFound: int,        // 已找到的对数
+    gameOver: bool,         // 游戏是否结束
+    gameWon: bool,          // 是否获胜
+    canFlip: bool,          // 是否可以翻牌
+    lastFlipTime: u32,      // 上次翻转时间
+    hintUsed: bool,         // 是否使用了提示
+    hintRow: int,           // 提示的卡牌行
+    hintCol: int,           // 提示的卡牌列
+    hintTime: u32,          // 提示时间
+}
+
+// ==================== 辅助函数 ====================
+
+fn rgb(r: u8, g: u8, b: u8) -> u32 {
+    return 0xFF000000 as u32 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+}
+
+// ==================== 游戏逻辑 ====================
+
+// 初始化游戏
+pub fn init_game(state: &mut MemoryGameState) {
+    // 初始化所有卡牌
+    for r in 0..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            state.cards[r][c].pattern = -1;
+            state.cards[r][c].state = CardState.Hidden;
+            state.cards[r][c].row = r;
+            state.cards[r][c].col = c;
+            state.cards[r][c].flipTime = 0;
+        }
+    }
+    
+    // 生成配对的卡牌
+    var types: [TOTAL_CARDS]int;
+    var typeIndex = 0;
+    
+    for i in 0..TOTAL_PAIRS {
+        let tileType = i % PATTERN_TYPES;
+        types[typeIndex] = tileType;
+        typeIndex = typeIndex + 1;
+        types[typeIndex] = tileType;
+        typeIndex = typeIndex + 1;
+    }
+    
+    // Fisher-Yates 洗牌算法
+    for i in 0..TOTAL_CARDS {
+        let j = (rand() % (TOTAL_CARDS - i)) as int;
+        let temp = types[i];
+        types[i] = types[j];
+        types[j] = temp;
+    }
+    
+    // 放置卡牌
+    typeIndex = 0;
+    for r in 0..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            state.cards[r][c].pattern = types[typeIndex];
+            state.cards[r][c].state = CardState.Hidden;
+            typeIndex = typeIndex + 1;
+        }
+    }
+    
+    // 初始化游戏状态
+    state.firstCardRow = -1;
+    state.firstCardCol = -1;
+    state.secondCardRow = -1;
+    state.secondCardCol = -1;
+    state.score = 0;
+    state.moves = 0;
+    state.pairsFound = 0;
+    state.gameOver = false;
+    state.gameWon = false;
+    state.canFlip = true;
+    state.lastFlipTime = 0;
+    state.hintUsed = false;
+    state.hintRow = -1;
+    state.hintCol = -1;
+    state.hintTime = 0;
+}
+
+// 获取卡牌位置(屏幕坐标)
+pub fn get_card_position(state: &MemoryGameState, row: int, col: int) -> (int, int) {
+    let x = GRID_OFFSET_X + col * (CARD_WIDTH + CARD_GAP);
+    let y = GRID_OFFSET_Y + row * (CARD_HEIGHT + CARD_GAP);
+    return (x, y);
+}
+
+// 点击卡牌
+pub fn click_card(state: &mut MemoryGameState, row: int, col: int, currentTime: u32) -> bool {
+    // 忽略无效点击
+    if row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS {
+        return false;
+    }
+    
+    // 忽略已匹配或已翻转的卡牌
+    if state.cards[row][col].state == CardState.Matched {
+        return false;
+    }
+    
+    // 忽略正在翻转动画中的卡牌
+    if !state.canFlip {
+        return false;
+    }
+    
+    // 如果已经有两张翻开，等待匹配结果
+    if state.firstCardRow >= 0 && state.secondCardRow >= 0 {
+        return false;
+    }
+    
+    // 如果点击的是已经翻开的第一张卡，取消选择
+    if state.firstCardRow == row && state.firstCardCol == col {
+        state.cards[row][col].state = CardState.Hidden;
+        state.firstCardRow = -1;
+        state.firstCardCol = -1;
+        return true;
+    }
+    
+    // 翻开卡牌
+    state.cards[row][col].state = CardState.Flipped;
+    state.cards[row][col].flipTime = currentTime;
+    
+    // 如果是第一张卡
+    if state.firstCardRow < 0 {
+        state.firstCardRow = row;
+        state.firstCardCol = col;
+        return true;
+    }
+    
+    // 如果是第二张卡
+    state.secondCardRow = row;
+    state.secondCardCol = col;
+    state.moves = state.moves + 1;
+    
+    // 检查是否匹配
+    let firstPattern = state.cards[state.firstCardRow][state.firstCardCol].pattern;
+    let secondPattern = state.cards[state.secondCardRow][state.secondCardCol].pattern;
+    
+    if firstPattern == secondPattern {
+        // 匹配成功! 加分
+        let bonus = if state.hintUsed { 50 } else { 100 };
+        state.score = state.score + bonus;
+        state.pairsFound = state.pairsFound + 1;
+        state.canFlip = false;
+        state.lastFlipTime = currentTime;
+        state.hintUsed = false;
+        
+        // 检查是否获胜
+        if state.pairsFound >= TOTAL_PAIRS {
+            state.gameWon = true;
+            state.gameOver = true;
+        }
+    } else {
+        // 匹配失败，延迟后翻回
+        state.canFlip = false;
+        state.lastFlipTime = currentTime;
+    }
+    
+    return true;
+}
+
+// 使用提示
+pub fn use_hint(state: &mut MemoryGameState, currentTime: u32) -> bool {
+    if state.gameOver || !state.canFlip {
+        return false;
+    }
+    
+    // 找到一个未匹配的卡牌
+    for r in 0..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            if state.cards[r][c].state == CardState.Hidden {
+                // 找它的配对
+                let targetPattern = state.cards[r][c].pattern;
+                for r2 in 0..GRID_ROWS {
+                    for c2 in 0..GRID_COLS {
+                        if r2 == r && c2 == c {
+                            continue;
+                        }
+                        if state.cards[r2][c2].state == CardState.Hidden && 
+                           state.cards[r2][c2].pattern == targetPattern {
+                            // 找到配对了
+                            state.hintRow = r;
+                            state.hintCol = c;
+                            state.hintTime = currentTime;
+                            state.hintUsed = true;
+                            state.score = state.score - 10;  // 提示扣分
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+// 更新游戏状态
+pub fn update_game(state: &mut MemoryGameState, currentTime: u32) {
+    if state.gameOver {
+        return;
+    }
+    
+    // 检查提示是否过期
+    if state.hintRow >= 0 && currentTime - state.hintTime > 1500 {
+        state.hintRow = -1;
+        state.hintCol = -1;
+    }
+    
+    // 检查是否需要翻回不匹配的卡牌
+    if !state.canFlip && state.firstCardRow >= 0 && state.secondCardRow >= 0 {
+        let elapsed = currentTime - state.lastFlipTime;
+        
+        if elapsed >= MATCH_DELAY {
+            let firstPattern = state.cards[state.firstCardRow][state.firstCardCol].pattern;
+            let secondPattern = state.cards[state.secondCardRow][state.secondCardCol].pattern;
+            
+            if firstPattern != secondPattern {
+                // 翻回不匹配的卡牌
+                state.cards[state.firstCardRow][state.firstCardCol].state = CardState.Hidden;
+                state.cards[state.secondCardRow][state.secondCardCol].state = CardState.Hidden;
+            }
+            
+            state.firstCardRow = -1;
+            state.firstCardCol = -1;
+            state.secondCardRow = -1;
+            state.secondCardCol = -1;
+            state.canFlip = true;
+        }
+    }
+    
+    // 匹配成功后标记为已匹配
+    if !state.canFlip && state.firstCardRow >= 0 && state.secondCardRow >= 0 {
+        let elapsed = currentTime - state.lastFlipTime;
+        
+        if elapsed >= MATCH_DELAY {
+            let firstPattern = state.cards[state.firstCardRow][state.firstCardCol].pattern;
+            let secondPattern = state.cards[state.secondCardRow][state.secondCardCol].pattern;
+            
+            if firstPattern == secondPattern {
+                // 标记为已匹配
+                state.cards[state.firstCardRow][state.firstCardCol].state = CardState.Matched;
+                state.cards[state.secondCardRow][state.secondCardCol].state = CardState.Matched;
+            }
+            
+            state.firstCardRow = -1;
+            state.firstCardCol = -1;
+            state.secondCardRow = -1;
+            state.secondCardCol = -1;
+            state.canFlip = true;
+        }
+    }
+}
+
+// 重新开始游戏
+pub fn restart_game(state: &mut MemoryGameState) {
+    init_game(state);
+}
+
+// 获取分数文本
+pub fn get_score_text(state: &MemoryGameState) -> str {
+    return "得分: " ++ state.score.toString();
+}
+
+// 获取移动次数文本
+pub fn get_moves_text(state: &MemoryGameState) -> str {
+    return "步数: " ++ state.moves.toString();
+}
+
+// 获取剩余对数文本
+pub fn get_pairs_text(state: &MemoryGameState) -> str {
+    let remaining = TOTAL_PAIRS - state.pairsFound;
+    return "剩余: " ++ remaining.toString() ++ " 对";
+}
+
+// 获取状态文本
+pub fn get_status_text(state: &MemoryGameState) -> str {
+    if state.gameWon {
+        return "🎉 恭喜通关! 🎉";
+    }
+    if state.pairsFound == 0 {
+        return "找出所有配对!";
+    }
+    return "已找到 " ++ state.pairsFound.toString() ++ " / " ++ TOTAL_PAIRS.toString() ++ " 对";
+}
+
+// 获取控制说明
+pub fn get_controls_text() -> str {
+    return "鼠标点击翻牌 | H 显示提示(-10分) | R 重新开始 | ESC 退出";
+}
+
+// 获取卡牌图案颜色
+pub fn get_pattern_color(pattern: int) -> u32 {
+    return PATTERN_COLORS[pattern % PATTERN_TYPES];
+}
+
+// 绘制卡牌图案 - 10种不同图案
+pub fn draw_pattern(canvas: &Canvas, cx: int, cy: int, pattern: int) {
+    let color = get_pattern_color(pattern);
+    let r = 16;
+    
+    match pattern % 10 {
+        0 => {
+            // 实心圆
+            canvas.fillCircle(cx, cy, r, color);
+            canvas.fillCircle(cx - r/3, cy - r/3, r/3, rgb(255,255,255));
+        },
+        1 => {
+            // 实心方块
+            canvas.fillRect(cx - r, cy - r, r * 2, r * 2, color);
+            canvas.fillRect(cx - r/2, cy - r/2, r, r, rgb(255,255,255));
+        },
+        2 => {
+            // 菱形
+            canvas.drawLine(cx, cy - r, cx + r, cy, color);
+            canvas.drawLine(cx + r, cy, cx, cy + r, color);
+            canvas.drawLine(cx, cy + r, cx - r, cy, color);
+            canvas.drawLine(cx - r, cy, cx, cy - r, color);
+        },
+        3 => {
+            // 三角形 (向上)
+            canvas.drawLine(cx, cy - r, cx - r, cy + r/2, color);
+            canvas.drawLine(cx - r, cy + r/2, cx + r, cy + r/2, color);
+            canvas.drawLine(cx + r, cy + r/2, cx, cy - r, color);
+        },
+        4 => {
+            // 十字
+            let arm = r / 2;
+            canvas.fillRect(cx - arm/2, cy - r, arm, r * 2, color);
+            canvas.fillRect(cx - r, cy - arm/2, r * 2, arm, color);
+        },
+        5 => {
+            // 五边形
+            for i in 0..5 {
+                let a1 = (i * 72 - 90) as f32 * 3.14159 / 180.0;
+                let a2 = ((i + 1) * 72 - 90) as f32 * 3.14159 / 180.0;
+                let x1 = cx + (r as f32 * cos_simple(a1)) as int;
+                let y1 = cy + (r as f32 * sin_simple(a1)) as int;
+                let x2 = cx + (r as f32 * cos_simple(a2)) as int;
+                let y2 = cy + (r as f32 * sin_simple(a2)) as int;
+                canvas.drawLine(x1, y1, x2, y2, color);
+            }
+        },
+        6 => {
+            // 六边形
+            for i in 0..6 {
+                let a1 = (i * 60) as f32 * 3.14159 / 180.0;
+                let a2 = ((i + 1) * 60) as f32 * 3.14159 / 180.0;
+                let x1 = cx + (r as f32 * cos_simple(a1)) as int;
+                let y1 = cy + (r as f32 * sin_simple(a1)) as int;
+                let x2 = cx + (r as f32 * cos_simple(a2)) as int;
+                let y2 = cy + (r as f32 * sin_simple(a2)) as int;
+                canvas.drawLine(x1, y1, x2, y2, color);
+            }
+        },
+        7 => {
+            // 星形
+            for i in 0..5 {
+                let a1 = (i * 72 - 90) as f32 * 3.14159 / 180.0;
+                let a2 = ((i * 72 + 36) - 90) as f32 * 3.14159 / 180.0;
+                let x1 = cx + (r as f32 * cos_simple(a1)) as int;
+                let y1 = cy + (r as f32 * sin_simple(a1)) as int;
+                let x2 = cx + (r as f32 * cos_simple(a2)) as int;
+                let y2 = cy + (r as f32 * sin_simple(a2)) as int;
+                canvas.drawLine(x1, y1, x2, y2, color);
+            }
+        },
+        8 => {
+            // 空心圆
+            canvas.drawCircle(cx, cy, r, color);
+            canvas.drawCircle(cx, cy, r/2, color);
+        },
+        _ => {
+            // 心形简化
+            canvas.fillCircle(cx - r/2, cy - r/4, r/2, color);
+            canvas.fillCircle(cx + r/2, cy - r/4, r/2, color);
+            canvas.fillRect(cx - r/2, cy, r, r/2, color);
+        },
+    }
+}
+
+fn cos_simple(v: f32) -> f32 { return 0.0; }
+fn sin_simple(v: f32) -> f32 { return 0.0; }

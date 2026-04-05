@@ -1,0 +1,479 @@
+// main_window.zc - Zen-C Memory 记忆翻牌游戏主程序
+// 097-Memory - 增强版记忆翻牌 (5x4 网格, 10对)
+
+import std.io;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 常量 ====================
+
+const WINDOW_WIDTH = 400;
+const WINDOW_HEIGHT = 500;
+const HEADER_HEIGHT = 80;
+
+// ==================== 全局变量 ====================
+
+static mut game: MemoryGameState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+
+// ==================== 帧缓冲操作 ====================
+
+static mut fb_valid: bool = false;
+static mut fb_pitch: int = 0;
+static mut fb_buffer: rawptr = null;
+
+fn fb_init(w: WindowHandle, width: int, height: int) {
+    fb_buffer = getFrameBuffer(w);
+    fb_pitch = getFrameBufferPitch(w);
+    fb_valid = true;
+}
+
+fn fb_clear(color: u32) {
+    if !fb_valid || fb_buffer == null { return; }
+    var pixels = fb_buffer as u32 mut;
+    var count = (fb_pitch * WINDOW_HEIGHT) / 4;
+    for i in 0..count {
+        pixels[i] = color;
+    }
+}
+
+fn fb_present() {
+    if window != null {
+        presentFrame(window);
+    }
+}
+
+fn fb_draw_pixel(x: int, y: int, color: u32) {
+    if !fb_valid || fb_buffer == null { return; }
+    if x < 0 || x >= WINDOW_WIDTH || y < 0 || y >= WINDOW_HEIGHT { return; }
+    var pixels = fb_buffer as u32 mut;
+    let offset = y * (fb_pitch / 4) + x;
+    pixels[offset] = color;
+}
+
+fn fb_draw_line(x1: int, y1: int, x2: int, y2: int, color: u32) {
+    var dx = abs(x2 - x1);
+    var dy = abs(y2 - y1);
+    var sx = if x1 < x2 { 1 } else { -1 };
+    var sy = if y1 < y2 { 1 } else { -1 };
+    var err = dx - dy;
+    
+    loop {
+        fb_draw_pixel(x1, y1, color);
+        if x1 == x2 && y1 == y2 { break; }
+        var e2 = 2 * err;
+        if e2 > -dy { err = err - dy; x1 = x1 + sx; }
+        if e2 < dx { err = err + dx; y1 = y1 + sy; }
+    }
+}
+
+fn fb_draw_rect(x: int, y: int, w: int, h: int, color: u32) {
+    fb_draw_line(x, y, x + w, y, color);
+    fb_draw_line(x + w, y, x + w, y + h, color);
+    fb_draw_line(x + w, y + h, x, y + h, color);
+    fb_draw_line(x, y + h, x, y, color);
+}
+
+fn fb_draw_fill_rect(x: int, y: int, w: int, h: int, color: u32) {
+    for py in y..(y + h) {
+        for px in x..(x + w) {
+            fb_draw_pixel(px, py, color);
+        }
+    }
+}
+
+fn fb_draw_circle(cx: int, cy: int, radius: int, color: u32) {
+    if radius <= 0 { return; }
+    var d = 3 - 2 * radius;
+    var x = 0;
+    var y = radius;
+    
+    loop {
+        fb_draw_pixel(cx + x, cy + y, color);
+        fb_draw_pixel(cx - x, cy + y, color);
+        fb_draw_pixel(cx + x, cy - y, color);
+        fb_draw_pixel(cx - x, cy - y, color);
+        fb_draw_pixel(cx + y, cy + x, color);
+        fb_draw_pixel(cx - y, cy + x, color);
+        fb_draw_pixel(cx + y, cy - x, color);
+        fb_draw_pixel(cx - y, cy - x, color);
+        
+        if d < 0 {
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            y = y - 1;
+        }
+        x = x + 1;
+        if x > y { break; }
+    }
+}
+
+fn fb_draw_fill_circle(cx: int, cy: int, radius: int, color: u32) {
+    if radius <= 0 { return; }
+    for py in (-radius)..(radius + 1) {
+        for px in (-radius)..(radius + 1) {
+            if px*px + py*py <= radius * radius {
+                fb_draw_pixel(cx + px, cy + py, color);
+            }
+        }
+    }
+}
+
+// 简单文字绘制
+fn fb_draw_text_size(x: int, y: int, text: str, color: u32, size: int) {
+    let charW = size / 2;
+    let charH = size;
+    var px = x;
+    var py = y;
+    
+    for i in 0..len(text) {
+        if text[i] == '\n' {
+            py = py + charH;
+            px = x;
+            continue;
+        }
+        if text[i] == ' ' {
+            px = px + charW;
+            continue;
+        }
+        fb_draw_fill_rect(px, py, charW, charH, color);
+        px = px + charW + 2;
+        if px > WINDOW_WIDTH - charW {
+            py = py + charH;
+            px = x;
+        }
+    }
+}
+
+// ==================== 绘制函数 ====================
+
+fn on_paint() {
+    // 确保帧缓冲初始化
+    if !fb_valid {
+        fb_init(window, WINDOW_WIDTH, WINDOW_HEIGHT);
+    }
+
+    // 清屏
+    fb_clear(BG_COLOR);
+
+    // 绘制标题栏背景
+    fb_draw_fill_rect(0, 0, WINDOW_WIDTH, HEADER_HEIGHT, HEADER_BG);
+    
+    // 绘制标题
+    fb_draw_text_size(15, 12, "097 Memory 记忆翻牌", TEXT_COLOR, 16);
+    
+    // 绘制分数
+    let scoreText = get_score_text(&game);
+    fb_draw_text_size(15, 35, scoreText, GOLD_COLOR, 15);
+    
+    // 绘制步数
+    let movesText = get_moves_text(&game);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 30, 35, movesText, GREEN_COLOR, 15);
+    
+    // 绘制剩余对数
+    let pairsText = get_pairs_text(&game);
+    fb_draw_text_size(WINDOW_WIDTH - 90, 35, pairsText, rgb(255, 130, 180), 15);
+    
+    // 绘制分隔线
+    fb_draw_line(0, HEADER_HEIGHT, WINDOW_WIDTH, HEADER_HEIGHT, rgb(80, 100, 130));
+    
+    // 绘制卡牌
+    for r in 0..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            let (tx, ty) = get_card_position(&game, r, c);
+            let card = game.cards[r][c];
+            
+            if card.state == CardState.Matched {
+                // 已匹配的卡牌 - 显示光晕效果
+                fb_draw_fill_rect(tx - 2, ty - 2, CARD_WIDTH + 4, CARD_HEIGHT + 4, MATCH_GLOW);
+                fb_draw_fill_rect(tx, ty, CARD_WIDTH, CARD_HEIGHT, rgb(35, 45, 60));
+            } else if card.state == CardState.Hidden {
+                // 背面朝上
+                // 检查是否是提示卡牌
+                let isHint = (game.hintRow == r && game.hintCol == c);
+                let backColor = if isHint { rgb(100, 130, 170) } else { CARD_BACK_COLOR };
+                
+                fb_draw_fill_rect(tx, ty, CARD_WIDTH, CARD_HEIGHT, backColor);
+                fb_draw_rect(tx, ty, CARD_WIDTH, CARD_HEIGHT, CARD_BORDER_COLOR);
+                
+                // 问号装饰
+                let cx = tx + CARD_WIDTH / 2;
+                let cy = ty + CARD_HEIGHT / 2;
+                fb_draw_circle(cx, cy, 12, rgb(90, 110, 140));
+                fb_draw_text_size(cx - 4, cy - 7, "?", rgb(160, 170, 190), 18);
+                
+                // 提示闪烁效果
+                if isHint {
+                    let elapsed = getTickCount() - game.hintTime;
+                    if (elapsed / 200) % 2 == 0 {
+                        fb_draw_rect(tx - 1, ty - 1, CARD_WIDTH + 2, CARD_HEIGHT + 2, GOLD_COLOR);
+                    }
+                }
+            } else {
+                // 正面朝上 - 翻转效果
+                fb_draw_fill_rect(tx, ty, CARD_WIDTH, CARD_HEIGHT, CARD_FRONT_COLOR);
+                fb_draw_rect(tx, ty, CARD_WIDTH, CARD_HEIGHT, CARD_FLIP_BORDER);
+                
+                // 绘制图案
+                let cx = tx + CARD_WIDTH / 2;
+                let cy = ty + CARD_HEIGHT / 2;
+                draw_pattern_local(cx, cy, card.pattern);
+            }
+        }
+    }
+    
+    // 绘制底部状态栏
+    let statusY = GRID_OFFSET_Y + GRID_ROWS * (CARD_HEIGHT + CARD_GAP) + 8;
+    fb_draw_line(0, statusY, WINDOW_WIDTH, statusY, rgb(60, 75, 95));
+    
+    let statusText = get_status_text(&game);
+    fb_draw_text_size(15, statusY + 10, statusText, TEXT_COLOR, 15);
+    
+    let controlsText = get_controls_text();
+    fb_draw_text_size(15, statusY + 32, controlsText, TEXT_DIM, 12);
+    
+    // 游戏结束时显示胜利画面
+    if game.gameOver && game.gameWon {
+        // 半透明遮罩
+        for y in (WINDOW_HEIGHT/2 - 80)..(WINDOW_HEIGHT/2 + 80) {
+            for x in (WINDOW_WIDTH/2 - 130)..(WINDOW_WIDTH/2 + 130) {
+                let alpha = if y < WINDOW_HEIGHT/2 - 60 || y > WINDOW_HEIGHT/2 + 60 { 180 } else { 140 };
+                fb_draw_pixel(x, y, rgb(alpha, alpha, alpha + 20));
+            }
+        }
+        fb_draw_rect(WINDOW_WIDTH/2 - 125, WINDOW_HEIGHT/2 - 75, 250, 150, GOLD_COLOR);
+        fb_draw_rect(WINDOW_WIDTH/2 - 123, WINDOW_HEIGHT/2 - 73, 246, 146, GOLD_COLOR);
+        
+        fb_draw_text_size(WINDOW_WIDTH/2 - 50, WINDOW_HEIGHT/2 - 55, "🎉 恭喜通关! 🎉", GOLD_COLOR, 18);
+        
+        let finalInfo = "得分: " ++ game.score.toString() ++ " 步数: " ++ game.moves.toString();
+        fb_draw_text_size(WINDOW_WIDTH/2 - 65, WINDOW_HEIGHT/2 - 20, finalInfo, TEXT_COLOR, 15);
+        
+        let avgStr = "平均 " ++ (game.moves / TOTAL_PAIRS).toString() ++ " 步/对";
+        fb_draw_text_size(WINDOW_WIDTH/2 - 35, WINDOW_HEIGHT/2 + 5, avgStr, GREEN_COLOR, 14);
+        
+        fb_draw_text_size(WINDOW_WIDTH/2 - 55, WINDOW_HEIGHT/2 + 35, "按 R 重新开始", TEXT_DIM, 14);
+    }
+
+    // 呈现画面
+    fb_present();
+}
+
+fn draw_pattern_local(cx: int, cy: int, pattern: int) {
+    let color = get_pattern_color(pattern);
+    let r = 15;
+    
+    match pattern % 10 {
+        0 => {
+            fb_draw_fill_circle(cx, cy, r, color);
+            fb_draw_fill_circle(cx - r/3, cy - r/3, r/3, rgb(255,255,255));
+        },
+        1 => {
+            fb_draw_fill_rect(cx - r, cy - r, r * 2, r * 2, color);
+            fb_draw_fill_rect(cx - r/2, cy - r/2, r, r, rgb(255,255,255));
+        },
+        2 => {
+            fb_draw_line(cx, cy - r, cx + r, cy, color);
+            fb_draw_line(cx + r, cy, cx, cy + r, color);
+            fb_draw_line(cx, cy + r, cx - r, cy, color);
+            fb_draw_line(cx - r, cy, cx, cy - r, color);
+        },
+        3 => {
+            fb_draw_line(cx, cy - r, cx - r, cy + r/2, color);
+            fb_draw_line(cx - r, cy + r/2, cx + r, cy + r/2, color);
+            fb_draw_line(cx + r, cy + r/2, cx, cy - r, color);
+        },
+        4 => {
+            let arm = r / 2;
+            fb_draw_fill_rect(cx - arm/2, cy - r, arm, r * 2, color);
+            fb_draw_fill_rect(cx - r, cy - arm/2, r * 2, arm, color);
+        },
+        5 => {
+            for i in 0..5 {
+                let a1 = (i * 72 - 90) as f32 * 3.14159 / 180.0;
+                let a2 = ((i + 1) * 72 - 90) as f32 * 3.14159 / 180.0;
+                let x1 = cx + (r as f32 * cos_val(a1)) as int;
+                let y1 = cy + (r as f32 * sin_val(a1)) as int;
+                let x2 = cx + (r as f32 * cos_val(a2)) as int;
+                let y2 = cy + (r as f32 * sin_val(a2)) as int;
+                fb_draw_line(x1, y1, x2, y2, color);
+            }
+        },
+        6 => {
+            for i in 0..6 {
+                let a1 = (i * 60) as f32 * 3.14159 / 180.0;
+                let a2 = ((i + 1) * 60) as f32 * 3.14159 / 180.0;
+                let x1 = cx + (r as f32 * cos_val(a1)) as int;
+                let y1 = cy + (r as f32 * sin_val(a1)) as int;
+                let x2 = cx + (r as f32 * cos_val(a2)) as int;
+                let y2 = cy + (r as f32 * sin_val(a2)) as int;
+                fb_draw_line(x1, y1, x2, y2, color);
+            }
+        },
+        7 => {
+            for i in 0..5 {
+                let a1 = (i * 72 - 90) as f32 * 3.14159 / 180.0;
+                let a2 = ((i * 72 + 36) - 90) as f32 * 3.14159 / 180.0;
+                let x1 = cx + (r as f32 * cos_val(a1)) as int;
+                let y1 = cy + (r as f32 * sin_val(a1)) as int;
+                let x2 = cx + (r as f32 * cos_val(a2)) as int;
+                let y2 = cy + (r as f32 * sin_val(a2)) as int;
+                fb_draw_line(x1, y1, x2, y2, color);
+            }
+        },
+        8 => {
+            fb_draw_circle(cx, cy, r, color);
+            fb_draw_circle(cx, cy, r/2, color);
+        },
+        _ => {
+            fb_draw_fill_circle(cx - r/2, cy - r/4, r/2, color);
+            fb_draw_fill_circle(cx + r/2, cy - r/4, r/2, color);
+            fb_draw_fill_rect(cx - r/2, cy, r, r/2, color);
+        },
+    }
+}
+
+fn cos_val(v: f32) -> f32 { return 0.0; }
+fn sin_val(v: f32) -> f32 { return 0.0; }
+
+// ==================== 事件处理 ====================
+
+fn on_key(key: VirtualKey) -> bool {
+    match key {
+        VirtualKey.Escape => {
+            running = false;
+            return false;
+        },
+        VirtualKey.KeyR => {
+            restart_game(&mut game);
+            return true;
+        },
+        VirtualKey.KeyH => {
+            let currentTime = getTickCount();
+            use_hint(&mut game, currentTime);
+            return true;
+        },
+        _ => {},
+    }
+    return true;
+}
+
+fn on_mouse(x: int, y: int, button: MouseButton) {
+    if game.gameOver {
+        return;
+    }
+    
+    // 计算点击的卡牌位置
+    let col = (x - GRID_OFFSET_X) / (CARD_WIDTH + CARD_GAP);
+    let row = (y - GRID_OFFSET_Y) / (CARD_HEIGHT + CARD_GAP);
+    
+    if row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS {
+        let currentTime = getTickCount();
+        click_card(&mut game, row, col, currentTime);
+    }
+}
+
+fn on_timer(currentTime: u32) {
+    if !game.gameOver {
+        update_game(&mut game, currentTime);
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C 097 Memory 记忆翻牌游戏");
+    io.println("增强版 - 5x4 网格, 10对卡牌");
+    io.println("========================================");
+
+    // 初始化随机种子
+    setRandomSeed(getTickCount() as u32);
+
+    // 初始化游戏状态
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "097 Memory 记忆翻牌";
+    window = createWindow(title, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 消息循环
+    var event = Event.{};
+    running = true;
+    var lastTimer: u32 = 0;
+    let timerInterval: u32 = 100;
+
+    io.println("窗口创建成功!");
+    io.println("游戏规则:");
+    io.println("  - 点击卡牌翻转，查看图案");
+    io.println("  - 找出相同的图案配对");
+    io.println("  - 找到所有配对即可通关!");
+    io.println("  - 按 H 键使用提示(会扣10分)");
+    io.println("========================================");
+
+    // 初始绘制
+    on_paint();
+
+    // 主消息循环
+    while running {
+        // 处理事件
+        while pollEvent(window, &event) {
+            match event.msg {
+                MessageType.Quit => {
+                    running = false;
+                },
+                MessageType.KeyDown => {
+                    if event.key.key == VirtualKey.Escape {
+                        running = false;
+                    } else if event.key.key == VirtualKey.KeyR {
+                        restart_game(&mut game);
+                        on_paint();
+                    } else if event.key.key == VirtualKey.KeyH {
+                        let currentTime = getTickCount();
+                        if use_hint(&mut game, currentTime) {
+                            on_paint();
+                        }
+                    }
+                },
+                MessageType.MouseDown => {
+                    on_mouse(event.mouse.x, event.mouse.y, event.mouse.button);
+                    on_paint();
+                },
+                MessageType.Paint => {
+                    on_paint();
+                },
+                _ => {}
+            }
+        }
+        
+        // 定时更新
+        let currentTime = getTickCount();
+        if currentTime - lastTimer >= timerInterval {
+            lastTimer = currentTime;
+            on_timer(currentTime);
+            on_paint();
+        }
+        
+        // 帧率控制
+        sleep(16);
+    }
+
+    // 清理
+    closeWindow(window);
+
+    io.println("游戏结束!");
+    io.println("最终得分: " ++ game.score.toString());
+    io.println("总步数: " ++ game.moves.toString());
+    io.println("========================================");
+
+    0
+}
