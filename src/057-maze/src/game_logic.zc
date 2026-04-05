@@ -1,0 +1,302 @@
+// game_logic.zc - 纯Zen-C迷宫游戏逻辑
+// 迷宫生成算法: 递归回溯法 (Recursive Backtracking)
+// 所有平台共用相同的游戏逻辑代码
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const MAZE_WIDTH: i32 = 21;      // 迷宫宽度（必须是奇数）
+const MAZE_HEIGHT: i32 = 15;     // 迷宫高度（必须是奇数）
+const CELL_SIZE: i32 = 30;       // 每个格子的像素大小
+
+// ==================== 数据结构 ====================
+
+// 单元格类型
+enum CellType {
+    Wall,       // 墙壁
+    Path,       // 路径
+    Start,      // 起点
+    End,        // 终点
+    Visited     // 已访问（用于生成算法）
+}
+
+// 迷宫单元格
+struct Cell {
+    cell_type: CellType,
+    visited: bool,
+    walls: [4]bool  // 上右下左四个方向的墙
+}
+
+// 玩家位置
+struct Player {
+    x: i32,
+    y: i32
+}
+
+// 游戏状态
+struct GameState {
+    maze: [MAZE_HEIGHT][MAZE_WIDTH]Cell,
+    player: Player,
+    start: Player,
+    end: Player,
+    score: i32,
+    moves: i32,
+    game_over: bool,
+    won: bool,
+    paused: bool,
+    window_width: i32,
+    window_height: i32
+}
+
+// 方向索引
+const DIR_UP: i32 = 0;
+const DIR_RIGHT: i32 = 1;
+const DIR_DOWN: i32 = 2;
+const DIR_LEFT: i32 = 3;
+
+// ==================== 迷宫生成算法 ====================
+
+// 递归回溯法生成迷宫
+fn generate_maze(game: &mut GameState) {
+    // 初始化所有单元格为墙壁
+    for y in 0..MAZE_HEIGHT {
+        for x in 0..MAZE_WIDTH {
+            game.maze[y][x].cell_type = CellType::Wall;
+            game.maze[y][x].visited = false;
+            for d in 0..4 {
+                game.maze[y][x].walls[d] = true;  // 四面都有墙
+            }
+        }
+    }
+    
+    // 使用随机种子
+    let seed = time.now().nanos();
+    math.srand(seed);
+    
+    // 从起点开始生成（起点在左上角）
+    let start_x = 1;
+    let start_y = 1;
+    
+    carve_passage(game, start_x, start_y);
+    
+    // 设置起点和终点
+    game.start = Player { x: 1, y: 1 };
+    game.end = Player { x: MAZE_WIDTH - 2, y: MAZE_HEIGHT - 2 };
+    
+    // 确保终点可达
+    game.maze[game.end.y][game.end.x].cell_type = CellType::Path;
+}
+
+// 递归回溯 carving
+fn carve_passage(game: &mut GameState, x: i32, y: i32) {
+    game.maze[y][x].visited = true;
+    game.maze[y][x].cell_type = CellType::Path;
+    
+    // 随机方向顺序
+    let directions = shuffle_directions();
+    
+    for d in 0..4 {
+        let dir = directions[d];
+        let (nx, ny, dx, dy) = get_direction_offset(dir);
+        
+        let new_x = x + dx * 2;
+        let new_y = y + dy * 2;
+        
+        // 检查是否在范围内
+        if new_x > 0 && new_x < MAZE_WIDTH - 1 &&
+           new_y > 0 && new_y < MAZE_HEIGHT - 1 &&
+           !game.maze[new_y][new_x].visited {
+            
+            // 打通墙壁
+            game.maze[y][x].walls[dir] = false;
+            let opposite = (dir + 2) % 4;
+            game.maze[new_y][new_x].walls[opposite] = false;
+            
+            // 递归处理
+            carve_passage(game, new_x, new_y);
+        }
+    }
+}
+
+// 随机打乱方向顺序
+fn shuffle_directions() -> [4]i32 {
+    var dirs: [4]i32 = [0, 1, 2, 3];
+    
+    for i in 0..3 {
+        let j = i + math.rand() % (4 - i);
+        let temp = dirs[i];
+        dirs[i] = dirs[j];
+        dirs[j] = temp;
+    }
+    
+    return dirs;
+}
+
+// 获取方向偏移量
+fn get_direction_offset(dir: i32) -> (i32, i32, i32, i32) {
+    match dir {
+        DIR_UP => (0, -1, 0, -1),
+        DIR_RIGHT => (1, 0, 1, 0),
+        DIR_DOWN => (0, 1, 0, 1),
+        DIR_LEFT => (-1, 0, -1, 0),
+        _ => (0, 0, 0, 0)
+    }
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut GameState) {
+    // 初始化游戏状态
+    game.score = 1000;
+    game.moves = 0;
+    game.game_over = false;
+    game.won = false;
+    game.paused = false;
+    
+    // 生成迷宫
+    generate_maze(game);
+    
+    // 设置玩家起始位置
+    game.player = game.start;
+    
+    // 设置起点和终点标记
+    game.maze[game.start.y][game.start.x].cell_type = CellType::Start;
+    game.maze[game.end.y][game.end.x].cell_type = CellType::End;
+}
+
+// 处理输入
+fn handle_input(game: &mut GameState, key: i32) -> bool {
+    if game.game_over || game.paused {
+        // R键 - 重新开始
+        if key == 82 || key == 114 {
+            init_game(game);
+            return true;
+        }
+        return false;
+    }
+    
+    let mut new_x = game.player.x;
+    let mut new_y = game.player.y;
+    let mut moved = false;
+    
+    match key {
+        // 上方向
+        38 | 87 | 119 => {  // 上箭头、W、w
+            if !game.maze[game.player.y][game.player.x].walls[DIR_UP] {
+                new_y -= 1;
+                moved = true;
+            }
+        },
+        
+        // 下方向
+        40 | 83 | 115 => {  // 下箭头、S、s
+            if !game.maze[game.player.y][game.player.x].walls[DIR_DOWN] {
+                new_y += 1;
+                moved = true;
+            }
+        },
+        
+        // 左方向
+        37 | 65 | 97 => {  // 左箭头、A、a
+            if !game.maze[game.player.y][game.player.x].walls[DIR_LEFT] {
+                new_x -= 1;
+                moved = true;
+            }
+        },
+        
+        // 右方向
+        39 | 68 | 100 => {  // 右箭头、D、d
+            if !game.maze[game.player.y][game.player.x].walls[DIR_RIGHT] {
+                new_x += 1;
+                moved = true;
+            }
+        },
+        
+        // R键 - 重新开始
+        82 | 114 => {
+            init_game(game);
+            return true;
+        },
+        
+        // ESC键 - 退出游戏
+        27 => {
+            return false;
+        },
+        
+        _ => {}
+    }
+    
+    if moved {
+        game.player.x = new_x;
+        game.player.y = new_y;
+        game.moves += 1;
+        game.score = 1000 - game.moves * 2;
+        if game.score < 0 {
+            game.score = 0;
+        }
+        
+        // 检查是否到达终点
+        if game.player.x == game.end.x && game.player.y == game.end.y {
+            game.game_over = true;
+            game.won = true;
+        }
+        
+        return true;
+    }
+    
+    return false;
+}
+
+// 检查墙壁
+fn can_move(game: &GameState, x: i32, y: i32, dir: i32) -> bool {
+    if x < 0 || x >= MAZE_WIDTH || y < 0 || y >= MAZE_HEIGHT {
+        return false;
+    }
+    return !game.maze[y][x].walls[dir];
+}
+
+// 获取玩家位置
+fn get_player_position(game: &GameState) -> Player {
+    game.player
+}
+
+// 获取终点位置
+fn get_end_position(game: &GameState) -> Player {
+    game.end
+}
+
+// 计算游戏区域在窗口中的位置
+fn calculate_game_area(game: &GameState, offset_x: &mut i32, offset_y: &mut i32) {
+    let game_width = MAZE_WIDTH * CELL_SIZE;
+    let game_height = MAZE_HEIGHT * CELL_SIZE;
+    
+    *offset_x = (game.window_width - game_width) / 2;
+    *offset_y = (game.window_height - game_height) / 3;
+    
+    if *offset_x < 50 { *offset_x = 50; }
+    if *offset_y < 50 { *offset_y = 50; }
+}
+
+// 获取游戏状态文本
+fn get_game_status_text(game: &GameState) -> string {
+    if game.won {
+        return "🎉 恭喜通关! 按 R 键重新开始";
+    } else if game.paused {
+        return "游戏暂停 - 按空格键继续";
+    } else {
+        return "找到出口 Escape! 按 R 重新开始";
+    }
+}
+
+// 获取控制说明文本
+fn get_controls_text() -> string {
+    "控制: 方向键/WASD 移动, R 重新开始, ESC 退出"
+}
+
+// 获取分数文本
+fn get_score_text(game: &GameState) -> string {
+    format("分数: {}  步数: {}", game.score, game.moves)
+}
