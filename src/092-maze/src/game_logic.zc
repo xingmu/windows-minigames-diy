@@ -1,0 +1,319 @@
+// game_logic.zc - Zen-C 迷宫游戏核心逻辑
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const MAZE_WIDTH: i32 = 15;      // 迷宫单元格列数
+const MAZE_HEIGHT: i32 = 11;     // 迷宫单元格行数
+const CELL_SIZE: i32 = 40;       // 每个单元格像素大小
+const GAME_WIDTH: i32 = MAZE_WIDTH * CELL_SIZE;
+const GAME_HEIGHT: i32 = MAZE_HEIGHT * CELL_SIZE;
+const WALL_THICKNESS: i32 = 2;   // 墙壁厚度
+
+// ==================== 颜色定义 ====================
+
+const COLOR_WALL: Color = Color.RGB(120, 90, 60);      // 棕色墙壁
+const COLOR_PATH: Color = Color.RGB(240, 230, 210);    // 米色路径
+const COLOR_PLAYER: Color = Color.RGB(230, 80, 80);   // 红色玩家
+const COLOR_EXIT: Color = Color.RGB(80, 200, 120);     // 绿色出口
+const COLOR_START: Color = Color.RGB(100, 150, 255);    // 蓝色起点
+const COLOR_BG: Color = Color.RGB(50, 50, 50);         // 深灰背景
+
+// ==================== 方向枚举 ====================
+
+enum Direction {
+    North,
+    South,
+    East,
+    West,
+}
+
+// ==================== 位置结构 ====================
+
+struct Position {
+    x: i32,
+    y: i32,
+}
+
+// ==================== 迷宫单元格 ====================
+
+struct Cell {
+    visited: bool,
+    walls: [4]bool,  // 北、南、东、西墙壁
+}
+
+// ==================== 游戏状态 ====================
+
+struct MazeGameState {
+    maze: [MAZE_WIDTH * MAZE_HEIGHT]Cell,
+    playerX: i32,
+    playerY: i32,
+    exitX: i32,
+    exitY: i32,
+    startX: i32,
+    startY: i32,
+    score: i32,
+    moves: i32,
+    gameWon: bool,
+    gameStarted: bool,
+    width: i32,
+    height: i32,
+}
+
+// ==================== 工具函数 ====================
+
+fn abs(n: i32) -> i32 {
+    if n < 0 { -n } else { n }
+}
+
+// 获取索引
+fn getIndex(x: i32, y: i32) -> i32 {
+    return y * MAZE_WIDTH + x;
+}
+
+// 检查坐标是否在迷宫范围内
+fn inBounds(x: i32, y: i32) -> bool {
+    return x >= 0 && x < MAZE_WIDTH && y >= 0 && y < MAZE_HEIGHT;
+}
+
+// ==================== 迷宫生成算法 ====================
+
+// 递归回溯生成迷宫
+fn generateMaze(game: &mut MazeGameState) {
+    // 初始化所有单元格
+    for i in 0..(MAZE_WIDTH * MAZE_HEIGHT) {
+        game.maze[i].visited = false;
+        for w in 0..4 {
+            game.maze[i].walls[w] = true;  // 初始所有墙都存在
+        }
+    }
+    
+    // 从起点开始生成
+    game.startX = 0;
+    game.startY = 0;
+    
+    // 使用栈进行递归回溯（非递归实现避免栈溢出）
+    var stack: [(MAZE_WIDTH * MAZE_HEIGHT)]Position = [Position.{x:0, y:0}; MAZE_WIDTH * MAZE_HEIGHT];
+    var stackTop: i32 = 0;
+    
+    stack[0] = Position.{ x: game.startX, y: game.startY };
+    stackTop = 1;
+    
+    game.maze[getIndex(game.startX, game.startY)].visited = true;
+    
+    while stackTop > 0 {
+        stackTop = stackTop - 1;
+        var current = stack[stackTop];
+        var cx = current.x;
+        var cy = current.y;
+        
+        // 获取所有未访问的邻居
+        var neighbors: [4]Position = [Position.{x:0, y:0}; 4];
+        var neighborCount: i32 = 0;
+        
+        // 北
+        if inBounds(cx, cy - 1) && !game.maze[getIndex(cx, cy - 1)].visited {
+            neighbors[neighborCount] = Position.{ x: cx, y: cy - 1 };
+            neighborCount = neighborCount + 1;
+        }
+        // 南
+        if inBounds(cx, cy + 1) && !game.maze[getIndex(cx, cy + 1)].visited {
+            neighbors[neighborCount] = Position.{ x: cx, y: cy + 1 };
+            neighborCount = neighborCount + 1;
+        }
+        // 东
+        if inBounds(cx + 1, cy) && !game.maze[getIndex(cx + 1, cy)].visited {
+            neighbors[neighborCount] = Position.{ x: cx + 1, y: cy };
+            neighborCount = neighborCount + 1;
+        }
+        // 西
+        if inBounds(cx - 1, cy) && !game.maze[getIndex(cx - 1, cy)].visited {
+            neighbors[neighborCount] = Position.{ x: cx - 1, y: cy };
+            neighborCount = neighborCount + 1;
+        }
+        
+        if neighborCount > 0 {
+            // 随机选择一个邻居
+            var randIdx = math.rand() % neighborCount;
+            var next = neighbors[randIdx];
+            
+            // 移除当前格子和邻居之间的墙
+            if next.y < cy {  // 邻居在北
+                game.maze[getIndex(cx, cy)].walls[0] = false;
+                game.maze[getIndex(next.x, next.y)].walls[1] = false;
+            }
+            if next.y > cy {  // 邻居在南
+                game.maze[getIndex(cx, cy)].walls[1] = false;
+                game.maze[getIndex(next.x, next.y)].walls[0] = false;
+            }
+            if next.x > cx {  // 邻居在东
+                game.maze[getIndex(cx, cy)].walls[2] = false;
+                game.maze[getIndex(next.x, next.y)].walls[3] = false;
+            }
+            if next.x < cx {  // 邻居在西
+                game.maze[getIndex(cx, cy)].walls[3] = false;
+                game.maze[getIndex(next.x, next.y)].walls[2] = false;
+            }
+            
+            // 标记邻居为已访问并入栈
+            game.maze[getIndex(next.x, next.y)].visited = true;
+            stack[stackTop] = current;
+            stackTop = stackTop + 1;
+            stack[stackTop] = next;
+            stackTop = stackTop + 1;
+        }
+    }
+    
+    // 设置起点和终点
+    game.playerX = game.startX;
+    game.playerY = game.startY;
+    game.exitX = MAZE_WIDTH - 1;
+    game.exitY = MAZE_HEIGHT - 1;
+}
+
+// ==================== 游戏初始化 ====================
+
+fn initGame(game: &mut MazeGameState) {
+    game.width = GAME_WIDTH;
+    game.height = GAME_HEIGHT;
+    game.score = 0;
+    game.moves = 0;
+    game.gameWon = false;
+    game.gameStarted = false;
+    
+    // 生成迷宫
+    generateMaze(game);
+    
+    // 重置玩家位置
+    game.playerX = game.startX;
+    game.playerY = game.startY;
+}
+
+// ==================== 重新开始游戏 ====================
+
+fn restartGame(game: &mut MazeGameState) {
+    game.score = 0;
+    game.moves = 0;
+    game.gameWon = false;
+    game.gameStarted = false;
+    
+    // 重新生成迷宫
+    generateMaze(game);
+    
+    // 重置玩家位置
+    game.playerX = game.startX;
+    game.playerY = game.startY;
+}
+
+// ==================== 键盘输入处理 ====================
+
+fn handleInput(game: &mut MazeGameState, key: VirtualKey) -> bool {
+    if game.gameWon {
+        // 游戏结束后按任意键重新开始
+        restartGame(game);
+        return true;
+    }
+    
+    game.gameStarted = true;
+    
+    var newX = game.playerX;
+    var newY = game.playerY;
+    
+    match key {
+        VirtualKey.Up => {
+            newY = game.playerY - 1;
+        },
+        VirtualKey.Down => {
+            newY = game.playerY + 1;
+        },
+        VirtualKey.Left => {
+            newX = game.playerX - 1;
+        },
+        VirtualKey.Right => {
+            newX = game.playerX + 1;
+        },
+        VirtualKey.KeyW => {
+            newY = game.playerY - 1;
+        },
+        VirtualKey.KeyS => {
+            newY = game.playerY + 1;
+        },
+        VirtualKey.KeyA => {
+            newX = game.playerX - 1;
+        },
+        VirtualKey.KeyD => {
+            newX = game.playerX + 1;
+        },
+        VirtualKey.KeyR => {
+            restartGame(game);
+            return true;
+        },
+        VirtualKey.Escape => {
+            return false;
+        },
+        _ => {
+            return true;
+        }
+    }
+    
+    // 检查是否可以移动
+    if canMove(game, newX, newY) {
+        game.playerX = newX;
+        game.playerY = newY;
+        game.moves = game.moves + 1;
+        
+        // 检查是否到达出口
+        if game.playerX == game.exitX && game.playerY == game.exitY {
+            game.gameWon = true;
+            game.score = max(1000 - game.moves * 5, 100);  // 步数越少分数越高
+        }
+    }
+    
+    return true;
+}
+
+// 检查是否可以移动到指定位置
+fn canMove(game: &MazeGameState, x: i32, y: i32) -> bool {
+    if !inBounds(x, y) {
+        return false;
+    }
+    
+    var currentIdx = getIndex(game.playerX, game.playerY);
+    var targetIdx = getIndex(x, y);
+    var currentCell = &game.maze[currentIdx];
+    
+    // 检查墙壁
+    if x < game.playerX {  // 向西
+        return !currentCell.walls[3];  // 西墙
+    }
+    if x > game.playerX {  // 向东
+        return !currentCell.walls[2];  // 东墙
+    }
+    if y < game.playerY {  // 向北
+        return !currentCell.walls[0];  // 北墙
+    }
+    if y > game.playerY {  // 向南
+        return !currentCell.walls[1];  // 南墙
+    }
+    
+    return false;
+}
+
+// ==================== 获取状态文本 ====================
+
+fn getStatusText(game: &MazeGameState) -> string {
+    if !game.gameStarted {
+        return "按方向键或WASD开始游戏";
+    }
+    if game.gameWon {
+        return "恭喜通关! 步数: " ++ game.moves.toString() ++ " 得分: " ++ game.score.toString();
+    }
+    return "移动: " ++ game.moves.toString() ++ " 步";
+}
+
+// ==================== 获取控制说明 ====================
+
+fn getControlsText() -> string {
+    "方向键/WASD: 移动 | R: 重新开始 | ESC: 退出"
+}

@@ -1,0 +1,201 @@
+// main_window.zc - Zen-C 迷宫游戏主程序
+
+import std.io;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: MazeGameState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut game_speed: u32 = 16;  // ~60 FPS
+
+// ==================== 颜色转换辅助 ====================
+
+fn rgb(r: u8, g: u8, b: u8) -> Color {
+    return Color.RGB(r, g, b);
+}
+
+fn draw_rect(ctx: rawptr, x: i32, y: i32, w: i32, h: i32, col: Color) {
+    // 占位 - 实际使用帧缓冲绘制
+}
+
+fn draw_circle(ctx: rawptr, cx: i32, cy: i32, radius: i32, col: Color) {
+    // 占位
+}
+
+// ==================== 事件处理 ====================
+
+fn on_key(key: VirtualKey) -> bool {
+    return handleInput(&mut game, key);
+}
+
+fn on_timer() -> bool {
+    // 迷宫游戏不需要定时器更新逻辑
+    // 除非添加敌人移动等自动元素
+    return false;
+}
+
+fn on_paint(w: i32, h: i32) {
+    // 确保帧缓冲初始化
+    if !fb_data.valid {
+        fb_init(window, w, h);
+    }
+
+    // 清屏
+    fb_clear(COLOR_BG);
+
+    // 计算迷宫绘制偏移（居中）
+    var mazePixelWidth = MAZE_WIDTH * CELL_SIZE;
+    var mazePixelHeight = MAZE_HEIGHT * CELL_SIZE;
+    var offsetX = (w - mazePixelWidth) / 2;
+    var offsetY = (h - mazePixelHeight) / 2;
+    
+    if offsetX < 0 { offsetX = 0; }
+    if offsetY < 0 { offsetY = 0; }
+
+    // 绘制迷宫背景（路径）
+    for gy in 0..MAZE_HEIGHT {
+        for gx in 0..MAZE_WIDTH {
+            var cellX = offsetX + gx * CELL_SIZE;
+            var cellY = offsetY + gy * CELL_SIZE;
+            
+            // 绘制单元格背景
+            fb_draw_rect(cellX, cellY, CELL_SIZE, CELL_SIZE, COLOR_PATH);
+        }
+    }
+
+    // 绘制起点
+    var startPx = offsetX + game.startX * CELL_SIZE;
+    var startPy = offsetY + game.startY * CELL_SIZE;
+    fb_draw_rect(startPx + 4, startPy + 4, CELL_SIZE - 8, CELL_SIZE - 8, COLOR_START);
+
+    // 绘制终点
+    var exitPx = offsetX + game.exitX * CELL_SIZE;
+    var exitPy = offsetY + game.exitY * CELL_SIZE;
+    fb_draw_rect(exitPx + 4, exitPy + 4, CELL_SIZE - 8, CELL_SIZE - 8, COLOR_EXIT);
+
+    // 绘制墙壁
+    for gy in 0..MAZE_HEIGHT {
+        for gx in 0..MAZE_WIDTH {
+            var cellIdx = getIndex(gx, gy);
+            var cell = &game.maze[cellIdx];
+            var cellX = offsetX + gx * CELL_SIZE;
+            var cellY = offsetY + gy * CELL_SIZE;
+            
+            // 北墙
+            if cell.walls[0] {
+                fb_draw_rect(cellX, cellY, CELL_SIZE, WALL_THICKNESS, COLOR_WALL);
+            }
+            // 南墙
+            if cell.walls[1] {
+                fb_draw_rect(cellX, cellY + CELL_SIZE - WALL_THICKNESS, CELL_SIZE, WALL_THICKNESS, COLOR_WALL);
+            }
+            // 西墙
+            if cell.walls[3] {
+                fb_draw_rect(cellX, cellY, WALL_THICKNESS, CELL_SIZE, COLOR_WALL);
+            }
+            // 东墙
+            if cell.walls[2] {
+                fb_draw_rect(cellX + CELL_SIZE - WALL_THICKNESS, cellY, WALL_THICKNESS, CELL_SIZE, COLOR_WALL);
+            }
+        }
+    }
+
+    // 绘制玩家
+    var playerPx = offsetX + game.playerX * CELL_SIZE + CELL_SIZE / 2;
+    var playerPy = offsetY + game.playerY * CELL_SIZE + CELL_SIZE / 2;
+    var playerRadius = (CELL_SIZE / 3);
+    fb_draw_circle(playerPx, playerPy, playerRadius, COLOR_PLAYER);
+
+    // 绘制分数和步数
+    var info = "步数: " ++ game.moves.toString();
+    if game.gameWon {
+        info = info ++ " | 得分: " ++ game.score.toString();
+    }
+    fb_draw_text_size(10, 10, info, rgb(255, 255, 255), 18);
+
+    // 绘制状态文本
+    var status = getStatusText(&game);
+    fb_draw_text_size(w / 2 - 150, h - 50, status, rgb(255, 255, 0), 20);
+
+    // 绘制控制说明
+    fb_draw_text_size(10, h - 30, getControlsText(), rgb(180, 180, 180), 14);
+
+    // 呈现画面
+    fb_present();
+}
+
+fn on_mouse(x: i32, y: i32) {
+    // 鼠标点击开始游戏
+    if !game.gameStarted && !game.gameWon {
+        game.gameStarted = true;
+    }
+}
+
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C 迷宫游戏");
+    io.println("========================================");
+
+    // 初始化游戏状态
+    initGame(&mut game);
+
+    // 创建窗口
+    var title = "Maze - 迷宫游戏";
+    window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 获取实际客户区大小
+    var mut cw = 0;
+    var mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        game.width = cw;
+        game.height = ch;
+        set_client_size(cw, ch);
+    }
+
+    // 设置事件处理器
+    set_key_handler(on_key);
+    set_timer_handler(on_timer);
+    set_paint_handler(on_paint);
+    set_mouse_handler(on_mouse);
+    set_destroy_handler(on_destroy);
+
+    // 显示窗口
+    show_window(window);
+
+    // 设置游戏定时器
+    set_game_timer(window, game_speed);
+
+    io.println("窗口创建成功!");
+    io.println("按方向键或WASD开始游戏");
+    io.println("找到绿色出口获胜!");
+    io.println("========================================");
+
+    // 初始绘制
+    redraw_window(window);
+
+    // 运行事件循环
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("总移动步数: " ++ game.moves.toString());
+    io.println("========================================");
+
+    0
+}
