@@ -1,0 +1,571 @@
+// game_logic.zc - LinkLink 连连看游戏逻辑
+// 框架版本: 1.0.0
+
+import std.io;
+
+// ==================== 常量定义 ====================
+
+// 游戏尺寸
+const GRID_ROWS: int = 8;
+const GRID_COLS: int = 8;
+const TILE_TYPES: int = 18;  // 不同图案的数量
+const TILE_SIZE: int = 48;
+const TILE_GAP: int = 4;
+const GRID_OFFSET_X: int = 50;
+const GRID_OFFSET_Y: int = 60;
+
+// 游戏时间（秒）
+const GAME_TIME: int = 300;  // 5分钟
+
+// 颜色定义
+const BG_COLOR = rgb(30, 30, 40);
+const TILE_BG_COLOR = rgb(60, 60, 80);
+const SELECTED_COLOR = rgb(255, 255, 100);
+const LINE_COLOR = rgb(0, 255, 100);
+const TEXT_COLOR = rgb(255, 255, 255);
+
+// 方块颜色调色板
+const TILE_COLORS: [12]u32 = [
+    rgb(231, 76, 60),   // 红色
+    rgb(52, 152, 219),  // 蓝色
+    rgb(46, 204, 113),  // 绿色
+    rgb(155, 89, 182),  // 紫色
+    rgb(241, 196, 15),  // 黄色
+    rgb(230, 126, 34),  // 橙色
+    rgb(26, 188, 156),  // 青色
+    rgb(255, 99, 132),  // 粉色
+    rgb(123, 237, 159), // 浅绿
+    rgb(162, 155, 254), // 浅紫
+    rgb(255, 218, 121), // 浅黄
+    rgb(84, 160, 255),  // 天蓝
+];
+
+// ==================== 数据结构 ====================
+
+// 方块类型
+pub struct Tile {
+    tileType: int,      // 方块图案类型 (0-17)
+    row: int,           // 行索引
+    col: int,           // 列索引
+    visible: bool,      // 是否可见（未消除）
+}
+
+// 连接路径点
+struct PathPoint {
+    row: int;
+    col: int;
+}
+
+// 游戏状态
+pub struct LinkLinkState {
+    tiles: [GRID_ROWS][GRID_COLS]Tile,
+    selectedRow: int,   // 当前选中的方块行 (-1表示无选中)
+    selectedCol: int,   // 当前选中的方块列
+    score: int,         // 当前分数
+    timeLeft: int,      // 剩余时间（秒）
+    gameOver: bool,     // 游戏是否结束
+    gameWon: bool,      // 是否获胜
+    tilesRemaining: int,// 剩余方块数
+    lastMatch: bool,    // 上一次匹配是否成功
+    connectionPath: [4]PathPoint,  // 连接路径（最多3个点）
+    pathLength: int,    // 连接路径长度
+}
+
+// ==================== 辅助函数 ====================
+
+fn rgb(r: u8, g: u8, b: u8) -> u32 {
+    return 0xFF000000 as u32 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+}
+
+fn abs(x: int) -> int {
+    return if x < 0 { -x } else { x };
+}
+
+// ==================== 游戏逻辑 ====================
+
+// 初始化游戏
+pub fn init_game(state: &mut LinkLinkState) {
+    // 初始化所有方块为不可见
+    for r in 0..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            state.tiles[r][c].tileType = -1;
+            state.tiles[r][c].row = r;
+            state.tiles[r][c].col = c;
+            state.tiles[r][c].visible = false;
+        }
+    }
+    
+    // 生成配对的方块
+    // 每个图案出现2次（成对）
+    let totalTiles = GRID_ROWS * GRID_COLS;
+    let pairs = totalTiles / 2;
+    
+    var types: [256]int;
+    var typeIndex = 0;
+    
+    // 为每对方块分配图案
+    for i in 0..pairs {
+        let tileType = i % TILE_TYPES;
+        // 成对出现
+        types[typeIndex] = tileType;
+        typeIndex = typeIndex + 1;
+        types[typeIndex] = tileType;
+        typeIndex = typeIndex + 1;
+    }
+    
+    // 打乱顺序
+    for i in 0..256 {
+        let j = (rand() % 256) as int;
+        let temp = types[i];
+        types[i] = types[j];
+        types[j] = temp;
+    }
+    
+    // 放置方块
+    typeIndex = 0;
+    for r in 0..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            state.tiles[r][c].tileType = types[typeIndex];
+            state.tiles[r][c].visible = true;
+            typeIndex = typeIndex + 1;
+        }
+    }
+    
+    // 初始化游戏状态
+    state.selectedRow = -1;
+    state.selectedCol = -1;
+    state.score = 0;
+    state.timeLeft = GAME_TIME;
+    state.gameOver = false;
+    state.gameWon = false;
+    state.tilesRemaining = totalTiles;
+    state.lastMatch = false;
+    state.pathLength = 0;
+}
+
+// 获取方块位置（屏幕坐标）
+pub fn get_tile_position(state: &LinkLinkState, row: int, col: int) -> (int, int) {
+    let x = GRID_OFFSET_X + col * (TILE_SIZE + TILE_GAP);
+    let y = GRID_OFFSET_Y + row * (TILE_SIZE + TILE_GAP);
+    return (x, y);
+}
+
+// 点击方块
+pub fn click_tile(state: &mut LinkLinkState, row: int, col: int) -> bool {
+    // 忽略无效点击
+    if row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS {
+        return false;
+    }
+    
+    // 忽略已消除的方块
+    if !state.tiles[row][col].visible {
+        return false;
+    }
+    
+    // 如果没有选中的方块，选中它
+    if state.selectedRow < 0 {
+        state.selectedRow = row;
+        state.selectedCol = col;
+        state.lastMatch = false;
+        state.pathLength = 0;
+        return true;
+    }
+    
+    // 点击的是同一个方块，取消选中
+    if state.selectedRow == row && state.selectedCol == col {
+        state.selectedRow = -1;
+        state.selectedCol = -1;
+        state.lastMatch = false;
+        state.pathLength = 0;
+        return true;
+    }
+    
+    // 检查是否匹配
+    let selectedType = state.tiles[state.selectedRow][state.selectedCol].tileType;
+    let clickedType = state.tiles[row][col].tileType;
+    
+    if selectedType == clickedType {
+        // 类型相同，检查是否能连通
+        let path = find_path(state, state.selectedRow, state.selectedCol, row, col);
+        
+        if path.length > 0 && path.length <= 3 {
+            // 可以连通，消除这两个方块
+            state.tiles[state.selectedRow][state.selectedCol].visible = false;
+            state.tiles[row][col].visible = false;
+            state.tilesRemaining = state.tilesRemaining - 2;
+            
+            // 计算分数（根据剩余时间和路径长度）
+            let baseScore = 100;
+            let timeBonus = state.timeLeft / 10;
+            let pathBonus = (3 - path.length) * 20;
+            state.score = state.score + baseScore + timeBonus + pathBonus;
+            
+            // 保存连接路径用于显示
+            state.connectionPath = path.points;
+            state.pathLength = path.length;
+            state.lastMatch = true;
+            
+            // 检查是否获胜
+            if state.tilesRemaining <= 0 {
+                state.gameWon = true;
+                state.gameOver = true;
+            }
+        } else {
+            // 无法连通
+            state.lastMatch = false;
+            state.pathLength = 0;
+        }
+    } else {
+        // 类型不同，选中新方块
+        state.lastMatch = false;
+        state.pathLength = 0;
+    }
+    
+    // 更新选中状态
+    state.selectedRow = row;
+    state.selectedCol = col;
+    
+    return true;
+}
+
+// 路径结构
+struct Path {
+    length: int;
+    points: [4]PathPoint,
+}
+
+// 查找连接路径（最多2个拐角）
+fn find_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: int) -> Path {
+    var result = Path.{ length: 0, points: [PathPoint.{row:0, col:0}; 4] };
+    
+    // 如果相邻，直接连接
+    if can_connect_direct(state, r1, c1, r2, c2) {
+        result.length = 2;
+        result.points[0] = PathPoint.{ row: r1, col: c1 };
+        result.points[1] = PathPoint.{ row: r2, col: c2 };
+        return result;
+    }
+    
+    // 一个拐角的连接
+    let corner1 = find_one_corner_path(state, r1, c1, r2, c2);
+    if corner1.length > 0 {
+        return corner1;
+    }
+    
+    // 两个拐角的连接
+    let corner2 = find_two_corner_path(state, r1, c1, r2, c2);
+    if corner2.length > 0 {
+        return corner2;
+    }
+    
+    return result;
+}
+
+// 判断两格是否可以直接连接（直线，中间无阻碍）
+fn can_connect_direct(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: int) -> bool {
+    // 必须同行或同列
+    if r1 != r2 && c1 != c2 {
+        return false;
+    }
+    
+    if r1 == r2 {
+        // 同行
+        let minC = if c1 < c2 { c1 } else { c2 };
+        let maxC = if c1 > c2 { c1 } else { c2 };
+        
+        for c in (minC + 1)..maxC {
+            if c == c1 || c == c2 {
+                continue;
+            }
+            if state.tiles[r1][c].visible {
+                return false;
+            }
+        }
+        return true;
+    } else {
+        // 同列
+        let minR = if r1 < r2 { r1 } else { r2 };
+        let maxR = if r1 > r2 { r1 } else { r2 };
+        
+        for r in (minR + 1)..maxR {
+            if r == r1 || r == r2 {
+                continue;
+            }
+            if state.tiles[r][c1].visible {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+// 查找一个拐角的路径
+fn find_one_corner_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: int) -> Path {
+    var result = Path.{ length: 0, points: [PathPoint.{row:0, col:0}; 4] };
+    
+    // 尝试在 (r1, c2) 处拐弯
+    if can_connect_direct(state, r1, c1, r1, c2) && can_connect_direct(state, r1, c2, r2, c2) {
+        if !state.tiles[r1][c2].visible || (r1 == r2 && c2 == c2) {
+            // 如果拐角处是空地或终点
+            if !state.tiles[r1][c2].visible {
+                result.length = 3;
+                result.points[0] = PathPoint.{ row: r1, col: c1 };
+                result.points[1] = PathPoint.{ row: r1, col: c2 };
+                result.points[2] = PathPoint.{ row: r2, col: c2 };
+                return result;
+            }
+        }
+    }
+    
+    // 尝试在 (r2, c1) 处拐弯
+    if can_connect_direct(state, r1, c1, r2, c1) && can_connect_direct(state, r2, c1, r2, c2) {
+        if !state.tiles[r2][c1].visible {
+            result.length = 3;
+            result.points[0] = PathPoint.{ row: r1, col: c1 };
+            result.points[1] = PathPoint.{ row: r2, col: c1 };
+            result.points[2] = PathPoint.{ row: r2, col: c2 };
+            return result;
+        }
+    }
+    
+    return result;
+}
+
+// 查找两个拐角的路径
+fn find_two_corner_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: int) -> Path {
+    var result = Path.{ length: 0, points: [PathPoint.{row:0, col:0}; 4] };
+    
+    // 尝试从边界绕行（同行扫描）
+    // 向上扫描一行
+    if can_connect_to_edge_horizontal(state, r1, c1, r1 - 1) && 
+       can_connect_to_edge_horizontal(state, r2, c2, r1 - 1) {
+        // 检查是否可以通过 r1-1 行连接
+        if can_connect_through_row(state, r1 - 1, c1, c2) {
+            result.length = 4;
+            result.points[0] = PathPoint.{ row: r1, col: c1 };
+            result.points[1] = PathPoint.{ row: r1 - 1, col: c1 };
+            result.points[2] = PathPoint.{ row: r1 - 1, col: c2 };
+            result.points[3] = PathPoint.{ row: r2, col: c2 };
+            return result;
+        }
+    }
+    
+    // 向下扫描一行
+    if can_connect_to_edge_horizontal(state, r1, c1, r1 + 1) && 
+       can_connect_to_edge_horizontal(state, r2, c2, r1 + 1) {
+        if can_connect_through_row(state, r1 + 1, c1, c2) {
+            result.length = 4;
+            result.points[0] = PathPoint.{ row: r1, col: c1 };
+            result.points[1] = PathPoint.{ row: r1 + 1, col: c1 };
+            result.points[2] = PathPoint.{ row: r1 + 1, col: c2 };
+            result.points[3] = PathPoint.{ row: r2, col: c2 };
+            return result;
+        }
+    }
+    
+    // 向左扫描一列
+    if can_connect_to_edge_vertical(state, c1, r1, c1 - 1) && 
+       can_connect_to_edge_vertical(state, c2, r2, c1 - 1) {
+        if can_connect_through_col(state, c1 - 1, r1, r2) {
+            result.length = 4;
+            result.points[0] = PathPoint.{ row: r1, col: c1 };
+            result.points[1] = PathPoint.{ row: r1, col: c1 - 1 };
+            result.points[2] = PathPoint.{ row: r2, col: c1 - 1 };
+            result.points[3] = PathPoint.{ row: r2, col: c2 };
+            return result;
+        }
+    }
+    
+    // 向右扫描一列
+    if can_connect_to_edge_vertical(state, c1, r1, c1 + 1) && 
+       can_connect_to_edge_vertical(state, c2, r2, c1 + 1) {
+        if can_connect_through_col(state, c1 + 1, r1, r2) {
+            result.length = 4;
+            result.points[0] = PathPoint.{ row: r1, col: c1 };
+            result.points[1] = PathPoint.{ row: r1, col: c1 + 1 };
+            result.points[2] = PathPoint.{ row: r2, col: c1 + 1 };
+            result.points[3] = PathPoint.{ row: r2, col: c2 };
+            return result;
+        }
+    }
+    
+    return result;
+}
+
+// 检查是否能从 (r, c) 水平连接到边缘行 row
+fn can_connect_to_edge_horizontal(state: &LinkLinkState, r: int, c: int, edgeRow: int) -> bool {
+    // 检查从 (r, c) 到 (edgeRow, c) 的垂直路径
+    if c < 0 || c >= GRID_COLS {
+        return false;
+    }
+    
+    let minR = if r < edgeRow { r } else { edgeRow };
+    let maxR = if r > edgeRow { r } else { edgeRow };
+    
+    for rr in minR..=maxR {
+        if rr == r {
+            continue;
+        }
+        if rr >= 0 && rr < GRID_ROWS && state.tiles[rr][c].visible {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// 检查是否能从 (r, c) 垂直连接到边缘列 col
+fn can_connect_to_edge_vertical(state: &LinkLinkState, c: int, r: int, edgeCol: int) -> bool {
+    // 检查从 (r, c) 到 (r, edgeCol) 的水平路径
+    if r < 0 || r >= GRID_ROWS {
+        return false;
+    }
+    
+    let minC = if c < edgeCol { c } else { edgeCol };
+    let maxC = if c > edgeCol { c } else { edgeCol };
+    
+    for cc in minC..=maxC {
+        if cc == c {
+            continue;
+        }
+        if cc >= 0 && cc < GRID_COLS && state.tiles[r][cc].visible {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// 检查在指定行上从 c1 到 c2 是否可以水平通行
+fn can_connect_through_row(state: &LinkLinkState, row: int, c1: int, c2: int) -> bool {
+    if row < 0 || row >= GRID_ROWS {
+        return false;
+    }
+    
+    let minC = if c1 < c2 { c1 } else { c2 };
+    let maxC = if c1 > c2 { c1 } else { c2 };
+    
+    for c in minC..=maxC {
+        if c == c1 || c == c2 {
+            continue;
+        }
+        if c >= 0 && c < GRID_COLS && state.tiles[row][c].visible {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// 检查在指定列上从 r1 到 r2 是否可以垂直通行
+fn can_connect_through_col(state: &LinkLinkState, col: int, r1: int, r2: int) -> bool {
+    if col < 0 || col >= GRID_COLS {
+        return false;
+    }
+    
+    let minR = if r1 < r2 { r1 } else { r2 };
+    let maxR = if r1 > r2 { r1 } else { r2 };
+    
+    for r in minR..=maxR {
+        if r == r1 || r == r2 {
+            continue;
+        }
+        if r >= 0 && r < GRID_ROWS && state.tiles[r][col].visible {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// 更新游戏时间
+pub fn update_time(state: &mut LinkLinkState) -> bool {
+    if state.gameOver {
+        return false;
+    }
+    
+    state.timeLeft = state.timeLeft - 1;
+    
+    if state.timeLeft <= 0 {
+        state.timeLeft = 0;
+        state.gameOver = true;
+        return true;
+    }
+    
+    return false;
+}
+
+// 检查是否有可消除的对
+pub fn has_possible_moves(state: &LinkLinkState) -> bool {
+    var visibleTiles: [64]PathPoint;
+    var count = 0;
+    
+    // 收集所有可见方块
+    for r in 0..GRID_ROWS {
+        for c in 0..GRID_COLS {
+            if state.tiles[r][c].visible {
+                visibleTiles[count] = PathPoint.{ row: r, col: c };
+                count = count + 1;
+            }
+        }
+    }
+    
+    // 检查每对相同类型的方块
+    for i in 0..count {
+        for j in (i + 1)..count {
+            let p1 = visibleTiles[i];
+            let p2 = visibleTiles[j];
+            
+            if state.tiles[p1.row][p1.col].tileType == state.tiles[p2.row][p2.col].tileType {
+                // 相同类型，检查是否能连通
+                let path = find_path(state, p1.row, p1.col, p2.row, p2.col);
+                if path.length > 0 && path.length <= 3 {
+                    return true;
+                }
+            }
+        }
+    }
+    
+    return false;
+}
+
+// 重新开始游戏
+pub fn restart_game(state: &mut LinkLinkState) {
+    init_game(state);
+}
+
+// 获取分数文本
+pub fn get_score_text(state: &LinkLinkState) -> str {
+    return "分数: " ++ state.score.toString();
+}
+
+// 获取时间文本
+pub fn get_time_text(state: &LinkLinkState) -> str {
+    let minutes = state.timeLeft / 60;
+    let seconds = state.timeLeft % 60;
+    return if minutes < 10 {
+        "0" ++ minutes.toString() ++ ":" ++ (if seconds < 10 { "0" } else { "" }) ++ seconds.toString()
+    } else {
+        minutes.toString() ++ ":" ++ (if seconds < 10 { "0" } else { "" }) ++ seconds.toString()
+    };
+}
+
+// 获取状态文本
+pub fn get_status_text(state: &LinkLinkState) -> str {
+    if state.gameWon {
+        return "恭喜通关！最终得分: " ++ state.score.toString();
+    } else if state.gameOver {
+        return "时间到！游戏结束！得分: " ++ state.score.toString();
+    }
+    return "剩余方块: " ++ state.tilesRemaining.toString();
+}
+
+// 获取控制说明
+pub fn get_controls_text() -> str {
+    return "鼠标点击选择方块 | R 重新开始 | ESC 退出";
+}
+
+// 获取方块颜色
+pub fn get_tile_color(tileType: int) -> u32 {
+    return TILE_COLORS[tileType % 12];
+}
