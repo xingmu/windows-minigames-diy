@@ -1,0 +1,420 @@
+// game_logic.zc - Zen-C Match3（消消乐）游戏核心逻辑
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 480;
+const GAME_HEIGHT: i32 = 640;
+const GRID_COLS: i32 = 8;
+const GRID_ROWS: i32 = 10;
+const CELL_SIZE: i32 = 44;
+const GRID_OFFSET_X: i32 = 16;
+const GRID_OFFSET_Y: i32 = 80;
+const BALL_RADIUS: i32 = 16;
+const BALL_SPEED: i32 = 10;
+const SHOOTER_Y: i32 = GAME_HEIGHT - 60;
+const INITIAL_TIME: i32 = 120;  // 2分钟
+const POINTS_PER_BLOCK: i32 = 10;
+const COMBO_BONUS: i32 = 5;
+
+// ==================== 颜色定义 ====================
+
+const BLOCK_COLORS: [6]Color = [
+    Color { r: 255, g: 89, b: 94 },   // 红色
+    Color { r: 255, g: 202, b: 58 },  // 黄色
+    Color { r: 76, g: 201, b: 131 },  // 绿色
+    Color { r: 58, g: 173, b: 255 },  // 蓝色
+    Color { r: 183, g: 94, b: 255 },  // 紫色
+    Color { r: 255, g: 136, b: 107 }, // 橙色
+];
+
+// ==================== 游戏状态 ====================
+
+enum GameStatus {
+    Ready,
+    Playing,
+    Paused,
+    GameOver,
+}
+
+// ==================== 数据结构 ====================
+
+struct Ball {
+    x: f32,
+    y: f32,
+    vx: f32,
+    vy: f32,
+    active: bool,
+    color_index: i32,
+}
+
+struct GridCell {
+    color_index: i32,  // -1 表示空
+}
+
+struct Match3State {
+    grid: [GRID_ROWS][GRID_COLS]GridCell,
+    ball: Ball,
+    next_color: i32,
+    score: i32,
+    time_remaining: i32,  // 秒
+    status: GameStatus,
+    combo: i32,
+    width: i32,
+    height: i32,
+}
+
+// ==================== 辅助函数 ====================
+
+fn abs(n: i32) -> i32 {
+    if n < 0 { -n } else { n }
+}
+
+fn abs_f(n: f32) -> f32 {
+    if n < 0.0 { -n } else { n }
+}
+
+fn min_i(a: i32, b: i32) -> i32 {
+    if a < b { a } else { b }
+}
+
+fn max_i(a: i32, b: i32) -> i32 {
+    if a > b { a } else { b }
+}
+
+fn sqrt_i(n: i32) -> i32 {
+    if n <= 0 { return 0; }
+    let mut x = n;
+    let mut y = 1;
+    while y < x {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    return x;
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut Match3State) {
+    game.width = GAME_WIDTH;
+    game.height = GAME_HEIGHT;
+    game.score = 0;
+    game.time_remaining = INITIAL_TIME;
+    game.status = GameStatus.Ready;
+    game.combo = 0;
+    game.next_color = rand_int(0, 5);
+    
+    // 初始化网格，确保没有初始匹配
+    for row in 0..GRID_ROWS {
+        for col in 0..GRID_COLS {
+            game.grid[row][col].color_index = -1;
+        }
+    }
+    
+    // 填充网格，不产生初始匹配
+    for row in 0..GRID_ROWS {
+        for col in 0..GRID_COLS {
+            let mut ci: i32;
+            loop {
+                ci = rand_int(0, 5);
+                game.grid[row][col].color_index = ci;
+                // 检查是否会产生匹配
+                if row >= 2 {
+                    let same = game.grid[row-1][col].color_index == ci && 
+                               game.grid[row-2][col].color_index == ci;
+                    if same { continue; }
+                }
+                if col >= 2 {
+                    let same = game.grid[row][col-1].color_index == ci && 
+                               game.grid[row][col-2].color_index == ci;
+                    if same { continue; }
+                }
+                break;
+            }
+        }
+    }
+    
+    // 初始化发射球
+    reset_ball(game);
+}
+
+// 重置发射球
+fn reset_ball(game: &mut Match3State) {
+    game.ball.x = GAME_WIDTH / 2 as f32;
+    game.ball.y = SHOOTER_Y as f32;
+    game.ball.vx = 0.0;
+    game.ball.vy = 0.0;
+    game.ball.active = false;
+    game.ball.color_index = game.next_color;
+    game.next_color = rand_int(0, 5);
+}
+
+// 计算发射方向
+fn calculate_velocity(game: &mut Match3State, target_x: i32, target_y: i32) {
+    let dx = target_x as f32 - game.ball.x;
+    let dy = target_y as f32 - game.ball.y;
+    let dist = sqrt_f(dx*dx + dy*dy);
+    if dist > 0.0 {
+        game.ball.vx = (dx / dist) * BALL_SPEED as f32;
+        game.ball.vy = (dy / dist) * BALL_SPEED as f32;
+    }
+}
+
+fn sqrt_f(n: f32) -> f32 {
+    if n <= 0.0 { return 0.0; }
+    let mut x = n;
+    let mut y = 1.0;
+    while y < x {
+        x = (x + y) / 2.0;
+        y = n / x;
+    }
+    return x;
+}
+
+// 发射球
+fn shoot_ball(game: &mut Match3State, target_x: i32, target_y: i32) {
+    if game.ball.active { return; }
+    if game.status != GameStatus.Playing { return; }
+    
+    // 只允许向上发射
+    if target_y >= game.ball.y as i32 { return; }
+    
+    calculate_velocity(game, target_x, target_y);
+    game.ball.active = true;
+}
+
+// 更新游戏逻辑
+fn update_game(game: &mut Match3State) -> bool {
+    if game.status != GameStatus.Playing {
+        return false;
+    }
+    
+    if game.ball.active {
+        // 移动球
+        game.ball.x = game.ball.x + game.ball.vx;
+        game.ball.y = game.ball.y + game.ball.vy;
+        
+        // 左右墙壁碰撞
+        if game.ball.x - BALL_RADIUS as f32 <= 0.0 {
+            game.ball.x = BALL_RADIUS as f32;
+            game.ball.vx = -game.ball.vx;
+        }
+        if game.ball.x + BALL_RADIUS as f32 >= GAME_WIDTH as f32 {
+            game.ball.x = (GAME_WIDTH - BALL_RADIUS) as f32;
+            game.ball.vx = -game.ball.vx;
+        }
+        
+        // 顶部碰撞 - 嵌入网格
+        if game.ball.y - BALL_RADIUS as f32 <= (GRID_OFFSET_Y + GRID_ROWS * CELL_SIZE) as f32 {
+            let col = ((game.ball.x as i32 - GRID_OFFSET_X) / CELL_SIZE);
+            let row = ((game.ball.y as i32 - GRID_OFFSET_Y) / CELL_SIZE);
+            
+            // 找到球接触的最近的格子
+            if col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS {
+                // 在空白位置放置球
+                if game.grid[row][col].color_index == -1 {
+                    game.grid[row][col].color_index = game.ball.color_index;
+                    
+                    // 检查匹配
+                    let matches = find_and_remove_matches(game);
+                    game.combo = matches;
+                    
+                    if matches > 0 {
+                        game.score = game.score + matches * POINTS_PER_BLOCK + (matches - 3) * COMBO_BONUS * max_i(0, game.combo - 1);
+                    }
+                    
+                    // 重置球
+                    reset_ball(game);
+                    return true;
+                }
+            }
+            
+            // 如果格子不为空，反弹
+            game.ball.y = (GRID_OFFSET_Y + GRID_ROWS * CELL_SIZE + BALL_RADIUS) as f32;
+            game.ball.vy = -game.ball.vy;
+        }
+        
+        // 底部 - 不应该发生
+        if game.ball.y + BALL_RADIUS as f32 >= SHOOTER_Y as f32 {
+            reset_ball(game);
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// 查找并移除匹配
+fn find_and_remove_matches(game: &mut Match3State) -> i32 {
+    var matched: [GRID_ROWS][GRID_COLS]bool;
+    for row in 0..GRID_ROWS {
+        for col in 0..GRID_COLS {
+            matched[row][col] = false;
+        }
+    }
+    
+    // 水平匹配
+    for row in 0..GRID_ROWS {
+        var col = 0;
+        while col < GRID_COLS - 2 {
+            let ci = game.grid[row][col].color_index;
+            if ci == -1 { col = col + 1; continue; }
+            
+            var count = 1;
+            while col + count < GRID_COLS && game.grid[row][col+count].color_index == ci {
+                count = count + 1;
+            }
+            
+            if count >= 3 {
+                for i in 0..count {
+                    matched[row][col+i] = true;
+                }
+            }
+            col = col + count;
+        }
+    }
+    
+    // 垂直匹配
+    for col in 0..GRID_COLS {
+        var row = 0;
+        while row < GRID_ROWS - 2 {
+            let ci = game.grid[row][col].color_index;
+            if ci == -1 { row = row + 1; continue; }
+            
+            var count = 1;
+            while row + count < GRID_ROWS && game.grid[row+count][col].color_index == ci {
+                count = count + 1;
+            }
+            
+            if count >= 3 {
+                for i in 0..count {
+                    matched[row+i][col] = true;
+                }
+            }
+            row = row + count;
+        }
+    }
+    
+    // 统计匹配数量并清除
+    var total_matched = 0;
+    for row in 0..GRID_ROWS {
+        for col in 0..GRID_COLS {
+            if matched[row][col] {
+                game.grid[row][col].color_index = -1;
+                total_matched = total_matched + 1;
+            }
+        }
+    }
+    
+    // 掉落填补空白
+    if total_matched > 0 {
+        apply_gravity(game);
+    }
+    
+    return total_matched;
+}
+
+// 重力掉落
+fn apply_gravity(game: &mut Match3State) {
+    // 从底部向顶部处理
+    for col in 0..GRID_COLS {
+        // 收集非空块
+        var temp: [GRID_ROWS]i32;
+        var temp_count = 0;
+        
+        for row in 0..GRID_ROWS {
+            if game.grid[row][col].color_index != -1 {
+                temp[temp_count] = game.grid[row][col].color_index;
+                temp_count = temp_count + 1;
+            }
+        }
+        
+        // 从底部填充
+        var write_row = GRID_ROWS - 1;
+        for i in 0..temp_count {
+            game.grid[write_row][col].color_index = temp[temp_count - 1 - i];
+            write_row = write_row - 1;
+        }
+        
+        // 顶部清空
+        for row in 0..=write_row {
+            game.grid[row][col].color_index = -1;
+        }
+    }
+}
+
+// 处理键盘输入
+fn handle_input(game: &mut Match3State, key: KeyCode) -> bool {
+    match key {
+        KeyCode.KeySpace => {
+            if game.status == GameStatus.Ready || game.status == GameStatus.GameOver {
+                init_game(game);
+                game.status = GameStatus.Playing;
+            }
+        },
+        KeyCode.KeyEscape => {
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+// 处理鼠标点击
+fn handle_mouse_click(game: &mut Match3State, x: i32, y: i32) {
+    if game.status == GameStatus.Ready {
+        game.status = GameStatus.Playing;
+        return;
+    }
+    
+    if game.status == GameStatus.Playing && !game.ball.active {
+        shoot_ball(game, x, y);
+    }
+}
+
+// 递减计时器
+fn tick_timer(game: &mut Match3State) -> bool {
+    if game.status != GameStatus.Playing {
+        return false;
+    }
+    
+    game.time_remaining = game.time_remaining - 1;
+    if game.time_remaining <= 0 {
+        game.time_remaining = 0;
+        game.status = GameStatus.GameOver;
+        return true;
+    }
+    
+    return false;
+}
+
+// 检查游戏是否结束（时间到）
+fn is_game_over(game: &Match3State) -> bool {
+    game.status == GameStatus.GameOver
+}
+
+// 获取状态文本
+fn get_status_text(game: &Match3State) -> string {
+    match game.status {
+        GameStatus.Ready => return "点击开始游戏",
+        GameStatus.Playing => return "游戏中...",
+        GameStatus.Paused => return "游戏暂停",
+        GameStatus.GameOver => return "时间到! 游戏结束",
+    }
+}
+
+// 获取控制说明
+fn get_controls_text() -> string {
+    "控制: 点击屏幕发射 | 空格 开始 | ESC 退出"
+}
+
+// 随机数
+private mut rng_seed: i32 = 1;
+
+fn rand_int(min_val: i32, max_val: i32) -> i32 {
+    rng_seed = rng_seed * 1103515245 + 12345;
+    let r = (rng_seed / 65536) % (max_val - min_val + 1);
+    return min_val + r;
+}

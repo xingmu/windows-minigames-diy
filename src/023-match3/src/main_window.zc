@@ -1,0 +1,203 @@
+// main_window.zc - Zen-C Match3（消消乐）游戏主程序
+
+import std.io;
+import std.string;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: Match3State;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut game_speed: u32 = 16;  // ~60 FPS
+static mut timer_accum: i32 = 0;
+
+// ==================== 事件处理 ====================
+
+fn on_key(key: KeyCode) -> bool {
+    return handle_input(&mut game, key);
+}
+
+fn on_timer() -> bool {
+    timer_accum = timer_accum + 16;
+    
+    // 每秒递减计时器
+    if timer_accum >= 1000 {
+        timer_accum = timer_accum - 1000;
+        if tick_timer(&mut game) {
+            return true;
+        }
+    }
+    
+    if game.status == GameStatus.Playing {
+        return update_game(&mut game);
+    }
+    return false;
+}
+
+fn on_paint(w: i32, h: i32) {
+    // 确保帧缓冲初始化
+    if !fb_data.valid {
+        fb_init(window, w, h);
+    }
+
+    // 清屏 - 深色背景
+    fb_clear(rgb(30, 30, 40));
+
+    // 绘制网格背景
+    fb_draw_rect(GRID_OFFSET_X - 2, GRID_OFFSET_Y - 2, 
+                 GRID_COLS * CELL_SIZE + 4, GRID_ROWS * CELL_SIZE + 4, 
+                 rgb(50, 50, 60));
+    
+    // 绘制网格线
+    for row in 0..=GRID_ROWS {
+        let y = GRID_OFFSET_Y + row * CELL_SIZE;
+        fb_draw_rect(GRID_OFFSET_X - 1, y - 1, GRID_COLS * CELL_SIZE + 2, 2, rgb(70, 70, 80));
+    }
+    for col in 0..=GRID_COLS {
+        let x = GRID_OFFSET_X + col * CELL_SIZE;
+        fb_draw_rect(x - 1, GRID_OFFSET_Y - 1, 2, GRID_ROWS * CELL_SIZE + 2, rgb(70, 70, 80));
+    }
+
+    // 绘制方块
+    for row in 0..GRID_ROWS {
+        for col in 0..GRID_COLS {
+            let ci = game.grid[row][col].color_index;
+            if ci >= 0 {
+                let x = GRID_OFFSET_X + col * CELL_SIZE + 2;
+                let y = GRID_OFFSET_Y + row * CELL_SIZE + 2;
+                let size = CELL_SIZE - 4;
+                
+                // 绘制方块主体
+                fb_draw_rect(x, y, size, size, BLOCK_COLORS[ci]);
+                
+                // 绘制高光效果
+                fb_draw_rect(x + 2, y + 2, size - 8, 4, rgb(255, 255, 255));
+            }
+        }
+    }
+
+    // 绘制下一个球预览
+    let preview_x = GAME_WIDTH - 50;
+    let preview_y = GAME_HEIGHT - 60;
+    fb_draw_circle(preview_x, preview_y, BALL_RADIUS, BLOCK_COLORS[game.next_color]);
+    fb_draw_text_size(preview_x - 10, preview_y - 30, "NEXT", rgb(200, 200, 200), 10);
+
+    // 绘制发射器
+    if !game.ball.active {
+        // 绘制发射器底座
+        fb_draw_rect(GAME_WIDTH / 2 - 30, SHOOTER_Y - 5, 60, 20, rgb(100, 100, 120));
+        
+        // 绘制当前球
+        fb_draw_circle(game.ball.x as i32, game.ball.y as i32, BALL_RADIUS, BLOCK_COLORS[game.ball.color_index]);
+        
+        // 高光
+        fb_draw_circle(game.ball.x as i32 - 4, game.ball.y as i32 - 4, 4, rgb(255, 255, 255));
+    } else {
+        // 绘制移动的球
+        fb_draw_circle(game.ball.x as i32, game.ball.y as i32, BALL_RADIUS, BLOCK_COLORS[game.ball.color_index]);
+        // 高光
+        fb_draw_circle(game.ball.x as i32 - 4, game.ball.y as i32 - 4, 4, rgb(255, 255, 255));
+    }
+
+    // 绘制分数
+    let score_text = "分数: " ++ game.score.toString();
+    fb_draw_text_size(10, 10, score_text, rgb(255, 255, 255), 20);
+
+    // 绘制计时器
+    let minutes = game.time_remaining / 60;
+    let seconds = game.time_remaining % 60;
+    let time_text = "时间: " ++ minutes.toString() ++ ":" ++ 
+                    (if seconds < 10 { "0" } else { "" }) ++ seconds.toString();
+    fb_draw_text_size(GAME_WIDTH - 150, 10, time_text, rgb(255, 255, 100), 20);
+
+    // 绘制状态文本
+    let status = get_status_text(&game);
+    if game.status == GameStatus.Ready || game.status == GameStatus.GameOver {
+        fb_draw_text_size(100, GAME_HEIGHT / 2, status, rgb(255, 255, 0), 28);
+        if game.status == GameStatus.GameOver {
+            let final_score = "最终得分: " ++ game.score.toString();
+            fb_draw_text_size(120, GAME_HEIGHT / 2 + 40, final_score, rgb(255, 200, 100), 24);
+        }
+    }
+
+    // 绘制控制说明
+    fb_draw_text_size(10, GAME_HEIGHT - 25, get_controls_text(), rgb(150, 150, 150), 12);
+
+    // 呈现画面
+    fb_present();
+}
+
+fn on_mouse(x: i32, y: i32) {
+    handle_mouse_click(&mut game, x, y);
+}
+
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C Match3 消消乐游戏");
+    io.println("========================================");
+
+    // 初始化随机种子
+    rng_seed = 12345;
+
+    // 初始化游戏状态
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "Match3 - 消消乐游戏";
+    window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 获取实际客户区大小
+    let mut cw = 0;
+    let mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        game.width = cw;
+        game.height = ch;
+        set_client_size(cw, ch);
+    }
+
+    // 设置事件处理器
+    set_key_handler(on_key);
+    set_timer_handler(on_timer);
+    set_paint_handler(on_paint);
+    set_mouse_handler(on_mouse);
+    set_destroy_handler(on_destroy);
+
+    // 显示窗口
+    show_window(window);
+
+    // 设置游戏定时器
+    set_game_timer(window, game_speed);
+
+    io.println("窗口创建成功!");
+    io.println("点击屏幕发射彩球");
+    io.println("三个或以上相同颜色的球连成一线即可消除");
+    io.println("========================================");
+
+    // 初始绘制
+    redraw_window(window);
+
+    // 运行事件循环
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("最终得分: " ++ game.score.toString());
+    io.println("========================================");
+
+    0
+}
