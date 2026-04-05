@@ -1,0 +1,399 @@
+// game_logic.zc - Zen-C 摩托车障碍躲避游戏逻辑
+// 所有平台共用相同的游戏逻辑代码
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 400;
+const GAME_HEIGHT: i32 = 600;
+const ROAD_WIDTH: i32 = 300;
+const LANE_COUNT: i32 = 3;
+const LANE_WIDTH: i32 = ROAD_WIDTH / LANE_COUNT;
+
+const BIKE_WIDTH: i32 = 40;
+const BIKE_HEIGHT: i32 = 70;
+const BIKE_Y_BASE: i32 = GAME_HEIGHT - 120;
+
+const OBSTACLE_WIDTH: i32 = 50;
+const OBSTACLE_HEIGHT: i32 = 50;
+const OBSTACLE_MIN_SPEED: i32 = 3;
+const OBSTACLE_MAX_SPEED: i32 = 8;
+const OBSTACLE_SPAWN_INTERVAL: u32 = 800; // ms
+
+const CAR_WIDTH: i32 = 45;
+const CAR_HEIGHT: i32 = 80;
+const CAR_MIN_SPEED: i32 = 4;
+const CAR_MAX_SPEED: i32 = 9;
+
+const MAX_OBSTACLES: i32 = 20;
+const COIN_SIZE: i32 = 20;
+const MAX_COINS: i32 = 10;
+
+// ==================== 数据结构 ====================
+
+// 障碍物类型
+enum ObstacleType {
+    Barrier,  // 路障
+    Car,      // 汽车
+    Truck,    // 卡车
+}
+
+// 障碍物结构
+struct Obstacle {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    speed: i32,
+    obstacle_type: ObstacleType,
+    active: bool
+}
+
+// 金币结构
+struct Coin {
+    x: i32,
+    y: i32,
+    speed: i32,
+    active: bool,
+    collected: bool
+}
+
+// 摩托车结构
+struct Bike {
+    x: i32,
+    y: i32,
+    lane: i32,
+    width: i32,
+    height: i32,
+    speed: i32
+}
+
+// 游戏状态
+struct GameState {
+    bike: Bike,
+    obstacles: [MAX_OBSTACLES]Obstacle,
+    coins: [MAX_COINS]Coin,
+    score: i32,
+    distance: i32,
+    game_over: bool,
+    paused: bool,
+    speed_increase: i32,
+    last_obstacle_spawn: u64,
+    last_coin_spawn: u64,
+    window_width: i32,
+    window_height: i32,
+    frame_count: i32
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut GameState) {
+    // 初始化随机数种子
+    let seed = time.now().nanos();
+    math.srand(seed);
+
+    // 初始化摩托车 - 停在中间车道
+    game.bike = Bike {
+        x: (GAME_WIDTH - BIKE_WIDTH) / 2,
+        y: BIKE_Y_BASE,
+        lane: 1,  // 0=左, 1=中, 2=右
+        width: BIKE_WIDTH,
+        height: BIKE_HEIGHT,
+        speed: 0  // 玩家通过切换车道移动
+    };
+
+    // 初始化障碍物
+    for i in 0..MAX_OBSTACLES {
+        game.obstacles[i] = Obstacle {
+            x: 0,
+            y: -OBSTACLE_HEIGHT,
+            width: OBSTACLE_WIDTH,
+            height: OBSTACLE_HEIGHT,
+            speed: OBSTACLE_MIN_SPEED,
+            obstacle_type: ObstacleType.Barrier,
+            active: false
+        };
+    }
+
+    // 初始化金币
+    for i in 0..MAX_COINS {
+        game.coins[i] = Coin {
+            x: 0,
+            y: -COIN_SIZE,
+            speed: OBSTACLE_MIN_SPEED,
+            active: false,
+            collected: false
+        };
+    }
+
+    // 初始化游戏状态
+    game.score = 0;
+    game.distance = 0;
+    game.game_over = false;
+    game.paused = false;
+    game.speed_increase = 0;
+    game.last_obstacle_spawn = 0;
+    game.last_coin_spawn = 0;
+    game.frame_count = 0;
+}
+
+// 获取道路起始X坐标
+fn get_road_start_x() -> i32 {
+    (GAME_WIDTH - ROAD_WIDTH) / 2
+}
+
+// 获取指定车道的X坐标（中心）
+fn get_lane_center_x(lane: i32) -> i32 {
+    let road_x = get_road_start_x();
+    return road_x + lane * LANE_WIDTH + LANE_WIDTH / 2;
+}
+
+// 生成障碍物
+fn spawn_obstacle(game: &mut GameState) {
+    // 找到一个空闲的障碍物槽位
+    for i in 0..MAX_OBSTACLES {
+        if !game.obstacles[i].active {
+            let lane = math.rand() % LANE_COUNT;
+            let obstacle_type_val = math.rand() % 3;
+            let mut obs_type = ObstacleType.Barrier;
+            let mut width = OBSTACLE_WIDTH;
+            let mut height = OBSTACLE_HEIGHT;
+
+            match obstacle_type_val {
+                0 => obs_type = ObstacleType.Barrier,
+                1 => {
+                    obs_type = ObstacleType.Car;
+                    width = CAR_WIDTH;
+                    height = CAR_HEIGHT;
+                },
+                2 => {
+                    obs_type = ObstacleType.Truck;
+                    width = CAR_WIDTH + 10;
+                    height = CAR_HEIGHT + 20;
+                },
+                _ => {}
+            }
+
+            let x_center = get_lane_center_x(lane);
+            game.obstacles[i] = Obstacle {
+                x: x_center - width / 2,
+                y: -height,
+                width: width,
+                height: height,
+                speed: OBSTACLE_MIN_SPEED + game.speed_increase + math.rand() % (OBSTACLE_MAX_SPEED - OBSTACLE_MIN_SPEED),
+                obstacle_type: obs_type,
+                active: true
+            };
+            break;
+        }
+    }
+}
+
+// 生成金币
+fn spawn_coin(game: &mut GameState) {
+    // 找到一个空闲的金币槽位
+    for i in 0..MAX_COINS {
+        if !game.coins[i].active {
+            let lane = math.rand() % LANE_COUNT;
+            let x_center = get_lane_center_x(lane);
+
+            game.coins[i] = Coin {
+                x: x_center - COIN_SIZE / 2,
+                y: -COIN_SIZE,
+                speed: OBSTACLE_MIN_SPEED + game.speed_increase,
+                active: true,
+                collected: false
+            };
+            break;
+        }
+    }
+}
+
+// 处理输入 - 左移
+fn move_left(game: &mut GameState) {
+    if game.game_over || game.paused {
+        return;
+    }
+    if game.bike.lane > 0 {
+        game.bike.lane -= 1;
+        game.bike.x = get_lane_center_x(game.bike.lane) - game.bike.width / 2;
+    }
+}
+
+// 处理输入 - 右移
+fn move_right(game: &mut GameState) {
+    if game.game_over || game.paused {
+        return;
+    }
+    if game.bike.lane < LANE_COUNT - 1 {
+        game.bike.lane += 1;
+        game.bike.x = get_lane_center_x(game.bike.lane) - game.bike.width / 2;
+    }
+}
+
+// 碰撞检测
+fn check_collision(ax: i32, ay: i32, aw: i32, ah: i32,
+                   bx: i32, by: i32, bw: i32, bh: i32) -> bool {
+    return ax < bx + bw &&
+           ax + aw > bx &&
+           ay < by + bh &&
+           ay + ah > by;
+}
+
+// 更新游戏状态
+fn update_game(game: &mut GameState, current_time: u64) -> bool {
+    if game.game_over || game.paused {
+        return false;
+    }
+
+    game.frame_count += 1;
+    game.distance += 1;
+
+    // 每隔一定距离增加速度
+    if game.distance % 500 == 0 {
+        game.speed_increase += 1;
+        if game.speed_increase > 5 {
+            game.speed_increase = 5;
+        }
+    }
+
+    // 更新距离得分
+    if game.frame_count % 10 == 0 {
+        game.score += 1;
+    }
+
+    // 生成障碍物
+    let spawn_interval = OBSTACLE_SPAWN_INTERVAL - (game.speed_increase * 50 as u32);
+    if spawn_interval < 400 {
+        spawn_interval = 400;
+    }
+    if current_time - game.last_obstacle_spawn > spawn_interval {
+        spawn_obstacle(game);
+        game.last_obstacle_spawn = current_time;
+    }
+
+    // 生成金币（概率较低）
+    if current_time - game.last_coin_spawn > 3000 && math.rand() % 100 < 30 {
+        spawn_coin(game);
+        game.last_coin_spawn = current_time;
+    }
+
+    // 更新障碍物
+    for i in 0..MAX_OBSTACLES {
+        if game.obstacles[i].active {
+            game.obstacles[i].y += game.obstacles[i].speed;
+
+            // 移出屏幕的障碍物
+            if game.obstacles[i].y > GAME_HEIGHT {
+                game.obstacles[i].active = false;
+                game.score += 5;  // 躲避障碍物得分
+                continue;
+            }
+
+            // 碰撞检测
+            if check_collision(
+                game.bike.x + 5, game.bike.y + 5, game.bike.width - 10, game.bike.height - 10,
+                game.obstacles[i].x + 3, game.obstacles[i].y + 3,
+                game.obstacles[i].width - 6, game.obstacles[i].height - 6
+            ) {
+                game.game_over = true;
+                return true;
+            }
+        }
+    }
+
+    // 更新金币
+    for i in 0..MAX_COINS {
+        if game.coins[i].active && !game.coins[i].collected {
+            game.coins[i].y += game.coins[i].speed;
+
+            // 移出屏幕的金币
+            if game.coins[i].y > GAME_HEIGHT {
+                game.coins[i].active = false;
+                continue;
+            }
+
+            // 收集金币
+            if check_collision(
+                game.bike.x, game.bike.y, game.bike.width, game.bike.height,
+                game.coins[i].x, game.coins[i].y, COIN_SIZE, COIN_SIZE
+            ) {
+                game.coins[i].collected = true;
+                game.coins[i].active = false;
+                game.score += 20;
+            }
+        }
+    }
+
+    return true;
+}
+
+// 获取摩托车位置
+fn get_bike_position(game: &GameState) -> (i32, i32, i32, i32) {
+    return (game.bike.x, game.bike.y, game.bike.width, game.bike.height);
+}
+
+// 获取障碍物信息
+fn get_obstacle_info(game: &GameState, index: i32) -> (i32, i32, i32, i32, bool, i32) {
+    if index >= 0 && index < MAX_OBSTACLES {
+        return (
+            game.obstacles[index].x,
+            game.obstacles[index].y,
+            game.obstacles[index].width,
+            game.obstacles[index].height,
+            game.obstacles[index].active,
+            game.obstacles[index].obstacle_type as i32
+        );
+    }
+    return (0, 0, 0, 0, false, 0);
+}
+
+// 获取金币信息
+fn get_coin_info(game: &GameState, index: i32) -> (i32, i32, bool) {
+    if index >= 0 && index < MAX_COINS {
+        return (
+            game.coins[index].x,
+            game.coins[index].y,
+            game.coins[index].active && !game.coins[index].collected
+        );
+    }
+    return (0, 0, false);
+}
+
+// 获取分数
+fn get_score(game: &GameState) -> i32 {
+    return game.score;
+}
+
+// 获取距离
+fn get_distance(game: &GameState) -> i32 {
+    return game.distance;
+}
+
+// 获取游戏是否结束
+fn is_game_over(game: &GameState) -> bool {
+    return game.game_over;
+}
+
+// 获取游戏是否暂停
+fn is_paused(game: &GameState) -> bool {
+    return game.paused;
+}
+
+// 切换暂停状态
+fn toggle_pause(game: &mut GameState) {
+    game.paused = !game.paused;
+}
+
+// 获取当前速度等级
+fn get_speed_level(game: &GameState) -> i32 {
+    return game.speed_increase + 1;
+}
+
+// 重置游戏
+fn reset_game(game: &mut GameState) {
+    init_game(game);
+}

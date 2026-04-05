@@ -1,0 +1,472 @@
+// main_window.zc - Zen-C 摩托车游戏 Windows 窗体版本
+// 所有平台使用同一份Zen-C代码，通过条件编译处理平台差异
+
+import std.io;
+import std.string;
+
+// 导入游戏逻辑和平台API
+import "game_logic.zc";
+import "platform_api.zc";
+
+// ==================== 常量定义 ====================
+
+const WINDOW_WIDTH: i32 = 450;
+const WINDOW_HEIGHT: i32 = 700;
+
+// ==================== 颜色定义 ====================
+
+const COLOR_SKY = rgb(135, 206, 235);
+const COLOR_ROAD = rgb(60, 60, 60);
+const COLOR_ROAD_EDGE = rgb(255, 255, 255);
+const COLOR_LANE_MARK = rgb(255, 255, 255);
+const COLOR_BIKE_BODY = rgb(230, 30, 30);
+const COLOR_BIKE_ACCENT = rgb(50, 50, 50);
+const COLOR_BIKE_CHROME = rgb(200, 200, 200);
+const COLOR_BIKE_WHEEL = rgb(30, 30, 30);
+const COLOR_BIKE_LIGHT = rgb(255, 255, 150);
+const COLOR_BIKE_TAIL = rgb(255, 0, 0);
+const COLOR_BARRIER = rgb(255, 100, 100);
+const COLOR_BARRIER_STRIPE = rgb(255, 255, 255);
+const COLOR_CAR_BODY = rgb(70, 130, 180);
+const COLOR_CAR_WINDOW = rgb(100, 150, 200);
+const COLOR_TRUCK_BODY = rgb(100, 100, 100);
+const COLOR_COIN = rgb(255, 215, 0);
+const COLOR_COIN_SHINE = rgb(255, 255, 200);
+const COLOR_UI_BG = rgb(30, 30, 40);
+const COLOR_UI_TEXT = rgb(255, 255, 255);
+const COLOR_UI_ACCENT = rgb(255, 200, 0);
+const COLOR_GRASS = rgb(60, 140, 60);
+const COLOR_GAMEOVER_BG = rgb(80, 20, 20);
+const COLOR_PAUSED_BG = rgb(50, 50, 80);
+
+// ==================== 全局变量 ====================
+
+static mut game: GameState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut anim_frame: i32 = 0;
+static mut frame_count: i32 = 0;
+
+// ==================== 工具函数 ====================
+
+// 格式化整数为字符串
+fn format_int(n: i32) -> string {
+    if n == 0 {
+        return "0";
+    }
+    let mut digits: [16]u8 = [0; 16];
+    let mut count = 0;
+    let mut value = n;
+    if value < 0 {
+        value = -value;
+    }
+    while value > 0 {
+        digits[count] = (value % 10 + 48) as u8;
+        value = value / 10;
+        count += 1;
+    }
+    let mut result = "";
+    for i in 0..count {
+        result = string.from_char(digits[count - 1 - i] as i32) ++ result;
+    }
+    if n < 0 {
+        result = "-" ++ result;
+    }
+    return result;
+}
+
+// ==================== 绘图函数 ====================
+
+// 绘制道路
+fn draw_road(ctx: GraphicsContext, offset_x: i32, offset_y: i32) {
+    let road_w = ROAD_WIDTH;
+    let road_h = GAME_HEIGHT;
+
+    // 绘制路缘
+    draw_rect(ctx, offset_x, offset_y, 8, road_h, COLOR_ROAD_EDGE);
+    draw_rect(ctx, offset_x + road_w - 8, offset_y, 8, road_h, COLOR_ROAD_EDGE);
+
+    // 绘制路面
+    draw_rect(ctx, offset_x + 8, offset_y, road_w - 16, road_h, COLOR_ROAD);
+
+    // 绘制车道虚线
+    let dash_y = (anim_frame * 3) % 40;
+    let dash_h = 20;
+    let dash_gap = 20;
+
+    for lane in 1..LANE_COUNT {
+        let lane_x = offset_x + 8 + lane * LANE_WIDTH - 2;
+        let mut y = offset_y + dash_y - 40;
+
+        while y < offset_y + road_h {
+            if y >= offset_y {
+                draw_rect(ctx, lane_x, y, 4, dash_h, COLOR_LANE_MARK);
+            }
+            y = y + dash_h + dash_gap;
+        }
+    }
+}
+
+// 绘制摩托车
+fn draw_bike(ctx: GraphicsContext, x: i32, y: i32) {
+    let w = BIKE_WIDTH;
+    let h = BIKE_HEIGHT;
+
+    // 摩托车前部轮廓
+    draw_rect(ctx, x + w/2 - 15, y + 5, 30, 10, COLOR_BIKE_BODY);
+
+    // 摩托车把手
+    draw_rect(ctx, x + w/2 - 12, y + 2, 24, 4, COLOR_BIKE_CHROME);
+
+    // 摩托车前灯
+    draw_rect(ctx, x + w/2 - 8, y + 6, 16, 6, COLOR_BIKE_LIGHT);
+
+    // 摩托车座椅/油箱区域
+    draw_rect(ctx, x + w/2 - 12, y + 15, 24, 18, COLOR_BIKE_BODY);
+
+    // 摩托车油箱银色装饰
+    draw_rect(ctx, x + w/2 - 8, y + 18, 16, 5, COLOR_BIKE_CHROME);
+
+    // 摩托车发动机区域
+    draw_rect(ctx, x + w/2 - 14, y + 33, 28, 15, COLOR_BIKE_ACCENT);
+
+    // 摩托车排气管
+    draw_rect(ctx, x + w/2 + 8, y + 40, 6, 10, COLOR_BIKE_CHROME);
+
+    // 摩托车后轮
+    draw_circle(ctx, x + w/2, y + 55, 12, COLOR_BIKE_WHEEL);
+    draw_circle(ctx, x + w/2, y + 55, 6, COLOR_BIKE_CHROME);
+
+    // 摩托车前轮
+    draw_circle(ctx, x + w/2, y + 20, 10, COLOR_BIKE_WHEEL);
+    draw_circle(ctx, x + w/2, y + 20, 4, COLOR_BIKE_CHROME);
+
+    // 摩托车尾部（尾灯）
+    draw_rect(ctx, x + w/2 - 10, y + h - 18, 20, 5, COLOR_BIKE_TAIL);
+}
+
+// 绘制路障
+fn draw_barrier(ctx: GraphicsContext, x: i32, y: i32, w: i32, h: i32) {
+    draw_rect(ctx, x, y, w, h, COLOR_BARRIER);
+
+    let stripe_h = 8;
+    let stripe_gap = 10;
+    let mut sy = y + 2;
+
+    while sy < y + h - stripe_h {
+        draw_rect(ctx, x + 4, sy, w - 8, stripe_h, COLOR_BARRIER_STRIPE);
+        sy = sy + stripe_h + stripe_gap;
+    }
+
+    draw_rect_outline(ctx, x, y, w, h, COLOR_BIKE_ACCENT);
+}
+
+// 绘制汽车
+fn draw_car(ctx: GraphicsContext, x: i32, y: i32, w: i32, h: i32) {
+    // 车身
+    draw_rect(ctx, x + 4, y + 10, w - 8, h - 15, COLOR_CAR_BODY);
+
+    // 车窗区域
+    draw_rect(ctx, x + 8, y + 15, w - 16, 25, COLOR_CAR_WINDOW);
+
+    // 车头
+    draw_rect(ctx, x + 6, y + h - 15, w - 12, 12, COLOR_CAR_BODY);
+
+    // 车头灯
+    draw_rect(ctx, x + 8, y + h - 10, 8, 6, rgb(255, 255, 150));
+    draw_rect(ctx, x + w - 16, y + h - 10, 8, 6, rgb(255, 255, 150));
+
+    // 车轮
+    draw_rect(ctx, x + 2, y + 18, 6, 14, COLOR_BIKE_WHEEL);
+    draw_rect(ctx, x + w - 8, y + 18, 6, 14, COLOR_BIKE_WHEEL);
+    draw_rect(ctx, x + 2, y + h - 28, 6, 14, COLOR_BIKE_WHEEL);
+    draw_rect(ctx, x + w - 8, y + h - 28, 6, 14, COLOR_BIKE_WHEEL);
+
+    // 边框
+    draw_rect_outline(ctx, x, y, w, h, COLOR_BIKE_ACCENT);
+}
+
+// 绘制卡车
+fn draw_truck(ctx: GraphicsContext, x: i32, y: i32, w: i32, h: i32) {
+    // 车厢
+    draw_rect(ctx, x + 2, y + 25, w - 4, h - 30, COLOR_TRUCK_BODY);
+
+    // 货箱条纹
+    let stripe_w = 6;
+    for sx in (x + 5)..(x + w - 5) {
+        if (sx - x) % (stripe_w * 2) < stripe_w {
+            draw_rect(ctx, sx, y + 30, 3, h - 40, rgb(180, 180, 180));
+        }
+    }
+
+    // 驾驶室
+    draw_rect(ctx, x + 8, y + h - 20, w - 16, 18, COLOR_TRUCK_BODY);
+
+    // 挡风玻璃
+    draw_rect(ctx, x + 12, y + h - 16, w - 24, 10, COLOR_CAR_WINDOW);
+
+    // 车轮
+    draw_rect(ctx, x + 4, y + 28, 8, 14, COLOR_BIKE_WHEEL);
+    draw_rect(ctx, x + w - 12, y + 28, 8, 14, COLOR_BIKE_WHEEL);
+    draw_rect(ctx, x + 4, y + h - 20, 8, 14, COLOR_BIKE_WHEEL);
+    draw_rect(ctx, x + w - 12, y + h - 20, 8, 14, COLOR_BIKE_WHEEL);
+
+    // 边框
+    draw_rect_outline(ctx, x, y, w, h, COLOR_BIKE_ACCENT);
+}
+
+// 绘制金币
+fn draw_coin(ctx: GraphicsContext, x: i32, y: i32, size: i32) {
+    let cx = x + size / 2;
+    let cy = y + size / 2;
+    let r = size / 2 - 1;
+
+    draw_circle(ctx, cx, cy, r, COLOR_COIN);
+    draw_circle(ctx, cx - 2, cy - 2, r / 3, COLOR_COIN_SHINE);
+    draw_circle(ctx, cx, cy, r, COLOR_BIKE_ACCENT);
+}
+
+// 绘制UI面板
+fn draw_ui_panel(ctx: GraphicsContext, panel_x: i32, panel_y: i32, panel_width: i32) {
+    draw_rect(ctx, panel_x, panel_y, panel_width, 80, COLOR_UI_BG);
+    draw_rect(ctx, panel_x, panel_y, panel_width, 3, COLOR_UI_ACCENT);
+    draw_rect(ctx, panel_x, panel_y + 77, panel_width, 3, COLOR_UI_ACCENT);
+}
+
+// 绘制游戏结束界面
+fn draw_game_over(ctx: GraphicsContext, offset_x: i32, offset_y: i32) {
+    draw_rect(ctx, offset_x, offset_y, GAME_WIDTH, GAME_HEIGHT, rgb(0, 0, 0));
+    draw_rect(ctx, offset_x + 40, offset_y + 160, GAME_WIDTH - 80, 220, COLOR_GAMEOVER_BG);
+    draw_rect_outline(ctx, offset_x + 40, offset_y + 160, GAME_WIDTH - 80, 220, COLOR_BIKE_BODY);
+}
+
+// 绘制暂停界面
+fn draw_paused(ctx: GraphicsContext, offset_x: i32, offset_y: i32) {
+    draw_rect(ctx, offset_x, offset_y, GAME_WIDTH, GAME_HEIGHT, rgb(0, 0, 0));
+    draw_rect(ctx, offset_x + 60, offset_y + 240, GAME_WIDTH - 120, 120, COLOR_PAUSED_BG);
+    draw_rect_outline(ctx, offset_x + 60, offset_y + 240, GAME_WIDTH - 120, 120, COLOR_UI_ACCENT);
+}
+
+// 绘制游戏场景
+fn draw_game_scene(ctx: GraphicsContext, offset_x: i32, offset_y: i32) {
+    draw_road(ctx, offset_x, offset_y);
+
+    // 绘制金币
+    for i in 0..MAX_COINS {
+        let (cx, cy, active) = get_coin_info(&game, i);
+        if active {
+            draw_coin(ctx, cx, cy, COIN_SIZE);
+        }
+    }
+
+    // 绘制障碍物
+    for i in 0..MAX_OBSTACLES {
+        let (ox, oy, ow, oh, active, obs_type) = get_obstacle_info(&game, i);
+        if active {
+            match obs_type {
+                0 => draw_barrier(ctx, ox, oy, ow, oh),
+                1 => draw_car(ctx, ox, oy, ow, oh),
+                2 => draw_truck(ctx, ox, oy, ow, oh),
+                _ => draw_barrier(ctx, ox, oy, ow, oh)
+            }
+        }
+    }
+
+    // 绘制摩托车
+    let (bx, by, bw, bh) = get_bike_position(&game);
+    draw_bike(ctx, bx, by);
+}
+
+// ==================== 窗口事件处理 ====================
+
+// 处理窗口绘制事件
+fn on_paint_event(ctx: GraphicsContext, window_width: i32, window_height: i32) {
+    // 填充窗口背景
+    draw_rect(ctx, 0, 0, window_width, window_height, COLOR_SKY);
+
+    // 计算游戏区域居中
+    let game_offset_x = (window_width - GAME_WIDTH) / 2;
+    let game_offset_y = 20;
+
+    // 绘制草地背景
+    let road_start = get_road_start_x();
+    let grass_w = road_start;
+    draw_rect(ctx, 0, 0, grass_w, window_height, COLOR_GRASS);
+    draw_rect(ctx, game_offset_x + road_start + ROAD_WIDTH, 0, grass_w, window_height, COLOR_GRASS);
+
+    // 绘制游戏场景
+    draw_game_scene(ctx, game_offset_x, game_offset_y);
+
+    // 绘制UI面板
+    let panel_y = game_offset_y + GAME_HEIGHT + 15;
+    draw_ui_panel(ctx, game_offset_x, panel_y, GAME_WIDTH);
+
+    // 显示分数信息
+    let score = get_score(&game);
+    let distance = get_distance(&game);
+    let level = get_speed_level(&game);
+
+    let info_y = panel_y + 15;
+
+    draw_text(ctx, game_offset_x + 15, info_y, "SCORE:", COLOR_UI_TEXT);
+    draw_text(ctx, game_offset_x + 110, info_y, format_int(score), COLOR_UI_ACCENT);
+
+    draw_text(ctx, game_offset_x + 190, info_y, "DIST:", COLOR_UI_TEXT);
+    draw_text(ctx, game_offset_x + 260, info_y, format_int(distance), COLOR_UI_TEXT);
+
+    let spd_y = info_y + 30;
+    draw_text(ctx, game_offset_x + 15, spd_y, "SPEED:", COLOR_UI_TEXT);
+    draw_text(ctx, game_offset_x + 100, spd_y, format_int(level), COLOR_BIKE_BODY);
+    draw_text(ctx, game_offset_x + 150, spd_y, "< A   D >", COLOR_UI_TEXT);
+
+    // 游戏状态提示
+    if is_game_over(&game) {
+        draw_game_over(ctx, game_offset_x, game_offset_y);
+    } else if is_paused(&game) {
+        draw_paused(ctx, game_offset_x, game_offset_y);
+    }
+}
+
+// 处理键盘事件
+fn on_key_event(key_code: i32) -> bool {
+    match key_code {
+        37 | 65 | 97 => {
+            move_left(&mut game);
+        },
+        39 | 68 | 100 => {
+            move_right(&mut game);
+        },
+        32 => {
+            toggle_pause(&mut game);
+        },
+        82 | 114 => {
+            if is_game_over(&game) {
+                reset_game(&mut game);
+            }
+        },
+        27 => {
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+// 处理定时器事件
+fn on_timer_event(current_time: u64) -> bool {
+    anim_frame += 1;
+    frame_count += 1;
+    return update_game(&mut game, current_time);
+}
+
+// ==================== Windows 特定代码 ====================
+
+#if IS_WINDOWS
+
+extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
+    match uMsg {
+        WM_PAINT => {
+            let mut ps: [64]u8 = [0; 64];
+            let hdc = BeginPaint(hwnd, &ps);
+            let mut rect: [4]i32 = [0; 4];
+            GetClientRect(hwnd, &rect);
+            let width = rect[2] - rect[0];
+            let height = rect[3] - rect[1];
+            on_paint_event(hdc, width, height);
+            EndPaint(hwnd, &ps);
+            return 0;
+        },
+
+        WM_KEYDOWN => {
+            let continue_game = on_key_event(wParam as i32);
+            if !continue_game {
+                running = false;
+                PostQuitMessage(0);
+            } else {
+                InvalidateRect(hwnd, null, true);
+            }
+            return 0;
+        },
+
+        WM_TIMER => {
+            let needs_redraw = on_timer_event(GetTickCount() as u64);
+            if needs_redraw {
+                InvalidateRect(hwnd, null, true);
+            }
+            return 0;
+        },
+
+        WM_DESTROY => {
+            running = false;
+            PostQuitMessage(0);
+            return 0;
+        },
+
+        _ => {
+            return DefWindowProcA(hwnd, uMsg, wParam, lParam);
+        }
+    }
+}
+
+extern "user32.dll" fn BeginPaint(hwnd: WindowHandle, lpPaint: *mut [64]u8) -> GraphicsContext;
+extern "user32.dll" fn EndPaint(hwnd: WindowHandle, lpPaint: *mut [64]u8);
+extern "user32.dll" fn GetClientRect(hwnd: WindowHandle, lpRect: *mut [4]i32) -> bool;
+extern "user32.dll" fn InvalidateRect(hwnd: WindowHandle, lpRect: *void, bErase: bool) -> bool;
+extern "user32.dll" fn PostQuitMessage(exitCode: i32);
+extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32;
+extern "kernel32.dll" fn GetTickCount() -> u32;
+
+#elif IS_LINUX || IS_MACOS
+
+struct GraphicsContext {
+    dummy: i32
+}
+
+fn draw_rect(ctx: GraphicsContext, x: i32, y: i32, w: i32, h: i32, color: Color) {}
+fn draw_rect_outline(ctx: GraphicsContext, x: i32, y: i32, w: i32, h: i32, color: Color) {}
+fn draw_circle(ctx: GraphicsContext, cx: i32, cy: i32, r: i32, color: Color) {}
+fn draw_text(ctx: GraphicsContext, x: i32, y: i32, text: string, color: Color) {}
+
+#endif
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C 摩托车障碍躲避游戏");
+    io.println("========================================");
+
+    // 初始化游戏
+    init_game(&mut game);
+    game.window_width = WINDOW_WIDTH;
+    game.window_height = WINDOW_HEIGHT;
+
+    // 创建窗口
+    let window_title = "Zen-C Moto - 摩托车障碍躲避";
+    window = create_window(window_title, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    show_window(window);
+    set_game_timer(window, 16);
+
+    io.println("窗口创建成功!");
+    io.println("按 A/D 或 左右方向键 移动");
+    io.println("按 空格键 暂停");
+    io.println("按 ESC 退出游戏");
+    io.println("========================================");
+
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("最终分数: {}", get_score(&game));
+    io.println("行驶距离: {}", get_distance(&game));
+    io.println("谢谢游玩!");
+
+    quit_application();
+
+    0
+}
