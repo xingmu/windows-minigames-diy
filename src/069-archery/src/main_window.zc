@@ -1,0 +1,424 @@
+// main_window.zc - Zen-C Archery（射箭）游戏主程序
+
+import std.io;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: ArcheryState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut game_speed: u32 = 16;  // ~60 FPS
+
+// ==================== 常量定义 ====================
+
+const SKY_BLUE = Color { r: 135, g: 206, b: 235 };
+const GRASS_GREEN = Color { r: 34, g: 139, b: 34 };
+const BOW_BROWN = Color { r: 139, g: 69, b: 19 };
+const ARROW_BROWN = Color { r: 160, g: 82, b: 45 };
+const TARGET_RED_COLOR = Color { r: 220, g: 20, b: 60 };
+const TARGET_WHITE_COLOR = Color { r: 255, g: 255, b: 255 };
+const BULLSEYE_GOLD = Color { r: 255, g: 215, b: 0 };
+const STRING_COLOR = Color { r: 200, g: 200, b: 200 };
+const TRAJ_COLOR = Color { r: 200, g: 200, b: 100 };
+
+// ==================== 事件处理 ====================
+
+fn on_key(key: KeyCode) -> bool {
+    match key {
+        KeyCode.KeySpace => {
+            if game.status == GameStatus.RoundEnd {
+                next_round(&mut game);
+                redraw_window(window);
+            }
+        },
+        KeyCode.KeyR => {
+            restart_game(&mut game);
+            redraw_window(window);
+        },
+        KeyCode.KeyEscape => {
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+fn on_timer() -> bool {
+    if game.status == GameStatus.Playing || game.status == GameStatus.Shooting {
+        return update_game(&mut game);
+    }
+    return false;
+}
+
+fn on_mouse_click(x: i32, y: i32) {
+    if game.status == GameStatus.Ready {
+        game.status = GameStatus.Playing;
+    }
+    
+    if game.status == GameStatus.Playing {
+        handle_shoot(&mut game);
+    }
+}
+
+fn on_mouse_move(x: i32, y: i32) {
+    handle_mouse_move(&mut game, x, y);
+    // 不需要每次移动都重绘，只有在射击或显示轨迹时才需要
+}
+
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 绘制函数 ====================
+
+// 绘制背景
+fn draw_background() {
+    // 天空
+    fb_draw_rect(0, 0, GAME_WIDTH, GAME_HEIGHT - 80, SKY_BLUE);
+    
+    // 草地
+    fb_draw_rect(0, GAME_HEIGHT - 80, GAME_WIDTH, 80, GRASS_GREEN);
+    
+    // 草地纹理
+    for i in 0..20 {
+        let x = i * 40 + 10;
+        fb_draw_rect(x, GAME_HEIGHT - 75, 20, 5, Color { r: 30, g: 120, b: 30 });
+    }
+    
+    // 远处的山丘
+    fb_draw_circle(100, GAME_HEIGHT - 80, 80, Color { r: 100, g: 150, b: 100 });
+    fb_draw_circle(300, GAME_HEIGHT - 80, 100, Color { r: 100, g: 150, b: 100 });
+    fb_draw_circle(600, GAME_HEIGHT - 80, 90, Color { r: 100, g: 150, b: 100 });
+}
+
+// 绘制目标
+fn draw_target(target: &Target) {
+    if target.hit {
+        // 已击中显示效果
+        fb_draw_circle(
+            target.x + target.width / 2,
+            target.y + target.height / 2,
+            target.width / 2,
+            Color { r: 180, g: 180, b: 180 }
+        );
+        return;
+    }
+    
+    let cx = target.x + target.width / 2;
+    let cy = target.y + target.height / 2;
+    let scale = 1.0 - (target.distance as f32 / 800.0);
+    
+    // 外圈(白色)
+    let outer_r = (35 * scale) as i32;
+    fb_draw_circle(cx, cy, outer_r, TARGET_WHITE_COLOR);
+    
+    // 中圈(红色)
+    let middle_r = (20 * scale) as i32;
+    fb_draw_circle(cx, cy, middle_r, TARGET_RED_COLOR);
+    
+    // 内圈(白色)
+    let inner_r = (12 * scale) as i32;
+    fb_draw_circle(cx, cy, inner_r, TARGET_WHITE_COLOR);
+    
+    // 靶心(金色)
+    let bullseye_r = (8 * scale) as i32;
+    fb_draw_circle(cx, cy, bullseye_r, BULLSEYE_GOLD);
+    
+    // 绘制目标支架
+    fb_draw_rect(cx - 3, cy + outer_r, 6, 50, Color { r: 139, g: 69, b: 19 });
+}
+
+// 绘制弓
+fn draw_bow() {
+    let bx = game.bow.x;
+    let by = game.bow.y;
+    let angle = game.bow.angle;
+    
+    // 弓臂(弯曲的木头)
+    let bow_length = 40;
+    let bow_curve = 15;
+    
+    // 计算弓的两端
+    let top_x = bx + (bow_length as f32 * math.sin(angle)) as i32;
+    let top_y = by + (bow_length as f32 * -math.cos(angle)) as i32;
+    let bottom_x = bx + (bow_length as f32 * math.sin(angle)) as i32;
+    let bottom_y = by + (bow_length as f32 * math.cos(angle)) as i32;
+    
+    // 弓背(弧线)
+    let perp_angle = angle + 3.14159 / 2.0;
+    let mid_x = bx + (bow_curve as f32 * math.cos(perp_angle)) as i32;
+    let mid_y = by + (bow_curve as f32 * math.sin(perp_angle)) as i32;
+    
+    // 绘制弓身
+    fb_draw_circle(mid_x, mid_y, bow_curve - 2, BOW_BROWN);
+    fb_draw_circle(mid_x, mid_y, bow_curve - 4, Color { r: 160, g: 90, b: 40 });
+    
+    // 绘制弓弦
+    fb_draw_line(top_x, top_y, bottom_x, bottom_y, STRING_COLOR);
+    
+    // 绘制握把
+    fb_draw_rect(bx - 4, by - 4, 8, 8, Color { r: 100, g: 50, b: 20 });
+}
+
+// 绘制弓箭
+fn draw_arrow(arrow: &Arrow) {
+    if !arrow.active {
+        return;
+    }
+    
+    let ax = arrow.x as i32;
+    let ay = arrow.y as i32;
+    let a_angle = arrow.angle;
+    
+    // 箭杆长度
+    let arrow_length = 30;
+    
+    // 箭尾
+    let tail_x = ax - (arrow_length as f32 * math.cos(a_angle)) as i32;
+    let tail_y = ay - (arrow_length as f32 * math.sin(a_angle)) as i32;
+    
+    // 绘制箭杆
+    fb_draw_line(tail_x, tail_y, ax, ay, ARROW_BROWN);
+    
+    // 绘制箭头
+    let tip_x = ax + (10 as f32 * math.cos(a_angle)) as i32;
+    let tip_y = ay + (10 as f32 * math.sin(a_angle)) as i32;
+    fb_draw_circle(tip_x, tip_y, 3, Color { r: 180, g: 180, b: 180 });
+    
+    // 绘制箭羽
+    let feather1_x = tail_x + (8 as f32 * math.cos(a_angle + 0.3)) as i32;
+    let feather1_y = tail_y + (8 as f32 * math.sin(a_angle + 0.3)) as i32;
+    let feather2_x = tail_x + (8 as f32 * math.cos(a_angle - 0.3)) as i32;
+    let feather2_y = tail_y + (8 as f32 * math.sin(a_angle - 0.3)) as i32;
+    
+    fb_draw_line(tail_x, tail_y, feather1_x, feather1_y, Color { r: 200, g: 50, b: 50 });
+    fb_draw_line(tail_x, tail_y, feather2_x, feather2_y, Color { r: 200, g: 50, b: 50 });
+}
+
+// 绘制瞄准线
+fn draw_aim_line() {
+    if game.arrows_left <= 0 {
+        return;
+    }
+    
+    let bx = game.bow.x;
+    let by = game.bow.y;
+    let angle = game.bow.angle;
+    
+    // 瞄准方向
+    let aim_length = 60;
+    let aim_x = bx + (aim_length as f32 * math.cos(angle)) as i32;
+    let aim_y = by + (aim_length as f32 * math.sin(angle)) as i32;
+    
+    // 虚线瞄准
+    let segments = 6;
+    for i in 0..segments {
+        let t1 = i as f32 / segments as f32;
+        let t2 = (i + 0.5) as f32 / segments as f32;
+        
+        let x1 = bx + ((aim_length * t1) as f32 * math.cos(angle)) as i32;
+        let y1 = by + ((aim_length * t1) as f32 * math.sin(angle)) as i32;
+        let x2 = bx + ((aim_length * t2) as f32 * math.cos(angle)) as i32;
+        let y2 = by + ((aim_length * t2) as f32 * math.sin(angle)) as i32;
+        
+        fb_draw_line(x1, y1, x2, y2, Color { r: 255, g: 255, b: 100 });
+    }
+}
+
+// 绘制轨迹预测
+fn draw_trajectory_preview() {
+    if game.status != GameStatus.Playing || game.arrows_left <= 0 {
+        return;
+    }
+    
+    let points = get_trajectory_points(&game, 30);
+    
+    // 绘制预测轨迹点
+    for i in 0..30 {
+        let p = points[i];
+        if p.y > GAME_HEIGHT - 20 {
+            break;
+        }
+        // 渐隐效果
+        let alpha = 1.0 - (i as f32 / 30.0);
+        if i % 3 == 0 {
+            fb_draw_circle(p.x, p.y, 2, Color { 
+                r: (200 * alpha) as u8, 
+                g: (200 * alpha) as u8, 
+                b: (100 * alpha) as u8 
+            });
+        }
+    }
+}
+
+// 绘制UI
+fn draw_ui() {
+    // 分数面板背景
+    fb_draw_rect(5, 5, 200, 60, Color { r: 0, g: 0, b: 0, });
+    fb_draw_rect(7, 7, 196, 56, Color { r: 50, g: 50, b: 80 });
+    
+    // 分数
+    let score_text = "分数: " ++ game.score.toString();
+    fb_draw_text_size(15, 12, score_text, Color { r: 255, g: 255, b: 0 }, 18);
+    
+    // 回合和弓箭
+    let info_text = "回合: " ++ game.round.toString() ++ "  弓箭: " ++ game.arrows_left.toString();
+    fb_draw_text_size(15, 35, info_text, Color { r: 255, g: 255, b: 255 }, 16);
+    
+    // 风力面板
+    fb_draw_rect(GAME_WIDTH - 130, 5, 125, 35, Color { r: 0, g: 0, b: 0 });
+    fb_draw_rect(GAME_WIDTH - 128, 7, 121, 31, Color { r: 50, g: 80, b: 50 });
+    
+    let wind_text = get_wind_text(&game);
+    fb_draw_text_size(GAME_WIDTH - 120, 12, wind_text, Color { r: 200, g: 255, b: 200 }, 16);
+    
+    // 状态文本
+    let status_text = get_status_text(&game);
+    let status_color = if game.status == GameStatus.RoundEnd || game.status == GameStatus.GameOver {
+        Color { r: 255, g: 200, b: 0 }
+    } else {
+        Color { r: 255, g: 255, b: 255 }
+    };
+    fb_draw_text_size(GAME_WIDTH / 2 - 80, GAME_HEIGHT - 40, status_text, status_color, 20);
+    
+    // 控制说明
+    let controls_text = get_controls_text();
+    fb_draw_text_size(10, GAME_HEIGHT - 20, controls_text, Color { r: 180, g: 180, b: 180 }, 12);
+}
+
+// 绘制游戏结束画面
+fn draw_game_over() {
+    // 半透明遮罩
+    fb_draw_rect(0, 0, GAME_WIDTH, GAME_HEIGHT, Color { r: 0, g: 0, b: 0 });
+    
+    // 游戏结束面板
+    fb_draw_rect(GAME_WIDTH / 2 - 150, GAME_HEIGHT / 2 - 80, 300, 160, Color { r: 50, g: 50, b: 80 });
+    fb_draw_rect(GAME_WIDTH / 2 - 148, GAME_HEIGHT / 2 - 78, 296, 156, Color { r: 80, g: 80, b: 120 });
+    
+    // 标题
+    fb_draw_text_size(GAME_WIDTH / 2 - 60, GAME_HEIGHT / 2 - 60, "游戏结束!", Color { r: 255, g: 215, b: 0 }, 28);
+    
+    // 分数
+    let final_score = "最终分数: " ++ game.score.toString();
+    fb_draw_text_size(GAME_WIDTH / 2 - 70, GAME_HEIGHT / 2 - 20, final_score, Color { r: 255, g: 255, b: 255 }, 20);
+    
+    // 回合
+    let rounds = "回合数: " ++ game.round.toString();
+    fb_draw_text_size(GAME_WIDTH / 2 - 60, GAME_HEIGHT / 2 + 10, rounds, Color { r: 200, g: 200, b: 200 }, 18);
+    
+    // 重新开始提示
+    fb_draw_text_size(GAME_WIDTH / 2 - 70, GAME_HEIGHT / 2 + 45, "按 R 重新开始", Color { r: 150, g: 150, b: 255 }, 16);
+}
+
+// ==================== 主绘制函数 ====================
+
+fn on_paint(w: i32, h: i32) {
+    // 确保帧缓冲初始化
+    if !fb_data.valid {
+        fb_init(window, w, h);
+    }
+
+    // 清屏
+    fb_clear(Color { r: 0, g: 0, b: 0 });
+
+    // 绘制背景
+    draw_background();
+
+    // 绘制目标
+    for i in 0..TARGET_COUNT {
+        draw_target(&game.targets[i]);
+    }
+
+    // 绘制弓
+    draw_bow();
+
+    // 绘制瞄准线
+    draw_aim_line();
+    
+    // 绘制轨迹预测
+    draw_trajectory_preview();
+
+    // 绘制所有弓箭
+    for i in 0..MAX_ARROWS {
+        draw_arrow(&game.arrows[i]);
+    }
+
+    // 绘制UI
+    draw_ui();
+
+    // 如果是回合结束或游戏结束，绘制结束画面
+    if game.status == GameStatus.RoundEnd && game.round >= 3 {
+        draw_game_over();
+    }
+
+    // 呈现画面
+    fb_present();
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C Archery 射箭游戏");
+    io.println("========================================");
+
+    // 初始化随机数种子
+    let seed = 12345;  // 固定种子以便调试
+    math.srand(seed);
+
+    // 初始化游戏状态
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "Archery - 射箭游戏";
+    window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 获取实际客户区大小
+    let mut cw = 0;
+    let mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        set_client_size(cw, ch);
+    }
+
+    // 设置事件处理器
+    set_key_handler(on_key);
+    set_timer_handler(on_timer);
+    set_paint_handler(on_paint);
+    set_mouse_handler(on_mouse_click);
+    set_mouse_move_handler(on_mouse_move);
+    set_destroy_handler(on_destroy);
+
+    // 显示窗口
+    show_window(window);
+
+    // 设置游戏定时器
+    set_game_timer(window, game_speed);
+
+    io.println("窗口创建成功!");
+    io.println("使用鼠标瞄准，点击射箭");
+    io.println("按空格键进入下一轮");
+    io.println("按 R 重新开始游戏");
+    io.println("========================================");
+
+    // 初始绘制
+    redraw_window(window);
+
+    // 运行事件循环
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("最终得分: " ++ game.score.toString());
+    io.println("========================================");
+
+    0
+}

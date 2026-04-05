@@ -1,0 +1,451 @@
+// game_logic.zc - Zen-C Archery（射箭）游戏核心逻辑
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 800;
+const GAME_HEIGHT: i32 = 600;
+const GRAVITY: i32 = 2;           // 重力加速度
+const ARROW_SPEED: i32 = 15;       // 弓箭初速度
+const MAX_ARROWS: i32 = 10;        // 最大弓箭数量
+const TARGET_COUNT: i32 = 3;       // 目标数量
+const ARROWS_PER_ROUND: i32 = 5;   // 每轮弓箭数量
+const BULLSEYE_SCORE: i32 = 100;   // 内圈分数
+const MIDDLE_SCORE: i32 = 50;      // 中圈分数
+const OUTER_SCORE: i32 = 20;       // 外圈分数
+
+// ==================== 游戏颜色 ====================
+
+const SKY_COLOR = Color { r: 135, g: 206, b: 235 };   // 天蓝色
+const GRASS_COLOR = Color { r: 34, g: 139, b: 34 };   // 草绿色
+const BOW_COLOR = Color { r: 139, g: 69, b: 19 };     // 棕色
+const ARROW_COLOR = Color { r: 160, g: 82, b: 45 };   // 深棕色
+const TARGET_RED = Color { r: 220, g: 20, b: 60 };    // 红色
+const TARGET_WHITE = Color { r: 255, g: 255, b: 255 }; // 白色
+const BULLSEYE_COLOR = Color { r: 255, g: 215, b: 0 };  // 金色
+
+// ==================== 游戏状态枚举 ====================
+
+enum GameStatus {
+    Ready,       // 准备开始
+    Playing,     // 游戏中
+    Shooting,    // 射箭中
+    RoundEnd,    // 回合结束
+    GameOver,    // 游戏结束
+}
+
+// ==================== 数据结构 ====================
+
+// 弓箭结构
+struct Arrow {
+    x: f32,
+    y: f32,
+    vx: f32,
+    vy: f32,
+    active: bool,
+    angle: f32,
+}
+
+// 目标结构
+struct Target {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    hit: bool,
+    bullseye_hit: bool,
+    middle_hit: bool,
+    outer_hit: bool,
+    distance: i32,  // 距离(影响大小)
+}
+
+// 弓结构
+struct Bow {
+    x: i32,
+    y: i32,
+    angle: f32,    // 射击角度(弧度)
+    power: i32,    // 力量
+}
+
+// 分数区域
+struct ScoreZone {
+    bullseye: i32,   // 靶心半径
+    middle: i32,     // 中环半径
+    outer: i32,      // 外环半径
+}
+
+// 游戏状态
+struct ArcheryState {
+    bow: Bow,
+    arrows: [MAX_ARROWS]Arrow,
+    targets: [TARGET_COUNT]Target,
+    score: i32,
+    round: i32,
+    arrows_left: i32,
+    status: GameStatus,
+    wind: i32,        // 风力(-5到5)
+    mouse_x: i32,
+    mouse_y: i32,
+    show_trajectory: bool,
+    score_zones: ScoreZone,
+    target_width: i32,
+    target_height: i32,
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut ArcheryState) {
+    game.score = 0;
+    game.round = 1;
+    game.arrows_left = ARROWS_PER_ROUND;
+    game.status = GameStatus.Ready;
+    game.wind = 0;
+    game.show_trajectory = false;
+    
+    // 初始化弓
+    game.bow.x = GAME_WIDTH / 2;
+    game.bow.y = GAME_HEIGHT - 60;
+    game.bow.angle = -3.14159 / 2.0;  // 朝上
+    game.bow.power = ARROW_SPEED;
+    
+    // 初始化弓箭
+    for i in 0..MAX_ARROWS {
+        game.arrows[i] = Arrow {
+            x: 0.0,
+            y: 0.0,
+            vx: 0.0,
+            vy: 0.0,
+            active: false,
+            angle: 0.0,
+        };
+    }
+    
+    // 初始化目标
+    init_targets(game);
+    
+    // 生成风力
+    game.wind = math.rand() % 11 - 5;  // -5到5
+}
+
+// 初始化目标
+fn init_targets(game: &mut ArcheryState) {
+    let distances = [200, 350, 500];  // 不同距离
+    
+    for i in 0..TARGET_COUNT {
+        let dist = distances[i];
+        // 目标大小随距离缩小
+        let scale = 1.0 - (dist as f32 / 800.0);
+        let width = (80 * scale) as i32;
+        let height = (100 * scale) as i32;
+        
+        game.targets[i] = Target {
+            x: GAME_WIDTH / 2 - width / 2 + (math.rand() % 61 - 30),  // 稍微偏移
+            y: 80 + i * 30,
+            width: width,
+            height: height,
+            hit: false,
+            bullseye_hit: false,
+            middle_hit: false,
+            outer_hit: false,
+            distance: dist,
+        };
+    }
+    
+    // 设置分数区域(基于最近的目标)
+    let scale = 1.0 - (200 as f32 / 800.0);
+    game.score_zones.bullseye = (8 * scale) as i32;
+    game.score_zones.middle = (20 * scale) as i32;
+    game.score_zones.outer = (35 * scale) as i32;
+    game.target_width = (80 * scale) as i32;
+    game.target_height = (100 * scale) as i32;
+}
+
+// 处理鼠标移动
+fn handle_mouse_move(game: &mut ArcheryState, mouse_x: i32, mouse_y: i32) {
+    game.mouse_x = mouse_x;
+    game.mouse_y = mouse_y;
+    
+    // 计算弓的角度
+    let dx = mouse_x as f32 - game.bow.x as f32;
+    let dy = mouse_y as f32 - game.bow.y as f32;
+    
+    if dx != 0.0 || dy != 0.0 {
+        game.bow.angle = math.atan2(dy, dx);
+    }
+    
+    // 限制角度只能向上射
+    if game.bow.angle > -0.1 {
+        game.bow.angle = -0.1;
+    }
+    if game.bow.angle < -3.04159 {
+        game.bow.angle = -3.04159;
+    }
+}
+
+// 处理鼠标点击(射箭)
+fn handle_shoot(game: &mut ArcheryState) -> bool {
+    if game.status == GameStatus.Ready {
+        game.status = GameStatus.Playing;
+    }
+    
+    if game.status != GameStatus.Playing && game.status != GameStatus.Shooting {
+        return false;
+    }
+    
+    if game.arrows_left <= 0 {
+        return false;
+    }
+    
+    // 找到空闲的弓箭
+    for i in 0..MAX_ARROWS {
+        if !game.arrows[i].active {
+            game.arrows[i].x = game.bow.x as f32;
+            game.arrows[i].y = game.bow.y as f32;
+            
+            // 根据角度计算速度
+            let angle = game.bow.angle;
+            let speed = game.bow.power as f32;
+            game.arrows[i].vx = speed * math.cos(angle);
+            game.arrows[i].vy = speed * math.sin(angle);
+            game.arrows[i].active = true;
+            game.arrows[i].angle = angle;
+            
+            game.arrows_left = game.arrows_left - 1;
+            game.status = GameStatus.Shooting;
+            game.show_trajectory = false;
+            
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// 更新游戏逻辑
+fn update_game(game: &mut ArcheryState) -> bool {
+    var needs_redraw = false;
+    
+    // 更新飞行中的弓箭
+    for i in 0..MAX_ARROWS {
+        if game.arrows[i].active {
+            // 应用重力
+            game.arrows[i].vy = game.arrows[i].vy + (GRAVITY as f32);
+            
+            // 应用风力
+            game.arrows[i].vx = game.arrows[i].vx + (game.wind as f32 * 0.02);
+            
+            // 移动弓箭
+            game.arrows[i].x = game.arrows[i].x + game.arrows[i].vx;
+            game.arrows[i].y = game.arrows[i].y + game.arrows[i].vy;
+            
+            // 更新角度
+            game.arrows[i].angle = math.atan2(game.arrows[i].vy, game.arrows[i].vx);
+            
+            // 检查与目标的碰撞
+            for j in 0..TARGET_COUNT {
+                if !game.targets[j].hit {
+                    let hit = check_arrow_target_hit(game, i, j);
+                    if hit {
+                        needs_redraw = true;
+                    }
+                }
+            }
+            
+            // 检查是否出界或落地
+            if game.arrows[i].y > GAME_HEIGHT as f32 - 20 ||
+               game.arrows[i].x < 0 as f32 ||
+               game.arrows[i].x > GAME_WIDTH as f32 {
+                game.arrows[i].active = false;
+                needs_redraw = true;
+            }
+        }
+    }
+    
+    // 检查回合是否结束
+    if game.status == GameStatus.Shooting {
+        var all_done = true;
+        for i in 0..MAX_ARROWS {
+            if game.arrows[i].active {
+                all_done = false;
+                break;
+            }
+        }
+        
+        if all_done && game.arrows_left <= 0 {
+            game.status = GameStatus.RoundEnd;
+            needs_redraw = true;
+        } else if all_done && game.arrows_left > 0 {
+            game.status = GameStatus.Playing;
+            needs_redraw = true;
+        }
+    }
+    
+    return needs_redraw;
+}
+
+// 检查弓箭是否击中目标
+fn check_arrow_target_hit(game: &mut ArcheryState, arrow_idx: i32, target_idx: i32) -> bool {
+    let arrow = game.arrows[arrow_idx];
+    let target = game.targets[target_idx];
+    
+    // 弓箭头部位置
+    let arrow_tip_x = arrow.x + 15.0 * math.cos(arrow.angle);
+    let arrow_tip_y = arrow.y + 15.0 * math.sin(arrow.angle);
+    
+    // 检查是否在目标区域内
+    let target_center_x = target.x + target.width / 2;
+    let target_center_y = target.y + target.height / 2;
+    
+    // 简化的碰撞检测：检查箭是否到达目标高度
+    if arrow_tip_y >= target.y && arrow_tip_y <= target.y + target.height {
+        if arrow_tip_x >= target.x && arrow_tip_x <= target.x + target.width {
+            // 击中目标
+            game.arrows[arrow_idx].active = false;
+            game.targets[target_idx].hit = true;
+            
+            // 计算分数(基于距离)
+            let dist = target.distance;
+            let dist_factor = 1.0 + (dist as f32 / 500.0);
+            
+            // 检查击中哪个区域(基于中心点距离)
+            let dx = arrow_tip_x - target_center_x as f32;
+            let dy = arrow_tip_y - target_center_y as f32;
+            let hit_dist = math.sqrt(dx*dx + dy*dy);
+            
+            let scale = 1.0 - (dist as f32 / 800.0);
+            let bullseye_r = (8 * scale) as f32;
+            let middle_r = (20 * scale) as f32;
+            
+            let points: i32;
+            if hit_dist <= bullseye_r {
+                game.targets[target_idx].bullseye_hit = true;
+                points = (BULLSEYE_SCORE as f32 * dist_factor) as i32;
+            } else if hit_dist <= middle_r {
+                game.targets[target_idx].middle_hit = true;
+                points = (MIDDLE_SCORE as f32 * dist_factor) as i32;
+            } else {
+                game.targets[target_idx].outer_hit = true;
+                points = (OUTER_SCORE as f32 * dist_factor) as i32;
+            }
+            
+            game.score = game.score + points;
+            
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// 开始下一轮
+fn next_round(game: &mut ArcheryState) {
+    game.round = game.round + 1;
+    game.arrows_left = ARROWS_PER_ROUND;
+    game.status = GameStatus.Playing;
+    
+    // 重置目标
+    for i in 0..TARGET_COUNT {
+        game.targets[i].hit = false;
+        game.targets[i].bullseye_hit = false;
+        game.targets[i].middle_hit = false;
+        game.targets[i].outer_hit = false;
+    }
+    
+    // 重新生成目标位置
+    init_targets(game);
+    
+    // 生成新的风力
+    game.wind = math.rand() % 11 - 5;
+}
+
+// 重新开始游戏
+fn restart_game(game: &mut ArcheryState) {
+    game.score = 0;
+    game.round = 1;
+    game.arrows_left = ARROWS_PER_ROUND;
+    game.status = GameStatus.Ready;
+    game.wind = 0;
+    
+    // 重置弓箭
+    for i in 0..MAX_ARROWS {
+        game.arrows[i].active = false;
+    }
+    
+    // 重置目标
+    for i in 0..TARGET_COUNT {
+        game.targets[i].hit = false;
+        game.targets[i].bullseye_hit = false;
+        game.targets[i].middle_hit = false;
+        game.targets[i].outer_hit = false;
+    }
+    
+    init_targets(game);
+    game.wind = math.rand() % 11 - 5;
+}
+
+// 获取状态文本
+fn get_status_text(game: &ArcheryState) -> string {
+    match game.status {
+        GameStatus.Ready => return "点击开始射箭!",
+        GameStatus.Playing => return "准备... 点击射箭!",
+        GameStatus.Shooting => return "弓箭飞行中...",
+        GameStatus.RoundEnd => return "回合结束! 按空格继续",
+        GameStatus.GameOver => return "游戏结束! 按R重新开始",
+    }
+}
+
+// 获取控制说明
+fn get_controls_text() -> string {
+    return "控制: 鼠标瞄准 | 点击射箭 | 空格:下一轮 | R:重新开始"
+}
+
+// 获取分数文本
+fn get_score_text(game: &ArcheryState) -> string {
+    return "分数: " ++ game.score.toString() ++ 
+           "  回合: " ++ game.round.toString() ++ 
+           "  弓箭: " ++ game.arrows_left.toString()
+}
+
+// 获取风力文本
+fn get_wind_text(game: &ArcheryState) -> string {
+    let wind_str = if game.wind > 0 {
+        "右风: " ++ game.wind.toString()
+    } else if game.wind < 0 {
+        "左风: " ++ (-game.wind).toString()
+    } else {
+        "无风"
+    };
+    return wind_str;
+}
+
+// 获取瞄准线数据(用于绘制轨迹预测)
+fn get_trajectory_points(game: &ArcheryState, count: i32) -> [count]Point {
+    let points: [count]Point;
+    
+    var x = game.bow.x as f32;
+    var y = game.bow.y as f32;
+    var vx = game.bow.power as f32 * math.cos(game.bow.angle);
+    var vy = game.bow.power as f32 * math.sin(game.bow.angle);
+    
+    for i in 0..count {
+        points[i] = Point { x: x as i32, y: y as i32 };
+        
+        vy = vy + (GRAVITY as f32);
+        vx = vx + (game.wind as f32 * 0.02);
+        x = x + vx;
+        y = y + vy;
+        
+        if y > GAME_HEIGHT as f32 {
+            break;
+        }
+    }
+    
+    return points;
+}
+
+struct Point {
+    x: i32,
+    y: i32,
+}
