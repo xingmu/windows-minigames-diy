@@ -1,0 +1,459 @@
+// main_window.zc - Zen-C Sokoban（推箱子）游戏主程序
+// 使用 003-framework 框架，继承 Game 类
+
+import std.io;
+import std.string;
+
+// 导入框架
+import "platform_api.zc";
+import "game.zc";
+
+// 导入游戏逻辑
+import "sokoban_logic.zc";
+
+// ==================== 游戏常量 ====================
+
+const CELL_SIZE: int = 50;        // 每个格子像素大小
+const WINDOW_WIDTH: int = 800;    // 窗口宽度
+const WINDOW_HEIGHT: int = 700;   // 窗口高度
+
+// 游戏区域起始位置（居中）
+const GAME_AREA_X: int = 50;
+const GAME_AREA_Y: int = 80;
+
+// ==================== 颜色定义 ====================
+
+// 墙壁：深灰色
+const WALL_COLOR = Color.RGB(80, 80, 80);
+
+// 地板：浅灰色
+const FLOOR_COLOR = Color.RGB(45, 45, 50);
+
+// 目标点：绿色
+const TARGET_COLOR = Color.RGB(0, 200, 100);
+
+// 箱子：棕色
+const BOX_COLOR = Color.RGB(180, 120, 60);
+
+// 箱子在目标点上：亮绿色
+const BOX_ON_TARGET_COLOR = Color.RGB(0, 220, 120);
+
+// 玩家：蓝色
+const PLAYER_COLOR = Color.RGB(60, 140, 220);
+
+// 玩家在目标点上：浅蓝色
+const PLAYER_ON_TARGET_COLOR = Color.RGB(100, 180, 255);
+
+// 背景色
+const BACKGROUND_COLOR = Color.RGB(25, 25, 35);
+
+// 文字颜色
+const TEXT_COLOR = Color.RGB(220, 220, 220);
+
+// 标题颜色
+const TITLE_COLOR = Color.RGB(255, 200, 100);
+
+// 边框颜色
+const BORDER_COLOR = Color.RGB(100, 100, 140);
+
+// ==================== 推箱子游戏类 ====================
+
+class SokobanGame extends Game {
+    // 游戏状态
+    state: SokobanGameState;
+    
+    // 构造函数
+    pub fn create(title: str, width: int, height: int, fps: int) {
+        self.width = width;
+        self.height = height;
+        self.targetFPS = fps;
+        self.frameTime = 1000 / fps as u32;
+        self.state = GameState.Ready;
+        self.score = 0;
+        self.running = false;
+        
+        // 创建窗口
+        self.window = createWindow(title, width, height);
+        if self.window == nil {
+            println("错误: 无法创建窗口");
+            return;
+        }
+        
+        // 初始化游戏
+        initGame(&mut self.state, 0);
+        
+        // 设置随机种子
+        setRandomSeed(getTickCount());
+        
+        self.state = GameState.Playing;
+        
+        println("推箱子游戏创建成功: " ++ title);
+    }
+    
+    // ==================== Game 类方法实现 ====================
+    
+    pub fn onInit() {
+        println("Sokoban 游戏初始化");
+    }
+    
+    pub fn onShutdown() {
+        println("Sokoban 游戏关闭");
+    }
+    
+    pub fn onUpdate(dt: u32) {
+        // 推箱子游戏不需要定时更新逻辑
+        // 玩家移动通过键盘事件处理
+    }
+    
+    pub fn onRender(canvas: Canvas) {
+        // 清屏
+        canvas.clear(BACKGROUND_COLOR);
+        
+        // 绘制标题
+        canvas.drawText(50, 20, "SOKOBAN", TITLE_COLOR, Font.("Arial", 28));
+        
+        // 计算游戏区域尺寸
+        var gridWidth = self.state.gridWidth;
+        var gridHeight = self.state.gridHeight;
+        var gameWidth = gridWidth * CELL_SIZE;
+        var gameHeight = gridHeight * CELL_SIZE;
+        
+        // 绘制游戏区域背景
+        canvas.fillRect(GAME_AREA_X - 5, GAME_AREA_Y - 5, 
+                       gameWidth + 10, gameHeight + 10, 
+                       Color.RGB(35, 35, 50));
+        
+        // 绘制游戏区域边框
+        canvas.drawRect(GAME_AREA_X - 5, GAME_AREA_Y - 5, 
+                       gameWidth + 10, gameHeight + 10, 
+                       BORDER_COLOR);
+        
+        // 绘制网格
+        for y in 0..gridHeight {
+            for x in 0..gridWidth {
+                var cellX = GAME_AREA_X + x * CELL_SIZE;
+                var cellY = GAME_AREA_Y + y * CELL_SIZE;
+                var cell = self.state.grid[y][x];
+                
+                // 绘制地板/墙壁
+                if cell == CellType.Wall {
+                    // 墙壁 - 带立体感
+                    canvas.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE, WALL_COLOR);
+                    // 墙壁高光
+                    canvas.fillRect(cellX, cellY, CELL_SIZE, 3, Color.RGB(120, 120, 120));
+                    canvas.fillRect(cellX, cellY, 3, CELL_SIZE, Color.RGB(120, 120, 120));
+                    // 墙壁阴影
+                    canvas.fillRect(cellX + CELL_SIZE - 2, cellY, 2, CELL_SIZE, Color.RGB(40, 40, 40));
+                    canvas.fillRect(cellX, cellY + CELL_SIZE - 2, CELL_SIZE, 2, Color.RGB(40, 40, 40));
+                } else {
+                    // 地板
+                    canvas.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE, FLOOR_COLOR);
+                    
+                    // 如果是目标点，绘制目标标记
+                    if cell == CellType.Target {
+                        self.drawTarget(canvas, cellX, cellY);
+                    }
+                }
+            }
+        }
+        
+        // 绘制箱子
+        for i in 0..self.state.boxCount {
+            var bx = self.state.boxes[i].x;
+            var by = self.state.boxes[i].y;
+            var cellX = GAME_AREA_X + bx * CELL_SIZE;
+            var cellY = GAME_AREA_Y + by * CELL_SIZE;
+            
+            // 检查箱子是否在目标点上
+            var onTarget = isTarget(&self.state, bx, by);
+            
+            if onTarget {
+                self.drawBox(canvas, cellX, cellY, BOX_ON_TARGET_COLOR);
+            } else {
+                self.drawBox(canvas, cellX, cellY, BOX_COLOR);
+            }
+        }
+        
+        // 绘制玩家
+        var px = self.state.playerX;
+        var py = self.state.playerY;
+        var playerCellX = GAME_AREA_X + px * CELL_SIZE;
+        var playerCellY = GAME_AREA_Y + py * CELL_SIZE;
+        
+        var playerOnTarget = isTarget(&self.state, px, py);
+        
+        if playerOnTarget {
+            self.drawPlayer(canvas, playerCellX, playerCellY, PLAYER_ON_TARGET_COLOR);
+        } else {
+            self.drawPlayer(canvas, playerCellX, playerCellY, PLAYER_COLOR);
+        }
+        
+        // 绘制信息面板
+        self.drawInfoPanel(canvas);
+        
+        // 绘制控制说明
+        canvas.drawText(50, GAME_AREA_Y + gridHeight * CELL_SIZE + 70, 
+                       getControlsText(), 
+                       Color.RGB(160, 160, 160), Font.("Arial", 14));
+        
+        // 绘制游戏状态
+        var statusText = getStatusText(&self.state);
+        canvas.drawText(GAME_AREA_X, GAME_AREA_Y + gridHeight * CELL_SIZE + 45, 
+                       statusText, 
+                       Color.RGB(255, 255, 100), Font.("Arial", 18));
+        
+        // 绘制获胜画面
+        if self.state.levelWon && !self.state.allWon {
+            self.drawWinOverlay(canvas);
+        }
+        
+        // 绘制全部通关画面
+        if self.state.allWon {
+            self.drawAllWinOverlay(canvas);
+        }
+    }
+    
+    // 绘制目标点标记
+    fn drawTarget(canvas: Canvas, x: int, y: int) {
+        var margin = 8;
+        var innerSize = CELL_SIZE - margin * 2;
+        
+        // 绘制目标点外框
+        canvas.drawRect(x + margin, y + margin, innerSize, innerSize, TARGET_COLOR);
+        
+        // 绘制目标点中心
+        var centerSize = 12;
+        var centerOffset = (CELL_SIZE - centerSize) / 2;
+        canvas.fillCircle(x + CELL_SIZE / 2, y + CELL_SIZE / 2, centerSize / 2, TARGET_COLOR);
+    }
+    
+    // 绘制箱子
+    fn drawBox(canvas: Canvas, x: int, y: int, color: Color) {
+        var margin = 4;
+        
+        // 箱子主体
+        canvas.fillRect(x + margin, y + margin, 
+                       CELL_SIZE - margin * 2, CELL_SIZE - margin * 2, 
+                       color);
+        
+        // 箱子高光边
+        canvas.fillRect(x + margin, y + margin, 
+                       CELL_SIZE - margin * 2, 3, 
+                       Color.RGB(220, 180, 120));
+        canvas.fillRect(x + margin, y + margin, 
+                       3, CELL_SIZE - margin * 2, 
+                       Color.RGB(220, 180, 120));
+        
+        // 箱子阴影边
+        canvas.fillRect(x + CELL_SIZE - margin - 2, y + margin, 
+                       2, CELL_SIZE - margin * 2, 
+                       Color.RGB(100, 60, 20));
+        canvas.fillRect(x + margin, y + CELL_SIZE - margin - 2, 
+                       CELL_SIZE - margin * 2, 2, 
+                       Color.RGB(100, 60, 20));
+        
+        // 箱子内部深色
+        var innerMargin = 8;
+        canvas.fillRect(x + innerMargin + 2, y + innerMargin + 2, 
+                       CELL_SIZE - innerMargin * 2 - 4, CELL_SIZE - innerMargin * 2 - 4, 
+                       Color.RGB(140, 80, 30));
+    }
+    
+    // 绘制玩家
+    fn drawPlayer(canvas: Canvas, x: int, y: int, color: Color) {
+        var margin = 6;
+        var size = CELL_SIZE - margin * 2;
+        
+        // 玩家主体（圆角矩形效果用圆形表示）
+        canvas.fillCircle(x + CELL_SIZE / 2, y + CELL_SIZE / 2, 
+                         size / 2 - 2, color);
+        
+        // 玩家高光
+        canvas.fillCircle(x + CELL_SIZE / 2 - 4, y + CELL_SIZE / 2 - 4, 
+                         6, Color.RGB(255, 255, 255, 100));
+        
+        // 玩家眼睛
+        var eyeSize = 5;
+        canvas.fillCircle(x + CELL_SIZE / 2 - 7, y + CELL_SIZE / 2 - 3, 
+                         eyeSize, Color.White());
+        canvas.fillCircle(x + CELL_SIZE / 2 + 7, y + CELL_SIZE / 2 - 3, 
+                         eyeSize, Color.White());
+        
+        // 玩家瞳孔
+        canvas.fillCircle(x + CELL_SIZE / 2 - 6, y + CELL_SIZE / 2 - 2, 
+                         2, Color.Black());
+        canvas.fillCircle(x + CELL_SIZE / 2 + 8, y + CELL_SIZE / 2 - 2, 
+                         2, Color.Black());
+    }
+    
+    // 绘制信息面板
+    fn drawInfoPanel(canvas: Canvas) {
+        var panelX = GAME_AREA_X + self.state.gridWidth * CELL_SIZE + 30;
+        var panelY = GAME_AREA_Y;
+        
+        // 面板背景
+        var panelWidth = 180;
+        var panelHeight = 250;
+        
+        canvas.fillRect(panelX - 5, panelY - 5, panelWidth + 10, panelHeight + 10, 
+                       Color.RGB(40, 40, 55));
+        canvas.drawRect(panelX - 5, panelY - 5, panelWidth + 10, panelHeight + 10, 
+                       BORDER_COLOR);
+        
+        // 标题
+        canvas.drawText(panelX + 20, panelY + 15, 
+                       "INFO", Color.RGB(180, 180, 200), Font.("Arial", 16));
+        
+        // 关卡
+        canvas.drawText(panelX + 10, panelY + 50, 
+                       "Level:", Color.RGB(150, 150, 150), Font.("Arial", 14));
+        canvas.drawText(panelX + 10, panelY + 75, 
+                       (self.state.currentLevel + 1).toString() ++ " / " ++ MAX_LEVELS.toString(), 
+                       TEXT_COLOR, Font.("Arial", 24));
+        
+        // 步数
+        canvas.drawText(panelX + 10, panelY + 115, 
+                       "Steps:", Color.RGB(150, 150, 150), Font.("Arial", 14));
+        canvas.drawText(panelX + 10, panelY + 140, 
+                       self.state.steps.toString(), 
+                       TEXT_COLOR, Font.("Arial", 24));
+        
+        // 图例
+        canvas.drawText(panelX + 20, panelY + 185, 
+                       "LEGEND", Color.RGB(180, 180, 200), Font.("Arial", 14));
+        
+        // 玩家
+        canvas.fillCircle(panelX + 25, panelY + 215, 8, PLAYER_COLOR);
+        canvas.drawText(panelX + 45, panelY + 208, "Player", 
+                       Color.RGB(200, 200, 200), Font.("Arial", 12));
+        
+        // 箱子
+        canvas.fillRect(panelX + 17, panelY + 230, 16, 16, BOX_COLOR);
+        canvas.drawText(panelX + 45, panelY + 233, "Box", 
+                       Color.RGB(200, 200, 200), Font.("Arial", 12));
+        
+        // 目标点
+        canvas.drawCircle(panelX + 25, panelY + 260, 8, TARGET_COLOR);
+        canvas.drawText(panelX + 45, panelY + 253, "Target", 
+                       Color.RGB(200, 200, 200), Font.("Arial", 12));
+    }
+    
+    // 绘制获胜遮罩
+    fn drawWinOverlay(canvas: Canvas) {
+        var gridWidth = self.state.gridWidth;
+        var gridHeight = self.state.gridHeight;
+        
+        // 半透明遮罩
+        canvas.fillRect(GAME_AREA_X - 5, GAME_AREA_Y - 5, 
+                       gridWidth * CELL_SIZE + 10, gridHeight * CELL_SIZE + 10, 
+                       Color.RGB(0, 0, 0, 180));
+        
+        // 绘制胜利文字
+        canvas.drawText(GAME_AREA_X + 30, GAME_AREA_Y + gridHeight * CELL_SIZE / 2 - 30, 
+                       "LEVEL COMPLETE!", Color.RGB(100, 255, 100), Font.("Arial", 32));
+        
+        canvas.drawText(GAME_AREA_X + 50, GAME_AREA_Y + gridHeight * CELL_SIZE / 2 + 20, 
+                       "Steps: " ++ self.state.steps.toString(), 
+                       Color.RGB(255, 255, 100), Font.("Arial", 24));
+        
+        if self.state.currentLevel < MAX_LEVELS - 1 {
+            canvas.drawText(GAME_AREA_X + 40, GAME_AREA_Y + gridHeight * CELL_SIZE / 2 + 60, 
+                           "Press N for next level", 
+                           Color.RGB(200, 200, 200), Font.("Arial", 18));
+        }
+    }
+    
+    // 绘制全部通关遮罩
+    fn drawAllWinOverlay(canvas: Canvas) {
+        var gridWidth = self.state.gridWidth;
+        var gridHeight = self.state.gridHeight;
+        
+        // 半透明遮罩
+        canvas.fillRect(GAME_AREA_X - 5, GAME_AREA_Y - 5, 
+                       gridWidth * CELL_SIZE + 10, gridHeight * CELL_SIZE + 10, 
+                       Color.RGB(0, 0, 0, 200));
+        
+        // 绘制胜利文字
+        canvas.drawText(GAME_AREA_X + 20, GAME_AREA_Y + gridHeight * CELL_SIZE / 2 - 50, 
+                       "CONGRATULATIONS!", Color.RGB(255, 215, 0), Font.("Arial", 36));
+        
+        canvas.drawText(GAME_AREA_X + 60, GAME_AREA_Y + gridHeight * CELL_SIZE / 2 + 10, 
+                       "You completed all levels!", 
+                       Color.RGB(255, 255, 100), Font.("Arial", 22));
+        
+        canvas.drawText(GAME_AREA_X + 90, GAME_AREA_Y + gridHeight * CELL_SIZE / 2 + 50, 
+                       "Press ESC to exit", 
+                       Color.RGB(200, 200, 200), Font.("Arial", 18));
+    }
+    
+    // 键盘按下处理
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.Left => {
+                movePlayer(&mut self.state, Direction.Left);
+            }
+            VirtualKey.Right => {
+                movePlayer(&mut self.state, Direction.Right);
+            }
+            VirtualKey.Up => {
+                movePlayer(&mut self.state, Direction.Up);
+            }
+            VirtualKey.Down => {
+                movePlayer(&mut self.state, Direction.Down);
+            }
+            VirtualKey.KeyR => {
+                // 重置当前关卡
+                resetLevel(&mut self.state);
+            }
+            VirtualKey.KeyN => {
+                // 下一关（仅在当前关卡完成时）
+                if self.state.levelWon && !self.state.allWon {
+                    nextLevel(&mut self.state);
+                }
+            }
+            VirtualKey.Escape => {
+                // 退出游戏
+                self.running = false;
+            }
+            _ => {}
+        }
+    }
+    
+    pub fn onKeyUp(key: VirtualKey) {
+        // 暂不需要
+    }
+    
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        // 暂不需要
+    }
+    
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+        // 暂不需要
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() {
+    println("===========================================");
+    println("  Zen-C 推箱子游戏 (Sokoban)");
+    println("  使用 003-framework 框架");
+    println("===========================================");
+    
+    // 初始化平台
+    initPlatform();
+    
+    // 创建游戏实例
+    var game = SokobanGame.("Sokoban - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    
+    // 运行游戏
+    game.run();
+    
+    // 销毁游戏
+    game.destroy();
+    
+    // 关闭平台
+    shutdownPlatform();
+    
+    println("游戏退出!");
+}
