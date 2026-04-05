@@ -1,0 +1,13 @@
+build/
+*.exe
+*.o
+*.obj
+*.dll
+*.so
+*.dylib
+*.out
+*.log
+.DS_Store
+Thumbs.db
+*~
+\#*\#

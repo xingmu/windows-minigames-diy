@@ -1,0 +1,654 @@
+// game_logic.zc - Zen-C Pacman 游戏逻辑
+// 经典吃豆人游戏
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const MAZE_WIDTH: i32 = 28;
+const MAZE_HEIGHT: i32 = 31;
+const CELL_SIZE: i32 = 16;
+
+// 颜色定义
+const COLOR_WALL = 0xFF1A1A2E;       // 深蓝墙
+const COLOR_PATH = 0xFF0F0F23;       // 深色路径
+const COLOR_PELLET = 0xFFFFD93D;     // 金色豆子
+const COLOR_POWER = 0xFFFF6B6B;      // 红色大力丸
+const COLOR_PACMAN = 0xFFFFE66D;     // 黄色吃豆人
+const COLOR_GHOST_RED = 0xFFFF4757;   // 红色幽灵
+const COLOR_GHOST_PINK = 0xFFFF9FF3; // 粉色幽灵
+const COLOR_GHOST_CYAN = 0xFF54A0FF;  // 青色幽灵
+const COLOR_GHOST_ORANGE = 0xFFFFA502; // 橙色幽灵
+const COLOR_GHOST_VULNERABLE = 0xFF3742FA; // 蓝色脆弱幽灵
+const COLOR_GHOST_FLASH = 0xFFFFFFFF; // 白色闪烁
+
+// ==================== 方向枚举 ====================
+
+enum Direction {
+    DirUp,
+    DirDown,
+    DirLeft,
+    DirRight,
+    DirNone
+}
+
+enum GhostState {
+    Normal,     // 正常状态，追击
+    Vulnerable, // 脆弱状态，被吃
+    Recovering, // 恢复中，闪烁
+    Eaten       // 被吃，返回老家
+}
+
+enum GhostType {
+    Blinky,  // 红色，追击型
+    Pinky,   // 粉色，包围型
+    Inky,    // 青色，偶发型
+    Clyde    // 橙色，害羞型
+}
+
+// ==================== 数据结构 ====================
+
+// 位置
+struct Position {
+    x: i32,
+    y: i32
+}
+
+// 幽灵
+struct Ghost {
+    pos: Position,
+    dir: Direction,
+    type: GhostType,
+    state: GhostState,
+    home_x: i32,
+    home_y: i32,
+    scatter_target: Position,
+    speed: i32,
+    vulnerable_timer: i32,
+    in_house: bool,
+    house_timer: i32
+}
+
+// 游戏状态
+struct GameState {
+    maze: [MAZE_HEIGHT][MAZE_WIDTH]i32,
+    pacman_pos: Position,
+    pacman_dir: Direction,
+    next_dir: Direction,
+    pacman_anim_frame: i32,
+    ghosts: [4]Ghost,
+    score: i32,
+    lives: i32,
+    pellets_eaten: i32,
+    total_pellets: i32,
+    game_over: bool,
+    won: bool,
+    paused: bool,
+    level: i32,
+    frightened_timer: i32,
+    ghosts_eaten_this_power: i32,
+    window_width: i32,
+    window_height: i32,
+    last_update: i32,
+    ghost_release_timer: i32,
+    ghosts_released: i32
+}
+
+// 迷宫定义 (0=路径, 1=墙, 2=豆子, 3=大力丸, 4=空, 5=老家)
+const MAZE_TEMPLATE: [MAZE_HEIGHT][MAZE_WIDTH]i32 = [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+    [1,3,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,3,1],
+    [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,1,1,1,1,2,1,1,2,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,2,1],
+    [1,2,1,1,1,1,2,1,1,2,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,2,1],
+    [1,2,2,2,2,2,2,1,1,2,2,2,2,1,1,2,2,2,2,1,1,2,2,2,2,2,2,1],
+    [1,1,1,1,1,1,2,1,1,1,1,1,0,1,1,0,1,1,1,1,1,2,1,1,1,1,1,1],
+    [0,0,0,0,0,1,2,1,1,1,1,1,0,1,1,0,1,1,1,1,1,2,1,0,0,0,0,0],
+    [0,0,0,0,0,1,2,1,1,0,0,0,0,0,0,0,0,0,0,1,1,2,1,0,0,0,0,0],
+    [0,0,0,0,0,1,2,1,1,0,1,1,1,5,5,1,1,1,0,1,1,2,1,0,0,0,0,0],
+    [1,1,1,1,1,1,2,1,1,0,1,4,4,4,4,4,4,1,0,1,1,2,1,1,1,1,1,1],
+    [0,0,0,0,0,0,2,0,0,0,1,4,4,4,4,4,4,1,0,0,0,2,0,0,0,0,0,0],
+    [1,1,1,1,1,1,2,1,1,0,1,4,4,4,4,4,4,1,0,1,1,2,1,1,1,1,1,1],
+    [0,0,0,0,0,1,2,1,1,0,1,1,1,1,1,1,1,1,0,1,1,2,1,0,0,0,0,0],
+    [0,0,0,0,0,1,2,1,1,0,0,0,0,0,0,0,0,0,0,1,1,2,1,0,0,0,0,0],
+    [0,0,0,0,0,1,2,1,1,0,1,1,1,1,1,1,1,1,0,1,1,2,1,0,0,0,0,0],
+    [1,1,1,1,1,1,2,1,1,0,1,1,1,1,1,1,1,1,0,1,1,2,1,1,1,1,1,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+    [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+    [1,3,2,2,1,1,2,2,2,2,2,2,2,0,0,2,2,2,2,2,2,2,1,1,2,2,3,1],
+    [1,1,1,2,1,1,2,1,1,2,1,1,1,1,1,1,1,1,2,1,1,2,1,1,2,1,1,1],
+    [1,1,1,2,1,1,2,1,1,2,1,1,1,1,1,1,1,1,2,1,1,2,1,1,2,1,1,1],
+    [1,2,2,2,2,2,2,1,1,2,2,2,2,1,1,2,2,2,2,1,1,2,2,2,2,2,2,1],
+    [1,2,1,1,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,1,1,1,1,1,1,2,1],
+    [1,2,1,1,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,1,1,1,1,1,1,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+];
+
+// ==================== 初始化 ====================
+
+fn init_game(game: &mut GameState) {
+    let seed = time.now().nanos();
+    math.srand(seed);
+    
+    // 复制迷宫模板
+    for y in 0..MAZE_HEIGHT {
+        for x in 0..MAZE_WIDTH {
+            game.maze[y][x] = MAZE_TEMPLATE[y][x];
+        }
+    }
+    
+    // 初始化吃豆人
+    game.pacman_pos = Position { x: 13, y: 23 };
+    game.pacman_dir = Direction::DirLeft;
+    game.next_dir = Direction::DirLeft;
+    game.pacman_anim_frame = 0;
+    
+    // 初始化幽灵
+    game.ghosts[0] = create_ghost(GhostType::Blinky, 13, 11, 0);
+    game.ghosts[1] = create_ghost(GhostType::Pinky, 13, 14, 1);
+    game.ghosts[2] = create_ghost(GhostType::Inky, 11, 14, 2);
+    game.ghosts[3] = create_ghost(GhostType::Clyde, 15, 14, 3);
+    
+    // 计算总豆子数
+    game.total_pellets = 0;
+    for y in 0..MAZE_HEIGHT {
+        for x in 0..MAZE_WIDTH {
+            if game.maze[y][x] == 2 || game.maze[y][x] == 3 {
+                game.total_pellets += 1;
+            }
+        }
+    }
+    
+    // 初始化游戏状态
+    game.score = 0;
+    game.lives = 3;
+    game.pellets_eaten = 0;
+    game.game_over = false;
+    game.won = false;
+    game.paused = false;
+    game.level = 1;
+    game.frightened_timer = 0;
+    game.ghosts_eaten_this_power = 0;
+    game.ghost_release_timer = 0;
+    game.ghosts_released = 0;
+    game.last_update = 0;
+}
+
+fn create_ghost(t: GhostType, x: i32, y: i32, idx: i32) -> Ghost {
+    return Ghost {
+        pos: Position { x: x, y: y },
+        dir: Direction::DirUp,
+        type: t,
+        state: GhostState::Normal,
+        home_x: x,
+        home_y: y,
+        scatter_target: get_ghost_scatter_target(t),
+        speed: 1,
+        vulnerable_timer: 0,
+        in_house: idx > 0,  // 除了Blinky外都在老家
+        house_timer: idx * 200,  // 分批释放
+    };
+}
+
+fn get_ghost_scatter_target(t: GhostType) -> Position {
+    match t {
+        GhostType::Blinky => Position { x: 25, y: 0 },
+        GhostType::Pinky => Position { x: 2, y: 0 },
+        GhostType::Inky => Position { x: 27, y: 30 },
+        GhostType::Clyde => Position { x: 0, y: 30 },
+    }
+}
+
+// ==================== 输入处理 ====================
+
+fn handle_input(game: &mut GameState, key: i32) -> bool {
+    match key {
+        // 上方向
+        38 | 87 | 119 => { // 上箭头、W、w
+            if can_move(&game.maze, game.pacman_pos.x, game.pacman_pos.y, Direction::DirUp) {
+                game.pacman_dir = Direction::DirUp;
+            }
+            game.next_dir = Direction::DirUp;
+        },
+        
+        // 下方向
+        40 | 83 | 115 => { // 下箭头、S、s
+            if can_move(&game.maze, game.pacman_pos.x, game.pacman_pos.y, Direction::DirDown) {
+                game.pacman_dir = Direction::DirDown;
+            }
+            game.next_dir = Direction::DirDown;
+        },
+        
+        // 左方向
+        37 | 65 | 97 => { // 左箭头、A、a
+            if can_move(&game.maze, game.pacman_pos.x, game.pacman_pos.y, Direction::DirLeft) {
+                game.pacman_dir = Direction::DirLeft;
+            }
+            game.next_dir = Direction::DirLeft;
+        },
+        
+        // 右方向
+        39 | 68 | 100 => { // 右箭头、D、d
+            if can_move(&game.maze, game.pacman_pos.x, game.pacman_pos.y, Direction::DirRight) {
+                game.pacman_dir = Direction::DirRight;
+            }
+            game.next_dir = Direction::DirRight;
+        },
+        
+        // 空格键 - 暂停/继续
+        32 => { // 空格
+            if !game.game_over {
+                game.paused = !game.paused;
+            }
+        },
+        
+        // R键 - 重新开始
+        82 | 114 => { // R、r
+            if game.game_over {
+                init_game(game);
+                return true;
+            }
+        },
+        
+        // ESC键 - 退出
+        27 => {
+            return false;
+        },
+        
+        _ => {}
+    }
+    
+    return true;
+}
+
+fn can_move(maze: &[MAZE_HEIGHT][MAZE_WIDTH]i32, x: i32, y: i32, dir: Direction) -> bool {
+    let nx = x;
+    let ny = y;
+    
+    match dir {
+        Direction::DirUp => {
+            if y > 0 { 
+                return maze[y - 1][x] != 1 && maze[y - 1][x] != 5;
+            }
+        },
+        Direction::DirDown => {
+            if y < MAZE_HEIGHT - 1 {
+                return maze[y + 1][x] != 1 && maze[y + 1][x] != 5;
+            }
+        },
+        Direction::DirLeft => {
+            // 隧道
+            if x == 0 && y == 14 { return true; }
+            if x > 0 {
+                return maze[y][x - 1] != 1 && maze[y][x - 1] != 5;
+            }
+        },
+        Direction::DirRight => {
+            // 隧道
+            if x == MAZE_WIDTH - 1 && y == 14 { return true; }
+            if x < MAZE_WIDTH - 1 {
+                return maze[y][x + 1] != 1 && maze[y][x + 1] != 5;
+            }
+        },
+        _ => {}
+    }
+    
+    return false;
+}
+
+// ==================== 更新游戏 ====================
+
+fn update_game(game: &mut GameState) -> bool {
+    if game.game_over || game.won || game.paused {
+        return false;
+    }
+    
+    // 更新吃豆人
+    update_pacman(game);
+    
+    // 更新大力丸计时器
+    if game.frightened_timer > 0 {
+        game.frightened_timer -= 1;
+        if game.frightened_timer <= 0 {
+            // 恢复幽灵
+            for i in 0..4 {
+                if game.ghosts[i].state == GhostState::Vulnerable ||
+                   game.ghosts[i].state == GhostState::Recovering {
+                    game.ghosts[i].state = GhostState::Normal;
+                }
+            }
+            game.ghosts_eaten_this_power = 0;
+        }
+    }
+    
+    // 更新幽灵
+    update_ghosts(game);
+    
+    // 更新动画帧
+    game.pacman_anim_frame = (game.pacman_anim_frame + 1) % 4;
+    
+    return true;
+}
+
+fn update_pacman(game: &mut GameState) {
+    // 先尝试转向
+    if game.next_dir != game.pacman_dir {
+        if can_move(&game.maze, game.pacman_pos.x, game.pacman_pos.y, game.next_dir) {
+            game.pacman_dir = game.next_dir;
+        }
+    }
+    
+    // 移动
+    if can_move(&game.maze, game.pacman_pos.x, game.pacman_pos.y, game.pacman_dir) {
+        match game.pacman_dir {
+            Direction::DirUp => game.pacman_pos.y -= 1,
+            Direction::DirDown => game.pacman_pos.y += 1,
+            Direction::DirLeft => {
+                // 隧道处理
+                if game.pacman_pos.x == 0 && game.pacman_pos.y == 14 {
+                    game.pacman_pos.x = MAZE_WIDTH - 1;
+                } else {
+                    game.pacman_pos.x -= 1;
+                }
+            },
+            Direction::DirRight => {
+                // 隧道处理
+                if game.pacman_pos.x == MAZE_WIDTH - 1 && game.pacman_pos.y == 14 {
+                    game.pacman_pos.x = 0;
+                } else {
+                    game.pacman_pos.x += 1;
+                }
+            },
+            _ => {}
+        }
+    }
+    
+    // 检查吃豆子
+    let cell = game.maze[game.pacman_pos.y][game.pacman_pos.x];
+    if cell == 2 {
+        game.maze[game.pacman_pos.y][game.pacman_pos.x] = 0;
+        game.score += 10;
+        game.pellets_eaten += 1;
+    } else if cell == 3 {
+        game.maze[game.pacman_pos.y][game.pacman_pos.x] = 0;
+        game.score += 50;
+        game.pellets_eaten += 1;
+        // 激活大力丸效果
+        game.frightened_timer = 400;
+        game.ghosts_eaten_this_power = 0;
+        for i in 0..4 {
+            if game.ghosts[i].state != GhostState::Eaten {
+                game.ghosts[i].state = GhostState::Vulnerable;
+            }
+        }
+    }
+    
+    // 检查胜利
+    if game.pellets_eaten >= game.total_pellets {
+        game.won = true;
+    }
+    
+    // 检查与幽灵碰撞
+    check_ghost_collision(game);
+}
+
+fn update_ghosts(game: &mut GameState) {
+    // 释放幽灵计时器
+    game.ghost_release_timer += 1;
+    
+    for i in 0..4 {
+        let ghost = &mut game.ghosts[i];
+        
+        // 分批释放
+        if ghost.in_house {
+            if game.ghost_release_timer > ghost.house_timer {
+                ghost.in_house = false;
+                ghost.pos.x = 13;
+                ghost.pos.y = 11;
+                game.ghosts_released += 1;
+            }
+            continue;
+        }
+        
+        // 移动幽灵
+        if ghost.state == GhostState::Eaten {
+            move_ghost_home(ghost, &game.maze);
+            if ghost.pos.x == ghost.home_x && ghost.pos.y == ghost.home_y {
+                ghost.state = GhostState::Normal;
+            }
+        } else {
+            move_ghost(ghost, game);
+        }
+        
+        // 更新脆弱状态
+        if ghost.state == GhostState::Vulnerable && game.frightened_timer < 100 {
+            ghost.state = GhostState::Recovering;
+        }
+    }
+}
+
+fn move_ghost_home(ghost: &mut Ghost, maze: &[MAZE_HEIGHT][MAZE_WIDTH]i32) {
+    // 简单地向老家移动
+    let dx = ghost.home_x - ghost.pos.x;
+    let dy = ghost.home_y - ghost.pos.y;
+    
+    if dx != 0 {
+        ghost.pos.x += if dx > 0 { 1 } else { -1 };
+    } else if dy != 0 {
+        ghost.pos.y += if dy > 0 { 1 } else { -1 };
+    }
+}
+
+fn move_ghost(ghost: &mut Ghost, game: &GameState) {
+    // 每隔几帧移动一次（速度控制）
+    if game.last_update % 2 != 0 && ghost.state == GhostState::Normal {
+        return;
+    }
+    
+    // 计算目标位置
+    let target = get_ghost_target(ghost, game);
+    
+    // 获取可移动方向
+    let mut dirs: [4]Direction;
+    let mut dir_count = 0;
+    
+    // 不能反向（除非是唯一选择）
+    let opposite = get_opposite_dir(ghost.dir);
+    
+    if can_move_dir(&game.maze, ghost.pos.x, ghost.pos.y, Direction::DirUp) && ghost.dir != Direction::DirDown {
+        dirs[dir_count] = Direction::DirUp;
+        dir_count += 1;
+    }
+    if can_move_dir(&game.maze, ghost.pos.x, ghost.pos.y, Direction::DirDown) && ghost.dir != Direction::DirUp {
+        dirs[dir_count] = Direction::DirDown;
+        dir_count += 1;
+    }
+    if can_move_dir(&game.maze, ghost.pos.x, ghost.pos.y, Direction::DirLeft) && ghost.dir != Direction::DirRight {
+        dirs[dir_count] = Direction::DirLeft;
+        dir_count += 1;
+    }
+    if can_move_dir(&game.maze, ghost.pos.x, ghost.pos.y, Direction::DirRight) && ghost.dir != Direction::DirLeft {
+        dirs[dir_count] = Direction::DirRight;
+        dir_count += 1;
+    }
+    
+    if dir_count == 0 {
+        return;
+    }
+    
+    // 选择最优方向
+    let mut best_dir = ghost.dir;
+    let mut best_dist = 10000;
+    
+    for d in 0..dir_count {
+        let nx = ghost.pos.x + get_dir_dx(dirs[d]);
+        let ny = ghost.pos.y + get_dir_dy(dirs[d]);
+        let dist = abs(target.x - nx) + abs(target.y - ny);
+        
+        if dist < best_dist {
+            best_dist = dist;
+            best_dir = dirs[d];
+        }
+    }
+    
+    ghost.dir = best_dir;
+    ghost.pos.x += get_dir_dx(ghost.dir);
+    ghost.pos.y += get_dir_dy(ghost.dir);
+}
+
+fn can_move_dir(maze: &[MAZE_HEIGHT][MAZE_WIDTH]i32, x: i32, y: i32, dir: Direction) -> bool {
+    match dir {
+        Direction::DirUp => {
+            if y > 0 { return maze[y - 1][x] != 1 && maze[y - 1][x] != 5; }
+        },
+        Direction::DirDown => {
+            if y < MAZE_HEIGHT - 1 { return maze[y + 1][x] != 1 && maze[y + 1][x] != 5; }
+        },
+        Direction::DirLeft => {
+            if x == 0 && y == 14 { return true; }
+            if x > 0 { return maze[y][x - 1] != 1 && maze[y][x - 1] != 5; }
+        },
+        Direction::DirRight => {
+            if x == MAZE_WIDTH - 1 && y == 14 { return true; }
+            if x < MAZE_WIDTH - 1 { return maze[y][x + 1] != 1 && maze[y][x + 1] != 5; }
+        },
+        _ => {}
+    }
+    return false;
+}
+
+fn get_dir_dx(dir: Direction) -> i32 {
+    match dir {
+        Direction::DirLeft => -1,
+        Direction::DirRight => 1,
+        _ => 0
+    }
+}
+
+fn get_dir_dy(dir: Direction) -> i32 {
+    match dir {
+        Direction::DirUp => -1,
+        Direction::DirDown => 1,
+        _ => 0
+    }
+}
+
+fn get_opposite_dir(dir: Direction) -> Direction {
+    match dir {
+        Direction::DirUp => Direction::DirDown,
+        Direction::DirDown => Direction::DirUp,
+        Direction::DirLeft => Direction::DirRight,
+        Direction::DirRight => Direction::DirLeft,
+        _ => Direction::DirNone
+    }
+}
+
+fn get_ghost_target(ghost: &Ghost, game: &GameState) -> Position {
+    // 根据状态和类型确定目标
+    if ghost.state == GhostState::Vulnerable || ghost.state == GhostState::Recovering {
+        // 脆弱状态：随机移动
+        return Position { x: math.rand() % MAZE_WIDTH, y: math.rand() % MAZE_HEIGHT };
+    }
+    
+    match ghost.type {
+        GhostType::Blinky => {
+            // 红鬼：直接追吃豆人
+            return game.pacman_pos;
+        },
+        GhostType::Pinky => {
+            // 粉鬼：在吃豆人前方4格的位置
+            let ahead = Position {
+                x: game.pacman_pos.x + get_dir_dx(game.pacman_dir) * 4,
+                y: game.pacman_pos.y + get_dir_dy(game.pacman_dir) * 4
+            };
+            return ahead;
+        },
+        GhostType::Inky => {
+            // 青鬼：复杂逻辑，简化为跟随
+            return Position {
+                x: game.pacman_pos.x * 2 - game.ghosts[0].pos.x,
+                y: game.pacman_pos.y * 2 - game.ghosts[0].pos.y
+            };
+        },
+        GhostType::Clyde => {
+            // 橙鬼：距离远就追，距离近就跑
+            let dist = abs(ghost.pos.x - game.pacman_pos.x) + abs(ghost.pos.y - game.pacman_pos.y);
+            if dist > 8 {
+                return game.pacman_pos;
+            } else {
+                return ghost.scatter_target;
+            }
+        }
+    }
+}
+
+fn check_ghost_collision(game: &mut GameState) {
+    for i in 0..4 {
+        let ghost = &game.ghosts[i];
+        if ghost.pos.x == game.pacman_pos.x && ghost.pos.y == game.pacman_pos.y {
+            if ghost.state == GhostState::Vulnerable || ghost.state == GhostState::Recovering {
+                // 吃掉幽灵
+                game.ghosts[i].state = GhostState::Eaten;
+                game.score += 200 * (1 << game.ghosts_eaten_this_power);
+                game.ghosts_eaten_this_power += 1;
+            } else if ghost.state != GhostState::Eaten {
+                // 吃豆人被吃
+                game.lives -= 1;
+                if game.lives <= 0 {
+                    game.game_over = true;
+                } else {
+                    // 重置位置
+                    reset_positions(game);
+                }
+                break;
+            }
+        }
+    }
+}
+
+fn reset_positions(game: &mut GameState) {
+    game.pacman_pos = Position { x: 13, y: 23 };
+    game.pacman_dir = Direction::DirLeft;
+    game.next_dir = Direction::DirLeft;
+    game.frightened_timer = 0;
+    
+    // 重置幽灵
+    game.ghosts[0] = create_ghost(GhostType::Blinky, 13, 11, 0);
+    game.ghosts[1] = create_ghost(GhostType::Pinky, 13, 14, 1);
+    game.ghosts[2] = create_ghost(GhostType::Inky, 11, 14, 2);
+    game.ghosts[3] = create_ghost(GhostType::Clyde, 15, 14, 3);
+    game.ghost_release_timer = 0;
+    game.ghosts_released = 0;
+}
+
+// ==================== 获取状态文本 ====================
+
+fn get_game_status_text(game: &GameState) -> string {
+    if game.game_over {
+        return "游戏结束! 按 R 键重新开始";
+    } else if game.won {
+        return "恭喜通关! 按 R 键重新开始";
+    } else if game.paused {
+        return "游戏暂停 - 按空格键继续";
+    } else {
+        return "吃豆人 - 收集所有豆子!";
+    }
+}
+
+fn get_controls_text() -> string {
+    "控制: W/A/S/D 移动, 空格键 暂停, R 重新开始, ESC 退出"
+}
+
+fn get_score_text(game: &GameState) -> string {
+    format("分数: {}  生命: {}  豆子: {}/{}", game.score, game.lives, game.pellets_eaten, game.total_pellets)
+}
+
+fn abs(x: i32) -> i32 {
+    return if x < 0 { -x } else { x };
+}
