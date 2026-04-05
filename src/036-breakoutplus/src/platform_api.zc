@@ -1,0 +1,635 @@
+// platform_api.zc - Zen-C 跨平台 API 封装 (BreakoutPlus专用)
+// 复制自 003-framework 项目
+
+import std.ffi;
+import std.string;
+
+#if defined(_WIN32) || defined(WIN32) || defined(__WIN32__) || defined(__NT__)
+    #define IS_WINDOWS 1
+    #define IS_LINUX 0
+    #define IS_MACOS 0
+#elif defined(__linux__)
+    #define IS_WINDOWS 0
+    #define IS_LINUX 1
+    #define IS_MACOS 0
+#elif defined(__APPLE__) && defined(__MACH__)
+    #define IS_WINDOWS 0
+    #define IS_LINUX 0
+    #define IS_MACOS 1
+#else
+    #error "Unsupported platform"
+#endif
+
+type WindowHandle = *void;
+type GraphicsContext = *void;
+
+enum EventType {
+    EventNone,
+    EventKeyDown,
+    EventKeyUp,
+    EventMouseMove,
+    EventMouseDown,
+    EventMouseUp,
+    EventWindowClose,
+    EventWindowResize,
+    EventTimer
+}
+
+enum KeyCode {
+    KeyUnknown,
+    KeyUp,
+    KeyDown,
+    KeyLeft,
+    KeyRight,
+    KeySpace,
+    KeyEscape,
+    KeyR,
+    KeyW,
+    KeyA,
+    KeyS,
+    KeyD,
+    KeyP,
+    Key1,
+    Key2,
+    Key3
+}
+
+struct Event {
+    type: EventType,
+    key: KeyCode,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32
+}
+
+#if IS_WINDOWS
+
+extern "user32.dll" fn CreateWindowExA(
+    dwExStyle: u32,
+    lpClassName: *const i8,
+    lpWindowName: *const i8,
+    dwStyle: u32,
+    x: i32,
+    y: i32,
+    nWidth: i32,
+    nHeight: i32,
+    hWndParent: WindowHandle,
+    hMenu: *void,
+    hInstance: *void,
+    lpParam: *void
+) -> WindowHandle;
+
+extern "user32.dll" fn ShowWindow(hWnd: WindowHandle, nCmdShow: i32) -> bool;
+extern "user32.dll" fn UpdateWindow(hWnd: WindowHandle) -> bool;
+extern "user32.dll" fn GetMessageA(lpMsg: *void, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32) -> bool;
+extern "user32.dll" fn TranslateMessage(lpMsg: *void) -> bool;
+extern "user32.dll" fn DispatchMessageA(lpMsg: *void) -> i32;
+extern "user32.dll" fn InvalidateRect(hWnd: WindowHandle, lpRect: *void, bErase: bool) -> bool;
+extern "user32.dll" fn BeginPaint(hWnd: WindowHandle, lpPaint: *void) -> GraphicsContext;
+extern "user32.dll" fn EndPaint(hWnd: WindowHandle, lpPaint: *void);
+extern "user32.dll" fn GetClientRect(hWnd: WindowHandle, lpRect: *void) -> bool;
+extern "user32.dll" fn FillRect(hDC: GraphicsContext, lprc: *void, hbr: *void) -> i32;
+extern "user32.dll" fn Rectangle(hDC: GraphicsContext, left: i32, top: i32, right: i32, bottom: i32) -> bool;
+extern "user32.dll" fn Ellipse(hDC: GraphicsContext, left: i32, top: i32, right: i32, bottom: i32) -> bool;
+extern "user32.dll" fn CreateSolidBrush(color: u32) -> *void;
+extern "user32.dll" fn SelectObject(hDC: GraphicsContext, hObject: *void) -> *void;
+extern "user32.dll" fn DeleteObject(hObject: *void) -> bool;
+extern "user32.dll" fn SetTimer(hWnd: WindowHandle, nIDEvent: u32, uElapse: u32, lpTimerFunc: *void) -> u32;
+extern "user32.dll" fn KillTimer(hWnd: WindowHandle, uIDEvent: u32) -> bool;
+extern "user32.dll" fn PostQuitMessage(nExitCode: i32);
+extern "user32.dll" fn GetModuleHandleA(lpModuleName: *const i8) -> *void;
+extern "user32.dll" fn LoadCursorA(hInstance: *void, lpCursorName: *const i8) -> *void;
+extern "user32.dll" fn SetCursor(hCursor: *void);
+extern "user32.dll" fn LoadIconA(hInstance: *void, lpIconName: *const i8) -> *void;
+extern "user32.dll" fn RegisterClassExA(lpWndClass: *const i8) -> u16;
+extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, Msg: u32, wParam: u64, lParam: i64) -> i64;
+extern "user32.dll" fn PostMessageA(hWnd: WindowHandle, Msg: u32, wParam: u64, lParam: i64) -> bool;
+extern "user32.dll" fn SetWindowTextA(hWnd: WindowHandle, lpString: *const i8) -> bool;
+extern "user32.dll" fn MoveWindow(hWnd: WindowHandle, X: i32, Y: i32, nWidth: i32, nHeight: i32, bRepaint: bool) -> bool;
+extern "user32.dll" fn GetAsyncKeyState(vKey: i32) -> i16;
+
+extern "kernel32.dll" fn GetTickCount() -> u32;
+extern "kernel32.dll" fn Sleep(dwMilliseconds: u32);
+
+extern "gdi32.dll" fn CreateCompatibleDC(hDC: GraphicsContext) -> GraphicsContext;
+extern "gdi32.dll" fn CreateCompatibleBitmap(hDC: GraphicsContext, nWidth: i32, nHeight: i32) -> *void;
+extern "gdi32.dll" fn SelectBitmap(hDC: GraphicsContext, hBitmap: *void) -> *void;
+extern "gdi32.dll" fn BitBlt(hDestDC: GraphicsContext, x: i32, y: i32, w: i32, h: i32, hSrcDC: GraphicsContext, xsrc: i32, ysrc: i32, rop: u32) -> bool;
+extern "gdi32.dll" fn PatBlt(hDC: GraphicsContext, x: i32, y: i32, w: i32, h: i32, rop: u32) -> bool;
+extern "gdi32.dll" fn GetPixel(hDC: GraphicsContext, x: i32, y: i32) -> u32;
+extern "gdi32.dll" fn SetPixel(hDC: GraphicsContext, x: i32, y: i32, color: u32) -> u32;
+extern "gdi32.dll" fn CreatePen(nPenStyle: i32, nWidth: i32, crColor: u32) -> *void;
+extern "gdi32.dll" fn SelectPen(hDC: GraphicsContext, hPen: *void) -> *void;
+extern "gdi32.dll" fn DeleteDC(hDC: GraphicsContext) -> bool;
+extern "gdi32.dll" fn DeleteObject(hObject: *void) -> bool;
+extern "gdi32.dll" fn LineTo(hDC: GraphicsContext, x: i32, y: i32) -> bool;
+extern "gdi32.dll" fn MoveToEx(hDC: GraphicsContext, x: i32, y: i32, lpPoint: *void) -> bool;
+extern "gdi32.dll" fn SetBkMode(hDC: GraphicsContext, mode: i32) -> i32;
+extern "gdi32.dll" fn SetTextColor(hDC: GraphicsContext, color: u32) -> u32;
+extern "gdi32.dll" fn TextOutA(hDC: GraphicsContext, x: i32, y: i32, lpString: *const i8, nCount: i32) -> bool;
+
+extern "user32.dll" fn RegisterRawInputDevices(pDevices: *void, uiNumDevices: u32, cbSize: u32) -> bool;
+
+const SRCCOPY: u32 = 0x00CC0020;
+const BLACKNESS: u32 = 0x00000042;
+const WHITENESS: u32 = 0x00FF0062;
+const PATCOPY: u32 = 0x00F00021;
+const TRANSPARENT: i32 = 1;
+const OPAQUE: i32 = 2;
+
+const IDC_ARROW: i16 = 32512;
+const IDI_APPLICATION: i16 = 32513;
+
+const WS_OVERLAPPEDWINDOW: u32 = 0x00CF0000;
+const WS_VISIBLE: u32 = 0x10000000;
+const WS_CHILD: u32 = 0x40000000;
+const CW_USEDEFAULT: i32 = 0x80000000 as i32;
+
+const WM_CLOSE: u32 = 0x0010;
+const WM_DESTROY: u32 = 0x0002;
+const WM_SIZE: u32 = 0x0005;
+const WM_PAINT: u32 = 0x000F;
+const WM_TIMER: u32 = 0x0113;
+const WM_KEYDOWN: u32 = 0x0100;
+const WM_KEYUP: u32 = 0x0101;
+const WM_LBUTTONDOWN: u32 = 0x0201;
+const WM_LBUTTONUP: u32 = 0x0202;
+const WM_MOUSEMOVE: u32 = 0x0200;
+
+const VK_LEFT: i32 = 0x25;
+const VK_RIGHT: i32 = 0x27;
+const VK_UP: i32 = 0x26;
+const VK_DOWN: i32 = 0x28;
+const VK_SPACE: i32 = 0x20;
+const VK_ESCAPE: i32 = 0x1B;
+const VK_RETURN: i32 = 0x0D;
+
+struct WNDCLASSEXA {
+    cbSize: u32,
+    style: u32,
+    lpfnWndProc: *void,
+    cbClsExtra: i32,
+    cbWndExtra: i32,
+    hInstance: *void,
+    hIcon: *void,
+    hCursor: *void,
+    hbrBackground: *void,
+    lpszMenuName: *const i8,
+    lpszClassName: *const i8,
+    hIconSm: *void,
+}
+
+struct RECT {
+    left: i32,
+    top: i32,
+    right: i32,
+    bottom: i32,
+}
+
+struct PAINTSTRUCT {
+    hDC: GraphicsContext,
+    fErase: bool,
+    rcPaint: RECT,
+    fRestore: bool,
+    fIncUpdate: bool,
+    rgbReserved: [32]i8,
+}
+
+struct MSG {
+    hwnd: WindowHandle,
+    message: u32,
+    wParam: u64,
+    lParam: i64,
+    time: u32,
+    pt: [2]i32,
+}
+
+struct POINT {
+    x: i32,
+    y: i32,
+}
+
+static mut msg: MSG;
+static mut ps: PAINTSTRUCT;
+static mut wc: WNDCLASSEXA;
+static mut hwnd: WindowHandle;
+static mut custom_window_class: [256]i8;
+
+static mut frame_buffer: [*void] = [];
+static mut fb_width: i32 = 0;
+static mut fb_height: i32 = 0;
+static mut fb_memDC: GraphicsContext = null;
+static mut fb_bitmap: *void = null;
+static mut fb_hdc: GraphicsContext = null;
+static mut fb_valid: bool = false;
+
+static mut key_handler_fn: *fn(KeyCode) -> bool = null;
+static mut timer_handler_fn: *fn() -> bool = null;
+static mut paint_handler_fn: *fn(i32, i32) -> void = null;
+static mut mouse_handler_fn: *fn(i32, i32) -> void = null;
+static mut destroy_handler_fn: *fn() -> void = null;
+static mut timer_id: u32 = 0;
+
+fn windowProc(hWnd: WindowHandle, Msg: u32, wParam: u64, lParam: i64) -> i64 {
+    match Msg {
+        WM_PAINT => {
+            let mut rect: RECT;
+            GetClientRect(hWnd, &mut rect as *void);
+            BeginPaint(hWnd, &mut ps as *void);
+            if paint_handler_fn != null {
+                paint_handler_fn(rect.right - rect.left, rect.bottom - rect.top);
+            }
+            BitBlt(ps.hDC, 0, 0, fb_width, fb_height, fb_hdc, 0, 0, SRCCOPY);
+            EndPaint(hWnd, &mut ps as *void);
+            return 0;
+        },
+        WM_TIMER => {
+            if timer_handler_fn != null {
+                if timer_handler_fn() {
+                    InvalidateRect(hWnd, null, false);
+                }
+            }
+            return 0;
+        },
+        WM_KEYDOWN => {
+            let k = mapVirtualKey(wParam as i32);
+            if k != KeyCode.KeyUnknown && key_handler_fn != null {
+                if key_handler_fn(k) {
+                    InvalidateRect(hWnd, null, false);
+                }
+            }
+            return 0;
+        },
+        WM_KEYUP => {
+            return 0;
+        },
+        WM_LBUTTONDOWN => {
+            let x = (lParam & 0xFFFF) as i32;
+            let y = ((lParam >> 16) & 0xFFFF) as i32;
+            if mouse_handler_fn != null {
+                mouse_handler_fn(x, y);
+                InvalidateRect(hWnd, null, false);
+            }
+            return 0;
+        },
+        WM_MOUSEMOVE => {
+            let x = (lParam & 0xFFFF) as i32;
+            let y = ((lParam >> 16) & 0xFFFF) as i32;
+            if mouse_handler_fn != null {
+                mouse_handler_fn(x, y);
+            }
+            return 0;
+        },
+        WM_SIZE => {
+            let w = (lParam & 0xFFFF) as i32;
+            let h = ((lParam >> 16) & 0xFFFF) as i32;
+            fb_init(hWnd, w, h);
+            return 0;
+        },
+        WM_CLOSE => {
+            PostQuitMessage(0);
+            return 0;
+        },
+        WM_DESTROY => {
+            if destroy_handler_fn != null {
+                destroy_handler_fn();
+            }
+            return 0;
+        },
+    }
+    DefWindowProcA(hWnd, Msg, wParam, lParam)
+}
+
+fn mapVirtualKey(code: i32) -> KeyCode {
+    match code {
+        VK_LEFT => KeyCode.KeyLeft,
+        VK_RIGHT => KeyCode.KeyRight,
+        VK_UP => KeyCode.KeyUp,
+        VK_DOWN => KeyCode.KeyDown,
+        VK_SPACE => KeyCode.KeySpace,
+        VK_ESCAPE => KeyCode.KeyEscape,
+        0x52 => KeyCode.KeyR,
+        0x57 => KeyCode.KeyW,
+        0x41 => KeyCode.KeyA,
+        0x53 => KeyCode.KeyS,
+        0x44 => KeyCode.KeyD,
+        0x50 => KeyCode.KeyP,
+        0x31 => KeyCode.Key1,
+        0x32 => KeyCode.Key2,
+        0x33 => KeyCode.Key3,
+        VK_RETURN => KeyCode.KeySpace,
+        _ => KeyCode.KeyUnknown,
+    }
+}
+
+fn fb_init(hWnd: WindowHandle, w: i32, h: i32) {
+    fb_width = w;
+    fb_height = h;
+
+    if fb_hdc != null {
+        return;
+    }
+
+    let screenDC = CreateCompatibleDC(null);
+    fb_bitmap = CreateCompatibleBitmap(screenDC, w, h);
+    fb_hdc = CreateCompatibleDC(screen32);
+    SelectBitmap(fb_hdc, fb_bitmap);
+    PatBlt(fb_hdc, 0, 0, w, h, BLACKNESS);
+    DeleteObject(screenDC as *void);
+    fb_valid = true;
+}
+
+fn fb_clear(color: u32) {
+    if !fb_valid {
+        return;
+    }
+    let brush = CreateSolidBrush(color);
+    let mut rect: RECT;
+    rect.left = 0;
+    rect.top = 0;
+    rect.right = fb_width;
+    rect.bottom = fb_height;
+    FillRect(fb_hdc, &mut rect as *void, brush);
+    DeleteObject(brush);
+}
+
+fn fb_draw_rect(x: i32, y: i32, w: i32, h: i32, color: u32) {
+    if !fb_valid {
+        return;
+    }
+    let brush = CreateSolidBrush(color);
+    let mut rect: RECT;
+    rect.left = x;
+    rect.top = y;
+    rect.right = x + w;
+    rect.bottom = y + h;
+    FillRect(fb_hdc, &mut rect as *void, brush);
+    DeleteObject(brush);
+}
+
+fn fb_draw_circle(cx: i32, cy: i32, r: i32, color: u32) {
+    if !fb_valid {
+        return;
+    }
+    let brush = CreateSolidBrush(color);
+    let mut rect: RECT;
+    rect.left = cx - r;
+    rect.top = cy - r;
+    rect.right = cx + r;
+    rect.bottom = cy + r;
+    FillRect(fb_hdc, &mut rect as *void, brush);
+    DeleteObject(brush);
+}
+
+fn fb_draw_line(x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {
+    if !fb_valid {
+        return;
+    }
+    let pen = CreatePen(0, 1, color);
+    let oldPen = SelectPen(fb_hdc, pen);
+    MoveToEx(fb_hdc, x1, y1, null);
+    LineTo(fb_hdc, x2, y2);
+    SelectPen(fb_hdc, oldPen);
+    DeleteObject(pen as *void);
+}
+
+fn fb_draw_text_size(x: i32, y: i32, text: str, color: u32, size: i32) {
+    if !fb_valid {
+        return;
+    }
+    SetBkMode(fb_hdc, TRANSPARENT);
+    SetTextColor(fb_hdc, color);
+    let cstr = text.toCString();
+    TextOutA(fb_hdc, x, y, cstr.asPtr(), text.length as i32);
+}
+
+fn fb_present() {
+    // Double buffering handled in WM_PAINT
+}
+
+fn fb_shutdown() {
+    fb_valid = false;
+    if fb_bitmap != null {
+        DeleteObject(fb_bitmap);
+        fb_bitmap = null;
+    }
+    if fb_hdc != null {
+        DeleteDC(fb_hdc);
+        fb_hdc = null;
+    }
+}
+
+fn create_window(title: str, width: i32, height: i32) -> WindowHandle {
+    let hInstance = GetModuleHandleA(null);
+
+    let className = "ZenGameClass";
+
+    wc.cbSize = 48;
+    wc.style = 0;
+    wc.lpfnWndProc = windowProc as *void;
+    wc.cbClsExtra = 0;
+    wc.cbWndExtra = 0;
+    wc.hInstance = hInstance;
+    wc.hIcon = LoadIconA(null, cast(IDI_APPLICATION as *const i8));
+    wc.hCursor = LoadCursorA(null, cast(IDC_ARROW as *const i8));
+    wc.hbrBackground = null;
+    wc.lpszMenuName = null;
+    wc.lpszClassName = className.asPtr();
+    wc.hIconSm = null;
+
+    RegisterClassExA(&wc as *const i8);
+
+    hwnd = CreateWindowExA(
+        0,
+        className.asPtr(),
+        title.asPtr(),
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        width + 16, height + 39,
+        null, null, hInstance, null
+    );
+
+    if hwnd != null {
+        show_window(hwnd);
+    }
+
+    hwnd
+}
+
+fn show_window(hWnd: WindowHandle) {
+    ShowWindow(hWnd, 1);
+    UpdateWindow(hWnd);
+}
+
+fn get_window_client_size(hWnd: WindowHandle, w: &mut i32, h: &mut i32) {
+    let mut rect: RECT;
+    GetClientRect(hWnd, &mut rect as *void);
+    w = rect.right - rect.left;
+    h = rect.bottom - rect.top;
+}
+
+fn set_client_size(w: i32, h: i32) {
+    fb_init(hwnd, w, h);
+}
+
+fn redraw_window(hWnd: WindowHandle) {
+    InvalidateRect(hWnd, null, false);
+}
+
+fn run_event_loop(hWnd: WindowHandle) {
+    while true {
+        if !GetMessageA(&mut msg as *void, hWnd, 0, 0) {
+            break;
+        }
+        TranslateMessage(&mut msg as *void);
+        DispatchMessageA(&mut msg as *void);
+    }
+}
+
+fn set_game_timer(hWnd: WindowHandle, ms: u32) {
+    timer_id = SetTimer(hWnd, 1, ms, null);
+}
+
+fn stop_timer(hWnd: WindowHandle) {
+    if timer_id != 0 {
+        KillTimer(hWnd, timer_id);
+        timer_id = 0;
+    }
+}
+
+fn getTickCount() -> u32 {
+    GetTickCount()
+}
+
+fn set_key_handler(fnptr: *fn(KeyCode) -> bool) {
+    key_handler_fn = fnptr;
+}
+
+fn set_timer_handler(fnptr: *fn() -> bool) {
+    timer_handler_fn = fnptr;
+}
+
+fn set_paint_handler(fnptr: *fn(i32, i32) -> void) {
+    paint_handler_fn = fnptr;
+}
+
+fn set_mouse_handler(fnptr: *fn(i32, i32) -> void) {
+    mouse_handler_fn = fnptr;
+}
+
+fn set_destroy_handler(fnptr: *fn() -> void) {
+    destroy_handler_fn = fnptr;
+}
+
+fn closeWindow(hWnd: WindowHandle) {
+    if timer_id != 0 {
+        KillTimer(hWnd, timer_id);
+        timer_id = 0;
+    }
+    PostMessageA(hWnd, WM_CLOSE, 0, 0);
+}
+
+#elif IS_LINUX
+
+extern "libc.so.6" fn printf(fmt: *const i8, ...);
+
+type Display = *void;
+type Window = u64;
+type GC = *void;
+
+extern "libc.so.6" fn XOpenDisplay(name: *const i8) -> Display;
+extern "libc.so.6" fn XCloseDisplay(dpy: Display) -> i32;
+extern "libc.so.6" fn XCreateSimpleWindow(dpy: Display, parent: Window, x: i32, y: i32, w: u32, h: u32, border_width: u32, border: u64, background: u64) -> Window;
+extern "libc.so.6" fn XMapWindow(dpy: Display, w: Window) -> i32;
+extern "libc.so.6" fn XFlush(dpy: Display) -> i32;
+extern "libc.so.6" fn XNextEvent(dpy: Display, event: *void) -> i32;
+extern "libc.so.6" fn XSelectInput(dpy: Display, w: Window, mask: i64) -> i32;
+extern "libc.so.6" fn XCreateGC(dpy: Display, w: Window, valuemask: u64, values: *void) -> GC;
+extern "libc.so.6" fn XSetForeground(dpy: Display, gc: GC, color: u64) -> i32;
+extern "libc.so.6" fn XSetBackground(dpy: Display, gc: GC, color: u64) -> i32;
+extern "libc.so.6" fn XFillRectangle(dpy: Display, w: Window, gc: GC, x: i32, y: i32, width: u32, height: u32) -> i32;
+extern "libc.so.6" fn XDrawArc(dpy: Display, w: Window, gc: GC, x: i32, y: i32, width: i32, height: i32, angle1: i32, angle2: i32) -> i32;
+extern "libc.so.6" fn XClearWindow(dpy: Display, w: Window) -> i32;
+extern "libc.so.6" fn XCreatePixmap(dpy: Display, w: Window, width: u32, height: u32, depth: u32) -> u64;
+extern "libc.so.6" fn XCreateImage(dpy: Display, visual: *void, depth: i32, format: i32, offset: i32, data: *void, width: i32, height: i32, bitmap_pad: i32, bytes_per_line: i32) -> *void;
+extern "libc.so.6" fn XPutImage(dpy: Display, w: Window, gc: GC, image: *void, src_x: i32, src_y: i32, dest_x: i32, dest_y: i32, width: u32, height: u32) -> i32;
+
+type XEvent = [24]i8;
+
+static mut display: Display = null;
+static mut win: Window = 0;
+static mut gc: GC = null;
+static mut fb_pixmap: u64 = 0;
+static mut fb_width: i32 = 0;
+static mut fb_height: i32 = 0;
+static mut fb_valid: bool = false;
+
+static mut key_handler_fn: *fn(KeyCode) -> bool = null;
+static mut timer_handler_fn: *fn() -> bool = null;
+static mut paint_handler_fn: *fn(i32, i32) -> void = null;
+static mut mouse_handler_fn: *fn(i32, i32) -> void = null;
+
+fn rgb(r: u8, g: u8, b: u8) -> u32 {
+    (r as u32) | ((g as u32) << 8) | ((b as u32) << 16)
+}
+
+fn fb_init(hWnd: WindowHandle, w: i32, h: i32) {
+    fb_width = w;
+    fb_height = h;
+    fb_valid = true;
+}
+
+fn fb_clear(color: u32) {}
+fn fb_draw_rect(x: i32, y: i32, w: i32, h: i32, color: u32) {}
+fn fb_draw_circle(cx: i32, cy: i32, r: i32, color: u32) {}
+fn fb_draw_line(x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {}
+fn fb_draw_text_size(x: i32, y: i32, text: str, color: u32, size: i32) {}
+fn fb_present() {}
+fn fb_shutdown() {}
+fn getTickCount() -> u32 { 0 }
+fn set_key_handler(fnptr: *fn(KeyCode) -> bool) { key_handler_fn = fnptr; }
+fn set_timer_handler(fnptr: *fn() -> bool) { timer_handler_fn = fnptr; }
+fn set_paint_handler(fnptr: *fn(i32, i32) -> void) { paint_handler_fn = fnptr; }
+fn set_mouse_handler(fnptr: *fn(i32, i32) -> void) { mouse_handler_fn = fnptr; }
+fn set_destroy_handler(fnptr: *fn() -> void) {}
+fn closeWindow(hWnd: WindowHandle) {}
+fn create_window(title: str, width: i32, height: i32) -> WindowHandle { null }
+fn show_window(hWnd: WindowHandle) {}
+fn get_window_client_size(hWnd: WindowHandle, w: &mut i32, h: &mut i32) { w = 800; h = 600; }
+fn set_client_size(w: i32, h: i32) {}
+fn redraw_window(hWnd: WindowHandle) {}
+fn run_event_loop(hWnd: WindowHandle) {}
+fn set_game_timer(hWnd: WindowHandle, ms: u32) {}
+
+#else
+
+fn rgb(r: u8, g: u8, b: u8) -> u32 { (r as u32) | ((g as u32) << 8) | ((b as u32) << 16) }
+fn fb_init(hWnd: WindowHandle, w: i32, h: i32) {}
+fn fb_clear(color: u32) {}
+fn fb_draw_rect(x: i32, y: i32, w: i32, h: i32, color: u32) {}
+fn fb_draw_circle(cx: i32, cy: i32, r: i32, color: u32) {}
+fn fb_draw_line(x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {}
+fn fb_draw_text_size(x: i32, y: i32, text: str, color: u32, size: i32) {}
+fn fb_present() {}
+fn fb_shutdown() {}
+fn getTickCount() -> u32 { 0 }
+fn set_key_handler(fnptr: *fn(KeyCode) -> bool) {}
+fn set_timer_handler(fnptr: *fn() -> bool) {}
+fn set_paint_handler(fnptr: *fn(i32, i32) -> void) {}
+fn set_mouse_handler(fnptr: *fn(i32, i32) -> void) {}
+fn set_destroy_handler(fnptr: *fn() -> void) {}
+fn closeWindow(hWnd: WindowHandle) {}
+fn create_window(title: str, width: i32, height: i32) -> WindowHandle { null }
+fn show_window(hWnd: WindowHandle) {}
+fn get_window_client_size(hWnd: WindowHandle, w: &mut i32, h: &mut i32) { w = 800; h = 600; }
+fn set_client_size(w: i32, h: i32) {}
+fn redraw_window(hWnd: WindowHandle) {}
+fn run_event_loop(hWnd: WindowHandle) {}
+fn set_game_timer(hWnd: WindowHandle, ms: u32) {}
+
+#endif
+
+fn rgb(r: u8, g: u8, b: u8) -> u32 {
+    (r as u32) | ((g as u32) << 8) | ((b as u32) << 16) | 0xFF000000
+}

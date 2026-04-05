@@ -1,0 +1,311 @@
+// main_window.zc - Zen-C BreakoutPlus（打砖块增强版）主程序
+
+import std.io;
+import std.math;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 常量 ====================
+
+const MAX_BRICKS = 50;
+const MAX_BALLS = 5;
+const MAX_POWERUPS = 10;
+const MAX_LASERS = 10;
+const MAX_PARTICLES = 20;
+
+// ==================== 全局变量 ====================
+
+static mut game: BreakoutState;
+static mut window: WindowHandle;
+static mut game_speed: u32 = 16;
+static mut laserTimer: i32 = 0;
+
+// ==================== 颜色函数 ====================
+
+fn makeColor(r: u8, g: u8, b: u8) -> u32 {
+    rgb(r, g, b)
+}
+
+fn dimColor(c: u32, factor: f32) -> u32 {
+    let r = ((c >> 16) & 0xFF) as u8;
+    let g = ((c >> 8) & 0xFF) as u8;
+    let b = (c & 0xFF) as u8;
+    rgb((r as f32 * factor) as u8, (g as f32 * factor) as u8, (b as f32 * factor) as u8)
+}
+
+// ==================== 事件处理 ====================
+
+fn onKey(key: KeyCode) -> bool {
+    return handleInput(&mut game, key);
+}
+
+fn onTimer() -> bool {
+    laserTimer = laserTimer + 1;
+
+    // 激光发射
+    if game.paddle.hasLaser && laserTimer % 15 == 0 && game.status == GameStatus.Playing {
+        for i in 0..10 {
+            if !game.lasers[i].active {
+                game.lasers[i].x = game.paddle.x as f32 + game.paddle.width as f32 / 2.0;
+                game.lasers[i].y = game.paddle.y as f32;
+                game.lasers[i].active = true;
+                break;
+            }
+        }
+    }
+
+    return update_game(&mut game);
+}
+
+fn onPaint(w: i32, h: i32) {
+    if !fb_valid {
+        fb_init(window, w, h);
+    }
+
+    // 清屏
+    fb_clear(rgb(10, 10, 30));
+
+    // 绘制背景网格效果
+    for y in 0..GAME_HEIGHT {
+        if y % 30 < 15 {
+            fb_draw_line(0, y, GAME_WIDTH, y, rgb(20, 20, 40));
+        }
+    }
+
+    // 绘制砖块
+    for i in 0..MAX_BRICKS {
+        if game.bricks[i].alive {
+            let brick = game.bricks[i];
+            // 砖块主体
+            fb_draw_rect(brick.x, brick.y, brick.width, brick.height, brick.color);
+            // 砖块高光
+            fb_draw_rect(brick.x, brick.y, brick.width, 3, dimColor(brick.color, 1.3));
+            // 砖块阴影
+            fb_draw_rect(brick.x, brick.y + brick.height - 3, brick.width, 3, dimColor(brick.color, 0.7));
+        }
+    }
+
+    // 绘制道具
+    for i in 0..MAX_POWERUPS {
+        if game.powerUps[i].active {
+            let px = game.powerUps[i].x as i32;
+            let py = game.powerUps[i].y as i32;
+            let ptype = game.powerUps[i].ptype as i32;
+            if ptype >= 0 && ptype < 8 {
+                let color = POWERUP_COLORS[ptype];
+                // 道具背景
+                fb_draw_rect(px - 12, py - 8, 24, 16, color);
+                // 道具边框
+                fb_draw_rect(px - 12, py - 8, 24, 2, rgb(255, 255, 255));
+                fb_draw_rect(px - 12, py + 6, 24, 2, dimColor(color, 0.7));
+                // 道具文字
+                let ch = POWERUP_CHARS[ptype];
+                fb_draw_text_size(px - 4, py - 6, ch, rgb(0, 0, 0), 12);
+            }
+        }
+    }
+
+    // 绘制激光
+    for i in 0..MAX_LASERS {
+        if game.lasers[i].active {
+            let lx = game.lasers[i].x as i32;
+            let ly = game.lasers[i].y as i32;
+            fb_draw_rect(lx - 2, ly - 10, 4, 20, rgb(255, 50, 50));
+            fb_draw_rect(lx - 1, ly - 12, 2, 24, rgb(255, 200, 100));
+        }
+    }
+
+    // 绘制粒子效果
+    for i in 0..MAX_PARTICLES {
+        if game.effects[i].active {
+            let ex = game.effects[i].x as i32;
+            let ey = game.effects[i].y as i32;
+            let life = game.effects[i].life / game.effects[i].maxLife;
+            let alpha = (life * 255.0) as u8;
+            let color = game.effects[i].color;
+            let size = (life * 4.0) as i32 + 1;
+            if size > 0 {
+                fb_draw_circle(ex, ey, size, color);
+            }
+        }
+    }
+
+    // 绘制挡板
+    let paddleColor = if game.paddle.sticky {
+        rgb(255, 150, 0)
+    } else if game.paddle.hasLaser {
+        rgb(255, 50, 50)
+    } else {
+        rgb(100, 200, 255)
+    };
+
+    // 挡板主体
+    fb_draw_rect(game.paddle.x, game.paddle.y, game.paddle.width, game.paddle.height, paddleColor);
+    // 挡板高光
+    fb_draw_rect(game.paddle.x, game.paddle.y, game.paddle.width, 3, rgb(200, 230, 255));
+    // 挡板中心标记
+    let centerX = game.paddle.x + game.paddle.width / 2;
+    fb_draw_rect(centerX - 10, game.paddle.y + 4, 20, game.paddle.height - 8, dimColor(paddleColor, 0.8));
+
+    // 绘制球
+    for i in 0..MAX_BALLS {
+        if game.balls[i].active {
+            let bx = game.balls[i].x as i32;
+            let by = game.balls[i].y as i32;
+            let br = game.balls[i].radius as i32;
+            // 球阴影
+            fb_draw_circle(bx + 2, by + 2, br, dimColor(rgb(255, 255, 255), 0.5));
+            // 球主体
+            fb_draw_circle(bx, by, br, rgb(255, 255, 255));
+            // 球高光
+            fb_draw_circle(bx - br/3, by - br/3, br/3, rgb(255, 255, 200));
+        }
+    }
+
+    // 绘制UI
+    let config = getLevelConfig(game.level);
+
+    // 顶部信息栏背景
+    fb_draw_rect(0, 0, GAME_WIDTH, 35, rgb(20, 20, 40));
+
+    // 关卡名称
+    fb_draw_text_size(10, 8, config.name, rgb(200, 200, 255), 16);
+
+    // 分数
+    let scoreStr = "分数: " ++ game.score.toString();
+    fb_draw_text_size(250, 8, scoreStr, rgb(255, 255, 100), 16);
+
+    // 生命
+    let livesStr = "生命: ";
+    fb_draw_text_size(450, 8, livesStr, rgb(255, 100, 100), 16);
+    for l in 0..game.lives {
+        fb_draw_rect(510 + l * 20, 8, 15, 15, rgb(255, 50, 50));
+    }
+
+    // 当前道具状态
+    if game.paddle.powerUpTimer > 0 {
+        let timerStr = "道具: " ++ (game.paddle.powerUpTimer / 60).toString() ++ "s";
+        fb_draw_text_size(650, 8, timerStr, rgb(0, 255, 128), 14);
+    }
+
+    // 底部状态栏
+    let statusText = getStatusText(&game);
+    let statusColor = if game.status == GameStatus.Paused {
+        rgb(255, 200, 100)
+    } else if game.status == GameStatus.Lost {
+        rgb(255, 100, 100)
+    } else if game.status == GameStatus.LevelComplete || game.status == GameStatus.GameComplete {
+        rgb(100, 255, 100)
+    } else {
+        rgb(255, 255, 100)
+    };
+
+    fb_draw_rect(0, GAME_HEIGHT - 30, GAME_WIDTH, 30, rgb(15, 15, 35));
+    fb_draw_text_size(10, GAME_HEIGHT - 22, statusText, statusColor, 16);
+    fb_draw_text_size(550, GAME_HEIGHT - 22, getControlsText(), rgb(120, 120, 150), 14);
+
+    // 显示所有关卡进度
+    let progressStr = "关卡进度: ";
+    fb_draw_text_size(250, GAME_HEIGHT - 22, progressStr, rgb(150, 150, 180), 14);
+    for lv in 1..=MAX_LEVELS {
+        let color = if lv <= game.level { rgb(100, 255, 100) } else { rgb(60, 60, 80) };
+        fb_draw_rect(360 + (lv - 1) * 25, GAME_HEIGHT - 22, 20, 15, color);
+        let lvStr = lv.toString();
+        fb_draw_text_size(365 + (lv - 1) * 25, GAME_HEIGHT - 20, lvStr, rgb(0, 0, 0), 10);
+    }
+
+    fb_present();
+}
+
+fn onMouse(x: i32, y: i32) {
+    if game.status == GameStatus.Ready {
+        game.status = GameStatus.Playing;
+        for i in 0..MAX_BALLS {
+            if game.balls[i].stuck {
+                game.balls[i].stuck = false;
+                let config = getLevelConfig(game.level);
+                let speed = config.ballSpeed as f32;
+                let angle = ((math.rand() % 40) as f32 - 20.0) * 3.14159 / 180.0;
+                game.balls[i].vx = speed * math.sin(angle);
+                game.balls[i].vy = -speed * math.cos(angle);
+            }
+        }
+    }
+}
+
+fn onDestroy() {
+    fb_shutdown();
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C BreakoutPlus 打砖块增强版");
+    io.println("多关卡 + 特殊道具系统");
+    io.println("========================================");
+
+    // 初始化游戏状态
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "BreakoutPlus - 打砖块增强版";
+    window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 获取实际客户区大小
+    let mut cw = 0;
+    let mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        game.width = cw;
+        game.height = ch;
+        set_client_size(cw, ch);
+    }
+
+    // 设置事件处理器
+    set_key_handler(onKey);
+    set_timer_handler(onTimer);
+    set_paint_handler(onPaint);
+    set_mouse_handler(onMouse);
+    set_destroy_handler(onDestroy);
+
+    // 显示窗口
+    show_window(window);
+
+    // 设置游戏定时器
+    set_game_timer(window, game_speed);
+
+    io.println("窗口创建成功!");
+    io.println("按空格键开始游戏");
+    io.println("使用 ← → 方向键控制挡板");
+    io.println("========================================");
+    io.println("道具说明:");
+    io.println("  E - 扩展挡板 (宽)");
+    io.println("  S - 缩小挡板 (窄)");
+    io.println("  M - 多球");
+    io.println("  L - 减速球");
+    io.println("  F - 加速球");
+    io.println("  + - 额外生命");
+    io.println("  K - 粘性挡板");
+    io.println("========================================");
+
+    // 初始绘制
+    redraw_window(window);
+
+    // 运行事件循环
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("最终得分: " ++ game.score.toString());
+    io.println("到达关卡: " ++ game.level.toString());
+    io.println("========================================");
+
+    0
+}
