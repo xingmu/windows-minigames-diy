@@ -1,0 +1,540 @@
+// main_window.zc - 二十一点(Blackjack)主程序
+// 所有平台使用同一份Zen-C代码，通过条件编译处理平台差异
+
+import std.io;
+import std.string;
+import std.ffi;
+
+// 导入游戏逻辑和平台API
+import "game_logic.zc";
+import "platform_api.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: GameState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+
+// ==================== 颜色定义 ====================
+
+const CARD_WIDTH: i32 = 70;
+const CARD_HEIGHT: i32 = 100;
+const CARD_SPACING: i32 = 20;
+
+const SUIT_RED = rgb(220, 20, 60);      // 红色(红心/方块)
+const SUIT_BLACK = rgb(20, 20, 20);     // 黑色(黑桃/梅花)
+const CARD_BG = rgb(255, 255, 255);     // 牌面白色
+const CARD_BACK = rgb(30, 80, 180);      // 牌背面蓝色
+const BUTTON_BG = rgb(50, 120, 200);     // 按钮背景
+const BUTTON_HOVER = rgb(70, 140, 220); // 按钮悬停
+const BUTTON_ACTIVE = rgb(30, 90, 160); // 按钮按下
+const TEXT_COLOR = rgb(255, 255, 255);   // 文字白色
+const GAMBLE_BG = rgb(15, 90, 45);       // 赌桌绿色
+const CHIP_10 = rgb(200, 180, 30);      // 10筹码金色
+const CHIP_50 = rgb(220, 40, 40);       // 50筹码红色
+const CHIP_100 = rgb(30, 120, 30);      // 100筹码绿色
+const CHIP_500 = rgb(30, 30, 30);       // 500筹码黑色
+const CHIP_1000 = rgb(180, 30, 180);    // 1000筹码紫色
+
+// ==================== 按钮区域定义 ====================
+
+struct Button {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    text: string,
+    enabled: bool
+}
+
+// 按钮位置
+const BUTTON_HIT = Button { x: 80, y: 480, width: 100, height: 40, text: "要牌(H)", enabled: false };
+const BUTTON_STAND = Button { x: 200, y: 480, width: 100, height: 40, text: "停牌(S)", enabled: false };
+const BUTTON_DOUBLE = Button { x: 320, y: 480, width: 100, height: 40, text: "双倍(D)", enabled: false };
+const BUTTON_SPLIT = Button { x: 440, y: 480, width: 100, height: 40, text: "分裂(P)", enabled: false };
+const BUTTON_SURRENDER = Button { x: 560, y: 480, width: 100, height: 40, text: "投降(Q)", enabled: false };
+const BUTTON_DEAL = Button { x: 400, y: 380, width: 100, height: 40, text: "发牌", enabled: false };
+const BUTTON_NEW = Button { x: 750, y: 10, width: 100, height: 40, text: "新游戏", enabled: true };
+const BUTTON_DEAL_POS = Button { x: 400, y: 420, width: 100, height: 45, text: "下注并发牌", enabled: false };
+
+// 筹码位置
+const CHIP_POSITIONS = [
+    [30, 530],   // 10
+    [110, 530],  // 50
+    [190, 530],  // 100
+    [270, 530],  // 500
+    [350, 530],  // 1000
+];
+
+// ==================== 绘图函数 ====================
+
+// 绘制矩形(带边框)
+fn draw_button(ctx: GraphicsContext, btn: Button, hovered: bool) {
+    if !btn.enabled {
+        // 禁用状态
+        draw_rect(ctx, btn.x, btn.y, btn.width, btn.height, rgb(80, 80, 80));
+        draw_rect(ctx, btn.x, btn.y, btn.width, 2, rgb(120, 120, 120));
+        return;
+    }
+    
+    let bg_color = if hovered { BUTTON_HOVER } else { BUTTON_BG };
+    draw_rect(ctx, btn.x, btn.y, btn.width, btn.height, bg_color);
+    
+    // 按钮边框
+    draw_rect(ctx, btn.x, btn.y, btn.width, 2, rgb(100, 100, 255));
+    draw_rect(ctx, btn.x, btn.y + btn.height - 2, btn.width, 2, rgb(100, 100, 255));
+    draw_rect(ctx, btn.x, btn.y, 2, btn.height, rgb(100, 100, 255));
+    draw_rect(ctx, btn.x + btn.width - 2, btn.y, 2, btn.height, rgb(100, 100, 255));
+}
+
+// 绘制扑克牌
+fn draw_card(ctx: GraphicsContext, x: i32, y: i32, card: Card, show_back: bool) {
+    // 牌背面
+    if show_back {
+        draw_rect(ctx, x, y, CARD_WIDTH, CARD_HEIGHT, CARD_BACK);
+        
+        // 绘制背面花纹
+        let pattern_color = rgb(200, 200, 255);
+        for i in 0..5 {
+            draw_rect(ctx, x + 5 + i * 13, y + 5, 8, CARD_HEIGHT - 10, pattern_color);
+        }
+        for i in 0..3 {
+            draw_rect(ctx, x + 5, y + 15 + i * 28, CARD_WIDTH - 10, 8, pattern_color);
+        }
+    } else {
+        // 牌正面
+        draw_rect(ctx, x, y, CARD_WIDTH, CARD_HEIGHT, CARD_BG);
+        
+        // 花色颜色
+        let is_red = card.suit == Suit::Hearts || card.suit == Suit::Diamonds;
+        let suit_color = if is_red { SUIT_RED } else { SUIT_BLACK };
+        
+        // 绘制点数和花色
+        let suit_char = get_suit_char(card.suit);
+        let rank_char = get_rank_char(card.rank);
+        
+        // 左上角
+        // 简化: 只画一个点表示
+        draw_circle(ctx, x + 12, y + 18, 5, suit_color);
+        
+        // 右下角
+        draw_circle(ctx, x + CARD_WIDTH - 12, y + CARD_HEIGHT - 18, 5, suit_color);
+        
+        // 中心花色
+        draw_circle(ctx, x + CARD_WIDTH / 2, y + CARD_HEIGHT / 2, 12, suit_color);
+    }
+    
+    // 牌边框
+    draw_rect(ctx, x, y, CARD_WIDTH, 2, SUIT_BLACK);
+    draw_rect(ctx, x, y + CARD_HEIGHT - 2, CARD_WIDTH, 2, SUIT_BLACK);
+    draw_rect(ctx, x, y, 2, CARD_HEIGHT, SUIT_BLACK);
+    draw_rect(ctx, x + CARD_WIDTH - 2, y, 2, CARD_HEIGHT, SUIT_BLACK);
+}
+
+// 绘制筹码
+fn draw_chip(ctx: GraphicsContext, x: i32, y: i32, value: i32) {
+    let color = match value {
+        10 => CHIP_10,
+        50 => CHIP_50,
+        100 => CHIP_100,
+        500 => CHIP_500,
+        1000 => CHIP_1000,
+        _ => CHIP_10
+    };
+    
+    // 筹码外圈
+    draw_circle(ctx, x, y, 30, color);
+    draw_circle(ctx, x, y, 25, rgb(40, 40, 40));
+    draw_circle(ctx, x, y, 22, color);
+    
+    // 筹码面值
+    let text = format("{}", value);
+    // 简化: 画个小方块代替文字
+    draw_rect(ctx, x - 12, y - 8, 24, 16, rgb(255, 255, 255));
+}
+
+// 绘制游戏画面
+fn draw_game(ctx: GraphicsContext) {
+    // 绘制赌桌背景
+    draw_rect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, GAMBLE_BG);
+    
+    // 绘制分割线
+    draw_rect(ctx, 0, 320, WINDOW_WIDTH, 3, rgb(255, 255, 255));
+    draw_rect(ctx, 0, 470, WINDOW_WIDTH, 3, rgb(255, 255, 255));
+    
+    // 绘制庄家区域标题
+    // 简化: 画一个区域
+    draw_rect(ctx, 30, 30, WINDOW_WIDTH - 60, 120, rgb(20, 60, 30));
+    
+    // 绘制玩家区域标题
+    draw_rect(ctx, 30, 340, WINDOW_WIDTH - 60, 120, rgb(20, 60, 30));
+    
+    // 绘制庄家手牌
+    let dealer_x = 50;
+    let dealer_y = 40;
+    for i in 0..game.dealer_hand.card_count {
+        let show_back = !game.dealer_hand.cards[i].face_up;
+        draw_card(ctx, dealer_x + i * (CARD_WIDTH + CARD_SPACING), dealer_y, 
+                  game.dealer_hand.cards[i], show_back);
+    }
+    
+    // 绘制庄家点数(如果第一张牌可见)
+    if game.dealer_hand.card_count > 0 && game.dealer_hand.cards[0].face_up {
+        let dealer_value = calculate_hand_value(&game.dealer_hand);
+        if game.phase != GamePhase::Betting && game.phase != GamePhase::PlayerTurn {
+            // 显示完整点数
+            io.println("庄家点数: {}", dealer_value);
+        } else {
+            // 只显示第一张
+            io.println("庄家点数: {} + ?", get_rank_value(game.dealer_hand.cards[0].rank));
+        }
+    }
+    
+    // 绘制玩家手牌
+    let player_x = 50;
+    let player_y = 350;
+    for i in 0..game.player.current_hand.card_count {
+        draw_card(ctx, player_x + i * (CARD_WIDTH + CARD_SPACING), player_y,
+                  game.player.current_hand.cards[i], false);
+    }
+    
+    // 绘制玩家点数
+    let player_value = calculate_hand_value(&game.player.current_hand);
+    io.println("玩家点数: {}", player_value);
+    
+    // 绘制当前下注金额
+    io.println("当前下注: {}", game.current_bet);
+    
+    // 下注阶段 - 绘制筹码和发牌按钮
+    if game.phase == GamePhase::Betting {
+        // 绘制筹码
+        for i in 0..5 {
+            let chip_value = [10, 50, 100, 500, 1000][i];
+            let cx = CHIP_POSITIONS[i][0];
+            let cy = CHIP_POSITIONS[i][1];
+            draw_chip(ctx, cx, cy, chip_value);
+        }
+        
+        // 绘制下注按钮
+        let bet_btn = Button {
+            x: 400, y: 420, width: 120, height: 45,
+            text: "下注并发牌",
+            enabled: game.current_bet >= MIN_BET
+        };
+        draw_button(ctx, bet_btn, false);
+        
+        io.println("请选择筹码下注, 然后点击[下注并发牌]");
+    }
+    
+    // 回合结束 - 显示结果
+    if game.phase == GamePhase::RoundEnd {
+        io.println("结果: {}", get_result_text(game.last_result));
+    }
+    
+    // 绘制按钮
+    if game.phase == GamePhase::PlayerTurn {
+        let hit_btn = Button { x: 80, y: 480, width: 100, height: 40, text: "要牌(H)", enabled: game.can_hit };
+        let stand_btn = Button { x: 200, y: 480, width: 100, height: 40, text: "停牌(S)", enabled: game.can_stand };
+        let double_btn = Button { x: 320, y: 480, width: 100, height: 40, text: "双倍(D)", enabled: game.can_double };
+        let split_btn = Button { x: 440, y: 480, width: 100, height: 40, text: "分裂(P)", enabled: game.can_split };
+        let surrender_btn = Button { x: 560, y: 480, width: 100, height: 40, text: "投降(Q)", enabled: game.can_surrender };
+        
+        draw_button(ctx, hit_btn, false);
+        draw_button(ctx, stand_btn, false);
+        draw_button(ctx, double_btn, false);
+        draw_button(ctx, split_btn, false);
+        draw_button(ctx, surrender_btn, false);
+    }
+    
+    // 绘制状态信息
+    io.println("========================================");
+    io.println("{}", get_money_text(&game));
+    io.println("{}", get_phase_text(&game));
+    io.println("{}", get_controls_text());
+    io.println("========================================");
+    
+    // 绘制新游戏按钮
+    let new_btn = Button { x: 750, y: 10, width: 100, height: 40, text: "新游戏", enabled: true };
+    draw_button(ctx, new_btn, false);
+}
+
+// ==================== 事件处理 ====================
+
+// 坐标是否在按钮内
+fn is_in_button(x: i32, y: i32, btn: Button) -> bool {
+    return x >= btn.x && x <= btn.x + btn.width &&
+           y >= btn.y && y <= btn.y + btn.height;
+}
+
+// 处理鼠标点击
+fn on_mouse_click(x: i32, y: i32) {
+    // 新游戏按钮
+    let new_btn = Button { x: 750, y: 10, width: 100, height: 40, text: "新游戏", enabled: true };
+    if is_in_button(x, y, new_btn) {
+        new_game(&mut game);
+        redraw_window(window);
+        return;
+    }
+    
+    match game.phase {
+        GamePhase::Betting => {
+            // 检查筹码点击
+            for i in 0..5 {
+                let chip_x = CHIP_POSITIONS[i][0];
+                let chip_y = CHIP_POSITIONS[i][1];
+                let dx = x - chip_x;
+                let dy = y - chip_y;
+                if dx*dx + dy*dy <= 30*30 {
+                    let chip_value = [10, 50, 100, 500, 1000][i];
+                    if game.player.money >= chip_value {
+                        game.current_bet = game.current_bet + chip_value;
+                        game.player.money = game.player.money - chip_value;
+                        io.println("当前下注: {}", game.current_bet);
+                    }
+                    redraw_window(window);
+                    return;
+                }
+            }
+            
+            // 下注并发牌按钮
+            let deal_btn = Button {
+                x: 400, y: 420, width: 120, height: 45,
+                text: "下注并发牌",
+                enabled: game.current_bet >= MIN_BET
+            };
+            if is_in_button(x, y, deal_btn) && game.current_bet >= MIN_BET {
+                start_round(&mut game);
+                redraw_window(window);
+            }
+        },
+        
+        GamePhase::PlayerTurn => {
+            // 要牌
+            let hit_btn = Button { x: 80, y: 480, width: 100, height: 40, text: "要牌(H)", enabled: game.can_hit };
+            if is_in_button(x, y, hit_btn) && game.can_hit {
+                hit(&mut game);
+                redraw_window(window);
+                return;
+            }
+            
+            // 停牌
+            let stand_btn = Button { x: 200, y: 480, width: 100, height: 40, text: "停牌(S)", enabled: game.can_stand };
+            if is_in_button(x, y, stand_btn) && game.can_stand {
+                stand(&mut game);
+                redraw_window(window);
+                return;
+            }
+            
+            // 双倍
+            let double_btn = Button { x: 320, y: 480, width: 100, height: 40, text: "双倍(D)", enabled: game.can_double };
+            if is_in_button(x, y, double_btn) && game.can_double {
+                double_down(&mut game);
+                redraw_window(window);
+                return;
+            }
+            
+            // 分裂
+            let split_btn = Button { x: 440, y: 480, width: 100, height: 40, text: "分裂(P)", enabled: game.can_split };
+            if is_in_button(x, y, split_btn) && game.can_split {
+                split_hand(&mut game);
+                redraw_window(window);
+                return;
+            }
+            
+            // 投降
+            let surrender_btn = Button { x: 560, y: 480, width: 100, height: 40, text: "投降(Q)", enabled: game.can_surrender };
+            if is_in_button(x, y, surrender_btn) && game.can_surrender {
+                surrender(&mut game);
+                redraw_window(window);
+                return;
+            }
+        },
+        
+        GamePhase::RoundEnd => {
+            // 返回下注阶段
+            game.phase = GamePhase::Betting;
+            game.current_bet = 0;
+            game.can_place_bet = true;
+            redraw_window(window);
+        },
+        
+        _ => {}
+    }
+}
+
+// 处理键盘事件
+fn on_key_event(key_code: i32) -> bool {
+    // R键 - 新游戏
+    if key_code == 82 || key_code == 114 {
+        new_game(&mut game);
+        redraw_window(window);
+        return true;
+    }
+    
+    match game.phase {
+        GamePhase::PlayerTurn => {
+            // H键 - 要牌
+            if (key_code == 72 || key_code == 104) && game.can_hit {
+                hit(&mut game);
+                redraw_window(window);
+            }
+            
+            // S键 - 停牌
+            if (key_code == 83 || key_code == 115) && game.can_stand {
+                stand(&mut game);
+                redraw_window(window);
+            }
+            
+            // D键 - 双倍
+            if (key_code == 68 || key_code == 100) && game.can_double {
+                double_down(&mut game);
+                redraw_window(window);
+            }
+            
+            // P键 - 分裂
+            if (key_code == 80 || key_code == 112) && game.can_split {
+                split_hand(&mut game);
+                redraw_window(window);
+            }
+            
+            // Q键 - 投降
+            if (key_code == 81 || key_code == 113) && game.can_surrender {
+                surrender(&mut game);
+                redraw_window(window);
+            }
+        },
+        
+        GamePhase::RoundEnd => {
+            // 任意键返回下注
+            game.phase = GamePhase::Betting;
+            game.current_bet = 0;
+            game.can_place_bet = true;
+            redraw_window(window);
+        },
+        
+        _ => {}
+    }
+    
+    return true;
+}
+
+// 处理定时器事件
+fn on_timer_event() {
+    redraw_window(window);
+}
+
+// ==================== 平台特定窗口过程 ====================
+
+#if IS_WINDOWS
+
+extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
+    match uMsg {
+        WM_PAINT => {
+            let mut ps: [64]u8 = [0; 64];
+            let hdc = BeginPaint(hwnd, &ps);
+            
+            draw_game(hdc);
+            
+            EndPaint(hwnd, &ps);
+            return 0;
+        },
+        
+        WM_KEYDOWN => {
+            let continue_game = on_key_event(wParam as i32);
+            if !continue_game {
+                running = false;
+                PostQuitMessage(0);
+            } else {
+                InvalidateRect(hwnd, null, true);
+            }
+            return 0;
+        },
+        
+        WM_TIMER => {
+            on_timer_event();
+            return 0;
+        },
+        
+        WM_DESTROY => {
+            running = false;
+            PostQuitMessage(0);
+            return 0;
+        },
+        
+        _ => {
+            return DefWindowProcA(hwnd, uMsg, wParam, lParam);
+        }
+    }
+}
+
+extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32;
+
+#elif IS_LINUX || IS_MACOS
+
+// Linux/macOS事件处理（简化版本）
+
+#endif
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C 二十一点(Blackjack)游戏");
+    io.println("========================================");
+    io.println("平台: {}", 
+        #if IS_WINDOWS
+            "Windows"
+        #elif IS_LINUX
+            "Linux"
+        #elif IS_MACOS
+            "macOS"
+        #else
+            "未知"
+        #endif
+    );
+    io.println("========================================");
+    
+    // 初始化游戏
+    init_game(&mut game);
+    
+    // 创建窗口
+    let window_title = "Zen-C Blackjack - 二十一点";
+    window = create_window(window_title, WINDOW_WIDTH, WINDOW_HEIGHT);
+    
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+    
+    // 显示窗口
+    show_window(window);
+    
+    // 设置游戏定时器(用于刷新显示)
+    set_game_timer(window, 100);
+    
+    io.println("窗口创建成功!");
+    io.println("初始金币: {}", game.player.money);
+    io.println("========================================");
+    io.println("游戏规则:");
+    io.println("1. 点击筹码下注,然后点击[下注并发牌]");
+    io.println("2. 要牌(H) - 再要一张牌");
+    io.println("3. 停牌(S) - 停止要牌");
+    io.println("4. 双倍(D) - 双倍下注,只能要一张牌");
+    io.println("5. 分裂(P) - 如果两张牌相同可分裂");
+    io.println("6. 投降(Q) - 放弃本局,退回一半赌注");
+    io.println("7. 超过21点爆牌输");
+    io.println("8. 21点以下比庄家大赢");
+    io.println("========================================");
+    
+    // 运行事件循环
+    run_event_loop(window);
+    
+    io.println("游戏结束!");
+    io.println("最终金币: {}", game.player.money);
+    io.println("谢谢游玩 Zen-C 二十一点!");
+    io.println("========================================");
+    
+    quit_application();
+    
+    0
+}

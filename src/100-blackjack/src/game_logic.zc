@@ -1,0 +1,622 @@
+// game_logic.zc - 二十一点(Blackjack)游戏逻辑
+// 所有平台共用相同的游戏逻辑代码
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const DECK_COUNT: i32 = 6;          // 牌组数量(6副牌)
+const DECK_SIZE: i32 = 52;          // 每副牌的张数
+const MAX_CARDS: i32 = 312;        // 最大牌数 (6 * 52)
+const MAX_HAND_CARDS: i32 = 21;    // 最大手牌数(理论上)
+
+const WINDOW_WIDTH: i32 = 900;
+const WINDOW_HEIGHT: i32 = 650;
+
+const MIN_BET: i32 = 10;
+const MAX_BET: i32 = 1000;
+const DEFAULT_BET: i32 = 100;
+
+// ==================== 牌面花色和点数 ====================
+
+// 花色枚举
+enum Suit {
+    Spades,    // 黑桃 ♠
+    Hearts,    // 红心 ♥
+    Diamonds,  // 方块 ♦
+    Clubs      // 梅花 ♣
+}
+
+// 点数枚举
+enum Rank {
+    Ace,      // A (1或11点)
+    Two,      // 2
+    Three,    // 3
+    Four,     // 4
+    Five,     // 5
+    Six,      // 6
+    Seven,    // 7
+    Eight,    // 8
+    Nine,     // 9
+    Ten,      // 10
+    Jack,     // J (10点)
+    Queen,    // Q (10点)
+    King      // K (10点)
+}
+
+// 扑克牌结构
+struct Card {
+    suit: Suit,
+    rank: Rank,
+    face_up: bool     // 是否正面朝上(用于显示)
+}
+
+// 手牌结构
+struct Hand {
+    cards: [MAX_HAND_CARDS]Card,
+    card_count: i32,
+    bet: i32,         // 当前下注金额
+    is_split: bool,   // 是否分裂过
+    is_doubled: bool  // 是否加倍过
+}
+
+// 游戏状态枚举
+enum GamePhase {
+    Betting,      // 下注阶段
+    PlayerTurn,   // 玩家回合
+    DealerTurn,   // 庄家回合
+    RoundEnd      // 回合结束
+}
+
+// 结果枚举
+enum Result {
+    PlayerWin,           // 玩家赢
+    PlayerLose,          // 玩家输
+    Push,                // 平局
+    Blackjack,           // 玩家黑杰克
+    DealerBlackjack,     // 庄家黑杰克
+    PlayerSurrender      // 玩家投降
+}
+
+// 玩家信息
+struct Player {
+    money: i32,          // 当前金币
+    current_hand: Hand,  // 当前手牌
+    split_hand: Hand,   // 分裂后的手牌(如果有)
+    has_split: bool,     // 是否已分裂
+    insurance: i32       // 保险金
+}
+
+// 游戏主状态
+struct GameState {
+    deck: [MAX_CARDS]Card,
+    deck_count: i32,         // 牌堆剩余牌数
+    
+    player: Player,
+    dealer_hand: Hand,
+    
+    phase: GamePhase,
+    last_result: Result,
+    
+    // UI状态
+    window_width: i32,
+    window_height: i32,
+    
+    // 按钮状态
+    can_hit: bool,
+    can_stand: bool,
+    can_double: bool,
+    can_split: bool,
+    can_surrender: bool,
+    can_insurance: bool,
+    can_place_bet: bool,
+    
+    // 当前下注
+    current_bet: i32,
+    selected_chip: i32
+}
+
+// ==================== 辅助函数 ====================
+
+// 获取牌面字符
+fn get_suit_char(suit: Suit) -> string {
+    match suit {
+        Suit::Spades => return "♠",
+        Suit::Hearts => return "♥",
+        Suit::Diamonds => return "♦",
+        Suit::Clubs => return "♣"
+    }
+}
+
+fn get_rank_char(rank: Rank) -> string {
+    match rank {
+        Rank::Ace => return "A",
+        Rank::Two => return "2",
+        Rank::Three => return "3",
+        Rank::Four => return "4",
+        Rank::Five => return "5",
+        Rank::Six => return "6",
+        Rank::Seven => return "7",
+        Rank::Eight => return "8",
+        Rank::Nine => return "9",
+        Rank::Ten => return "10",
+        Rank::Jack => return "J",
+        Rank::Queen => return "Q",
+        Rank::King => return "K"
+    }
+}
+
+fn get_rank_value(rank: Rank) -> i32 {
+    match rank {
+        Rank::Ace => return 1,   // A的点数稍后计算
+        Rank::Two => return 2,
+        Rank::Three => return 3,
+        Rank::Four => return 4,
+        Rank::Five => return 5,
+        Rank::Six => return 6,
+        Rank::Seven => return 7,
+        Rank::Eight => return 8,
+        Rank::Nine => return 9,
+        Rank::Ten => return 10,
+        Rank::Jack => return 10,
+        Rank::Queen => return 10,
+        Rank::King => return 10
+    }
+}
+
+// 计算手牌点数(Ace自动计算最优值)
+fn calculate_hand_value(hand: &Hand) -> i32 {
+    var total: i32 = 0;
+    var ace_count: i32 = 0;
+    
+    for i in 0..hand.card_count {
+        if hand.cards[i].face_up {
+            let value = get_rank_value(hand.cards[i].rank);
+            total = total + value;
+            if hand.cards[i].rank == Rank::Ace {
+                ace_count = ace_count + 1;
+            }
+        }
+    }
+    
+    // 将Ace从1点调整为11点(如果不会爆牌)
+    while ace_count > 0 && total + 10 <= 21 {
+        total = total + 10;
+        ace_count = ace_count - 1;
+    }
+    
+    return total;
+}
+
+// 检查是否为黑杰克(21点且只有两张牌)
+fn is_blackjack(hand: &Hand) -> bool {
+    return hand.card_count == 2 && calculate_hand_value(hand) == 21;
+}
+
+// 检查是否爆牌
+fn is_busted(hand: &Hand) -> bool {
+    return calculate_hand_value(hand) > 21;
+}
+
+// ==================== 牌堆管理 ====================
+
+// 初始化牌堆(多副牌)
+fn init_deck(game: &mut GameState) {
+    var card_index: i32 = 0;
+    
+    // 创建6副牌
+    for deck in 0..DECK_COUNT {
+        for suit_val in 0..4 {
+            for rank_val in 0..13 {
+                game.deck[card_index] = Card {
+                    suit: suit_val as Suit,
+                    rank: rank_val as Rank,
+                    face_up: false
+                };
+                card_index = card_index + 1;
+            }
+        }
+    }
+    
+    game.deck_count = DECK_COUNT * DECK_SIZE;
+}
+
+// 洗牌
+fn shuffle_deck(game: &mut GameState) {
+    let seed = time.now().nanos();
+    math.srand(seed);
+    
+    for i in game.deck_count - 1 .. 0 step -1 {
+        let j = math.rand() % (i + 1);
+        // 交换
+        let temp = game.deck[i];
+        game.deck[i] = game.deck[j];
+        game.deck[j] = temp;
+    }
+}
+
+// 发一张牌
+fn deal_card(game: &mut GameState, hand: &mut Hand, face_up: bool) -> bool {
+    if game.deck_count <= 0 {
+        // 牌堆空了,重新洗牌
+        shuffle_deck(game);
+    }
+    
+    if hand.card_count >= MAX_HAND_CARDS {
+        return false;
+    }
+    
+    game.deck_count = game.deck_count - 1;
+    let card = game.deck[game.deck_count];
+    hand.cards[hand.card_count] = Card {
+        suit: card.suit,
+        rank: card.rank,
+        face_up: face_up
+    };
+    hand.card_count = hand.card_count + 1;
+    
+    return true;
+}
+
+// ==================== 游戏初始化 ====================
+
+fn init_game(game: &mut GameState) {
+    // 初始化玩家金币
+    game.player.money = 10000;
+    game.player.has_split = false;
+    game.player.insurance = 0;
+    
+    // 初始化牌堆
+    shuffle_deck(game);
+    
+    // 初始化阶段
+    game.phase = GamePhase::Betting;
+    game.current_bet = 0;
+    game.selected_chip = 100;
+    game.can_place_bet = true;
+    game.can_hit = false;
+    game.can_stand = false;
+    game.can_double = false;
+    game.can_split = false;
+    game.can_surrender = false;
+    game.can_insurance = false;
+    
+    // 初始化手牌
+    game.player.current_hand = Hand {
+        cards: [Card.{suit: Suit::Spades, rank: Rank::Ace, face_up: false}; MAX_HAND_CARDS],
+        card_count: 0,
+        bet: 0,
+        is_split: false,
+        is_doubled: false
+    };
+    
+    game.player.split_hand = Hand {
+        cards: [Card.{suit: Suit::Spades, rank: Rank::Ace, face_up: false}; MAX_HAND_CARDS],
+        card_count: 0,
+        bet: 0,
+        is_split: false,
+        is_doubled: false
+    };
+    
+    game.dealer_hand = Hand {
+        cards: [Card.{suit: Suit::Spades, rank: Rank::Ace, face_up: false}; MAX_HAND_CARDS],
+        card_count: 0,
+        bet: 0,
+        is_split: false,
+        is_doubled: false
+    };
+}
+
+// ==================== 游戏逻辑 ====================
+
+// 开始新回合(下注后)
+fn start_round(game: &mut GameState) {
+    // 重置手牌
+    game.player.current_hand.card_count = 0;
+    game.player.current_hand.bet = game.current_bet;
+    game.player.current_hand.is_split = false;
+    game.player.current_hand.is_doubled = false;
+    
+    game.player.split_hand.card_count = 0;
+    game.player.split_hand.is_split = false;
+    game.player.split_hand.is_doubled = false;
+    game.player.has_split = false;
+    
+    game.dealer_hand.card_count = 0;
+    game.dealer_hand.bet = 0;
+    
+    game.player.insurance = 0;
+    
+    // 从牌堆发牌
+    deal_card(game, &mut game.player.current_hand, true);  // 玩家第1张
+    deal_card(game, &mut game.dealer_hand, true);            // 庄家第1张(正面)
+    deal_card(game, &mut game.player.current_hand, true);  // 玩家第2张
+    deal_card(game, &mut game.dealer_hand, false);           // 庄家第2张(背面)
+    
+    // 检查黑杰克
+    if is_blackjack(&game.player.current_hand) {
+        // 翻开庄家的牌
+        game.dealer_hand.cards[1].face_up = true;
+        
+        if is_blackjack(&game.dealer_hand) {
+            // 双方都是黑杰克 - 平局
+            game.phase = GamePhase::RoundEnd;
+            game.last_result = Result::Push;
+        } else {
+            // 玩家黑杰克赢
+            game.phase = GamePhase::RoundEnd;
+            game.last_result = Result::Blackjack;
+            game.player.money = game.player.money + game.current_bet * 3 / 2;
+        }
+        return;
+    }
+    
+    // 检查庄家是否有A(是否可买保险)
+    if game.dealer_hand.cards[1].rank == Rank::Ace {
+        game.can_insurance = true;
+    }
+    
+    // 设置按钮状态
+    game.phase = GamePhase::PlayerTurn;
+    game.can_place_bet = false;
+    game.can_hit = true;
+    game.can_stand = true;
+    game.can_double = game.player.current_hand.card_count == 2 && 
+                      game.player.money >= game.current_bet;
+    game.can_split = can_split(&game.player.current_hand) && 
+                     game.player.money >= game.current_bet;
+    game.can_surrender = game.player.current_hand.card_count == 2;
+    game.can_insurance = game.dealer_hand.cards[1].rank == Rank::Ace && 
+                         game.player.money >= game.current_bet / 2;
+}
+
+// 检查是否可以分裂(两张牌点数相同)
+fn can_split(hand: &Hand) -> bool {
+    if hand.card_count != 2 {
+        return false;
+    }
+    
+    let rank1 = hand.cards[0].rank;
+    let rank2 = hand.cards[1].rank;
+    
+    // A和10点牌(J,Q,K)也算作可分裂(实际上10点牌都不同花色)
+    let v1 = get_rank_value(rank1);
+    let v2 = get_rank_value(rank2);
+    
+    return v1 == v2;
+}
+
+// 买保险
+fn buy_insurance(game: &mut GameState) -> bool {
+    if !game.can_insurance || game.player.money < game.current_bet / 2 {
+        return false;
+    }
+    
+    game.player.insurance = game.current_bet / 2;
+    game.player.money = game.player.money - game.player.insurance;
+    game.can_insurance = false;
+    
+    // 检查庄家是否有黑杰克
+    if is_blackjack(&game.dealer_hand) {
+        game.dealer_hand.cards[1].face_up = true;
+        game.phase = GamePhase::RoundEnd;
+        game.last_result = Result::DealerBlackjack;
+        // 保险金赔付2:1
+        game.player.money = game.player.money + game.player.insurance * 3;
+        return true;
+    }
+    
+    return false;
+}
+
+// 投降
+fn surrender(game: &mut GameState) -> bool {
+    if !game.can_surrender {
+        return false;
+    }
+    
+    game.phase = GamePhase::RoundEnd;
+    game.last_result = Result::PlayerSurrender;
+    game.player.money = game.player.money + game.current_bet / 2;
+    
+    return true;
+}
+
+// 要牌
+fn hit(game: &mut GameState) -> bool {
+    if !game.can_hit {
+        return false;
+    }
+    
+    deal_card(game, &mut game.player.current_hand, true);
+    
+    // 检查是否爆牌
+    if is_busted(&game.player.current_hand) {
+        game.can_hit = false;
+        game.can_stand = false;
+        game.can_double = false;
+        game.can_split = false;
+        game.can_surrender = false;
+        
+        // 自动结束回合
+        stand(game);
+        return true;
+    }
+    
+    // 停牌后不能再要牌(简单规则:4张以上强制停牌)
+    if game.player.current_hand.card_count >= 4 {
+        stand(game);
+    }
+    
+    return true;
+}
+
+// 停牌
+fn stand(game: &mut GameState) {
+    game.can_hit = false;
+    game.can_stand = false;
+    game.can_double = false;
+    game.can_split = false;
+    game.can_surrender = false;
+    game.can_insurance = false;
+    
+    // 翻开庄家的牌
+    game.dealer_hand.cards[1].face_up = true;
+    
+    // 庄家回合
+    game.phase = GamePhase::DealerTurn;
+    
+    // 庄家规则: 点数<17必须继续要牌
+    while calculate_hand_value(&game.dealer_hand) < 17 {
+        deal_card(game, &mut game.dealer_hand, true);
+    }
+    
+    // 判定结果
+    dealer_reveal(game);
+}
+
+// 双倍下注
+fn double_down(game: &mut GameState) -> bool {
+    if !game.can_double {
+        return false;
+    }
+    
+    game.player.money = game.player.money - game.current_bet;
+    game.player.current_hand.bet = game.player.current_hand.bet + game.current_bet;
+    game.player.current_hand.is_doubled = true;
+    
+    // 双倍只能要一张牌
+    deal_card(game, &mut game.player.current_hand, true);
+    
+    // 强制停牌
+    stand(game);
+    
+    return true;
+}
+
+// 分裂手牌
+fn split_hand(game: &mut GameState) -> bool {
+    if !game.can_split {
+        return false;
+    }
+    
+    // 扣除分裂的赌注
+    game.player.money = game.player.money - game.current_bet;
+    
+    // 第一张牌给当前手
+    // 第二张牌给分裂手
+    deal_card(game, &mut game.player.current_hand, true);
+    deal_card(game, &mut game.player.split_hand, true);
+    
+    game.player.has_split = true;
+    game.player.split_hand.bet = game.current_bet;
+    game.player.split_hand.is_split = true;
+    
+    // 更新按钮状态
+    game.can_split = can_split(&game.player.current_hand) && 
+                     game.player.money >= game.current_bet;
+    game.can_double = game.player.current_hand.card_count == 2 && 
+                      game.player.money >= game.current_bet;
+    
+    return true;
+}
+
+// 庄家亮牌后判定
+fn dealer_reveal(game: &mut GameState) {
+    game.phase = GamePhase::RoundEnd;
+    
+    let player_value = calculate_hand_value(&game.player.current_hand);
+    let dealer_value = calculate_hand_value(&game.dealer_hand);
+    
+    // 庄家爆牌
+    if is_busted(&game.dealer_hand) {
+        game.last_result = Result::PlayerWin;
+        game.player.money = game.player.money + game.player.current_hand.bet * 2;
+        return;
+    }
+    
+    // 比较点数
+    if player_value > dealer_value {
+        game.last_result = Result::PlayerWin;
+        game.player.money = game.player.money + game.player.current_hand.bet * 2;
+    } else if player_value < dealer_value {
+        game.last_result = Result::PlayerLose;
+    } else {
+        game.last_result = Result::Push;
+        game.player.money = game.player.money + game.player.current_hand.bet;
+    }
+}
+
+// 下注
+fn place_bet(game: &mut GameState, amount: i32) -> bool {
+    if amount < MIN_BET || amount > MAX_BET {
+        return false;
+    }
+    
+    if amount > game.player.money {
+        return false;
+    }
+    
+    game.current_bet = amount;
+    game.player.money = game.player.money - amount;
+    
+    // 开始回合
+    start_round(game);
+    
+    return true;
+}
+
+// 下注筹码选择
+fn select_chip(game: &mut GameState, value: i32) {
+    match value {
+        10 => game.selected_chip = 10,
+        50 => game.selected_chip = 50,
+        100 => game.selected_chip = 100,
+        500 => game.selected_chip = 500,
+        1000 => game.selected_chip = 1000,
+        _ => {}
+    }
+}
+
+// 开始新游戏
+fn new_game(game: &mut GameState) {
+    if game.player.money < MIN_BET {
+        // 金币不足,重置
+        game.player.money = 10000;
+    }
+    
+    init_game(game);
+}
+
+// 获取结果文本
+fn get_result_text(result: Result) -> string {
+    match result {
+        Result::PlayerWin => return "你赢了!",
+        Result::PlayerLose => return "你输了!",
+        Result::Push => return "平局!",
+        Result::Blackjack => return "黑杰克! 你赢了!(3:2赔付)",
+        Result::DealerBlackjack => return "庄家黑杰克!",
+        Result::PlayerSurrender => return "投降,退回一半赌注"
+    }
+}
+
+// 获取当前状态文本
+fn get_phase_text(game: &GameState) -> string {
+    match game.phase {
+        GamePhase::Betting => return "请下注",
+        GamePhase::PlayerTurn => return "你的回合",
+        GamePhase::DealerTurn => return "庄家回合",
+        GamePhase::RoundEnd => return "回合结束"
+    }
+}
+
+// 获取控制说明
+fn get_controls_text() -> string {
+    "控制: 点击筹码下注, H要牌 S停牌 D双倍 P分裂 Q投降 R新游戏"
+}
+
+// 获取分数/金币文本
+fn get_money_text(game: &GameState) -> string {
+    format("金币: {}", game.player.money)
+}
