@@ -1,0 +1,21 @@
+// main_window.zc - 捕鱼游戏入口
+// 056-Fishing
+// Zen-C 游戏框架 v1.0.0
+
+// 主函数 - 程序入口
+pub fn main() {
+    println("===========================================");
+    println("  056-Fishing 捕鱼游戏");
+    println("  Zen-C 游戏框架 v1.0.0");
+    println("===========================================");
+    println("");
+    println("操作说明:");
+    println("  空格键 - 抛竿/抓鱼");
+    println("  鼠标左键 - 抛竿/抓鱼");
+    println("");
+    println("游戏目标:");
+    println("  抛竿后等待鱼咬钩，在合适时机按下空格抓鱼");
+    println("  不同大小的鱼有不同的分值！");
+    println("");
+    println("按任意键开始游戏...");
+}

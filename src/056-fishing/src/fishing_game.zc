@@ -1,0 +1,532 @@
+// fishing_game.zc - 捕鱼游戏
+// 056-Fishing
+// Zen-C 游戏框架 v1.0.0
+
+import "platform_api.zc";
+import "game.zc";
+
+// 鱼的大小类型
+enum FishType {
+    Small,   // 小鱼 - 容易抓，分值低
+    Medium,  // 中鱼 - 难度中等
+    Large,   // 大鱼 - 难抓，分值高
+    Golden,  // 金鱼 - 稀有，分值最高
+}
+
+// 鱼
+struct Fish {
+    x: int;          // 位置
+    y: int;
+    vx: int;         // 速度
+    vy: int;
+    fishType: FishType;
+    caught: bool;    // 是否被抓住
+    color: Color;
+    size: int;
+}
+
+// 钓鱼线状态
+enum LineState {
+    Idle,       // 空闲
+    Casting,    // 抛竿中
+    Waiting,    // 等待鱼咬钩
+    Biting,     // 鱼咬钩了！
+    Reeling,    // 收线中
+}
+
+// 捕鱼游戏
+class FishingGame extends Game {
+    // 游戏状态
+    fishes: Fish[20];       // 鱼群
+    fishCount: int;         // 鱼的数量
+    
+    // 钓鱼相关
+    lineState: LineState;
+    hookX: int;             // 鱼钩位置
+    hookY: int;
+    targetX: int;           // 目标位置
+    targetY: int;
+    castProgress: float;    // 抛竿进度
+    biteTimer: float;       // 咬钩计时器
+    biteWindow: float;      // 咬钩时间窗口
+    reelingProgress: float;  // 收线进度
+    
+    // 分数
+    catchCount: int;        // 成功捕获次数
+    totalScore: int;         // 总分
+    
+    // 水波动画
+    waveOffset: float;
+    
+    // 输入状态
+    spacePressed: bool;
+    
+    // 初始化
+    fn onInit() {
+        self.fishCount = 12;
+        self.lineState = LineState.Idle;
+        self.castProgress = 0.0;
+        self.biteTimer = 0.0;
+        self.biteWindow = 1.5;
+        self.reelingProgress = 0.0;
+        self.hookX = 150;
+        self.hookY = 350;
+        self.targetX = 400;
+        self.targetY = 450;
+        self.catchCount = 0;
+        self.totalScore = 0;
+        self.waveOffset = 0.0;
+        self.spacePressed = false;
+        
+        // 初始化鱼群
+        for i in 0..self.fishCount {
+            self.spawnFish(i);
+        }
+        
+        self.setState(GameState.Playing);
+    }
+    
+    // 生成一条鱼
+    fn spawnFish(index: int) {
+        var randType = randInt(0, 3);
+        var fishType: FishType;
+        var color: Color;
+        var size: int;
+        var score: int;
+        
+        match randType {
+            0 => {
+                fishType = FishType.Small;
+                color = Color.RGB(100, 200, 100);
+                size = 12;
+            }
+            1 => {
+                fishType = FishType.Medium;
+                color = Color.RGB(100, 150, 255);
+                size = 18;
+            }
+            2 => {
+                fishType = FishType.Large;
+                color = Color.RGB(150, 100, 200);
+                size = 24;
+            }
+            _ => {
+                fishType = FishType.Golden;
+                color = Color.RGB(255, 215, 0);
+                size = 20;
+            }
+        }
+        
+        // 随机位置和速度
+        var startX = randInt(250, self.width - 50);
+        var startY = randInt(400, self.height - 80);
+        var vx = randInt(-2, 2);
+        if vx == 0 { vx = 1; }
+        var vy = randInt(-1, 1);
+        
+        self.fishes[index] = Fish.{
+            x: startX,
+            y: startY,
+            vx: vx,
+            vy: vy,
+            fishType: fishType,
+            caught: false,
+            color: color,
+            size: size,
+        };
+    }
+    
+    // 关闭清理
+    fn onShutdown() {
+        println("游戏结束！");
+        println("捕获鱼数: " ++ self.catchCount.toString());
+        println("总分: " ++ self.totalScore.toString());
+    }
+    
+    // 更新游戏逻辑
+    fn onUpdate(dt: u32) {
+        var dtFloat = dt as float / 1000.0;
+        
+        // 更新水波
+        self.waveOffset = self.waveOffset + dtFloat * 2.0;
+        if self.waveOffset > 6.28 {
+            self.waveOffset = self.waveOffset - 6.28;
+        }
+        
+        // 更新鱼的位置
+        for i in 0..self.fishCount {
+            var fish = &self.fishes[i];
+            if fish.caught {
+                continue;
+            }
+            
+            fish.x = fish.x + fish.vx;
+            fish.y = fish.y + fish.vy;
+            
+            // 边界检测 - 反弹
+            if fish.x < 200 || fish.x > self.width - fish.size {
+                fish.vx = -fish.vx;
+            }
+            if fish.y < 380 || fish.y > self.height - fish.size {
+                fish.vy = -fish.vy;
+            }
+            
+            // 随机改变方向
+            if randInt(0, 100) < 2 {
+                fish.vx = randInt(-2, 2);
+                if fish.vx == 0 { fish.vx = 1; }
+                fish.vy = randInt(-1, 1);
+            }
+        }
+        
+        // 根据钓鱼线状态更新
+        match self.lineState {
+            LineState.Idle => {
+                // 等待玩家按空格抛竿
+            }
+            LineState.Casting => {
+                // 抛竿动画
+                self.castProgress = self.castProgress + dtFloat * 3.0;
+                if self.castProgress >= 1.0 {
+                    self.castProgress = 1.0;
+                    self.lineState = LineState.Waiting;
+                    // 随机等待时间
+                    self.biteWindow = 1.0 + randInt(0, 3) as float;
+                    self.biteTimer = 0.0;
+                }
+            }
+            LineState.Waiting => {
+                // 等待鱼咬钩
+                self.biteTimer = self.biteTimer + dtFloat;
+                if self.biteTimer >= self.biteWindow {
+                    // 超时，重新开始
+                    self.lineState = LineState.Idle;
+                    self.castProgress = 0.0;
+                }
+            }
+            LineState.Biting => {
+                // 鱼咬钩了！需要在时间窗口内按键
+                self.biteTimer = self.biteTimer + dtFloat;
+                if self.biteTimer >= 1.2 {
+                    // 太慢了，鱼跑了
+                    self.lineState = LineState.Idle;
+                    self.castProgress = 0.0;
+                    self.biteTimer = 0.0;
+                }
+            }
+            LineState.Reeling => {
+                // 收线
+                self.reelingProgress = self.reelingProgress + dtFloat * 2.0;
+                if self.reelingProgress >= 1.0 {
+                    // 收线完成，检查是否抓到鱼
+                    self.checkCatch();
+                    self.lineState = LineState.Idle;
+                    self.castProgress = 0.0;
+                    self.reelingProgress = 0.0;
+                }
+            }
+            _ => {}
+        }
+        
+        // 空格键释放后可以再次抛竿
+        if !isKeyDown(VirtualKey.Space) {
+            self.spacePressed = false;
+        }
+    }
+    
+    // 检查是否抓到鱼
+    fn checkCatch() {
+        var caughtAny = false;
+        
+        for i in 0..self.fishCount {
+            var fish = &self.fishes[i];
+            if fish.caught {
+                continue;
+            }
+            
+            // 检查是否在钩子范围内
+            var dx = abs(fish.x - self.hookX);
+            var dy = abs(fish.y - self.hookY);
+            
+            if dx < 30 && dy < 30 {
+                fish.caught = true;
+                caughtAny = true;
+                
+                // 根据鱼类型给分
+                var score = 0;
+                match fish.fishType {
+                    FishType.Small => { score = 10; }
+                    FishType.Medium => { score = 25; }
+                    FishType.Large => { score = 50; }
+                    FishType.Golden => { score = 100; }
+                    _ => {}
+                }
+                
+                self.totalScore = self.totalScore + score;
+                self.catchCount = self.catchCount + 1;
+                
+                // 重新生成一条鱼
+                self.spawnFish(i);
+                
+                break;
+            }
+        }
+        
+        if !caughtAny {
+            // 没抓到鱼
+        }
+    }
+    
+    // 处理按键
+    fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.Space => {
+                if self.spacePressed {
+                    return;
+                }
+                self.spacePressed = true;
+                
+                match self.lineState {
+                    LineState.Idle => {
+                        // 开始抛竿
+                        self.lineState = LineState.Casting;
+                        self.castProgress = 0.0;
+                        // 随机选择目标位置
+                        self.targetX = randInt(250, self.width - 50);
+                        self.targetY = randInt(420, self.height - 50);
+                    }
+                    LineState.Waiting => {
+                        // 鱼咬钩了！
+                        self.lineState = LineState.Biting;
+                        self.biteTimer = 0.0;
+                    }
+                    LineState.Biting => {
+                        // 成功！开始收线
+                        self.lineState = LineState.Reeling;
+                        self.reelingProgress = 0.0;
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    fn onKeyUp(key: VirtualKey) {
+        // 释放按键
+    }
+    
+    fn onMouseDown(x: int, y: int, button: MouseButton) {
+        // 可以用鼠标点击代替空格键
+        if button == MouseButton.Left {
+            self.onKeyDown(VirtualKey.Space);
+        }
+    }
+    
+    fn onMouseUp(x: int, y: int, button: MouseButton) {
+        // 鼠标释放
+    }
+    
+    // 渲染画面
+    fn onRender(canvas: Canvas) {
+        // 绘制天空和水面背景
+        self.drawBackground(canvas);
+        
+        // 绘制鱼
+        self.drawFishes(canvas);
+        
+        // 绘制钓鱼线和鱼钩
+        self.drawFishingLine(canvas);
+        
+        // 绘制UI
+        self.drawUI(canvas);
+        
+        // 绘制提示
+        self.drawHint(canvas);
+    }
+    
+    // 绘制背景
+    fn drawBackground(canvas: Canvas) {
+        // 天空渐变
+        for y in 0..350 {
+            var t = y as float / 350.0;
+            var r = 135 + (80 * t) as u8;
+            var g = 206 + (50 * t) as u8;
+            var b = 235 as u8;
+            canvas.drawLine(0, y, self.width, y, Color.RGB(r, g, b));
+        }
+        
+        // 水面
+        for y in 350..self.height {
+            var wave = sin(self.waveOffset + y as float * 0.02) * 3.0;
+            var baseColor = Color.RGB(30, 100 + (y - 350) / 3 as u8, 180);
+            
+            // 水波效果
+            if y % 3 == 0 {
+                canvas.drawLine(0, y + wave as int, self.width, y + wave as int, baseColor);
+            } else {
+                canvas.drawLine(0, y, self.width, y, baseColor);
+            }
+        }
+        
+        // 水面波纹
+        for x in 0..self.width {
+            var wave = sin(self.waveOffset + x as float * 0.05) * 2.0;
+            canvas.setPixel(x, 350 + wave as int, Color.RGB(100, 180, 255));
+        }
+    }
+    
+    // 绘制鱼群
+    fn drawFishes(canvas: Canvas) {
+        for i in 0..self.fishCount {
+            var fish = &self.fishes[i];
+            if fish.caught {
+                continue;
+            }
+            
+            // 绘制鱼身
+            canvas.fillCircle(fish.x, fish.y, fish.size, fish.color);
+            
+            // 绘制鱼眼睛
+            var eyeOffset = if fish.vx > 0 { 3 } else { -3 };
+            canvas.fillCircle(fish.x + eyeOffset, fish.y - fish.size / 3, fish.size / 4, Color.White());
+            canvas.fillCircle(fish.x + eyeOffset + (if fish.vx > 0 { 1 } else { -1 }), fish.y - fish.size / 3, fish.size / 6, Color.Black());
+            
+            // 绘制鱼鳍
+            canvas.fillRect(fish.x - fish.size / 2, fish.y - fish.size, fish.size, fish.size / 3, fish.color);
+            
+            // 绘制尾巴
+            var tailX = fish.x - fish.vx * fish.size;
+            canvas.fillRect(tailX - fish.size / 2, fish.y - fish.size / 2, fish.size / 2, fish.size, fish.color);
+        }
+    }
+    
+    // 绘制钓鱼线
+    fn drawFishingLine(canvas: Canvas) {
+        // 鱼竿位置
+        var rodX = 80;
+        var rodY = 320;
+        
+        // 根据状态计算钩子位置
+        if self.lineState == LineState.Idle {
+            self.hookX = rodX + 70;
+            self.hookY = rodY + 80;
+        } else if self.lineState == LineState.Casting {
+            // 抛竿动画
+            self.hookX = rodX + 70 + ((self.targetX - rodX - 70) * self.castProgress) as int;
+            self.hookY = rodY + 80 + ((self.targetY - rodY - 80) * self.castProgress) as int;
+        } else if self.lineState == LineState.Waiting {
+            self.hookX = self.targetX;
+            self.hookY = self.targetY;
+            // 轻微晃动
+            var wobble = sin(self.waveOffset * 3.0) * 2.0;
+            self.hookX = self.hookX + wobble as int;
+        } else if self.lineState == LineState.Biting {
+            self.hookX = self.targetX;
+            self.hookY = self.targetY;
+            // 剧烈晃动
+            var shake = sin(self.waveOffset * 10.0) * 5.0;
+            self.hookX = self.hookX + shake as int;
+        } else if self.lineState == LineState.Reeling {
+            // 收线动画
+            var progress = self.reelingProgress;
+            self.hookX = self.targetX + ((rodX + 70 - self.targetX) * progress) as int;
+            self.hookY = self.targetY + ((rodY + 80 - self.targetY) * progress) as int;
+        }
+        
+        // 绘制鱼竿
+        canvas.drawLine(rodX, rodY, rodX + 80, rodY + 30, Color.Brown());
+        canvas.drawLine(rodX + 80, rodY + 30, rodX + 120, rodY + 60, Color.Brown());
+        
+        // 绘制钓鱼线
+        canvas.drawLine(rodX + 120, rodY + 60, self.hookX, self.hookY, Color.LightGray());
+        
+        // 绘制鱼钩
+        canvas.drawCircle(self.hookX, self.hookY, 4, Color.Gray());
+        
+        // 绘制饵料
+        if self.lineState == LineState.Waiting || self.lineState == LineState.Biting {
+            canvas.fillCircle(self.hookX, self.hookY + 6, 3, Color.Orange());
+        }
+    }
+    
+    // 绘制UI
+    fn drawUI(canvas: Canvas) {
+        // 分数面板背景
+        canvas.fillRect(10, 10, 200, 80, Color.RGB(0, 0, 0) & 0x80000000);
+        canvas.drawRect(10, 10, 200, 80, Color.White());
+        
+        // 分数文字
+        canvas.drawText(20, 20, "捕获: " ++ self.catchCount.toString(), Color.White(), Font.("Arial", 20));
+        canvas.drawText(20, 50, "得分: " ++ self.totalScore.toString(), Color.Yellow(), Font.("Arial", 20));
+        
+        // 鱼咬钩提示
+        if self.lineState == LineState.Waiting {
+            var alpha = (sin(self.waveOffset * 5.0) * 0.5 + 0.5) * 255.0;
+            canvas.drawText(self.width / 2 - 80, self.height / 2, "等待中... 按空格!", Color.White(), Font.("Arial", 24));
+        } else if self.lineState == LineState.Biting {
+            canvas.drawText(self.width / 2 - 100, self.height / 2 - 20, "鱼咬钩了! 快按空格!", Color.Red(), Font.("Arial", 28));
+            
+            // 时间条
+            var barWidth = 200;
+            var remaining = 1.2 - self.biteTimer;
+            var ratio = remaining / 1.2;
+            canvas.fillRect(self.width / 2 - barWidth / 2, self.height / 2 + 20, (barWidth * ratio) as int, 15, Color.Green());
+            canvas.drawRect(self.width / 2 - barWidth / 2, self.height / 2 + 20, barWidth, 15, Color.White());
+        }
+    }
+    
+    // 绘制提示
+    fn drawHint(canvas: Canvas) {
+        if self.lineState == LineState.Idle {
+            canvas.drawText(self.width / 2 - 120, 100, "按 空格键 抛竿", Color.White(), Font.("Arial", 18));
+        }
+    }
+    
+    // sin 函数
+    fn sin(x: float) -> float {
+        // 简化的 sin 近似
+        while x < 0.0 {
+            x = x + 6.28;
+        }
+        while x >= 6.28 {
+            x = x - 6.28;
+        }
+        
+        // 使用泰勒级数近似
+        var x2 = x * x;
+        var x3 = x2 * x;
+        var x5 = x3 * x2;
+        var x7 = x5 * x2;
+        
+        return x - x3 / 6.0 + x5 / 120.0 - x7 / 5040.0;
+    }
+}
+
+// 主函数
+fn main() {
+    println("===========================================");
+    println("  056-Fishing 捕鱼游戏");
+    println("  Zen-C 游戏框架 v1.0.0");
+    println("===========================================");
+    println("");
+    println("操作说明:");
+    println("  空格键 - 抛竿/抓鱼");
+    println("  鼠标左键 - 抛竿/抓鱼(点击水面)");
+    println("");
+    println("游戏目标:");
+    println("  抛竿后等待鱼咬钩，在合适时机按下空格抓鱼");
+    println("  不同大小的鱼有不同的分值！");
+    println("");
+    
+    // 初始化平台
+    initPlatform();
+    
+    // 创建并运行游戏
+    var game = FishingGame.("捕鱼游戏", 800, 600, 60);
+    game.run();
+    game.destroy();
+    
+    // 清理
+    shutdownPlatform();
+}
