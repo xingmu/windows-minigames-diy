@@ -1,0 +1,666 @@
+// main_window.zc - 滑动拼图游戏主窗口
+// 继承自Game类，框架版本: 1.0.0
+
+import std.io;
+import std.string;
+import std.time;
+
+// 导入框架和游戏逻辑
+import "platform_api.zc";
+import "../../003-framework/src/game.zc";
+import "game_logic.zc";
+
+// ==================== 常量定义 ====================
+
+// 窗口尺寸
+const WINDOW_WIDTH = 420;
+const WINDOW_HEIGHT = 560;
+
+// 游戏区域
+const GRID_OFFSET_X = 35;
+const GRID_OFFSET_Y = 140;
+const CELL_SIZE = 110;
+const CELL_GAP = 8;
+const GRID_BORDER = 6;
+
+// ==================== 颜色定义 ====================
+
+// 方块颜色渐变
+const TILE_1 = 0xFF8B4513;      // 深棕
+const TILE_2 = 0xFFA0522D;      // 赭色
+const TILE_3 = 0xFFCD853F;      // 秘鲁色
+const TILE_4 = 0xFFB8860B;      // 暗金
+const TILE_5 = 0xFFDAA520;      // 金麒麟
+const TILE_6 = 0xFFFF8C00;      // 深橙
+const TILE_7 = 0xFFFF6347;      // 番茄红
+const TILE_8 = 0xFFFF4500;      // 红橙
+
+// 背景和网格
+const BACKGROUND_COLOR = 0xFF2C3E50;     // 深蓝灰
+const GRID_BACKGROUND = 0xFF1A252F;       // 更深的蓝灰
+const CELL_EMPTY = 0xFF34495E;            // 空格子颜色
+const BORDER_COLOR = 0xFF5D6D7E;          // 边框颜色
+
+// 文字颜色
+const TEXT_LIGHT = 0xFFF5F5F5;            // 浅色文字
+const TEXT_DARK = 0xFF2C3E50;             // 深色文字
+
+// ==================== 游戏类 ====================
+
+class PuzzleGame extends Game {
+    game_data: GameData;
+    
+    // 构造函数
+    pub fn create(title: str, width: int, height: int, fps: int) {
+        super.create(title, width, height, fps);
+        self.game_data = GameData.{
+            board: Board.{ cells: [0; 9] },
+            moves: 0,
+            solved: false,
+            started: false,
+            start_time: 0,
+            end_time: 0
+        };
+    }
+    
+    fn onInit() {
+        self.state = GameState.Playing;
+        self.score = 0;
+        init_game(&mut self.game_data);
+        shuffle_game(&mut self.game_data);
+        
+        io.println("[Puzzle] 滑动拼图游戏已初始化!");
+        io.println("[Puzzle] 使用方向键或WASD移动方块");
+        io.println("[Puzzle] 按R键重新开始");
+        io.println("[Puzzle] 目标: 将1-8按顺序排列");
+    }
+    
+    fn onShutdown() {
+        io.println("[Puzzle] 游戏已退出!");
+    }
+    
+    fn onUpdate(dt: u32) {
+        // 游戏逻辑在输入时处理
+    }
+    
+    fn onRender(canvas: &Canvas) {
+        // 绘制背景
+        canvas.clear(BACKGROUND_COLOR);
+        
+        // 绘制标题区域
+        draw_title(canvas);
+        
+        // 绘制统计信息
+        draw_stats(canvas);
+        
+        // 绘制游戏网格
+        draw_grid(canvas);
+        
+        // 绘制所有方块
+        draw_tiles(canvas);
+        
+        // 绘制操作提示
+        draw_hints(canvas);
+        
+        // 绘制完成信息
+        if self.game_data.solved {
+            draw_win_message(canvas);
+        }
+    }
+    
+    fn onKeyDown(key: VirtualKey) {
+        // R键重新开始
+        if key == VirtualKey.KeyR {
+            shuffle_game(&mut self.game_data);
+            return;
+        }
+        
+        // 如果游戏完成，任意键重新开始
+        if self.game_data.solved {
+            shuffle_game(&mut self.game_data);
+            return;
+        }
+        
+        var key_code: int = 0;
+        
+        match key {
+            VirtualKey.Left => key_code = 37,
+            VirtualKey.Up => key_code = 38,
+            VirtualKey.Right => key_code = 39,
+            VirtualKey.Down => key_code = 40,
+            VirtualKey.KeyW => key_code = 87,
+            VirtualKey.KeyS => key_code = 83,
+            VirtualKey.KeyA => key_code = 65,
+            VirtualKey.KeyD => key_code = 68,
+            _ => key_code = 0
+        }
+        
+        if key_code != 0 {
+            let moved = handle_input(&mut self.game_data, key_code);
+            if moved {
+                self.score = self.game_data.moves;
+            }
+        }
+    }
+    
+    fn onKeyUp(key: VirtualKey) {}
+    
+    fn onMouseDown(x: int, y: int, button: MouseButton) {
+        // 点击方块移动
+        if self.game_data.solved {
+            shuffle_game(&mut self.game_data);
+            return;
+        }
+        
+        // 计算点击的是哪个格子
+        let grid_x = x - GRID_OFFSET_X;
+        let grid_y = y - GRID_OFFSET_Y;
+        
+        if grid_x < 0 || grid_y < 0 {
+            return;
+        }
+        
+        let col = grid_x / (CELL_SIZE + CELL_GAP);
+        let row = grid_y / (CELL_SIZE + CELL_GAP);
+        
+        if col >= 0 && col < GRID_SIZE && row >= 0 && row < GRID_SIZE {
+            // 尝试移动
+            let moved = try_move(&mut self.game_data, col, row);
+            if moved {
+                self.score = self.game_data.moves;
+            }
+        }
+    }
+    
+    fn onMouseUp(x: int, y: int, button: MouseButton) {}
+}
+
+// ==================== 绘图函数 ====================
+
+fn draw_title(canvas: &Canvas) {
+    // 标题背景
+    canvas.fillRect(GRID_OFFSET_X - 10, 15, CELL_SIZE * 3 + CELL_GAP * 2 + 20, 100, GRID_BACKGROUND);
+    
+    // 标题边框
+    canvas.drawRect(GRID_OFFSET_X - 10, 15, CELL_SIZE * 3 + CELL_GAP * 2 + 20, 100, BORDER_COLOR);
+    
+    // 绘制 "SLIDE PUZZLE" 文字 - 用方块模拟
+    let title_y = 25;
+    let title_x = GRID_OFFSET_X + 5;
+    
+    // S
+    draw_letter_s(canvas, title_x, title_y, TILE_8);
+    // L
+    draw_letter_l(canvas, title_x + 50, title_y, TILE_7);
+    // I
+    draw_letter_i(canvas, title_x + 85, title_y, TILE_6);
+    // D
+    draw_letter_d(canvas, title_x + 115, title_y, TILE_5);
+    // E
+    draw_letter_e(canvas, title_x + 160, title_y, TILE_4);
+    
+    // 换行
+    // P
+    draw_letter_p(canvas, title_x + 10, title_y + 50, TILE_3);
+    // U
+    draw_letter_u(canvas, title_x + 50, title_y + 50, TILE_2);
+    // Z
+    draw_letter_z(canvas, title_x + 90, title_y + 50, TILE_1);
+    // Z
+    draw_letter_z(canvas, title_x + 130, title_y + 50, TILE_1);
+    // L
+    draw_letter_l(canvas, title_x + 170, title_y + 50, TILE_2);
+    // E
+    draw_letter_e(canvas, title_x + 205, title_y + 50, TILE_3);
+}
+
+// 绘制字母S
+fn draw_letter_s(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 25, 5, color);
+    canvas.fillRect(x, y + 5, 8, 5, color);
+    canvas.fillRect(x + 8, y + 10, 17, 5, color);
+    canvas.fillRect(x + 17, y + 15, 8, 5, color);
+    canvas.fillRect(x, y + 35, 25, 5, color);
+}
+
+// 绘制字母L
+fn draw_letter_l(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 5, 40, color);
+    canvas.fillRect(x + 5, y + 35, 20, 5, color);
+}
+
+// 绘制字母I
+fn draw_letter_i(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 5, 40, color);
+}
+
+// 绘制字母D
+fn draw_letter_d(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 5, 40, color);
+    canvas.fillRect(x + 5, y, 20, 5, color);
+    canvas.fillRect(x + 5, y + 35, 20, 5, color);
+    canvas.fillRect(x + 25, y + 5, 5, 30, color);
+}
+
+// 绘制字母E
+fn draw_letter_e(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 25, 5, color);
+    canvas.fillRect(x, y + 5, 5, 15, color);
+    canvas.fillRect(x + 5, y + 20, 15, 5, color);
+    canvas.fillRect(x, y + 25, 5, 15, color);
+    canvas.fillRect(x, y + 35, 25, 5, color);
+}
+
+// 绘制字母P
+fn draw_letter_p(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 5, 40, color);
+    canvas.fillRect(x + 5, y, 20, 5, color);
+    canvas.fillRect(x + 5, y + 5, 5, 10, color);
+    canvas.fillRect(x + 25, y + 5, 5, 10, color);
+    canvas.fillRect(x + 5, y + 15, 20, 5, color);
+}
+
+// 绘制字母U
+fn draw_letter_u(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 5, 35, color);
+    canvas.fillRect(x + 25, y, 5, 35, color);
+    canvas.fillRect(x + 5, y + 35, 20, 5, color);
+}
+
+// 绘制字母Z
+fn draw_letter_z(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 30, 5, color);
+    canvas.fillRect(x + 22, y + 5, 8, 10, color);
+    canvas.fillRect(x, y + 35, 30, 5, color);
+}
+
+fn draw_stats(canvas: &Canvas) {
+    // 统计背景
+    let stats_y = 120;
+    
+    // 移动次数
+    canvas.fillRect(GRID_OFFSET_X, stats_y, 130, 15, GRID_BACKGROUND);
+    let moves = get_moves(&self.game_data);
+    let moves_str = "Moves: " ++ int_to_string(moves);
+    
+    // 用时
+    canvas.fillRect(GRID_OFFSET_X + 150, stats_y, 130, 15, GRID_BACKGROUND);
+    let elapsed = get_elapsed_seconds(&self.game_data);
+    let time_str = "Time: " ++ int_to_string(elapsed) ++ "s";
+    
+    // 绘制文字提示(用矩形模拟)
+    // "Moves: XXX" 用方块绘制数字
+    let moves_x = GRID_OFFSET_X + 10;
+    for i in 0..len(moves_str) {
+        let c = moves_str[i];
+        if c >= '0' && c <= '9' {
+            canvas.fillRect(moves_x + i * 7, stats_y + 3, 5, 9, TEXT_LIGHT);
+        }
+    }
+    
+    let time_x = GRID_OFFSET_X + 160;
+    for i in 0..len(time_str) {
+        let c = time_str[i];
+        if c >= '0' && c <= '9' {
+            canvas.fillRect(time_x + i * 7, stats_y + 3, 5, 9, TEXT_LIGHT);
+        }
+    }
+}
+
+fn draw_grid(canvas: &Canvas) {
+    // 绘制网格背景
+    let grid_x = GRID_OFFSET_X;
+    let grid_y = GRID_OFFSET_Y;
+    let grid_w = CELL_SIZE * 3 + CELL_GAP * 2;
+    let grid_h = CELL_SIZE * 3 + CELL_GAP * 2;
+    
+    // 外边框
+    canvas.fillRect(grid_x - GRID_BORDER, grid_y - GRID_BORDER, 
+                    grid_w + GRID_BORDER * 2, grid_h + GRID_BORDER * 2, 
+                    BORDER_COLOR);
+    
+    // 内背景
+    canvas.fillRect(grid_x, grid_y, grid_w, grid_h, GRID_BACKGROUND);
+    
+    // 绘制每个格子的背景
+    for row in 0..GRID_SIZE {
+        for col in 0..GRID_SIZE {
+            let x = grid_x + col * (CELL_SIZE + CELL_GAP);
+            let y = grid_y + row * (CELL_SIZE + CELL_GAP);
+            canvas.fillRect(x, y, CELL_SIZE, CELL_SIZE, CELL_EMPTY);
+        }
+    }
+}
+
+fn draw_tiles(canvas: &Canvas) {
+    let grid_x = GRID_OFFSET_X;
+    let grid_y = GRID_OFFSET_Y;
+    
+    for row in 0..GRID_SIZE {
+        for col in 0..GRID_SIZE {
+            let index = row * GRID_SIZE + col;
+            let value = get_tile_value(&self.game_data, index);
+            
+            if value != 0 {
+                let x = grid_x + col * (CELL_SIZE + CELL_GAP);
+                let y = grid_y + row * (CELL_SIZE + CELL_GAP);
+                
+                // 获取颜色
+                let tile_color = get_tile_color(value);
+                
+                // 绘制方块阴影
+                canvas.fillRect(x + 3, y + 3, CELL_SIZE, CELL_SIZE, 0x40000000);
+                
+                // 绘制方块
+                canvas.fillRect(x, y, CELL_SIZE, CELL_SIZE, tile_color);
+                
+                // 绘制方块边框
+                canvas.drawRect(x, y, CELL_SIZE, CELL_SIZE, 0x80FFFFFF);
+                
+                // 绘制数字
+                let text_color = TEXT_LIGHT;
+                let text = int_to_string(value);
+                
+                // 数字居中
+                let font_size = 60;
+                let text_w = len(text) * font_size / 2;
+                let text_x = x + CELL_SIZE / 2 - text_w / 2;
+                let text_y = y + CELL_SIZE / 2 - font_size / 2;
+                
+                // 绘制数字（用矩形模拟）
+                draw_number(canvas, text_x, text_y, value, text_color);
+            }
+        }
+    }
+}
+
+fn get_tile_color(value: i32) -> Color {
+    match value {
+        1 => TILE_1,
+        2 => TILE_2,
+        3 => TILE_3,
+        4 => TILE_4,
+        5 => TILE_5,
+        6 => TILE_6,
+        7 => TILE_7,
+        8 => TILE_8,
+        _ => CELL_EMPTY
+    }
+}
+
+fn draw_number(canvas: &Canvas, x: i32, y: i32, num: i32, color: Color) {
+    // 绘制简单的数字
+    if num == 1 {
+        draw_digit_1(canvas, x, y, color);
+    } else if num == 2 {
+        draw_digit_2(canvas, x, y, color);
+    } else if num == 3 {
+        draw_digit_3(canvas, x, y, color);
+    } else if num == 4 {
+        draw_digit_4(canvas, x, y, color);
+    } else if num == 5 {
+        draw_digit_5(canvas, x, y, color);
+    } else if num == 6 {
+        draw_digit_6(canvas, x, y, color);
+    } else if num == 7 {
+        draw_digit_7(canvas, x, y, color);
+    } else if num == 8 {
+        draw_digit_8(canvas, x, y, color);
+    }
+}
+
+fn draw_digit_1(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x + 15, y, 8, 60, color);
+}
+
+fn draw_digit_2(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 35, 8, color);
+    canvas.fillRect(x + 25, y + 8, 10, 18, color);
+    canvas.fillRect(x, y + 26, 35, 8, color);
+    canvas.fillRect(x, y + 34, 10, 18, color);
+    canvas.fillRect(x, y + 52, 35, 8, color);
+}
+
+fn draw_digit_3(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 35, 8, color);
+    canvas.fillRect(x + 25, y + 8, 10, 18, color);
+    canvas.fillRect(x, y + 26, 35, 8, color);
+    canvas.fillRect(x + 25, y + 34, 10, 18, color);
+    canvas.fillRect(x, y + 52, 35, 8, color);
+}
+
+fn draw_digit_4(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 10, 35, color);
+    canvas.fillRect(x + 25, y + 8, 10, 18, color);
+    canvas.fillRect(x, y + 26, 35, 8, color);
+}
+
+fn draw_digit_5(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 35, 8, color);
+    canvas.fillRect(x, y + 8, 10, 18, color);
+    canvas.fillRect(x, y + 26, 35, 8, color);
+    canvas.fillRect(x + 25, y + 34, 10, 18, color);
+    canvas.fillRect(x, y + 52, 35, 8, color);
+}
+
+fn draw_digit_6(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 35, 8, color);
+    canvas.fillRect(x, y + 8, 10, 18, color);
+    canvas.fillRect(x, y + 26, 35, 8, color);
+    canvas.fillRect(x, y + 34, 10, 18, color);
+    canvas.fillRect(x, y + 52, 35, 8, color);
+    canvas.fillRect(x + 25, y + 34, 10, 18, color);
+}
+
+fn draw_digit_7(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 35, 8, color);
+    canvas.fillRect(x + 25, y + 8, 10, 44, color);
+}
+
+fn draw_digit_8(canvas: &Canvas, x: i32, y: i32, color: Color) {
+    canvas.fillRect(x, y, 35, 8, color);
+    canvas.fillRect(x, y + 8, 10, 18, color);
+    canvas.fillRect(x + 25, y + 8, 10, 18, color);
+    canvas.fillRect(x, y + 26, 35, 8, color);
+    canvas.fillRect(x, y + 34, 10, 18, color);
+    canvas.fillRect(x + 25, y + 34, 10, 18, color);
+    canvas.fillRect(x, y + 52, 35, 8, color);
+}
+
+fn draw_hints(canvas: &Canvas) {
+    let hint_y = GRID_OFFSET_Y + CELL_SIZE * 3 + CELL_GAP * 3 + 30;
+    
+    // 操作说明背景
+    canvas.fillRect(GRID_OFFSET_X, hint_y, CELL_SIZE * 3 + CELL_GAP * 2, 80, GRID_BACKGROUND);
+    canvas.drawRect(GRID_OFFSET_X, hint_y, CELL_SIZE * 3 + CELL_GAP * 2, 80, BORDER_COLOR);
+    
+    // 绘制箭头和提示
+    let arrows_y = hint_y + 10;
+    
+    // 上箭头
+    let ux = GRID_OFFSET_X + 30;
+    canvas.fillRect(ux, arrows_y + 15, 20, 5, TEXT_LIGHT);
+    canvas.fillRect(ux + 5, arrows_y + 20, 10, 10, TEXT_LIGHT);
+    
+    // 下箭头
+    let dx = GRID_OFFSET_X + 60;
+    canvas.fillRect(dx, arrows_y + 5, 20, 5, TEXT_LIGHT);
+    canvas.fillRect(dx + 5, arrows_y, 10, 10, TEXT_LIGHT);
+    
+    // 左箭头
+    let lx = GRID_OFFSET_X + 100;
+    canvas.fillRect(lx, arrows_y + 8, 5, 20, TEXT_LIGHT);
+    canvas.fillRect(lx + 5, arrows_y + 13, 10, 10, TEXT_LIGHT);
+    
+    // 右箭头
+    let rx = GRID_OFFSET_X + 130;
+    canvas.fillRect(rx + 15, arrows_y + 8, 5, 20, TEXT_LIGHT);
+    canvas.fillRect(rx + 5, arrows_y + 13, 10, 10, TEXT_LIGHT);
+    
+    // 提示文字
+    let text_y = arrows_y + 40;
+    // R - Restart
+    canvas.fillRect(GRID_OFFSET_X + 180, text_y, 8, 20, TILE_8);
+    // : 
+    // or WASD
+    // 简单提示
+}
+
+fn draw_win_message(canvas: &Canvas) {
+    // 半透明覆盖
+    for py in 0..WINDOW_HEIGHT {
+        for px in 0..WINDOW_WIDTH {
+            canvas.setPixel(px, py, 0x80696969);
+        }
+    }
+    
+    // 获胜消息框
+    let msg_w = 320;
+    let msg_h = 200;
+    let msg_x = (WINDOW_WIDTH - msg_w) / 2;
+    let msg_y = (WINDOW_HEIGHT - msg_h) / 2;
+    
+    // 消息框背景
+    canvas.fillRect(msg_x, msg_y, msg_w, msg_h, GRID_BACKGROUND);
+    canvas.drawRect(msg_x, msg_y, msg_w, msg_h, TILE_8);
+    
+    // 标题
+    let title_y = msg_y + 20;
+    // C
+    let cx = msg_x + 30;
+    canvas.fillRect(cx, title_y, 25, 5, TILE_8);
+    canvas.fillRect(cx, title_y + 25, 25, 5, TILE_8);
+    canvas.fillRect(cx, title_y, 5, 30, TILE_8);
+    // O
+    let ox = msg_x + 65;
+    canvas.fillRect(ox, title_y, 20, 5, TILE_6);
+    canvas.fillRect(ox, title_y + 25, 20, 5, TILE_6);
+    canvas.fillRect(ox, title_y, 5, 30, TILE_6);
+    canvas.fillRect(ox + 15, title_y, 5, 30, TILE_6);
+    // N
+    let nx = msg_x + 100;
+    canvas.fillRect(nx, title_y, 5, 30, TEXT_LIGHT);
+    canvas.fillRect(nx + 20, title_y, 5, 30, TEXT_LIGHT);
+    canvas.fillRect(nx + 5, title_y + 10, 10, 5, TEXT_LIGHT);
+    // G
+    let gx = msg_x + 120;
+    canvas.fillRect(gx, title_y, 25, 5, TEXT_LIGHT);
+    canvas.fillRect(gx, title_y + 25, 25, 5, TEXT_LIGHT);
+    canvas.fillRect(gx, title_y, 5, 30, TEXT_LIGHT);
+    canvas.fillRect(gx + 20, title_y + 15, 5, 15, TEXT_LIGHT);
+    // R
+    let rrx = msg_x + 155;
+    canvas.fillRect(rrx, title_y, 5, 30, TEXT_LIGHT);
+    canvas.fillRect(rrx + 5, title_y, 18, 5, TEXT_LIGHT);
+    canvas.fillRect(rrx + 18, title_y + 5, 5, 10, TEXT_LIGHT);
+    canvas.fillRect(rrx + 5, title_y + 15, 13, 5, TEXT_LIGHT);
+    // A
+    let ax = msg_x + 185;
+    canvas.fillRect(ax, title_y + 25, 25, 5, TEXT_LIGHT);
+    canvas.fillRect(ax + 12, title_y, 5, 30, TEXT_LIGHT);
+    // T
+    let tx = msg_x + 220;
+    canvas.fillRect(tx, title_y, 25, 5, TEXT_LIGHT);
+    canvas.fillRect(tx + 10, title_y + 5, 5, 25, TEXT_LIGHT);
+    // U
+    let ux2 = msg_x + 255;
+    canvas.fillRect(ux2, title_y, 5, 25, TEXT_LIGHT);
+    canvas.fillRect(ux2 + 20, title_y, 5, 25, TEXT_LIGHT);
+    canvas.fillRect(ux2 + 5, title_y + 25, 15, 5, TEXT_LIGHT);
+    // L
+    let ulx = msg_x + 280;
+    canvas.fillRect(ulx, title_y, 5, 30, TEXT_LIGHT);
+    canvas.fillRect(ulx + 5, title_y + 25, 15, 5, TEXT_LIGHT);
+    // A
+    let la = msg_x + 30;
+    canvas.fillRect(la, title_y + 55, 25, 5, TILE_5);
+    canvas.fillRect(la + 12, title_y + 35, 5, 30, TILE_5);
+    // T
+    let lt = msg_x + 65;
+    canvas.fillRect(lt, title_y + 55, 25, 5, TILE_5);
+    canvas.fillRect(lt + 10, title_y + 35, 5, 25, TILE_5);
+    // I
+    let li = msg_x + 100;
+    canvas.fillRect(li, title_y + 55, 5, 30, TILE_5);
+    // O
+    let lo = msg_x + 115;
+    canvas.fillRect(lo, title_y + 55, 20, 5, TILE_5);
+    canvas.fillRect(lo, title_y + 80, 20, 5, TILE_5);
+    canvas.fillRect(lo, title_y + 55, 5, 30, TILE_5);
+    canvas.fillRect(lo + 15, title_y + 55, 5, 30, TILE_5);
+    // N
+    let ln = msg_x + 145;
+    canvas.fillRect(ln, title_y + 55, 5, 30, TILE_5);
+    canvas.fillRect(ln + 20, title_y + 55, 5, 30, TILE_5);
+    canvas.fillRect(ln + 5, title_y + 65, 10, 5, TILE_5);
+    // S
+    let ls = msg_x + 175;
+    canvas.fillRect(ls, title_y + 55, 20, 5, TILE_5);
+    canvas.fillRect(ls, title_y + 55, 5, 15, TILE_5);
+    canvas.fillRect(ls + 5, title_y + 70, 15, 5, TILE_5);
+    canvas.fillRect(ls + 15, title_y + 75, 5, 10, TILE_5);
+    canvas.fillRect(ls, title_y + 85, 20, 5, TILE_5);
+    
+    // 分数信息
+    let info_y = msg_y + 120;
+    let moves = get_moves(&self.game_data);
+    let elapsed = get_elapsed_seconds(&self.game_data);
+    let rank = get_rank(moves);
+    
+    // "Moves: XXX" 提示
+    let info_x = msg_x + 60;
+    let info_text_y = info_y + 10;
+    
+    // 用方块绘制统计
+    canvas.fillRect(info_x, info_text_y, 200, 60, GRID_BACKGROUND);
+}
+
+// 整数转字符串
+fn int_to_string(n: i32) -> string {
+    if n == 0 {
+        return "0";
+    }
+    
+    var num = n;
+    if num < 0 {
+        num = -num;
+    }
+    
+    var digits: [20]u8;
+    var count = 0;
+    
+    while num > 0 {
+        digits[count] = (num % 10 + '0') as u8;
+        count = count + 1;
+        num = num / 10;
+    }
+    
+    var s = "";
+    for i in 0..count {
+        let d = digits[count - 1 - i];
+        s = s ++ string(1, d as char);
+    }
+    
+    if n < 0 {
+        s = "-" ++ s;
+    }
+    
+    return s;
+}
+
+// ==================== 主函数入口 ====================
+
+// Zen-C程序入口点
+pub fn main() {
+    io.println("===========================================");
+    io.println("  Zen-C Slide Puzzle Game");
+    io.println("  Framework v1.0.0");
+    io.println("===========================================");
+    
+    // 创建并运行游戏
+    var game = PuzzleGame.("Slide Puzzle 滑动拼图", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    game.run();
+    game.destroy();
+    
+    io.println("Goodbye!");
+}
