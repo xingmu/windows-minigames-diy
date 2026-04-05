@@ -1,0 +1,479 @@
+// main_window.zc - Zen-C Gobang 五子棋游戏主程序
+
+import std.io;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 常量 ====================
+
+const WINDOW_WIDTH = 680;
+const WINDOW_HEIGHT = 700;
+
+// 帧数据（全局状态）
+struct FrameData {
+    valid: bool,
+    buffer: rawptr,
+    pitch: int,
+    width: int,
+    height: int,
+}
+
+static mut fb_data: FrameData;
+static mut game: GobangState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+
+// ==================== 帧缓冲操作 ====================
+
+fn fb_init(win: WindowHandle, w: int, h: int) {
+    fb_data.buffer = getFrameBuffer(win);
+    fb_data.pitch = getFrameBufferPitch(win);
+    fb_data.width = w;
+    fb_data.height = h;
+    fb_data.valid = fb_data.buffer != nil;
+}
+
+fn fb_shutdown() {
+    fb_data.valid = false;
+    fb_data.buffer = nil;
+}
+
+fn fb_clear(color: u32) {
+    if !fb_data.valid { return; }
+    var pixels = fb_data.buffer as u32 mut;
+    let count = (fb_data.pitch * fb_data.height) / 4;
+    for i in 0..count {
+        pixels[i] = color;
+    }
+}
+
+fn fb_present() {
+    if !fb_data.valid { return; }
+    presentFrame(window);
+}
+
+// ==================== 绘图原语 ====================
+
+fn fb_draw_rect(x: int, y: int, w: int, h: int, color: u32) {
+    if !fb_data.valid { return; }
+    if x < 0 || y < 0 || w <= 0 || h <= 0 { return; }
+
+    var pixels = fb_data.buffer as u32 mut;
+    let pitch32 = fb_data.pitch / 4;
+
+    for py in y..(y + h) {
+        if py < 0 || py >= fb_data.height { continue; }
+        for px in x..(x + w) {
+            if px < 0 || px >= fb_data.width { continue; }
+            pixels[py * pitch32 + px] = color;
+        }
+    }
+}
+
+fn fb_draw_line(x1: int, y1: int, x2: int, y2: int, color: u32) {
+    if !fb_data.valid { return; }
+
+    var dx = abs(x2 - x1);
+    var dy = abs(y2 - y1);
+    var sx = if x1 < x2 { 1 } else { -1 };
+    var sy = if y1 < y2 { 1 } else { -1 };
+    var err = dx - dy;
+
+    var x = x1;
+    var y = y1;
+
+    loop {
+        if x >= 0 && x < fb_data.width && y >= 0 && y < fb_data.height {
+            var pixels = fb_data.buffer as u32 mut;
+            let pitch32 = fb_data.pitch / 4;
+            pixels[y * pitch32 + x] = color;
+        }
+
+        if x == x2 && y == y2 { break; }
+
+        var e2 = 2 * err;
+        if e2 > -dy {
+            err = err - dy;
+            x = x + sx;
+        }
+        if e2 < dx {
+            err = err + dx;
+            y = y + sy;
+        }
+    }
+}
+
+fn fb_draw_circle(cx: int, cy: int, radius: int, color: u32) {
+    if !fb_data.valid { return; }
+    if radius <= 0 { return; }
+
+    var d = 3 - 2 * radius;
+    var x = 0;
+    var y = radius;
+
+    loop {
+        // 八分圆
+        let pts = [
+            (cx + x, cy + y), (cx - x, cy + y),
+            (cx + x, cy - y), (cx - x, cy - y),
+            (cx + y, cy + x), (cx - y, cy + x),
+            (cx + y, cy - x), (cx - y, cy - x),
+        ];
+
+        for p in pts {
+            let (px, py) = p;
+            if px >= 0 && px < fb_data.width && py >= 0 && py < fb_data.height {
+                var pixels = fb_data.buffer as u32 mut;
+                let pitch32 = fb_data.pitch / 4;
+                pixels[py * pitch32 + px] = color;
+            }
+        }
+
+        if d < 0 {
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            y = y - 1;
+        }
+
+        x = x + 1;
+        if x > y { break; }
+    }
+}
+
+fn fb_fill_circle(cx: int, cy: int, radius: int, color: u32) {
+    if !fb_data.valid { return; }
+    if radius <= 0 { return; }
+
+    var pixels = fb_data.buffer as u32 mut;
+    let pitch32 = fb_data.pitch / 4;
+
+    for py in (-radius)..(radius + 1) {
+        for px in (-radius)..(radius + 1) {
+            if px * px + py * py <= radius * radius {
+                let drawX = cx + px;
+                let drawY = cy + py;
+                if drawX >= 0 && drawX < fb_data.width && drawY >= 0 && drawY < fb_data.height {
+                    pixels[drawY * pitch32 + drawX] = color;
+                }
+            }
+        }
+    }
+}
+
+fn fb_draw_text_size(x: int, y: int, text: str, color: u32, size: int) {
+    if !fb_data.valid { return; }
+    // 简易文字渲染：绘制字符占位矩形
+    // 实际项目应使用完整的位图字体引擎
+    let charW = size * 3 / 4;
+    let charH = size;
+
+    var px = x;
+    var py = y;
+
+    for i in 0..len(text) {
+        if text[i] == '\n' {
+            py = py + charH;
+            px = x;
+            continue;
+        }
+
+        // 简单的字符矩形（用于调试/演示）
+        // 完整实现需要 ASCII 位图字体数据
+        // 这里用点阵字模替代
+
+        let ch = text[i];
+        if ch >= 32 as u8 && ch <= 126 as u8 {
+            // 绘制一个简化的字符背景
+            // 使用小圆点组成字符轮廓
+            fb_draw_rect(px, py, charW, charH / 8, color);
+            fb_draw_rect(px, py + charH / 4, charW, charH / 8, color);
+            fb_draw_rect(px, py + charH / 2, charW, charH / 8, color);
+            fb_draw_rect(px, py + charH * 3 / 4, charW, charH / 8, color);
+        }
+
+        px = px + charW + 2;
+        if px > fb_data.width - charW {
+            py = py + charH;
+            px = x;
+        }
+    }
+}
+
+fn fb_draw_rounded_rect(x: int, y: int, w: int, h: int, radius: int, color: u32) {
+    if !fb_data.valid { return; }
+
+    // 主体
+    fb_draw_rect(x + radius, y, w - 2 * radius, h, color);
+    fb_draw_rect(x, y + radius, w, h - 2 * radius, color);
+
+    // 四个角（用小圆弧近似）
+    fb_fill_circle(x + radius, y + radius, radius, color);
+    fb_fill_circle(x + w - radius, y + radius, radius, color);
+    fb_fill_circle(x + radius, y + h - radius, radius, color);
+    fb_fill_circle(x + w - radius, y + h - radius, radius, color);
+}
+
+// ==================== 棋盘绘制 ====================
+
+const BOARD_BG = rgb(220, 179, 133);
+const GRID_COLOR = rgb(0, 0, 0);
+const GRID_THICK = 1;
+
+// 绘制棋盘背景（木纹色）
+fn draw_board_bg() {
+    fb_draw_rect(BOARD_OFFSET_X - 10, BOARD_OFFSET_Y - 10,
+                 BOARD_SIZE * CELL_SIZE + 20, BOARD_SIZE * CELL_SIZE + 20, BOARD_BG);
+
+    // 棋盘边框
+    let bx1 = BOARD_OFFSET_X - 10;
+    let by1 = BOARD_OFFSET_Y - 10;
+    let bx2 = BOARD_OFFSET_X + BOARD_SIZE * CELL_SIZE + 10;
+    let by2 = BOARD_OFFSET_Y + BOARD_SIZE * CELL_SIZE + 10;
+
+    fb_draw_line(bx1, by1, bx2, by1, GRID_COLOR);
+    fb_draw_line(bx1, by2, bx2, by2, GRID_COLOR);
+    fb_draw_line(bx1, by1, bx1, by2, GRID_COLOR);
+    fb_draw_line(bx2, by1, bx2, by2, GRID_COLOR);
+}
+
+// 绘制棋盘网格线
+fn draw_grid_lines() {
+    for i in 0..BOARD_SIZE {
+        let pos = BOARD_OFFSET_X + i * CELL_SIZE;
+
+        // 垂直线
+        fb_draw_line(pos, BOARD_OFFSET_Y,
+                     pos, BOARD_OFFSET_Y + (BOARD_SIZE - 1) * CELL_SIZE, GRID_COLOR);
+
+        // 水平线
+        fb_draw_line(BOARD_OFFSET_X, pos,
+                     BOARD_OFFSET_X + (BOARD_SIZE - 1) * CELL_SIZE, pos, GRID_COLOR);
+    }
+}
+
+// 绘制星位（天元和四个角星）
+fn draw_star_points() {
+    let starPositions = [
+        (3, 3), (3, 11), (11, 3), (11, 11), (7, 7),
+    ];
+
+    for p in starPositions {
+        let (row, col) = p;
+        let (cx, cy) = (BOARD_OFFSET_X + col * CELL_SIZE, BOARD_OFFSET_Y + row * CELL_SIZE);
+        fb_fill_circle(cx, cy, 3, GRID_COLOR);
+    }
+}
+
+// 绘制单个棋子
+fn draw_piece(row: int, col: int, player: int, isLast: bool) {
+    let (cx, cy) = (BOARD_OFFSET_X + col * CELL_SIZE, BOARD_OFFSET_Y + row * CELL_SIZE);
+
+    let pieceColor = if player == BLACK { rgb(10, 10, 10) } else { rgb(245, 245, 245) };
+    let strokeColor = if player == BLACK { rgb(80, 80, 80) } else { rgb(180, 180, 180) };
+
+    // 棋子主体
+    fb_fill_circle(cx, cy, PIECE_RADIUS, pieceColor);
+
+    // 棋子边缘高光
+    fb_draw_circle(cx, cy, PIECE_RADIUS, strokeColor);
+
+    // 最后落子标记
+    if isLast {
+        fb_draw_circle(cx, cy, PIECE_RADIUS - 2, if player == BLACK {
+            rgb(255, 255, 255)
+        } else {
+            rgb(0, 0, 0)
+        });
+    }
+}
+
+// 绘制获胜连线
+fn draw_win_line(info: &WinInfo) {
+    if !info.hasWin { return; }
+
+    let (x1, y1) = (BOARD_OFFSET_X + info.startCol * CELL_SIZE, BOARD_OFFSET_Y + info.startRow * CELL_SIZE);
+    let (x2, y2) = (BOARD_OFFSET_X + info.endCol * CELL_SIZE, BOARD_OFFSET_Y + info.endRow * CELL_SIZE);
+
+    fb_draw_line(x1, y1, x2, y2, WIN_LINE_COLOR);
+}
+
+// 绘制整个棋盘
+fn draw_board(state: &GobangState) {
+    draw_board_bg();
+    draw_grid_lines();
+    draw_star_points();
+
+    // 绘制所有棋子
+    for r in 0..BOARD_SIZE {
+        for c in 0..BOARD_SIZE {
+            if state.board[r][c] != EMPTY {
+                let isLast = (r == state.lastRow && c == state.lastCol);
+                draw_piece(r, c, state.board[r][c], isLast);
+            }
+        }
+    }
+
+    // 绘制获胜连线
+    draw_win_line(&state.winInfo);
+}
+
+// ==================== 标题栏绘制 ====================
+
+fn draw_title_bar() {
+    // 标题栏背景
+    fb_draw_rect(0, 0, WINDOW_WIDTH, 55, rgb(41, 90, 159));
+
+    // 标题文字
+    fb_draw_text_size(20, 15, "五子棋 Gobang", rgb(255, 255, 255), 22);
+
+    // 当前玩家/状态
+    let playerText = get_player_text(&game);
+    let statusColor = if game.gameOver {
+        if game.winner == BLACK { rgb(50, 50, 50) } else { rgb(245, 245, 245) }
+    } else {
+        if game.currentPlayer == BLACK { rgb(10, 10, 10) } else { rgb(245, 245, 245) }
+    };
+
+    fb_draw_text_size(WINDOW_WIDTH - 140, 15, playerText, statusColor, 20);
+
+    // AI 思考提示
+    if game.aiThinking {
+        fb_draw_text_size(WINDOW_WIDTH / 2 - 50, 18, "电脑思考中...", rgb(255, 220, 0), 16);
+    }
+}
+
+// ==================== 底部状态栏 ====================
+
+fn draw_status_bar() {
+    let y = WINDOW_HEIGHT - 35;
+
+    fb_draw_rect(0, y - 5, WINDOW_WIDTH, 40, rgb(30, 30, 50));
+
+    let controls = get_controls_text();
+    fb_draw_text_size(20, y, controls, rgb(180, 180, 180), 14);
+
+    if game.gameOver {
+        let msg = if game.winner == BLACK { "黑棋（玩家）获胜！按 R 重新开始" } else { "白棋（电脑）获胜！按 R 重新开始" };
+        fb_draw_text_size(WINDOW_WIDTH / 2 - 200, y + 14, msg, rgb(255, 215, 0), 16);
+    }
+}
+
+// ==================== 主渲染函数 ====================
+
+fn on_paint(w: i32, h: i32) {
+    if !fb_data.valid {
+        fb_init(window, w, h);
+    }
+
+    // 清屏
+    fb_clear(rgb(50, 50, 70));
+
+    // 绘制标题栏
+    draw_title_bar();
+
+    // 绘制棋盘
+    draw_board(&game);
+
+    // 绘制状态栏
+    draw_status_bar();
+
+    // 呈现
+    fb_present();
+}
+
+// ==================== 事件处理 ====================
+
+fn on_key(key: KeyCode) -> bool {
+    match key {
+        KeyCode.Escape => {
+            running = false;
+            return false;
+        },
+        KeyCode.KeyR => {
+            restart_game(&mut game);
+            return true;
+        },
+        _ => {},
+    }
+    return true;
+}
+
+fn on_mouse(x: i32, y: i32, button: MouseButton) {
+    // 只响应左键
+    if button != MouseButton.Left { return; }
+    if game.gameOver { return; }
+    if game.currentPlayer != BLACK { return; }  // 只响应玩家回合
+
+    let (row, col, valid) = screen_to_board(x, y);
+    if !valid { return; }
+    if !is_empty(&game, row, col) { return; }
+
+    if place_piece(&mut game, row, col) {
+        // 玩家落子后，触发 AI
+        if !game.gameOver && game.currentPlayer == WHITE {
+            ai_move(&mut game);
+        }
+    }
+}
+
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C Gobang 五子棋游戏");
+    io.println("========================================");
+
+    // 初始化游戏
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "五子棋 Gobang";
+    window = create_window(title, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 获取实际客户区大小
+    let mut cw = 0;
+    let mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        set_client_size(cw, ch);
+    }
+
+    // 设置事件处理器
+    set_key_handler(on_key);
+    set_paint_handler(on_paint);
+    set_mouse_handler(on_mouse);
+    set_destroy_handler(on_destroy);
+
+    // 显示窗口
+    show_window(window);
+
+    io.println("窗口创建成功!");
+    io.println("游戏规则:");
+    io.println("  - 黑棋先手，点击棋盘交叉点落子");
+    io.println("  - 横、竖、斜任意方向连成五子获胜");
+    io.println("  - 按 R 重新开始，ESC 退出");
+    io.println("========================================");
+
+    // 初始绘制
+    redraw_window(window);
+
+    // 运行事件循环
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("========================================");
+
+    0
+}

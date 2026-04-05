@@ -1,0 +1,30 @@
+# Makefile for Gobang Game
+PROJECT_NAME = gobang
+ZC = zcc
+ZC_FLAGS = -std=c11 -O2
+SRC_DIR = src
+SRC_FILES = $(SRC_DIR)/main_window.zc $(SRC_DIR)/game_logic.zc $(SRC_DIR)/platform_api.zc
+BUILD_DIR = build
+TARGET = $(BUILD_DIR)/$(PROJECT_NAME)
+WIN_TARGET = $(BUILD_DIR)/$(PROJECT_NAME).exe
+.PHONY: all clean run help
+all: $(BUILD_DIR) $(TARGET)
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+$(TARGET): $(SRC_FILES)
+	@echo Building $(PROJECT_NAME)...
+	$(ZC) $(ZC_FLAGS) -o $(TARGET) $(SRC_FILES)
+	@echo Build complete
+$(WIN_TARGET): $(SRC_FILES)
+	@echo Building $(PROJECT_NAME) for Windows...
+	$(ZC) $(ZC_FLAGS) -o $(WIN_TARGET) $(SRC_FILES)
+	@echo Build complete
+run: $(TARGET)
+	@echo Starting $(PROJECT_NAME)...
+	$(TARGET)
+clean:
+	find $(BUILD_DIR) -type f -delete
+	rm -d $(BUILD_DIR) 2>/dev/null || true
+	@echo Clean complete
+help:
+	@echo Gobang Game Makefile
