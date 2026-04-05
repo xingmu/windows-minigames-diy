@@ -1,0 +1,689 @@
+// game_logic.zc - 足球游戏逻辑模块
+// Zen-C 足球游戏 - 俯视角足球对战游戏
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+// 场地尺寸
+const FIELD_WIDTH: i32 = 800;
+const FIELD_HEIGHT: i32 = 600;
+
+// 球门尺寸
+const GOAL_WIDTH: i32 = 120;
+const GOAL_HEIGHT: i32 = 20;
+const GOAL_Y_TOP: i32 = 0;
+const GOAL_Y_BOTTOM: i32 = FIELD_HEIGHT - GOAL_HEIGHT;
+
+// 球参数
+const BALL_RADIUS: i32 = 10;
+const BALL_FRICTION: f64 = 0.985;
+const BALL_MAX_SPEED: f64 = 12.0;
+
+// 球员参数
+const PLAYER_RADIUS: i32 = 15;
+const PLAYER_SPEED: f64 = 4.0;
+const PLAYER_KICK_POWER: f64 = 15.0;
+
+// 球门区尺寸
+const PENALTY_AREA_WIDTH: i32 = 300;
+const PENALTY_AREA_HEIGHT: i32 = 150;
+
+// 比赛时间（秒）
+const MATCH_TIME: i32 = 90;
+
+// ==================== 数据结构 ====================
+
+// 向量2D
+struct Vec2 {
+    x: f64,
+    y: f64,
+}
+
+impl Vec2 {
+    pub static fn new(x: f64, y: f64) -> Vec2 {
+        return Vec2.{ x: x, y: y };
+    }
+    
+    pub fn add(self, other: Vec2) -> Vec2 {
+        return Vec2.{ x: self.x + other.x, y: self.y + other.y };
+    }
+    
+    pub fn sub(self, other: Vec2) -> Vec2 {
+        return Vec2.{ x: self.x - other.x, y: self.y - other.y };
+    }
+    
+    pub fn scale(self, s: f64) -> Vec2 {
+        return Vec2.{ x: self.x * s, y: self.y * s };
+    }
+    
+    pub fn length(self) -> f64 {
+        return math.sqrt(self.x * self.x + self.y * self.y);
+    }
+    
+    pub fn normalize(self) -> Vec2 {
+        let len = self.length();
+        if len < 0.001 {
+            return Vec2.{ x: 0.0, y: 0.0 };
+        }
+        return Vec2.{ x: self.x / len, y: self.y / len };
+    }
+    
+    pub fn limit(self, max_len: f64) -> Vec2 {
+        let len = self.length();
+        if len > max_len && len > 0.001 {
+            return self.scale(max_len / len);
+        }
+        return self;
+    }
+}
+
+// 球员结构
+struct Player {
+    x: f64,
+    y: f64,
+    vx: f64,
+    vy: f64,
+    radius: i32,
+    team: i32,        // 0 = 玩家, 1 = AI
+    has_ball: bool,
+    kick_cooldown: i32,
+}
+
+impl Player {
+    pub fn new(x: f64, y: f64, team: i32) -> Player {
+        return Player.{
+            x: x,
+            y: y,
+            vx: 0.0,
+            vy: 0.0,
+            radius: PLAYER_RADIUS,
+            team: team,
+            has_ball: false,
+            kick_cooldown: 0,
+        };
+    }
+    
+    pub fn pos(self) -> Vec2 {
+        return Vec2.{ x: self.x, y: self.y };
+    }
+    
+    pub fn update(self: &mut Player) {
+        // 应用速度
+        self.x = self.x + self.vx;
+        self.y = self.y + self.vy;
+        
+        // 摩擦力
+        self.vx = self.vx * PLAYER_FRICTION;
+        self.vy = self.vy * PLAYER_FRICTION;
+        
+        // 冷却时间减少
+        if self.kick_cooldown > 0 {
+            self.kick_cooldown -= 1;
+        }
+        
+        // 边界检测
+        if self.x < self.radius as f64 {
+            self.x = self.radius as f64;
+            self.vx = 0.0;
+        }
+        if self.x > FIELD_WIDTH as f64 - self.radius as f64 {
+            self.x = FIELD_WIDTH as f64 - self.radius as f64;
+            self.vx = 0.0;
+        }
+        if self.y < self.radius as f64 {
+            self.y = self.radius as f64;
+            self.vy = 0.0;
+        }
+        if self.y > FIELD_HEIGHT as f64 - self.radius as f64 {
+            self.y = FIELD_HEIGHT as f64 - self.radius as f64;
+            self.vy = 0.0;
+        }
+    }
+}
+
+// 球的结构
+struct Ball {
+    x: f64,
+    y: f64,
+    vx: f64,
+    vy: f64,
+    radius: i32,
+    owner: &mut Player,
+}
+
+impl Ball {
+    pub fn new() -> Ball {
+        return Ball.{
+            x: FIELD_WIDTH as f64 / 2.0,
+            y: FIELD_HEIGHT as f64 / 2.0,
+            vx: 0.0,
+            vy: 0.0,
+            radius: BALL_RADIUS,
+            owner: nil,
+        };
+    }
+    
+    pub fn pos(self) -> Vec2 {
+        return Vec2.{ x: self.x, y: self.y };
+    }
+    
+    pub fn update(self: &mut Ball) {
+        // 如果有主人，跟随主人
+        if self.owner != nil {
+            self.x = self.owner.x;
+            self.y = self.owner.y;
+            self.vx = 0.0;
+            self.vy = 0.0;
+            return;
+        }
+        
+        // 应用速度
+        self.x = self.x + self.vx;
+        self.y = self.y + self.vy;
+        
+        // 摩擦力
+        self.vx = self.vx * BALL_FRICTION;
+        self.vy = self.vy * BALL_FRICTION;
+        
+        // 速度限制
+        let speed = math.sqrt(self.vx * self.vx + self.vy * self.vy);
+        if speed > BALL_MAX_SPEED {
+            let scale = BALL_MAX_SPEED / speed;
+            self.vx = self.vx * scale;
+            self.vy = self.vy * scale;
+        }
+        
+        // 停止条件
+        if speed < 0.1 {
+            self.vx = 0.0;
+            self.vy = 0.0;
+        }
+        
+        // 边界碰撞
+        // 左右边界
+        if self.x < self.radius as f64 {
+            self.x = self.radius as f64;
+            self.vx = -self.vx * 0.8;
+        }
+        if self.x > FIELD_WIDTH as f64 - self.radius as f64 {
+            self.x = FIELD_WIDTH as f64 - self.radius as f64;
+            self.vx = -self.vx * 0.8;
+        }
+        
+        // 上下边界（考虑球门）
+        let in_left_goal = self.y < GOAL_WIDTH as f64 / 2.0 && 
+                          self.x > (FIELD_WIDTH as f64 - GOAL_WIDTH as f64) / 2.0 &&
+                          self.x < (FIELD_WIDTH as f64 + GOAL_WIDTH as f64) / 2.0;
+        let in_right_goal = self.y > FIELD_HEIGHT as f64 - GOAL_HEIGHT as f64 - GOAL_WIDTH as f64 / 2.0 && 
+                           self.x > (FIELD_WIDTH as f64 - GOAL_WIDTH as f64) / 2.0 &&
+                           self.x < (FIELD_WIDTH as f64 + GOAL_WIDTH as f64) / 2.0;
+        
+        if !in_left_goal && !in_right_goal {
+            if self.y < self.radius as f64 {
+                self.y = self.radius as f64;
+                self.vy = -self.vy * 0.8;
+            }
+            if self.y > FIELD_HEIGHT as f64 - self.radius as f64 {
+                self.y = FIELD_HEIGHT as f64 - self.radius as f64;
+                self.vy = -self.vy * 0.8;
+            }
+        }
+        
+        // 球门碰撞
+        self.check_goal_collision();
+    }
+    
+    fn check_goal_collision(self: &mut Ball) {
+        // 左球门（玩家进攻方向）
+        let left_goal_x = (FIELD_WIDTH - GOAL_WIDTH) / 2;
+        let left_goal_y = 0;
+        
+        if self.y < left_goal_y + GOAL_HEIGHT as f64 + self.radius as f64 &&
+           self.x > left_goal_x as f64 - self.radius as f64 &&
+           self.x < (left_goal_x + GOAL_WIDTH) as f64 + self.radius as f64 {
+            
+            // 在球门区域内
+            if self.x < left_goal_x as f64 {
+                self.x = left_goal_x as f64 - self.radius as f64;
+                self.vx = -self.vx * 0.8;
+            }
+            if self.x > (left_goal_x + GOAL_WIDTH) as f64 {
+                self.x = (left_goal_x + GOAL_WIDTH) as f64 + self.radius as f64;
+                self.vx = -self.vx * 0.8;
+            }
+            if self.y < left_goal_y as f64 {
+                self.y = left_goal_y as f64 + self.radius as f64;
+                self.vy = -self.vy * 0.8;
+            }
+        }
+        
+        // 右球门（AI进攻方向）
+        let right_goal_x = (FIELD_WIDTH - GOAL_WIDTH) / 2;
+        let right_goal_y = FIELD_HEIGHT - GOAL_HEIGHT;
+        
+        if self.y > right_goal_y as f64 - self.radius as f64 &&
+           self.x > right_goal_x as f64 - self.radius as f64 &&
+           self.x < (right_goal_x + GOAL_WIDTH) as f64 + self.radius as f64 {
+            
+            if self.x < right_goal_x as f64 {
+                self.x = right_goal_x as f64 - self.radius as f64;
+                self.vx = -self.vx * 0.8;
+            }
+            if self.x > (right_goal_x + GOAL_WIDTH) as f64 {
+                self.x = (right_goal_x + GOAL_WIDTH) as f64 + self.radius as f64;
+                self.vx = -self.vx * 0.8;
+            }
+            if self.y > right_goal_y as f64 {
+                self.y = right_goal_y as f64 - self.radius as f64;
+                self.vy = -self.vy * 0.8;
+            }
+        }
+    }
+}
+
+// 玩家摩擦力
+const PLAYER_FRICTION: f64 = 0.85;
+
+// 球门结构
+struct Goal {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+}
+
+impl Goal {
+    pub fn new(x: i32, y: i32, width: i32, height: i32) -> Goal {
+        return Goal.{ x: x, y: y, width: width, height: height };
+    }
+    
+    pub fn center_x(self) -> f64 {
+        return (self.x + self.width / 2) as f64;
+    }
+    
+    pub fn center_y(self) -> f64 {
+        return (self.y + self.height / 2) as f64;
+    }
+}
+
+// 游戏状态
+struct GameState {
+    ball: Ball,
+    player: Player,
+    ai_players: [Player; 2],
+    left_goal: Goal,
+    right_goal: Goal,
+    player_score: i32,
+    ai_score: i32,
+    game_time: i32,
+    phase: GamePhase,
+    paused: bool,
+    countdown: i32,
+    goal_scored: bool,
+    goal_timer: i32,
+    match_over: bool,
+}
+
+enum GamePhase {
+    Ready,      // 开始画面
+    Countdown,  // 倒计时
+    Playing,    // 比赛中
+    Goal,       // 进球庆祝
+    GameOver,   // 比赛结束
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut GameState) {
+    // 初始化球门
+    game.left_goal = Goal.new((FIELD_WIDTH - GOAL_WIDTH) / 2, 0, GOAL_WIDTH, GOAL_HEIGHT);
+    game.right_goal = Goal.new((FIELD_WIDTH - GOAL_WIDTH) / 2, FIELD_HEIGHT - GOAL_HEIGHT, GOAL_WIDTH, GOAL_HEIGHT);
+    
+    // 初始化球
+    game.ball = Ball.new();
+    
+    // 初始化玩家（底部）
+    game.player = Player.new(FIELD_WIDTH as f64 / 2.0, FIELD_HEIGHT as f64 * 0.75, 0);
+    
+    // 初始化AI球员（顶部）
+    game.ai_players[0] = Player.new(FIELD_WIDTH as f64 / 2.0, FIELD_HEIGHT as f64 * 0.25, 1);
+    game.ai_players[1] = Player.new(FIELD_WIDTH as f64 * 0.3, FIELD_HEIGHT as f64 * 0.15, 1);
+    
+    // 初始化分数和时间
+    game.player_score = 0;
+    game.ai_score = 0;
+    game.game_time = MATCH_TIME;
+    game.phase = GamePhase.Ready;
+    game.paused = false;
+    game.countdown = 3;
+    game.goal_scored = false;
+    game.goal_timer = 0;
+    game.match_over = false;
+}
+
+// 重置位置到开球
+fn reset_positions(game: &mut GameState) {
+    game.ball.x = FIELD_WIDTH as f64 / 2.0;
+    game.ball.y = FIELD_HEIGHT as f64 / 2.0;
+    game.ball.vx = 0.0;
+    game.ball.vy = 0.0;
+    game.ball.owner = nil;
+    
+    game.player.x = FIELD_WIDTH as f64 / 2.0;
+    game.player.y = FIELD_HEIGHT as f64 * 0.75;
+    game.player.vx = 0.0;
+    game.player.vy = 0.0;
+    game.player.has_ball = false;
+    
+    game.ai_players[0].x = FIELD_WIDTH as f64 / 2.0;
+    game.ai_players[0].y = FIELD_HEIGHT as f64 * 0.25;
+    game.ai_players[0].vx = 0.0;
+    game.ai_players[0].vy = 0.0;
+    game.ai_players[0].has_ball = false;
+    
+    game.ai_players[1].x = FIELD_WIDTH as f64 * 0.3;
+    game.ai_players[1].y = FIELD_HEIGHT as f64 * 0.15;
+    game.ai_players[1].vx = 0.0;
+    game.ai_players[1].vy = 0.0;
+    game.ai_players[1].has_ball = false;
+}
+
+// 检测碰撞
+fn circle_collision(x1: f64, y1: f64, r1: i32, x2: f64, y2: f64, r2: i32) -> bool {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    let dist_sq = dx * dx + dy * dy;
+    let radius_sum = (r1 + r2) as f64;
+    return dist_sq < radius_sum * radius_sum;
+}
+
+// 更新玩家输入
+fn update_player_input(game: &mut GameState, up: bool, down: bool, left: bool, right: bool, kick: bool) {
+    if game.phase != GamePhase.Playing {
+        return;
+    }
+    
+    let mut vx = 0.0;
+    let mut vy = 0.0;
+    
+    if up { vy = vy - PLAYER_SPEED; }
+    if down { vy = vy + PLAYER_SPEED; }
+    if left { vx = vx - PLAYER_SPEED; }
+    if right { vx = vx + PLAYER_SPEED; }
+    
+    // 标准化对角线移动
+    let len = math.sqrt(vx * vx + vy * vy);
+    if len > PLAYER_SPEED {
+        let scale = PLAYER_SPEED / len;
+        vx = vx * scale;
+        vy = vy * scale;
+    }
+    
+    game.player.vx = vx;
+    game.player.vy = vy;
+    
+    // 踢球
+    if kick && game.player.kick_cooldown <= 0 && game.ball.owner == &game.player {
+        kick_ball(game, &mut game.player);
+    }
+}
+
+// 踢球
+fn kick_ball(game: &mut GameState, player: &mut Player) {
+    // 计算球到球门的方向
+    let target_y = if player.team == 0 { 0.0 } else { FIELD_HEIGHT as f64 };
+    let target_x = FIELD_WIDTH as f64 / 2.0;
+    
+    let dx = target_x - game.ball.x;
+    let dy = target_y - game.ball.y;
+    let len = math.sqrt(dx * dx + dy * dy);
+    
+    if len > 0.0 {
+        game.ball.vx = (dx / len) * PLAYER_KICK_POWER;
+        game.ball.vy = (dy / len) * PLAYER_KICK_POWER;
+    }
+    
+    game.ball.owner = nil;
+    player.has_ball = false;
+    player.kick_cooldown = 15;
+}
+
+// 更新AI
+fn update_ai(game: &mut GameState) {
+    if game.phase != GamePhase.Playing {
+        return;
+    }
+    
+    for i in 0..2 {
+        let ai = &mut game.ai_players[i];
+        
+        // AI行为：追逐球
+        let dx = game.ball.x - ai.x;
+        let dy = game.ball.y - ai.y;
+        let dist = math.sqrt(dx * dx + dy * dy);
+        
+        if dist > 5.0 {
+            let speed = if i == 0 { PLAYER_SPEED * 0.9 } else { PLAYER_SPEED * 0.75 };
+            ai.vx = (dx / dist) * speed;
+            ai.vy = (dy / dist) * speed;
+        } else {
+            ai.vx = 0.0;
+            ai.vy = 0.0;
+        }
+        
+        // AI尝试踢球（如果离球很近）
+        if dist < (PLAYER_RADIUS + BALL_RADIUS) as f64 && ai.kick_cooldown <= 0 {
+            if game.ball.owner == nil {
+                // 抢球
+                game.ball.owner = ai;
+                ai.has_ball = true;
+            } else if game.ball.owner == ai {
+                // 带球时射门
+                // 向玩家球门（底部）射门
+                let goal_y = FIELD_HEIGHT as f64 - 50.0;
+                let goal_x = FIELD_WIDTH as f64 / 2.0 + (math.rand() % 60 - 30) as f64;
+                
+                let kdx = goal_x - game.ball.x;
+                let kdy = goal_y - game.ball.y;
+                let klen = math.sqrt(kdx * kdx + kdy * kdy);
+                
+                if klen > 0.0 {
+                    game.ball.vx = (kdx / klen) * PLAYER_KICK_POWER * 1.2;
+                    game.ball.vy = (kdy / klen) * PLAYER_KICK_POWER * 1.2;
+                }
+                
+                game.ball.owner = nil;
+                ai.has_ball = false;
+                ai.kick_cooldown = 20;
+            }
+        }
+        
+        ai.update();
+    }
+}
+
+// 检测球员和球的碰撞
+fn check_ball_collision(game: &mut GameState) {
+    // 检查玩家和球的碰撞
+    if game.ball.owner == nil {
+        if circle_collision(game.player.x, game.player.y, PLAYER_RADIUS,
+                          game.ball.x, game.ball.y, BALL_RADIUS) {
+            game.ball.owner = &game.player;
+            game.player.has_ball = true;
+        }
+    }
+    
+    // 检查AI和球的碰撞
+    for i in 0..2 {
+        let ai = &mut game.ai_players[i];
+        if game.ball.owner == nil {
+            if circle_collision(ai.x, ai.y, PLAYER_RADIUS,
+                              game.ball.x, game.ball.y, BALL_RADIUS) {
+                game.ball.owner = ai;
+                ai.has_ball = true;
+            }
+        }
+    }
+    
+    // 球员之间的碰撞
+    let mut all_players: [&mut Player; 3] = [&mut game.player, &mut game.ai_players[0], &mut game.ai_players[1]];
+    
+    for i in 0..3 {
+        for j in (i+1)..3 {
+            let p1 = all_players[i];
+            let p2 = all_players[j];
+            
+            if circle_collision(p1.x, p1.y, PLAYER_RADIUS, p2.x, p2.y, PLAYER_RADIUS) {
+                let dx = p2.x - p1.x;
+                let dy = p2.y - p1.y;
+                let dist = math.sqrt(dx * dx + dy * dy);
+                
+                if dist > 0.0 {
+                    let overlap = (PLAYER_RADIUS * 2) as f64 - dist;
+                    let nx = dx / dist;
+                    let ny = dy / dist;
+                    
+                    p1.x = p1.x - nx * overlap / 2.0;
+                    p1.y = p1.y - ny * overlap / 2.0;
+                    p2.x = p2.x + nx * overlap / 2.0;
+                    p2.y = p2.y + ny * overlap / 2.0;
+                }
+            }
+        }
+    }
+}
+
+// 检查进球
+fn check_goals(game: &mut GameState) -> bool {
+    // 玩家进球（球进入右球门）
+    if game.ball.y > FIELD_HEIGHT as f64 - GOAL_HEIGHT as f64 - BALL_RADIUS as f64 &&
+       game.ball.x > game.right_goal.x as f64 &&
+       game.ball.x < (game.right_goal.x + GOAL_WIDTH) as f64 {
+        return true;
+    }
+    
+    // AI进球（球进入左球门）
+    if game.ball.y < GOAL_HEIGHT as f64 + BALL_RADIUS as f64 &&
+       game.ball.x > game.left_goal.x as f64 &&
+       game.ball.x < (game.left_goal.x + GOAL_WIDTH) as f64 {
+        return true;
+    }
+    
+    return false;
+}
+
+// 判断是谁进的（球进入哪个球门）
+fn which_goal(game: &GameState) -> i32 {
+    // 球进入右球门 = 玩家得分
+    if game.ball.y > FIELD_HEIGHT as f64 - GOAL_HEIGHT as f64 {
+        return 0;
+    }
+    // 球进入左球门 = AI得分
+    return 1;
+}
+
+// 更新游戏主循环
+fn update_game(game: &mut GameState) {
+    match game.phase {
+        GamePhase.Ready => {
+            // 等待开始
+        },
+        GamePhase.Countdown => {
+            game.countdown -= 1;
+            if game.countdown <= 0 {
+                game.phase = GamePhase.Playing;
+            }
+        },
+        GamePhase.Playing => {
+            // 更新玩家
+            game.player.update();
+            
+            // 更新AI
+            update_ai(game);
+            
+            // 更新球
+            game.ball.update();
+            
+            // 检测碰撞
+            check_ball_collision(game);
+            
+            // 检查进球
+            if check_goals(game) {
+                let scorer = which_goal(game);
+                if scorer == 0 {
+                    game.player_score += 1;
+                } else {
+                    game.ai_score += 1;
+                }
+                game.goal_scored = true;
+                game.goal_timer = 120;
+                game.phase = GamePhase.Goal;
+            }
+            
+            // 更新比赛时间
+            // 注：实际实现中需要基于真实时间
+        },
+        GamePhase.Goal => {
+            game.goal_timer -= 1;
+            if game.goal_timer <= 0 {
+                if game.game_time <= 0 {
+                    game.phase = GamePhase.GameOver;
+                    game.match_over = true;
+                } else {
+                    reset_positions(game);
+                    game.phase = GamePhase.Countdown;
+                    game.countdown = 3;
+                }
+            }
+        },
+        GamePhase.GameOver => {
+            // 游戏结束
+        },
+    }
+}
+
+// 开始游戏
+fn start_game(game: &mut GameState) {
+    if game.phase == GamePhase.Ready || game.phase == GamePhase.GameOver {
+        init_game(game);
+        game.phase = GamePhase.Countdown;
+        game.countdown = 3;
+    }
+}
+
+// 暂停/继续游戏
+fn toggle_pause(game: &mut GameState) {
+    if game.phase == GamePhase.Playing {
+        game.paused = !game.paused;
+    }
+}
+
+// 获取游戏状态文本
+fn get_status_text(game: &GameState) -> string {
+    match game.phase {
+        GamePhase.Ready => "按空格开始比赛",
+        GamePhase.Countdown => "比赛即将开始: " ++ game.countdown.to_string(),
+        GamePhase.Playing => if game.paused { "已暂停 - 按P继续" } else { "比赛中..." },
+        GamePhase.Goal => "进球！",
+        GamePhase.GameOver => "比赛结束！",
+    }
+}
+
+// 获取比分文本
+fn get_score_text(game: &GameState) -> string {
+    return format("{} - {}", game.player_score, game.ai_score);
+}
+
+// 获取时间文本
+fn get_time_text(game: &GameState) -> string {
+    let mins = game.game_time / 60;
+    let secs = game.game_time % 60;
+    return format("{}:{:02}", mins, secs);
+}
+
+// 获取控制说明
+fn get_controls_text() -> string {
+    return "控制: WASD移动 | 空格踢球 | P暂停 | R重新开始";
+}

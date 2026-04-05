@@ -1,0 +1,584 @@
+// main_window.zc - Zen-C 足球游戏主程序
+// 使用 Zen-C + 003-framework 结构
+// 俯视角足球对战游戏
+
+import std.io;
+import std.string;
+
+// 导入游戏逻辑和平台API
+import "game_logic.zc";
+import "platform_api.zc";
+
+// ==================== 颜色常量 (ARGB) ====================
+
+const FIELD_COLOR = Color.rgb(34, 139, 34);           // 草绿色
+const FIELD_DARK = Color.rgb(30, 120, 30);           // 深草绿色
+const LINE_COLOR = Color.rgb(255, 255, 255);         // 白色线条
+const GOAL_POST_COLOR = Color.rgb(255, 255, 255);    // 球门柱白色
+const GOAL_NET_COLOR = Color.rgba(255, 255, 255, 100); // 球网半透明白
+const BALL_COLOR = Color.rgb(255, 255, 255);         // 球白色
+const PLAYER_COLOR = Color.rgb(0, 100, 255);         // 玩家蓝色
+const AI_COLOR = Color.rgb(255, 50, 50);              // AI红色
+const UI_BG = Color.rgb(25, 25, 45);                 // UI背景
+const UI_TEXT = Color.rgb(255, 255, 255);             // UI文字
+const GOAL_TEXT_COLOR = Color.rgb(255, 215, 0);      // 进球金色
+
+// ==================== 常量 ====================
+
+const WINDOW_WIDTH = 800;
+const WINDOW_HEIGHT = 600;
+
+// ==================== 全局变量 ====================
+
+static mut game: GameState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut g_width: i32 = WINDOW_WIDTH;
+static mut g_height: i32 = WINDOW_HEIGHT;
+
+// 键盘状态
+static mut key_up: bool = false;
+static mut key_down: bool = false;
+static mut key_left: bool = false;
+static mut key_right: bool = false;
+static mut key_space: bool = false;
+
+// ==================== 绘图函数 ====================
+
+// 绘制场地
+fn draw_field(ctx: GraphicsContext) {
+    // 草皮条纹
+    let stripe_w = 50;
+    for i in 0..16 {
+        let x = i * stripe_w;
+        let c = if i % 2 == 0 { FIELD_COLOR } else { FIELD_DARK };
+        draw_rect(ctx, x, 0, stripe_w, g_height, c);
+    }
+    
+    // 边线
+    let margin = 20;
+    draw_rect(ctx, margin, margin, g_width - margin * 2, g_height - margin * 2, LINE_COLOR);
+    
+    // 中线
+    draw_line(ctx, margin, g_height / 2, g_width - margin, g_height / 2, LINE_COLOR, 2);
+    
+    // 中圈
+    let center_x = g_width / 2;
+    let center_y = g_height / 2;
+    let circle_radius = 60;
+    
+    // 简化圆 - 用多个点画
+    for angle in 0..36 {
+        let a1 = angle as f64 * 3.14159 * 2.0 / 36.0;
+        let a2 = (angle + 1) as f64 * 3.14159 * 2.0 / 36.0;
+        let x1 = center_x + (math.cos(a1) * circle_radius as f64) as i32;
+        let y1 = center_y + (math.sin(a1) * circle_radius as f64) as i32;
+        let x2 = center_x + (math.cos(a2) * circle_radius as f64) as i32;
+        let y2 = center_y + (math.sin(a2) * circle_radius as f64) as i32;
+        draw_line(ctx, x1, y1, x2, y2, LINE_COLOR, 2);
+    }
+    
+    // 中点
+    fill_circle(ctx, center_x, center_y, 5, LINE_COLOR);
+    
+    // 禁区（上下各一个）
+    let penalty_w = 300;
+    let penalty_h = 120;
+    let penalty_x = (g_width - penalty_w) / 2;
+    
+    // 上禁区
+    draw_rect(ctx, penalty_x, margin, penalty_w, penalty_h, LINE_COLOR);
+    // 下禁区
+    draw_rect(ctx, penalty_x, g_height - margin - penalty_h, penalty_w, penalty_h, LINE_COLOR);
+    
+    // 球门区（上下各一个）
+    let goal_area_w = 150;
+    let goal_area_h = 50;
+    let goal_area_x = (g_width - goal_area_w) / 2;
+    
+    // 上球门区
+    draw_rect(ctx, goal_area_x, margin, goal_area_w, goal_area_h, LINE_COLOR);
+    // 下球门区
+    draw_rect(ctx, goal_area_x, g_height - margin - goal_area_h, goal_area_w, goal_area_h, LINE_COLOR);
+    
+    // 点球点
+    fill_circle(ctx, center_x, g_height - margin - penalty_h - 60, 4, LINE_COLOR);
+    fill_circle(ctx, center_x, margin + penalty_h + 60, 4, LINE_COLOR);
+}
+
+// 绘制球门
+fn draw_goal(ctx: GraphicsContext, goal: &Goal) {
+    let post_width = 6;
+    let net_depth = 15;
+    
+    // 球门框架
+    // 左门柱
+    draw_rect(ctx, goal.x, goal.y, post_width, goal.height, GOAL_POST_COLOR);
+    // 右门柱
+    draw_rect(ctx, goal.x + goal.width - post_width, goal.y, post_width, goal.height, GOAL_POST_COLOR);
+    // 横梁
+    draw_rect(ctx, goal.x, goal.y, goal.width, post_width, GOAL_POST_COLOR);
+    
+    // 球网（简化：用线画格子）
+    let spacing = 12;
+    
+    // 垂直线
+    for x in goal.x + spacing..goal.x + goal.width - spacing step spacing {
+        let net_color = Color.rgba(255, 255, 255, 40);
+        let depth_offset = if goal.y == 0 { net_depth } else { -net_depth };
+        draw_line(ctx, x, goal.y + depth_offset, x, goal.y + goal.height - depth_offset, net_color, 1);
+    }
+    
+    // 水平线
+    for y in goal.y..goal.y + goal.height step spacing {
+        let net_color = Color.rgba(255, 255, 255, 40);
+        let depth_offset = if goal.y == 0 { net_depth } else { -net_depth };
+        draw_line(ctx, goal.x + post_width, y + depth_offset, 
+                 goal.x + goal.width - post_width, y + depth_offset, net_color, 1);
+    }
+}
+
+// 绘制球
+fn draw_ball(ctx: GraphicsContext, ball: &Ball) {
+    let x = ball.x as i32;
+    let y = ball.y as i32;
+    let r = ball.radius;
+    
+    // 阴影
+    let shadow_color = Color.rgba(0, 0, 0, 80);
+    fill_circle(ctx, x + 3, y + 3, r, shadow_color);
+    
+    // 球体
+    fill_circle(ctx, x, y, r, BALL_COLOR);
+    
+    // 足球花纹（黑色五边形）
+    let pattern_color = Color.rgb(20, 20, 20);
+    let pr = r / 2;
+    let angles: [5]f64 = [0.0, 1.256, 2.512, 3.768, 5.024];
+    for i in 0..5 {
+        let px = x + (math.cos(angles[i]) * pr as f64) as i32;
+        let py = y + (math.sin(angles[i]) * pr as f64) as i32;
+        fill_circle(ctx, px, py, 3, pattern_color);
+    }
+}
+
+// 绘制球员
+fn draw_player(ctx: GraphicsContext, player: &Player, color: Color) {
+    let x = player.x as i32;
+    let y = player.y as i32;
+    let r = player.radius;
+    
+    // 阴影
+    let shadow_color = Color.rgba(0, 0, 0, 80);
+    fill_circle(ctx, x + 2, y + 2, r, shadow_color);
+    
+    // 身体
+    fill_circle(ctx, x, y, r, color);
+    
+    // 高光
+    let highlight_color = Color.rgba(255, 255, 255, 60);
+    fill_circle(ctx, x - r / 3, y - r / 3, r / 3, highlight_color);
+    
+    // 如果带球，显示标记
+    if player.has_ball {
+        let kick_color = Color.rgb(255, 255, 0);
+        draw_circle(ctx, x, y, r + 4, kick_color, 2);
+    }
+}
+
+// 绘制圆圈边框
+fn draw_circle(ctx: GraphicsContext, cx: i32, cy: i32, radius: i32, color: Color, width: i32) {
+    // 简化实现：画多边形近似圆
+    let segments = 24;
+    for i in 0..segments {
+        let a1 = i as f64 * 3.14159 * 2.0 / segments as f64;
+        let a2 = (i + 1) as f64 * 3.14159 * 2.0 / segments as f64;
+        let x1 = cx + (math.cos(a1) * radius as f64) as i32;
+        let y1 = cy + (math.sin(a1) * radius as f64) as i32;
+        let x2 = cx + (math.cos(a2) * radius as f64) as i32;
+        let y2 = cy + (math.sin(a2) * radius as f64) as i32;
+        draw_line(ctx, x1, y1, x2, y2, color, width);
+    }
+}
+
+// 绘制UI
+fn draw_ui(ctx: GraphicsContext) {
+    let panel_h = 60;
+    let panel_y = g_height - panel_h;
+    
+    // 面板背景
+    draw_rect(ctx, 0, panel_y, g_width, panel_h, UI_BG);
+    
+    // 分割线
+    draw_line(ctx, 0, panel_y, g_width, panel_y, LINE_COLOR, 2);
+    
+    // 分数显示
+    let score_text = get_score_text(&game);
+    // 注：实际文本绘制需要字体支持，这里用矩形占位
+    let score_x = g_width / 2 - 50;
+    draw_rect(ctx, score_x, panel_y + 10, 100, 40, Color.rgb(40, 40, 60));
+    
+    // 玩家分数
+    let p_color = Color.rgb(0, 150, 255);
+    fill_circle(ctx, score_x + 20, panel_y + 30, 12, p_color);
+    
+    // AI分数
+    let ai_color = Color.rgb(255, 80, 80);
+    fill_circle(ctx, score_x + 80, panel_y + 30, 12, ai_color);
+    
+    // 时间显示
+    let time_text = get_time_text(&game);
+    let time_x = g_width - 100;
+    draw_rect(ctx, time_x, panel_y + 10, 80, 40, Color.rgb(40, 40, 60));
+}
+
+// 绘制开始画面
+fn draw_ready_screen(ctx: GraphicsContext) {
+    // 半透明背景
+    draw_rect(ctx, 0, 0, g_width, g_height, Color.rgba(0, 0, 0, 180));
+    
+    // 标题
+    draw_rect(ctx, g_width / 2 - 150, 150, 300, 60, Color.rgb(50, 50, 80));
+    
+    // 说明文字区域
+    draw_rect(ctx, g_width / 2 - 200, 250, 400, 200, Color.rgb(30, 30, 50));
+}
+
+// 绘制进球庆祝
+fn draw_goal_celebration(ctx: GraphicsContext) {
+    // 金色闪烁效果
+    let flash = (game.goal_timer / 5) % 2;
+    if flash == 0 {
+        draw_rect(ctx, 0, 0, g_width, g_height, Color.rgba(255, 215, 0, 30));
+    }
+    
+    // 进球文字
+    draw_rect(ctx, g_width / 2 - 100, g_height / 2 - 30, 200, 60, Color.rgb(255, 180, 0));
+}
+
+// 绘制游戏结束画面
+fn draw_game_over_screen(ctx: GraphicsContext) {
+    // 半透明背景
+    draw_rect(ctx, 0, 0, g_width, g_height, Color.rgba(0, 0, 0, 200));
+    
+    // 结果面板
+    draw_rect(ctx, g_width / 2 - 150, g_height / 2 - 100, 300, 200, Color.rgb(40, 40, 70));
+}
+
+// 绘制游戏
+fn draw_game(ctx: GraphicsContext) {
+    // 绘制场地
+    draw_field(ctx);
+    
+    // 绘制球门
+    draw_goal(ctx, &game.left_goal);
+    draw_goal(ctx, &game.right_goal);
+    
+    // 绘制AI球员
+    for i in 0..2 {
+        draw_player(ctx, &game.ai_players[i], AI_COLOR);
+    }
+    
+    // 绘制玩家
+    draw_player(ctx, &game.player, PLAYER_COLOR);
+    
+    // 绘制球（不在球员脚下时）
+    if game.ball.owner == nil {
+        draw_ball(ctx, &game.ball);
+    }
+    
+    // 绘制UI
+    draw_ui(ctx);
+    
+    // 绘制特殊状态
+    match game.phase {
+        GamePhase.Ready => {
+            draw_ready_screen(ctx);
+        },
+        GamePhase.Goal => {
+            draw_goal_celebration(ctx);
+        },
+        GamePhase.GameOver => {
+            draw_game_over_screen(ctx);
+        },
+        _ => {}
+    }
+}
+
+// ==================== 事件处理 ====================
+
+fn handle_key_down(key: i32) {
+    match key {
+        87 => { key_up = true; },    // W
+        83 => { key_down = true; },  // S
+        65 => { key_left = true; },  // A
+        68 => { key_right = true; }, // D
+        32 => { key_space = true; }, // Space
+        80 => { toggle_pause(&mut game); }, // P
+        82 => { init_game(&mut game); game.phase = GamePhase.Ready; }, // R
+        27 => { running = false; }, // ESC
+        _ => {}
+    }
+    
+    // 空格开始游戏
+    if key == 32 && (game.phase == GamePhase.Ready || game.phase == GamePhase.GameOver) {
+        start_game(&mut game);
+    }
+}
+
+fn handle_key_up(key: i32) {
+    match key {
+        87 => { key_up = false; },    // W
+        83 => { key_down = false; },  // S
+        65 => { key_left = false; },  // A
+        68 => { key_right = false; }, // D
+        32 => { key_space = false; }, // Space
+        _ => {}
+    }
+}
+
+// 处理空格键踢球
+fn handle_kick() {
+    if key_space && game.phase == GamePhase.Playing {
+        if game.ball.owner == &game.player {
+            kick_ball(&mut game, &mut game.player);
+        }
+    }
+}
+
+// 更新输入状态
+fn update_input() {
+    if game.phase == GamePhase.Playing {
+        update_player_input(&mut game, key_up, key_down, key_left, key_right, key_space);
+    }
+}
+
+// ==================== Windows 消息循环 ====================
+
+#if IS_WINDOWS
+
+extern fn WindowProc(hwnd: WindowHandle, msg: u32, wParam: rawptr, lParam: rawptr) -> rawptr {
+    match msg {
+        0x0002 => { // WM_DESTROY
+            running = false;
+            PostQuitMessage(0);
+            return nil;
+        },
+        0x000F => { // WM_PAINT
+            let ps = PAINTSTRUCT { hdc: nil, fErase: 0, rcPaint: RECT { left: 0, top: 0, right: 0, bottom: 0 }, fRestore: 0, fIncUpdate: 0, rgbReserved: [0; 32] };
+            let hdc = BeginPaint(hwnd, &ps);
+            
+            let mut rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+            GetClientRect(hwnd, &rect);
+            g_width = rect.right;
+            g_height = rect.bottom;
+            
+            draw_game(hdc);
+            
+            EndPaint(hwnd, &ps);
+            return nil;
+        },
+        0x0100 => { // WM_KEYDOWN
+            handle_key_down(wParam as i32);
+            handle_kick();
+            redraw_window(hwnd);
+            return nil;
+        },
+        0x0101 => { // WM_KEYUP
+            handle_key_up(wParam as i32);
+            redraw_window(hwnd);
+            return nil;
+        },
+        0x0111 => { // WM_TIMER
+            update_input();
+            update_game(&mut game);
+            redraw_window(hwnd);
+            return nil;
+        },
+        _ => {
+            return DefWindowProcA(hwnd, msg, wParam, lParam);
+        }
+    }
+}
+
+extern "user32.dll" fn DefWindowProcA(hwnd: WindowHandle, msg: u32, wParam: rawptr, lParam: rawptr) -> rawptr;
+extern "user32.dll" fn BeginPaint(hwnd: WindowHandle, lpPaint: &PAINTSTRUCT) -> rawptr;
+extern "user32.dll" fn EndPaint(hwnd: WindowHandle, lpPaint: &PAINTSTRUCT) -> i32;
+extern "user32.dll" fn GetClientRect(hwnd: WindowHandle, lpRect: &RECT) -> i32;
+extern "user32.dll" fn InvalidateRect(hwnd: WindowHandle, lpRect: rawptr, bErase: i32) -> i32;
+extern "user32.dll" fn PostQuitMessage(exitCode: i32) -> void;
+
+extern "user32.dll" fn SetTimer(hwnd: WindowHandle, nIDEvent: u32, uElapse: u32, lpTimerFunc: rawptr) -> u32;
+extern "user32.dll" fn KillTimer(hwnd: WindowHandle, uIDEvent: u32) -> bool;
+extern "user32.dll" fn PeekMessageA(lpMsg: &MSG, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32, wRemoveMsg: u32) -> i32;
+extern "user32.dll" fn TranslateMessage(lpMsg: &MSG) -> i32;
+extern "user32.dll" fn DispatchMessageA(lpMsg: &MSG) -> rawptr;
+
+extern "kernel32.dll" fn Sleep(ms: u32) -> void;
+
+pub struct MSG {
+    hwnd: WindowHandle,
+    message: u32,
+    wParam: rawptr,
+    lParam: rawptr,
+    time: u32,
+    pt: i32,
+}
+
+pub struct RECT {
+    left: i32,
+    top: i32,
+    right: i32,
+    bottom: i32,
+}
+
+pub struct PAINTSTRUCT {
+    hdc: rawptr,
+    fErase: i32,
+    rcPaint: RECT,
+    fRestore: i32,
+    fIncUpdate: i32,
+    rgbReserved: [32]u8,
+}
+
+fn run_event_loop(window: WindowHandle) {
+    let mut msg = MSG { hwnd: nil, message: 0, wParam: nil, lParam: nil, time: 0, pt: 0 };
+    loop {
+        if !running {
+            break;
+        }
+        if PeekMessageA(&msg, window, 0, 0, 1) != 0 {
+            if msg.message == 0x0012 { // WM_QUIT
+                break;
+            }
+            TranslateMessage(&msg);
+            DispatchMessageA(&msg);
+        } else {
+            // 更新逻辑
+            update_input();
+            update_game(&mut game);
+        }
+        Sleep(16);
+    }
+}
+
+#endif
+
+// ==================== 窗口注册 ====================
+
+fn initPlatform() {
+    #if IS_WINDOWS
+        extern "kernel32.dll" fn GetModuleHandleA(lpModuleName: rawptr) -> rawptr;
+        let hInstance = GetModuleHandleA(nil);
+        
+        let wc = WNDCLASSEXA {
+            cbSize: 48,
+            style: 0,
+            lpfnWndProc: &WindowProc,
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hInstance: hInstance,
+            hIcon: nil,
+            hCursor: nil,
+            hbrBackground: CreateSolidBrush(Color.rgb(20, 80, 20).to_u32()),
+            lpszMenuName: nil,
+            lpszClassName: "ZenCSoccer",
+            hIconSm: nil,
+        };
+        
+        RegisterClassExA(&wc);
+    #elif IS_LINUX
+    #elif IS_MACOS
+    #endif
+}
+
+fn shutdownPlatform() {
+    #if IS_WINDOWS
+        KillTimer(window, 1);
+    #elif IS_LINUX
+    #elif IS_MACOS
+    #endif
+}
+
+#if IS_WINDOWS
+extern "user32.dll" fn RegisterClassExA(lpWndClass: &WNDCLASSEXA) -> u16;
+
+pub struct WNDCLASSEXA {
+    cbSize: u32,
+    style: u32,
+    lpfnWndProc: rawptr,
+    cbClsExtra: i32,
+    cbWndExtra: i32,
+    hInstance: rawptr,
+    hIcon: rawptr,
+    hCursor: rawptr,
+    hbrBackground: rawptr,
+    lpszMenuName: rawptr,
+    lpszClassName: rawptr,
+    hIconSm: rawptr,
+}
+
+fn create_window(title: str, width: i32, height: i32) -> WindowHandle {
+    extern "user32.dll" fn CreateWindowExA(dwExStyle: u32, lpClassName: rawptr, lpWindowName: rawptr,
+                                           dwStyle: u32, X: i32, Y: i32, nWidth: i32, nHeight: i32,
+                                           hWndParent: rawptr, hMenu: rawptr, hInstance: rawptr,
+                                           lpParam: rawptr) -> WindowHandle;
+    let WS_OVERLAPPEDWINDOW = 0x00CF0000;
+    let CW_USEDEFAULT = 0x80000000 as i32;
+    
+    CreateWindowExA(0, "ZenCSoccer", title, WS_OVERLAPPEDWINDOW,
+                    CW_USEDEFAULT, CW_USEDEFAULT, width, height,
+                    nil, nil, GetModuleHandleA(nil), nil)
+}
+#endif
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("  Zen-C 足球游戏");
+    io.println("  俯视角足球对战");
+    io.println("========================================");
+    
+    // 初始化平台
+    initPlatform();
+    
+    // 初始化游戏
+    init_game(&mut game);
+    
+    // 创建窗口
+    window = create_window("Zen-C 足球游戏", WINDOW_WIDTH, WINDOW_HEIGHT);
+    if window == nil {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+    
+    // 设置计时器
+    set_game_timer(window, 16); // ~60 FPS
+    
+    io.println("窗口创建成功!");
+    io.println("");
+    io.println("控制说明:");
+    io.println("  W/A/S/D - 移动球员");
+    io.println("  空格 - 踢球");
+    io.println("  P - 暂停");
+    io.println("  R - 重新开始");
+    io.println("  ESC - 退出");
+    io.println("");
+    io.println("目标: 带球进入对方球门得分!");
+    io.println("========================================");
+    
+    // 显示窗口
+    show_window(window);
+    
+    // 运行事件循环
+    run_event_loop(window);
+    
+    io.println("");
+    io.println("游戏结束!");
+    io.println("最终比分: {} - {}", game.player_score, game.ai_score);
+    io.println("========================================");
+    
+    shutdownPlatform();
+    0
+}
