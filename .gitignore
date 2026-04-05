@@ -1,0 +1,11 @@
+# Build outputs
+build/
+*.o
+*.exe
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Zen-C compiler cache
+*.zcc_cache
