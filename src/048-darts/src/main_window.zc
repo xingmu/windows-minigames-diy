@@ -1,0 +1,362 @@
+// main_window.zc - Zen-C Darts（飞镖）游戏主程序
+// 鼠标瞄准投掷飞镖
+
+import std.io;
+
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: DartsState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut game_speed: u32 = 16;
+
+// ==================== 事件处理 ====================
+
+fn on_key(key: KeyCode) -> bool {
+    return on_key_press(&mut game, key);
+}
+
+fn on_timer() -> bool {
+    if game.status == DartsStatus.Flying {
+        return update_game(&mut game);
+    }
+    return false;
+}
+
+fn on_paint(w: i32, h: i32) {
+    if !fb_data.valid {
+        fb_init(window, w, h);
+    }
+
+    // 清屏 - 绿色草地背景
+    fb_clear(rgb(40, 100, 40));
+
+    // 绘制墙壁
+    fb_draw_rect(0, 0, GAME_WIDTH, 50, rgb(80, 60, 40));
+    fb_draw_rect(0, GAME_HEIGHT - 30, GAME_WIDTH, 30, rgb(60, 50, 40));
+
+    // 绘制靶盘
+    draw_dartboard();
+
+    // 绘制已投出的飞镖
+    for i in 0..game.currentDart {
+        let dart = game.darts[i];
+        if dart.thrown && dart.stuck {
+            draw_dart(dart.x, dart.y);
+        }
+    }
+
+    // 绘制飞行中的飞镖
+    if game.status == DartsStatus.Flying && game.currentDart < TOTAL_DARTS {
+        let dart = game.darts[game.currentDart];
+        if !dart.stuck {
+            draw_dart(dart.x, dart.y);
+        }
+    }
+
+    // 绘制瞄准线
+    if game.status == DartsStatus.Aiming || game.status == DartsStatus.Ready {
+        draw_aim_line();
+    }
+
+    // 绘制投掷区标记
+    draw_throw_zone();
+
+    // 绘制分数板
+    draw_scoreboard();
+
+    // 绘制飞镖持有区
+    draw_dart_rack();
+
+    // 绘制状态信息
+    let status = get_status_text(&game);
+    fb_draw_text_size(20, 10, status, rgb(255, 255, 200), 16);
+
+    // 绘制控制说明
+    fb_draw_text_size(10, GAME_HEIGHT - 25, get_controls_text(), rgb(180, 180, 150), 14);
+
+    fb_present();
+}
+
+fn on_mouse_move_only(x: i32, y: i32) {
+    on_mouse_move(&mut game, x, y);
+}
+
+fn on_mouse_down_only(x: i32, y: i32, button: i32) {
+    on_mouse_down(&mut game, x, y);
+}
+
+fn on_mouse_up_only(x: i32, y: i32, button: i32) {
+    on_mouse_up(&mut game, x, y);
+}
+
+fn on_mouse_combined(x: i32, y: i32, button: i32) {
+    on_mouse_move(&mut game, x, y);
+}
+
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 绘制函数 ====================
+
+fn draw_dartboard() {
+    let cx = BOARD_CX;
+    let cy = BOARD_CY;
+
+    // 外圈黑
+    fb_fill_circle(cx, cy, OUTER_RING, rgb(20, 20, 20));
+
+    // 交替黑白扇区
+    let segmentSize = 360 / 20;
+    for i in 0..20 {
+        let startAngle = i * segmentSize - 90;
+        let endAngle = startAngle + segmentSize;
+
+        if i % 2 == 0 {
+            draw_wedge(cx, cy, OUTER_RING, INNER_RING, startAngle, endAngle, rgb(240, 240, 240));
+        } else {
+            draw_wedge(cx, cy, OUTER_RING, INNER_RING, startAngle, endAngle, rgb(20, 20, 20));
+        }
+    }
+
+    // 双倍环（红绿交替）
+    for i in 0..20 {
+        let startAngle = i * segmentSize - 90;
+        let endAngle = startAngle + segmentSize;
+
+        if i % 2 == 0 {
+            draw_wedge(cx, cy, DOUBLE_RING, OUTER_RING, startAngle, endAngle, rgb(30, 140, 50));
+        } else {
+            draw_wedge(cx, cy, DOUBLE_RING, OUTER_RING, startAngle, endAngle, rgb(200, 30, 30));
+        }
+    }
+
+    // 外靶心黑圈
+    fb_fill_circle(cx, cy, INNER_RING, rgb(20, 20, 20));
+
+    // 三倍环（红绿交替）
+    for i in 0..20 {
+        let startAngle = i * segmentSize - 90;
+        let endAngle = startAngle + segmentSize;
+
+        if i % 2 == 0 {
+            draw_wedge(cx, cy, TRIPLE_RING, INNER_RING, startAngle, endAngle, rgb(30, 140, 50));
+        } else {
+            draw_wedge(cx, cy, TRIPLE_RING, INNER_RING, startAngle, endAngle, rgb(200, 30, 30));
+        }
+    }
+
+    // 内靶心白圈
+    fb_fill_circle(cx, cy, BULL_RING, rgb(240, 240, 240));
+
+    // 外靶心绿
+    fb_fill_circle(cx, cy, BULL_RING, rgb(30, 180, 30));
+
+    // 内靶心红
+    fb_fill_circle(cx, cy, BULL_EYE, rgb(200, 30, 30));
+
+    // 靶盘边框
+    fb_draw_circle(cx, cy, OUTER_RING, rgb(180, 180, 180));
+    fb_draw_circle(cx, cy, DOUBLE_RING, rgb(180, 180, 180));
+    fb_draw_circle(cx, cy, TRIPLE_RING, rgb(180, 180, 180));
+    fb_draw_circle(cx, cy, INNER_RING, rgb(180, 180, 180));
+    fb_draw_circle(cx, cy, BULL_RING, rgb(180, 180, 180));
+    fb_draw_circle(cx, cy, BULL_EYE, rgb(180, 180, 180));
+}
+
+fn draw_wedge(cx: i32, cy: i32, r1: i32, r2: i32, startDeg: i32, endDeg: i32, color: Color) {
+    let cxF = cx as f32;
+    let cyF = cy as f32;
+    let steps = 20;
+    let degStep = (endDeg - startDeg) as f32 / steps as f32;
+    let radStep = degStep * 3.14159 / 180.0;
+    let startRad = startDeg as f32 * 3.14159 / 180.0;
+
+    for i in 0..steps {
+        let a1 = startRad + i as f32 * radStep;
+        let a2 = startRad + (i + 1) as f32 * radStep;
+
+        let x1_outer = cxF + r1 as f32 * cosF(a1);
+        let y1_outer = cyF + r1 as f32 * sinF(a1);
+        let x2_outer = cxF + r1 as f32 * cosF(a2);
+        let y2_outer = cyF + r1 as f32 * sinF(a2);
+
+        fb_draw_line(x1_outer as i32, y1_outer as i32, x2_outer as i32, y2_outer as i32, color);
+    }
+}
+
+fn draw_dart(x: i32, y: i32) {
+    // 飞镖针尖
+    fb_fill_circle(x, y, 3, rgb(200, 200, 200));
+    // 镖杆
+    fb_draw_line(x, y, x, y - 20, rgb(150, 100, 50));
+    // 镖翼
+    fb_draw_line(x - 6, y - 20, x + 6, y - 20, rgb(255, 50, 50));
+    fb_draw_line(x - 6, y - 20, x, y - 12, rgb(255, 50, 50));
+    fb_draw_line(x + 6, y - 20, x, y - 12, rgb(255, 50, 50));
+}
+
+fn draw_throw_zone() {
+    // 绘制投掷线
+    fb_draw_line(THROW_X - 40, THROW_Y, THROW_X + 40, THROW_Y, rgb(255, 255, 255));
+    fb_draw_line(THROW_X, THROW_Y - 40, THROW_X, THROW_Y + 40, rgb(255, 255, 255));
+
+    // 绘制投掷区提示
+    fb_draw_text_size(THROW_X - 35, THROW_Y + 30, "投掷区", rgb(200, 200, 200), 12);
+
+    // 绘制准星
+    let mx = game.mouseX;
+    let my = game.mouseY;
+
+    // 瞄准线
+    fb_draw_line(THROW_X, THROW_Y, mx, my, rgb(255, 100, 100));
+
+    // 准星
+    let crossSize = 15;
+    fb_draw_line(mx - crossSize, my, mx + crossSize, my, rgb(255, 100, 100));
+    fb_draw_line(mx, my - crossSize, mx, my + crossSize, rgb(255, 100, 100));
+}
+
+fn draw_aim_line() {
+    if game.isDragging {
+        let dx = game.throwStartX - game.mouseX;
+        let dy = game.throwStartY - game.mouseY;
+        let dist = sqrtF((dx * dx + dy * dy) as f32);
+
+        if dist > 10.0 {
+            let power = dist / 15.0;
+            let maxPower = 25.0;
+            let actualPower = if power > maxPower { maxPower } else { power };
+
+            let angle = atan2F(dy as f32, dx as f32);
+            let vx = actualPower * cosF(angle);
+            let vy = actualPower * sinF(angle);
+
+            let mut px = THROW_X as f32;
+            let mut py = THROW_Y as f32;
+            let mut pvx = vx;
+            let mut pvy = vy;
+            let gravity = 0.15;
+
+            for i in 0..30 {
+                pvy = pvy + gravity;
+                px = px + pvx;
+                py = py + pvy;
+
+                if i % 3 == 0 {
+                    fb_fill_circle(px as i32, py as i32, 2, rgb(255, 255, 100));
+                }
+
+                if px < 0.0 || px > GAME_WIDTH as f32 || py < 0.0 || py > GAME_HEIGHT as f32 {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+fn draw_scoreboard() {
+    // 分数板背景
+    fb_draw_rect(GAME_WIDTH - 210, 50, 200, GAME_HEIGHT - 100, rgb(40, 30, 20));
+
+    // 总分
+    let totalText = "总分: " ++ game.totalScore.toString();
+    fb_draw_text_size(GAME_WIDTH - 200, 60, totalText, rgb(255, 255, 0), 20);
+
+    // 回合分数
+    fb_draw_text_size(GAME_WIDTH - 200, 90, "------------------------", rgb(150, 150, 150), 12);
+
+    for round in 0..ROUNDS {
+        let y = 110 + round * 30;
+        let displayRound = round + 1;
+
+        if displayRound < game.currentRound {
+            let text = "回合 " ++ displayRound.toString() ++ ": " ++ game.scores[round].toString();
+            fb_draw_text_size(GAME_WIDTH - 200, y, text, rgb(200, 200, 200), 14);
+        } else if displayRound == game.currentRound {
+            let text = "> 回合 " ++ displayRound.toString() ++ ": " ++ game.scores[round].toString();
+            fb_draw_text_size(GAME_WIDTH - 200, y, text, rgb(255, 255, 100), 14);
+        } else {
+            let text = "  回合 " ++ displayRound.toString() ++ ": --";
+            fb_draw_text_size(GAME_WIDTH - 200, y, text, rgb(100, 100, 100), 14);
+        }
+    }
+
+    // 边框
+    fb_draw_rect(GAME_WIDTH - 210, 50, 200, GAME_HEIGHT - 100, rgb(150, 120, 80));
+}
+
+fn draw_dart_rack() {
+    let dartsLeft = DARTS_PER_ROUND - (game.currentDart % DARTS_PER_ROUND);
+    let rackX = 30;
+    let rackY = GAME_HEIGHT - 120;
+
+    for i in 0..DARTS_PER_ROUND {
+        let dx = rackX + i * 30;
+        if i < dartsLeft {
+            fb_draw_line(dx, rackY, dx, rackY + 30, rgb(200, 200, 200));
+            fb_draw_line(dx - 5, rackY + 30, dx + 5, rackY + 30, rgb(255, 50, 50));
+        } else {
+            fb_draw_line(dx, rackY, dx, rackY + 30, rgb(80, 80, 80));
+            fb_draw_line(dx - 5, rackY + 30, dx + 5, rackY + 30, rgb(60, 30, 30));
+        }
+    }
+
+    fb_draw_text_size(rackX - 5, rackY + 40, "本回合", rgb(150, 150, 150), 10);
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C Darts 飞镖游戏");
+    io.println("========================================");
+
+    init_game(&mut game);
+
+    let title = "Darts - 飞镖游戏";
+    window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    let mut cw = 0;
+    let mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        game.width = cw;
+        game.height = ch;
+        set_client_size(cw, ch);
+    }
+
+    set_key_handler(on_key);
+    set_timer_handler(on_timer);
+    set_paint_handler(on_paint);
+    set_mouse_handler_ex(on_mouse_combined, on_mouse_down_only, on_mouse_up_only);
+    set_destroy_handler(on_destroy);
+
+    show_window(window);
+
+    set_game_timer(window, game_speed);
+
+    io.println("窗口创建成功!");
+    io.println("点击拖拽投掷飞镖!");
+    io.println("瞄准靶盘得分!");
+    io.println("========================================");
+
+    redraw_window(window);
+
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("最终得分: " ++ game.totalScore.toString());
+    io.println("========================================");
+
+    0
+}

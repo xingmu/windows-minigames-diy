@@ -1,0 +1,690 @@
+// main_window.zc - Zen-C Climbing 游戏主程序
+// 向上攀爬的经典攀岩游戏
+
+import std.io;
+
+// 导入平台 API
+import "platform_api.zc";
+
+// ==================== 游戏配置 ====================
+
+const WINDOW_WIDTH: int = 400;
+const WINDOW_HEIGHT: int = 600;
+const TARGET_FPS: int = 60;
+const FRAME_TIME: u32 = 1000 / TARGET_FPS;
+
+// 攀爬者配置
+const CLIMBER_SIZE: int = 24;
+const CLIMBER_SPEED_X: int = 200;
+const CLIMBER_FALL_SPEED: int = 400;
+const CLIMBER_JUMP_VELOCITY: int = -300;
+
+// 岩壁/手柄配置
+const HANDHOLD_SIZE: int = 30;
+const HANDHOLD_INTERVAL_Y: int = 80;
+const HANDHOLD_MIN_X: int = 30;
+const HANDHOLD_MAX_X: int = 340;
+const SCROLL_SPEED: int = 60;
+
+// ==================== 游戏状态 ====================
+
+enum GameState {
+    Ready,
+    Playing,
+    GameOver,
+}
+
+struct Handhold {
+    x: int,
+    y: float,
+    grabbed: bool,
+    color: Color,
+}
+
+// ==================== 全局游戏数据 ====================
+
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut gameState: GameState = GameState.Ready;
+
+// 攀爬者状态
+static mut climberX: float = 0.0;
+static mut climberY: float = 0.0;
+static mut climberVelX: float = 0.0;
+static mut climberVelY: float = 0.0;
+static mut isGrabbing: bool = false;
+static mut currentHandhold: int = -1;
+
+// 手柄列表
+static mut handholds: [30]Handhold;
+static mut handholdCount: int = 0;
+
+// 摄像机偏移 (攀爬高度)
+static mut cameraY: float = 0.0;
+static mut maxHeight: int = 0;
+static mut score: int = 0;
+
+// 计时
+static mut lastFrame: u32 = 0;
+static mut gameTime: u32 = 0;
+
+// ==================== 颜色定义 ====================
+
+const ROCK_COLOR = Color.RGB(120, 100, 80);
+const ROCK_DARK = Color.RGB(80, 60, 50);
+const HANDHOLD_COLOR = Color.RGB(200, 150, 100);
+const HANDHOLD_ACTIVE = Color.RGB(255, 200, 100);
+const HANDHOLD_GRABBED = Color.RGB(100, 200, 100);
+const CLIMBER_COLOR = Color.RGB(255, 180, 100);
+const CLIMBER_HEAD = Color.RGB(255, 220, 180);
+const SKY_COLOR_TOP = Color.RGB(30, 30, 60);
+const SKY_COLOR_BOTTOM = Color.RGB(100, 100, 140);
+const TEXT_COLOR = Color.White();
+const UI_BG = Color.ARGB(180, 0, 0, 0);
+
+// ==================== 游戏初始化 ====================
+
+fn initGame() {
+    climberX = (WINDOW_WIDTH / 2) as float;
+    climberY = (WINDOW_HEIGHT - 100) as float;
+    climberVelX = 0.0;
+    climberVelY = 0.0;
+    isGrabbing = false;
+    currentHandhold = -1;
+    
+    cameraY = 0.0;
+    maxHeight = 0;
+    score = 0;
+    handholdCount = 0;
+    gameTime = 0;
+    
+    // 初始化手柄 - 从下往上生成
+    generateInitialHandholds();
+}
+
+fn generateInitialHandholds() {
+    handholdCount = 0;
+    
+    // 第一个手柄在攀爬者下方，方便开始
+    handholds[0] = Handhold.{
+        x: WINDOW_WIDTH / 2,
+        y: climberY + 60.0,
+        grabbed: false,
+        color: HANDHOLD_COLOR,
+    };
+    handholdCount = 1;
+    
+    // 生成往上的一系列手柄
+    var y = climberY - HANDHOLD_INTERVAL_Y as float;
+    for i in 1..20 {
+        var x = randInt(HANDHOLD_MIN_X, HANDHOLD_MAX_X);
+        handholds[handholdCount] = Handhold.{
+            x: x,
+            y: y,
+            grabbed: false,
+            color: HANDHOLD_COLOR,
+        };
+        handholdCount = handholdCount + 1;
+        y = y - HANDHOLD_INTERVAL_Y as float;
+    }
+}
+
+// ==================== 随机数 ====================
+
+static mut rng_seed: u32 = 54321;
+
+fn randInt(minVal: int, maxVal: int) -> int {
+    rng_seed = rng_seed * 1103515245 + 12345;
+    var r = (rng_seed / 65536) % 32768;
+    return minVal + (r as int % (maxVal - minVal + 1));
+}
+
+// ==================== 游戏逻辑 ====================
+
+fn grabHandhold() {
+    if gameState == GameState.Ready {
+        gameState = GameState.Playing;
+        gameTime = 0;
+    }
+    
+    if gameState == GameState.Playing && !isGrabbing {
+        // 尝试抓住最近的手柄
+        var bestDist = 50.0;
+        var bestIndex = -1;
+        
+        for i in 0..handholdCount {
+            var dx = handholds[i].x as float - climberX;
+            var dy = handholds[i].y - climberY;
+            var dist = sqrtF(dx * dx + dy * dy);
+            
+            // 手柄必须在攀爬者上方
+            if dy < 0.0 && dist < bestDist {
+                bestDist = dist;
+                bestIndex = i;
+            }
+        }
+        
+        if bestIndex >= 0 {
+            isGrabbing = true;
+            currentHandhold = bestIndex;
+            handholds[bestIndex].grabbed = true;
+            handholds[bestIndex].color = HANDHOLD_GRABBED;
+            climberVelY = 0.0;
+        }
+    }
+}
+
+fn releaseHandhold() {
+    if isGrabbing && currentHandhold >= 0 {
+        handholds[currentHandhold].grabbed = false;
+        handholds[currentHandhold].color = HANDHOLD_COLOR;
+        isGrabbing = false;
+        currentHandhold = -1;
+        // 释放时给予一点向上的力
+        climberVelY = CLIMBER_JUMP_VELOCITY as float;
+    }
+}
+
+fn moveClimber(dir: int) {
+    if gameState == GameState.Playing {
+        climberVelX = (dir * CLIMBER_SPEED_X) as float;
+    }
+}
+
+fn stopClimber() {
+    climberVelX = 0.0;
+}
+
+fn updateGame(dt: u32) {
+    if gameState != GameState.Playing {
+        return;
+    }
+    
+    var dtSec = dt as float / 1000.0;
+    gameTime = gameTime + dt;
+    
+    // 更新攀爬者水平移动
+    climberX = climberX + climberVelX * dtSec;
+    
+    // 边界检查
+    if climberX < CLIMBER_SIZE as float / 2.0 {
+        climberX = CLIMBER_SIZE as float / 2.0;
+    }
+    if climberX > WINDOW_WIDTH as float - CLIMBER_SIZE as float / 2.0 {
+        climberX = WINDOW_WIDTH as float - CLIMBER_SIZE as float / 2.0;
+    }
+    
+    // 如果正在抓住手柄
+    if isGrabbing && currentHandhold >= 0 {
+        // 攀爬者跟随手柄
+        var targetX = handholds[currentHandhold].x as float;
+        climberX = climberX + (targetX - climberX) * 5.0 * dtSec;
+        climberY = handholds[currentHandhold].y;
+        
+        // 更新分数 - 基于高度
+        var height = (WINDOW_HEIGHT - 100 - climberY - cameraY) as int;
+        if height > maxHeight {
+            maxHeight = height;
+            score = maxHeight / 10;
+        }
+        
+        // 检测是否应该掉落 (手柄向下移动超出屏幕)
+        if handholds[currentHandhold].y - cameraY > WINDOW_HEIGHT as float + 50.0 {
+            isGrabbing = false;
+            currentHandhold = -1;
+        }
+    } else {
+        // 自由落体
+        climberVelY = climberVelY + CLIMBER_FALL_SPEED as float * dtSec;
+        climberY = climberY + climberVelY * dtSec;
+        
+        // 检测是否掉出屏幕底部
+        if climberY - cameraY > WINDOW_HEIGHT as float + 50.0 {
+            gameState = GameState.GameOver;
+            io.println("游戏结束! 高度: " ++ maxHeight.toString() ++ " 得分: " ++ score.toString());
+            return;
+        }
+    }
+    
+    // 摄像机跟随 (只向上移动)
+    var targetCameraY = climberY - WINDOW_HEIGHT as float * 0.6;
+    if targetCameraY < cameraY {
+        cameraY = cameraY + (targetCameraY - cameraY) * 3.0 * dtSec;
+    }
+    
+    // 生成新的手柄
+    generateNewHandholds();
+    
+    // 清理超出屏幕底部的手柄
+    cleanupHandholds();
+}
+
+fn generateNewHandholds() {
+    // 找到最上面的手柄
+    var topY = 99999.0;
+    for i in 0..handholdCount {
+        if handholds[i].y < topY {
+            topY = handholds[i].y;
+        }
+    }
+    
+    // 如果最上面的手柄接近屏幕顶部，生成新的
+    while topY > cameraY - 100.0 && handholdCount < 30 {
+        var x = randInt(HANDHOLD_MIN_X, HANDHOLD_MAX_X);
+        handholds[handholdCount] = Handhold.{
+            x: x,
+            y: topY - HANDHOLD_INTERVAL_Y as float,
+            grabbed: false,
+            color: HANDHOLD_COLOR,
+        };
+        handholdCount = handholdCount + 1;
+        topY = topY - HANDHOLD_INTERVAL_Y as float;
+    }
+}
+
+fn cleanupHandholds() {
+    // 移除超出屏幕底部的手柄
+    var writeIdx = 0;
+    for i in 0..handholdCount {
+        if handholds[i].y - cameraY < WINDOW_HEIGHT as float + 100.0 {
+            handholds[writeIdx] = handholds[i];
+            writeIdx = writeIdx + 1;
+        }
+    }
+    handholdCount = writeIdx;
+}
+
+// ==================== 绘制函数 ====================
+
+fn drawBackground(ctx: rawptr, pitch: int, buffer: rawptr) {
+    // 渐变天空
+    for y in 0..WINDOW_HEIGHT {
+        var t = y as float / WINDOW_HEIGHT as float;
+        var r = (30.0 + t * 70.0) as u8;
+        var g = (30.0 + t * 70.0) as u8;
+        var b = (60.0 + t * 80.0) as u8;
+        var color = Color.RGB(r, g, b);
+        
+        for x in 0..WINDOW_WIDTH {
+            setPixel(ctx, x, y, pitch, buffer, color);
+        }
+    }
+    
+    // 绘制岩壁纹理 (简单)
+    var seed = 12345;
+    for i in 0..50 {
+        seed = seed * 1103515245 + 12345;
+        var rx = ((seed / 65536) % 32768) as int % WINDOW_WIDTH;
+        seed = seed * 1103515245 + 12345;
+        var ry = ((seed / 65536) % 32768) as int;
+        seed = seed * 1103515245 + 12345;
+        var rs = 5 + ((seed / 65536) % 32768) as int % 20;
+        
+        var screenY = (ry as float - cameraY * 0.5) % (WINDOW_HEIGHT * 2) as int;
+        if screenY >= 0 && screenY < WINDOW_HEIGHT {
+            for dy in 0..rs {
+                for dx in 0..rs {
+                    var px = rx + dx;
+                    var py = screenY + dy;
+                    if px >= 0 && px < WINDOW_WIDTH && py >= 0 && py < WINDOW_HEIGHT {
+                        if dx < rs/2 && dy < rs/2 {
+                            setPixel(ctx, px, py, pitch, buffer, ROCK_DARK);
+                        } else {
+                            setPixel(ctx, px, py, pitch, buffer, ROCK_COLOR);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn drawHandholds(ctx: rawptr, pitch: int, buffer: rawptr) {
+    for i in 0..handholdCount {
+        var hx = handholds[i].x;
+        var hy = (handholds[i].y - cameraY) as int;
+        
+        if hy < -50 || hy > WINDOW_HEIGHT + 50 {
+            continue;
+        }
+        
+        var color = handholds[i].color;
+        
+        // 绘制手柄 - 圆形岩石
+        fillCircle(ctx, hx, hy, HANDHOLD_SIZE / 2, pitch, buffer, color);
+        // 高光
+        fillCircle(ctx, hx - 3, hy - 3, HANDHOLD_SIZE / 4, pitch, buffer, Color.LightGray());
+    }
+}
+
+fn drawClimber(ctx: rawptr, pitch: int, buffer: rawptr) {
+    var cx = climberX as int;
+    var cy = (climberY - cameraY) as int;
+    
+    // 身体
+    fillCircle(ctx, cx, cy, CLIMBER_SIZE / 2, pitch, buffer, CLIMBER_COLOR);
+    
+    // 头部
+    fillCircle(ctx, cx, cy - CLIMBER_SIZE / 2 - 6, 8, pitch, buffer, CLIMBER_HEAD);
+    
+    // 眼睛
+    setPixel(ctx, cx - 3, cy - CLIMBER_SIZE / 2 - 7, pitch, buffer, Color.Black());
+    setPixel(ctx, cx + 3, cy - CLIMBER_SIZE / 2 - 7, pitch, buffer, Color.Black());
+    
+    // 手臂 - 如果抓住手柄则画手臂连接
+    if isGrabbing && currentHandhold >= 0 {
+        var hx = handholds[currentHandhold].x;
+        var hy = (handholds[currentHandhold].y - cameraY) as int;
+        drawLine(ctx, cx - 8, cy - 5, hx, hy, pitch, buffer, CLIMBER_COLOR);
+        drawLine(ctx, cx + 8, cy - 5, hx, hy, pitch, buffer, CLIMBER_COLOR);
+    }
+}
+
+fn drawUI(ctx: rawptr, pitch: int, buffer: rawptr) {
+    // 高度计背景
+    fillRect(ctx, 10, 10, 100, 40, pitch, buffer, UI_BG);
+    
+    // 高度文字
+    var heightText = "高度: " ++ maxHeight.toString();
+    drawTextSimple(ctx, 15, 15, heightText, pitch, buffer, TEXT_COLOR);
+    
+    // 得分文字
+    var scoreText = "得分: " ++ score.toString();
+    drawTextSimple(ctx, 15, 30, scoreText, pitch, buffer, Color.Yellow());
+    
+    // 状态指示
+    if isGrabbing {
+        fillRect(ctx, WINDOW_WIDTH - 80, 10, 70, 25, pitch, buffer, Color.ARGB(200, 0, 200, 0));
+        drawTextSimple(ctx, WINDOW_WIDTH - 75, 15, "攀爬中", pitch, buffer, TEXT_COLOR);
+    } else if gameState == GameState.Playing {
+        fillRect(ctx, WINDOW_WIDTH - 80, 10, 70, 25, pitch, buffer, Color.ARGB(200, 200, 0, 0));
+        drawTextSimple(ctx, WINDOW_WIDTH - 75, 15, "下落!", pitch, buffer, TEXT_COLOR);
+    }
+}
+
+fn drawReadyScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT / 2 - 80, "攀岩大师", pitch, buffer, TEXT_COLOR);
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 - 20, "按空格或上箭头抓住手柄", pitch, buffer, Color.Yellow());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 + 10, "左右方向键移动", pitch, buffer, Color.Yellow());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT / 2 + 40, "ESC 退出", pitch, buffer, Color.LightGray());
+    
+    // 绘制操作说明图
+    var demoX = WINDOW_WIDTH / 2 - 60;
+    var demoY = WINDOW_HEIGHT / 2 + 80;
+    fillCircle(ctx, demoX, demoY, 10, pitch, buffer, CLIMBER_COLOR);
+    fillCircle(ctx, demoX, demoY - 40, 12, pitch, buffer, HANDHOLD_COLOR);
+    drawLine(ctx, demoX - 5, demoY - 8, demoX, demoY - 30, pitch, buffer, CLIMBER_COLOR);
+}
+
+fn drawGameOverScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
+    fillRect(ctx, WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 - 60, 200, 120, pitch, buffer, UI_BG);
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 50, WINDOW_HEIGHT / 2 - 40, "游戏结束!", pitch, buffer, Color.Red());
+    var hText = "最高高度: " ++ maxHeight.toString();
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2 - 10, hText, pitch, buffer, TEXT_COLOR);
+    var sText = "得分: " ++ score.toString();
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 50, WINDOW_HEIGHT / 2 + 15, sText, pitch, buffer, Color.Yellow());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 + 40, "按空格重新开始", pitch, buffer, Color.Yellow());
+}
+
+// ==================== 底层绘制函数 ====================
+
+fn setPixel(ctx: rawptr, x: int, y: int, pitch: int, buffer: rawptr, color: Color) {
+    if x < 0 || x >= WINDOW_WIDTH || y < 0 || y >= WINDOW_HEIGHT {
+        return;
+    }
+    var offset = y * (pitch / 4) + x;
+    var pixels = buffer as u32 mut;
+    pixels[offset] = color;
+}
+
+fn drawRect(ctx: rawptr, x: int, y: int, w: int, h: int, pitch: int, buffer: rawptr, color: Color) {
+    for py in y..(y + h) {
+        for px in x..(x + w) {
+            setPixel(ctx, px, py, pitch, buffer, color);
+        }
+    }
+}
+
+fn fillRect(ctx: rawptr, x: int, y: int, w: int, h: int, pitch: int, buffer: rawptr, color: Color) {
+    for py in y..(y + h) {
+        for px in x..(x + w) {
+            setPixel(ctx, px, py, pitch, buffer, color);
+        }
+    }
+}
+
+fn fillCircle(ctx: rawptr, cx: int, cy: int, radius: int, pitch: int, buffer: rawptr, color: Color) {
+    for y in (-radius)..(radius + 1) {
+        for x in (-radius)..(radius + 1) {
+            if x*x + y*y <= radius * radius {
+                setPixel(ctx, cx + x, cy + y, pitch, buffer, color);
+            }
+        }
+    }
+}
+
+fn drawLine(ctx: rawptr, x1: int, y1: int, x2: int, y2: int, pitch: int, buffer: rawptr, color: Color) {
+    var dx = abs(x2 - x1);
+    var dy = abs(y2 - y1);
+    var sx = if x1 < x2 { 1 } else { -1 };
+    var sy = if y1 < y2 { 1 } else { -1 };
+    var err = dx - dy;
+    
+    var x = x1;
+    var y = y1;
+    
+    loop {
+        setPixel(ctx, x, y, pitch, buffer, color);
+        
+        if x == x2 && y == y2 {
+            break;
+        }
+        
+        var e2 = 2 * err;
+        if e2 > -dy {
+            err = err - dy;
+            x = x + sx;
+        }
+        if e2 < dx {
+            err = err + dx;
+            y = y + sy;
+        }
+    }
+}
+
+fn abs(n: int) -> int {
+    return if n < 0 { -n } else { n };
+}
+
+fn sqrtF(n: float) -> float {
+    if n <= 0.0 {
+        return 0.0;
+    }
+    var x = n;
+    var y = 1.0;
+    while y < x {
+        x = (x + y) / 2.0;
+        y = n / x;
+    }
+    return x;
+}
+
+// 简化文字绘制 (8x8 字符块)
+fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, pitch: int, buffer: rawptr, color: Color) {
+    var px = x;
+    var py = y;
+    var charW = 8;
+    var charH = 8;
+    
+    for i in 0..len(text) {
+        for cy in 0..charH {
+            for cx in 0..charW {
+                var isFilled = false;
+                var charCode = text[i] as u32;
+                
+                if charCode > 32 {
+                    isFilled = ((charCode + cx + cy) % 3) != 0;
+                }
+                
+                if isFilled {
+                    setPixel(ctx, px + cx, py + cy, pitch, buffer, color);
+                }
+            }
+        }
+        px = px + charW;
+        if px > WINDOW_WIDTH - charW {
+            py = py + charH;
+            px = x;
+        }
+    }
+}
+
+fn clearScreen(pitch: int, buffer: rawptr, color: Color) {
+    var pixels = buffer as u32 mut;
+    var count = (pitch * WINDOW_HEIGHT) / 4;
+    for i in 0..count {
+        pixels[i] = color;
+    }
+}
+
+// ==================== 事件处理 ====================
+
+fn handleKeyDown(key: VirtualKey) {
+    match key {
+        VirtualKey.Space => {
+            grabHandhold();
+        },
+        VirtualKey.Up => {
+            grabHandhold();
+        },
+        VirtualKey.Left => {
+            moveClimber(-1);
+        },
+        VirtualKey.Right => {
+            moveClimber(1);
+        },
+        VirtualKey.Escape => {
+            running = false;
+        },
+        _ => {}
+    }
+}
+
+fn handleKeyUp(key: VirtualKey) {
+    match key {
+        VirtualKey.Space => {
+            releaseHandhold();
+        },
+        VirtualKey.Up => {
+            releaseHandhold();
+        },
+        VirtualKey.Left => {
+            if climberVelX < 0.0 {
+                stopClimber();
+            }
+        },
+        VirtualKey.Right => {
+            if climberVelX > 0.0 {
+                stopClimber();
+            }
+        },
+        _ => {}
+    }
+}
+
+fn processEvents() {
+    var event = Event.{};
+    
+    while pollEvent(window, &event) {
+        match event.msg {
+            MessageType.Quit => {
+                running = false;
+            },
+            MessageType.KeyDown => {
+                handleKeyDown(event.key.key);
+            },
+            MessageType.KeyUp => {
+                handleKeyUp(event.key.key);
+            },
+            MessageType.MouseDown => {
+                grabHandhold();
+            },
+            MessageType.MouseUp => {
+                releaseHandhold();
+            },
+            _ => {}
+        }
+    }
+}
+
+// ==================== 游戏主循环 ====================
+
+fn gameLoop() {
+    lastFrame = getTickCount();
+    
+    while running {
+        processEvents();
+        
+        var current = getTickCount();
+        var dt = current - lastFrame;
+        
+        // 更新游戏逻辑
+        updateGame(dt);
+        
+        // 渲染
+        var fb = getFrameBuffer(window);
+        var pitch = getFrameBufferPitch(window);
+        
+        clearScreen(pitch, fb, SKY_COLOR_TOP);
+        drawBackground(window, pitch, fb);
+        drawHandholds(window, pitch, fb);
+        drawClimber(window, pitch, fb);
+        drawUI(window, pitch, fb);
+        
+        if gameState == GameState.Ready {
+            drawReadyScreen(window, pitch, fb);
+        } else if gameState == GameState.GameOver {
+            drawGameOverScreen(window, pitch, fb);
+        }
+        
+        presentFrame(window);
+        
+        lastFrame = current;
+        
+        // 帧率控制
+        var elapsed = getTickCount() - lastFrame;
+        if elapsed < FRAME_TIME {
+            sleep(FRAME_TIME - elapsed);
+        }
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() {
+    io.println("===========================================");
+    io.println("  攀岩大师 - Climbing");
+    io.println("  版本: 1.0.0");
+    io.println("===========================================");
+    
+    // 创建窗口
+    window = createWindow("攀岩大师 - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT);
+    
+    if window == nil {
+        io.println("错误: 无法创建窗口");
+        return;
+    }
+    
+    io.println("窗口创建成功!");
+    
+    // 初始化游戏
+    initGame();
+    io.println("按空格或上箭头抓住手柄开始攀爬");
+    io.println("左右方向键移动");
+    io.println("按 ESC 退出");
+    
+    // 运行游戏主循环
+    gameLoop();
+    
+    io.println("游戏结束!");
+}

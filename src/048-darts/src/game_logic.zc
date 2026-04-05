@@ -1,0 +1,420 @@
+// game_logic.zc - Zen-C Darts（飞镖）游戏核心逻辑
+// 鼠标瞄准投掷飞镖
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 900;
+const GAME_HEIGHT: i32 = 650;
+
+// 飞镖投掷位置
+const THROW_X: i32 = 120;
+const THROW_Y: i32 = 400;
+
+// 靶盘位置和大小
+const BOARD_CX: i32 = 680;
+const BOARD_CY: i32 = 325;
+const BOARD_RADIUS: i32 = 200;
+
+// 靶盘各环半径（从外向内）
+const OUTER_RING: i32 = 200;
+const DOUBLE_RING: i32 = 170;
+const TRIPLE_RING: i32 = 115;
+const INNER_RING: i32 = 90;
+const BULL_RING: i32 = 40;
+const BULL_EYE: i32 = 15;
+
+// 分值（顺时针从12点钟方向）
+const SEGMENT_VALUES: [20]i32 = [
+    20, 1, 18, 4, 13, 6, 10, 15, 2, 17,
+    3, 19, 7, 16, 8, 11, 14, 9, 12, 5
+];
+
+// 每回合飞镖数
+const DARTS_PER_ROUND: i32 = 3;
+const ROUNDS: i32 = 10;
+const TOTAL_DARTS: i32 = DARTS_PER_ROUND * ROUNDS;
+
+// ==================== 游戏状态 ====================
+
+enum DartsStatus {
+    Ready,
+    Aiming,
+    Flying,
+    Scored,
+    GameOver,
+}
+
+// ==================== 数据结构 ====================
+
+struct Dart {
+    x: i32,
+    y: i32,
+    vx: f32,
+    vy: f32,
+    stuck: bool,
+    score: i32,
+    thrown: bool,
+}
+
+struct DartsState {
+    darts: [TOTAL_DARTS]Dart,
+    currentDart: i32,
+    currentRound: i32,
+    scores: [ROUNDS]i32,
+    totalScore: i32,
+    status: DartsStatus,
+    mouseX: i32,
+    mouseY: i32,
+    throwStartX: i32,
+    throwStartY: i32,
+    isDragging: bool,
+    width: i32,
+    height: i32,
+}
+
+// ==================== 随机数 ====================
+
+private var rand_seed: i32 = 12345;
+
+fn init_rand(seed: i32) {
+    rand_seed = seed;
+}
+
+fn rand_next() -> i32 {
+    rand_seed = rand_seed * 1103515245 + 12345;
+    return (rand_seed >> 16) & 0x7FFF;
+}
+
+fn rand_float() -> f32 {
+    return (rand_next() % 10000) as f32 / 10000.0;
+}
+
+// ==================== 数学辅助 ====================
+
+fn abs(n: i32) -> i32 {
+    if n < 0 { -n } else { n }
+}
+
+fn absF(n: f32) -> f32 {
+    if n < 0.0 { -n } else { n }
+}
+
+fn sqrtF(n: f32) -> f32 {
+    if n <= 0.0 { return 0.0; }
+    var x = n;
+    var y = 1.0;
+    while y < x {
+        x = (x + y) / 2.0;
+        y = n / x;
+    }
+    return x;
+}
+
+fn sinF(n: f32) -> f32 {
+    var x = n;
+    while x > 3.14159 { x = x - 2 * 3.14159; }
+    while x < -3.14159 { x = x + 2 * 3.14159; }
+    return x - (x * x * x) / 6.0 + (x * x * x * x * x) / 120.0;
+}
+
+fn cosF(n: f32) -> f32 {
+    return sinF(n + 3.14159 / 2.0);
+}
+
+fn atan2F(y: f32, x: f32) -> f32 {
+    if absF(x) < 0.0001 {
+        if y > 0.0 { return 3.14159 / 2.0; }
+        return -3.14159 / 2.0;
+    }
+    var z = y / x;
+    var a = atanF(z);
+    if x < 0.0 {
+        if y >= 0.0 { return a + 3.14159; }
+        return a - 3.14159;
+    }
+    return a;
+}
+
+fn atanF(x: f32) -> f32 {
+    if absF(x) > 1.0 {
+        return 3.14159 / 2.0 - atanF(1.0 / x);
+    }
+    return x - (x * x * x) / 3.0 + (x * x * x * x * x) / 5.0;
+}
+
+// ==================== 初始化游戏 ====================
+
+fn init_game(game: &mut DartsState) {
+    game.width = GAME_WIDTH;
+    game.height = GAME_HEIGHT;
+    game.currentRound = 1;
+    game.currentDart = 0;
+    game.totalScore = 0;
+    game.status = DartsStatus.Ready;
+    game.isDragging = false;
+    game.mouseX = THROW_X;
+    game.mouseY = THROW_Y;
+    game.throwStartX = THROW_X;
+    game.throwStartY = THROW_Y;
+
+    // 初始化随机数
+    init_rand(54321);
+
+    for i in 0..TOTAL_DARTS {
+        game.darts[i] = Dart {
+            x: THROW_X,
+            y: THROW_Y,
+            vx: 0.0,
+            vy: 0.0,
+            stuck: false,
+            score: 0,
+            thrown: false,
+        };
+    }
+
+    for i in 0..ROUNDS {
+        game.scores[i] = 0;
+    }
+}
+
+// ==================== 鼠标/输入处理 ====================
+
+fn on_mouse_move(game: &mut DartsState, x: i32, y: i32) {
+    game.mouseX = x;
+    game.mouseY = y;
+}
+
+fn on_mouse_down(game: &mut DartsState, x: i32, y: i32) {
+    if game.status == DartsStatus.Flying || game.status == DartsStatus.GameOver {
+        return;
+    }
+    game.isDragging = true;
+    game.throwStartX = x;
+    game.throwStartY = y;
+    game.status = DartsStatus.Aiming;
+}
+
+fn on_mouse_up(game: &mut DartsState, x: i32, y: i32) {
+    if !game.isDragging || game.status == DartsStatus.Flying || game.status == DartsStatus.GameOver {
+        game.isDragging = false;
+        return;
+    }
+
+    game.isDragging = false;
+
+    if game.currentDart >= TOTAL_DARTS {
+        game.status = DartsStatus.GameOver;
+        return;
+    }
+
+    // 计算投掷力度和方向
+    let dx = game.throwStartX - x;
+    let dy = game.throwStartY - y;
+    let dist = sqrtF((dx * dx + dy * dy) as f32);
+
+    if dist < 10.0 {
+        game.status = DartsStatus.Ready;
+        return;
+    }
+
+    // 力度缩放
+    let power = dist / 15.0;
+    let maxPower = 25.0;
+    let actualPower = if power > maxPower { maxPower } else { power };
+
+    // 计算方向
+    let angle = atan2F(dy as f32, dx as f32);
+    let vx = actualPower * cosF(angle);
+    let vy = actualPower * sinF(angle);
+
+    // 投掷飞镖
+    let idx = game.currentDart;
+    game.darts[idx].x = THROW_X;
+    game.darts[idx].y = THROW_Y;
+    game.darts[idx].vx = vx;
+    game.darts[idx].vy = vy;
+    game.darts[idx].stuck = false;
+    game.darts[idx].thrown = true;
+
+    game.status = DartsStatus.Flying;
+}
+
+fn on_key_press(game: &mut DartsState, key: KeyCode) -> bool {
+    match key {
+        KeyCode.KeyR => {
+            if game.status == DartsStatus.GameOver {
+                init_game(game);
+            }
+        },
+        KeyCode.KeyEscape => {
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+// ==================== 更新游戏逻辑 ====================
+
+fn update_game(game: &mut DartsState) -> bool {
+    if game.status != DartsStatus.Flying {
+        return true;
+    }
+
+    let idx = game.currentDart;
+
+    if game.darts[idx].stuck {
+        game.status = DartsStatus.Scored;
+        return true;
+    }
+
+    // 飞镖飞行物理
+    let gravity = 0.15;
+    let drag = 0.995;
+
+    game.darts[idx].vy = game.darts[idx].vy + gravity;
+    game.darts[idx].vx = game.darts[idx].vx * drag;
+    game.darts[idx].vy = game.darts[idx].vy * drag;
+
+    game.darts[idx].x = game.darts[idx].x + (game.darts[idx].vx as i32);
+    game.darts[idx].y = game.darts[idx].y + (game.darts[idx].vy as i32);
+
+    // 检测靶盘碰撞
+    let dx = game.darts[idx].x - BOARD_CX;
+    let dy = game.darts[idx].y - BOARD_CY;
+    let dist = sqrtF((dx * dx + dy * dy) as f32);
+
+    if dist <= BOARD_RADIUS as f32 {
+        // 添加随机偏差
+        let wobble = (rand_float() - 0.5) * 4.0;
+        game.darts[idx].x = game.darts[idx].x + (wobble as i32);
+        game.darts[idx].y = game.darts[idx].y + (wobble as i32);
+
+        let dx2 = game.darts[idx].x - BOARD_CX;
+        let dy2 = game.darts[idx].y - BOARD_CY;
+        let dist2 = sqrtF((dx2 * dx2 + dy2 * dy2) as f32);
+
+        if dist2 <= BOARD_RADIUS as f32 {
+            game.darts[idx].stuck = true;
+            game.darts[idx].score = calculate_score(game.darts[idx].x, game.darts[idx].y);
+            game.totalScore = game.totalScore + game.darts[idx].score;
+            game.scores[game.currentRound - 1] = game.scores[game.currentRound - 1] + game.darts[idx].score;
+            game.currentDart = game.currentDart + 1;
+
+            if game.currentDart >= game.currentRound * DARTS_PER_ROUND {
+                if game.currentRound >= ROUNDS {
+                    game.status = DartsStatus.GameOver;
+                } else {
+                    game.currentRound = game.currentRound + 1;
+                    game.status = DartsStatus.Ready;
+                }
+            } else {
+                game.status = DartsStatus.Ready;
+            }
+
+            if game.currentDart >= TOTAL_DARTS {
+                game.status = DartsStatus.GameOver;
+            }
+        }
+    }
+
+    // 出界检测
+    if game.darts[idx].x < 0 || game.darts[idx].x > GAME_WIDTH ||
+       game.darts[idx].y < 0 || game.darts[idx].y > GAME_HEIGHT {
+        game.darts[idx].stuck = true;
+        game.darts[idx].score = 0;
+        game.currentDart = game.currentDart + 1;
+
+        if game.currentDart >= game.currentRound * DARTS_PER_ROUND {
+            if game.currentRound >= ROUNDS {
+                game.status = DartsStatus.GameOver;
+            } else {
+                game.currentRound = game.currentRound + 1;
+                game.status = DartsStatus.Ready;
+            }
+        } else {
+            game.status = DartsStatus.Ready;
+        }
+
+        if game.currentDart >= TOTAL_DARTS {
+            game.status = DartsStatus.GameOver;
+        }
+    }
+
+    return true;
+}
+
+// ==================== 分数计算 ====================
+
+fn calculate_score(x: i32, y: i32) -> i32 {
+    let dx = x - BOARD_CX;
+    let dy = y - BOARD_CY;
+    let dist = sqrtF((dx * dx + dy * dy) as f32) as i32;
+
+    if dist > BOARD_RADIUS {
+        return 0;
+    }
+
+    let angle = atan2F(dy as f32, dx as f32);
+    var deg = (angle * 180.0 / 3.14159) as f32;
+    deg = deg + 90.0;
+    if deg < 0.0 {
+        deg = deg + 360.0;
+    }
+
+    let segmentSize = 360.0 / 20.0;
+    let segIdx = ((deg + segmentSize / 2.0) / segmentSize) as i32 % 20;
+    let baseValue = SEGMENT_VALUES[segIdx];
+
+    if dist <= BULL_EYE {
+        return 50;
+    }
+    if dist <= BULL_RING {
+        return 25;
+    }
+    if dist <= INNER_RING {
+        return baseValue;
+    }
+    if dist <= TRIPLE_RING {
+        return baseValue * 3;
+    }
+    if dist <= DOUBLE_RING {
+        return baseValue;
+    }
+    if dist <= OUTER_RING {
+        return baseValue * 2;
+    }
+    return 0;
+}
+
+// ==================== 辅助函数 ====================
+
+fn get_darts_left_in_round(game: &DartsState) -> i32 {
+    let startOfRound = (game.currentRound - 1) * DARTS_PER_ROUND;
+    return DARTS_PER_ROUND - (game.currentDart - startOfRound);
+}
+
+fn get_status_text(game: &DartsState) -> string {
+    match game.status {
+        DartsStatus.Ready => {
+            let darts = get_darts_left_in_round(game);
+            return "回合 " ++ game.currentRound.toString() ++ " | 剩余飞镖: " ++ darts.toString() ++ " | 点击拖拽投掷";
+        },
+        DartsStatus.Aiming => {
+            return "瞄准中... 松开鼠标投掷";
+        },
+        DartsStatus.Flying => {
+            return "飞镖飞行中...";
+        },
+        DartsStatus.Scored => {
+            return "得分!";
+        },
+        DartsStatus.GameOver => {
+            return "游戏结束! 总分: " ++ game.totalScore.toString() ++ " | 按 R 重新开始";
+        },
+    }
+}
+
+fn get_controls_text() -> string {
+    "控制: 鼠标瞄准 | 点击拖拽投掷飞镖 | R 重新开始 | ESC 退出"
+}
