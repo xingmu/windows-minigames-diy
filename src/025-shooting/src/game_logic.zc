@@ -1,0 +1,327 @@
+// game_logic.zc - 射击游戏核心逻辑
+// Shooting Gallery - 60秒限时射击游戏
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 800;
+const GAME_HEIGHT: i32 = 600;
+const GAME_DURATION: i32 = 60;
+const MAX_TARGETS: i32 = 8;
+const TARGET_SPAWN_INTERVAL: u32 = 1200;
+const TARGET_LIFETIME: u32 = 3500;
+const CROSSHAIR_SIZE: i32 = 20;
+
+const TARGET_TYPE_STANDING: i32 = 0;
+const TARGET_TYPE_MOVING: i32 = 1;
+const TARGET_TYPE_BONUS: i32 = 2;
+
+const POINTS_STANDING: i32 = 10;
+const POINTS_MOVING: i32 = 20;
+const POINTS_BONUS: i32 = 50;
+
+const TARGET_WIDTH: i32 = 40;
+const TARGET_HEIGHT: i32 = 60;
+
+// ==================== 数据结构 ====================
+
+struct Target {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    targetType: i32,
+    alive: bool,
+    spawnTime: u32,
+    vx: i32,
+    vy: i32,
+    hit: bool,
+    hitTime: u32,
+}
+
+struct Crosshair {
+    x: i32,
+    y: i32,
+    visible: bool,
+}
+
+enum GameStatus {
+    Ready,
+    Playing,
+    GameOver,
+}
+
+struct ShootingGalleryState {
+    targets: [MAX_TARGETS]Target,
+    crosshair: Crosshair,
+    score: i32,
+    timeLeft: i32,
+    status: GameStatus,
+    width: i32,
+    height: i32,
+    lastSpawnTime: u32,
+    totalTime: u32,
+    lastUpdateTime: u32,
+    gameStartTime: u32,
+    missCount: i32,
+}
+
+struct Color {
+    r: u8,
+    g: u8,
+    b: u8,
+}
+
+fn rgb(r: u8, g: u8, b: u8) -> Color {
+    Color { r, g, b }
+}
+
+fn color_to_u32(c: Color) -> u32 {
+    (c.r as u32) | ((c.g as u32) << 8) | ((c.b as u32) << 16)
+}
+
+// ==================== 初始化函数 ====================
+
+fn init_game(game: &mut ShootingGalleryState, width: i32, height: i32) {
+    game.width = width;
+    game.height = height;
+    game.score = 0;
+    game.timeLeft = GAME_DURATION;
+    game.status = GameStatus.Ready;
+    game.lastSpawnTime = 0;
+    game.totalTime = 0;
+    game.lastUpdateTime = 0;
+    game.gameStartTime = 0;
+    game.missCount = 0;
+    game.crosshair = Crosshair { x: width / 2, y: height / 2, visible: true };
+    
+    for i in 0..MAX_TARGETS {
+        game.targets[i].alive = false;
+        game.targets[i].hit = false;
+    }
+}
+
+fn reset_game(game: &mut ShootingGalleryState) {
+    game.score = 0;
+    game.timeLeft = GAME_DURATION;
+    game.status = GameStatus.Playing;
+    game.missCount = 0;
+    game.totalTime = 0;
+    game.gameStartTime = get_tick_count();
+    game.lastUpdateTime = game.gameStartTime;
+    game.lastSpawnTime = game.gameStartTime;
+    game.crosshair = Crosshair { x: game.width / 2, y: game.height / 2, visible: true };
+    
+    for i in 0..MAX_TARGETS {
+        game.targets[i].alive = false;
+        game.targets[i].hit = false;
+    }
+}
+
+// ==================== 目标生成 ====================
+
+fn spawn_target(game: &mut ShootingGalleryState) {
+    var slot: i32 = -1;
+    for i in 0..MAX_TARGETS {
+        if !game.targets[i].alive {
+            slot = i;
+            break;
+        }
+    }
+    
+    if slot < 0 {
+        return;
+    }
+    
+    var r = math.rand() % 100;
+    var targetType = TARGET_TYPE_STANDING;
+    if r >= 90 {
+        targetType = TARGET_TYPE_BONUS;
+    } else if r >= 70 {
+        targetType = TARGET_TYPE_MOVING;
+    }
+    
+    var x = (math.rand() % (game.width - TARGET_WIDTH - 100)) as i32 + 50;
+    var y = (math.rand() % 280) as i32 + 200;
+    
+    var target = &mut game.targets[slot];
+    target.x = x;
+    target.y = y;
+    target.width = TARGET_WIDTH;
+    target.height = TARGET_HEIGHT;
+    target.targetType = targetType;
+    target.alive = true;
+    target.hit = false;
+    target.spawnTime = get_tick_count();
+    
+    if targetType == TARGET_TYPE_MOVING {
+        target.vx = ((math.rand() % 3) as i32 - 1) * 2;
+        target.vy = ((math.rand() % 3) as i32 - 1) * 2;
+        if target.vx == 0 && target.vy == 0 {
+            target.vx = 2;
+        }
+    } else {
+        target.vx = 0;
+        target.vy = 0;
+    }
+}
+
+// ==================== 更新游戏逻辑 ====================
+
+fn update_game(game: &mut ShootingGalleryState) -> bool {
+    if game.status != GameStatus.Playing {
+        return false;
+    }
+    
+    var currentTime = get_tick_count();
+    var elapsed = (currentTime - game.lastUpdateTime) as i32;
+    game.totalTime = game.totalTime + elapsed;
+    game.lastUpdateTime = currentTime;
+    
+    game.timeLeft = GAME_DURATION - (game.totalTime / 1000) as i32;
+    if game.timeLeft <= 0 {
+        game.timeLeft = 0;
+        game.status = GameStatus.GameOver;
+        return true;
+    }
+    
+    if currentTime - game.lastSpawnTime >= TARGET_SPAWN_INTERVAL {
+        spawn_target(game);
+        game.lastSpawnTime = currentTime;
+    }
+    
+    for i in 0..MAX_TARGETS {
+        var target = &mut game.targets[i];
+        
+        if !target.alive {
+            continue;
+        }
+        
+        if currentTime - target.spawnTime >= TARGET_LIFETIME {
+            target.alive = false;
+            continue;
+        }
+        
+        if target.hit {
+            if currentTime - target.hitTime >= 200 {
+                target.alive = false;
+                target.hit = false;
+            }
+            continue;
+        }
+        
+        if target.targetType == TARGET_TYPE_MOVING {
+            target.x = target.x + target.vx;
+            target.y = target.y + target.vy;
+            
+            if target.x <= 20 || target.x >= game.width - target.width - 20 {
+                target.vx = -target.vx;
+                if target.x < 20 { target.x = 20; }
+                if target.x > game.width - target.width - 20 { target.x = game.width - target.width - 20; }
+            }
+            if target.y <= 100 || target.y >= game.height - target.height - 20 {
+                target.vy = -target.vy;
+                if target.y < 100 { target.y = 100; }
+                if target.y > game.height - target.height - 20 { target.y = game.height - target.height - 20; }
+            }
+        }
+    }
+    
+    return true;
+}
+
+// ==================== 射击处理 ====================
+
+fn handle_shoot(game: &mut ShootingGalleryState, shootX: i32, shootY: i32) -> bool {
+    if game.status != GameStatus.Playing {
+        return false;
+    }
+    
+    var hit = false;
+    
+    for i in 0..MAX_TARGETS {
+        var target = &mut game.targets[i];
+        
+        if !target.alive || target.hit {
+            continue;
+        }
+        
+        if shootX >= target.x && shootX <= target.x + target.width &&
+           shootY >= target.y && shootY <= target.y + target.height {
+            
+            target.hit = true;
+            target.hitTime = get_tick_count();
+            hit = true;
+            
+            match target.targetType {
+                TARGET_TYPE_STANDING => {
+                    game.score = game.score + POINTS_STANDING;
+                }
+                TARGET_TYPE_MOVING => {
+                    game.score = game.score + POINTS_MOVING;
+                }
+                TARGET_TYPE_BONUS => {
+                    game.score = game.score + POINTS_BONUS;
+                }
+                _ => {}
+            }
+            
+            break;
+        }
+    }
+    
+    if !hit {
+        game.missCount = game.missCount + 1;
+    }
+    
+    return hit;
+}
+
+fn update_crosshair(game: &mut ShootingGalleryState, x: i32, y: i32) {
+    game.crosshair.x = x;
+    game.crosshair.y = y;
+}
+
+fn start_game(game: &mut ShootingGalleryState) {
+    if game.status == GameStatus.Ready || game.status == GameStatus.GameOver {
+        reset_game(game);
+    }
+}
+
+// ==================== 状态查询 ====================
+
+fn get_score(game: &ShootingGalleryState) -> i32 {
+    game.score
+}
+
+fn get_time_left(game: &ShootingGalleryState) -> i32 {
+    game.timeLeft
+}
+
+fn get_status(game: &ShootingGalleryState) -> GameStatus {
+    game.status
+}
+
+fn get_miss_count(game: &ShootingGalleryState) -> i32 {
+    game.missCount
+}
+
+fn get_accuracy(game: &ShootingGalleryState) -> i32 {
+    var totalShots = game.score / POINTS_STANDING + game.missCount;
+    if totalShots == 0 {
+        return 100;
+    }
+    return (game.score * 100 / (totalShots * POINTS_STANDING));
+}
+
+// ==================== 平台函数 ====================
+
+fn get_tick_count() -> u32 {
+    #if defined(_WIN32) || defined(WIN32)
+        extern "kernel32.dll" fn GetTickCount() -> u32;
+        return GetTickCount();
+    #else
+        return 0;
+    #endif
+}

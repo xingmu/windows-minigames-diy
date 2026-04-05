@@ -1,0 +1,114 @@
+// platform_api_windows.zc - Windows 平台实现
+// 框架版本: 1.0.0
+
+// Windows API 常量
+private val WS_OVERLAPPEDWINDOW = 0x00CF0000;
+private val WM_DESTROY = 0x0002;
+private val WM_QUIT = 0x0012;
+private val WM_SIZE = 0x0005;
+private val WM_PAINT = 0x000F;
+private val WM_KEYDOWN = 0x0100;
+private val WM_KEYUP = 0x0101;
+private val WM_LBUTTONDOWN = 0x0201;
+private val WM_LBUTTONUP = 0x0202;
+private val WM_RBUTTONDOWN = 0x0204;
+private val WM_RBUTTONUP = 0x0205;
+private val WM_MBUTTONDOWN = 0x0207;
+private val WM_MBUTTONUP = 0x0208;
+private val WM_MOUSEMOVE = 0x0200;
+private val WM_MOUSEWHEEL = 0x020A;
+
+private val VK_ESCAPE = 0x1B;
+private val VK_SPACE = 0x20;
+private val VK_RETURN = 0x0D;
+private val VK_LEFT = 0x25;
+private val VK_UP = 0x26;
+private val VK_RIGHT = 0x27;
+private val VK_DOWN = 0x28;
+
+pub type WindowHandle = rawptr;
+
+pub struct WNDCLASSEX {
+    cbSize: u32,
+    style: u32,
+    lpfnWndProc: rawptr,
+    cbClsExtra: i32,
+    cbWndExtra: i32,
+    hInstance: rawptr,
+    hIcon: rawptr,
+    hCursor: rawptr,
+    hbrBackground: rawptr,
+    lpszMenuName: rawptr,
+    lpszClassName: rawptr,
+    hIconSm: rawptr,
+}
+
+pub struct MSG {
+    hwnd: rawptr,
+    message: u32,
+    wParam: rawptr,
+    lParam: rawptr,
+    time: u32,
+    pt: rawptr,
+}
+
+fn windowProc(hwnd: rawptr, msg: u32, wParam: rawptr, lParam: rawptr) -> rawptr {
+    match msg {
+        WM_DESTROY => { return nil; }
+        WM_PAINT => { return nil; }
+        _ => { return nil; }
+    }
+}
+
+fn createWindow(title: str, width: int, height: int) -> WindowHandle {
+    return nil;
+}
+
+fn closeWindow(handle: WindowHandle) {
+}
+
+fn setWindowTitle(handle: WindowHandle, title: str) {
+}
+
+fn getWindowSize(handle: WindowHandle) -> (int, int) {
+    return (800, 600);
+}
+
+fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
+    event.msg = MessageType.None;
+    return false;
+}
+
+fn waitEvent(handle: WindowHandle, event: &Event) {
+}
+
+fn postQuitMessage(handle: WindowHandle) {
+}
+
+fn getTickCount() -> u32 {
+    return 0;
+}
+
+fn sleep(ms: u32) {
+}
+
+fn isKeyDown(key: VirtualKey) -> bool {
+    return false;
+}
+
+fn getFrameBuffer(handle: WindowHandle) -> rawptr {
+    return nil;
+}
+
+fn getFrameBufferPitch(handle: WindowHandle) -> int {
+    return 800 * 4;
+}
+
+fn presentFrame(handle: WindowHandle) {
+}
+
+pub fn initPlatform() {
+}
+
+pub fn shutdownPlatform() {
+}

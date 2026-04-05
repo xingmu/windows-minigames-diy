@@ -1,0 +1,525 @@
+// platform_api.zc - Zen-C 跨平台 API 封装 (射击游戏专用)
+
+import std.ffi;
+import std.string;
+
+#if defined(_WIN32) || defined(WIN32) || defined(__WIN32__) || defined(__NT__)
+    #define IS_WINDOWS 1
+    #define IS_LINUX 0
+    #define IS_MACOS 0
+#elif defined(__linux__)
+    #define IS_WINDOWS 0
+    #define IS_LINUX 1
+    #define IS_MACOS 0
+#elif defined(__APPLE__) && defined(__MACH__)
+    #define IS_WINDOWS 0
+    #define IS_LINUX 0
+    #define IS_MACOS 1
+#else
+    #error "Unsupported platform"
+#endif
+
+type WindowHandle = *void;
+type GraphicsContext = *void;
+
+enum EventType {
+    EventNone,
+    EventKeyDown,
+    EventKeyUp,
+    EventMouseMove,
+    EventMouseDown,
+    EventMouseUp,
+    EventWindowClose,
+    EventWindowResize,
+    EventTimer
+}
+
+enum KeyCode {
+    KeyUnknown,
+    KeyUp,
+    KeyDown,
+    KeyLeft,
+    KeyRight,
+    KeySpace,
+    KeyEscape,
+    KeyR,
+    KeyW,
+    KeyA,
+    KeyS,
+    KeyD,
+    KeyP
+}
+
+struct Event {
+    type: EventType,
+    key: KeyCode,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32
+}
+
+struct Color {
+    r: u8,
+    g: u8,
+    b: u8
+}
+
+fn rgb(r: u8, g: u8, b: u8) -> Color {
+    Color { r, g, b }
+}
+
+fn color_to_u32(c: Color) -> u32 {
+    (c.r as u32) | ((c.g as u32) << 8) | ((c.b as u32) << 16)
+}
+
+#if IS_WINDOWS
+
+extern "user32.dll" fn CreateWindowExA(
+    dwExStyle: u32,
+    lpClassName: *const i8,
+    lpWindowName: *const i8,
+    dwStyle: u32,
+    x: i32,
+    y: i32,
+    nWidth: i32,
+    nHeight: i32,
+    hWndParent: WindowHandle,
+    hMenu: *void,
+    hInstance: *void,
+    lpParam: *void
+) -> WindowHandle;
+
+extern "user32.dll" fn ShowWindow(hWnd: WindowHandle, nCmdShow: i32) -> bool;
+extern "user32.dll" fn UpdateWindow(hWnd: WindowHandle) -> bool;
+extern "user32.dll" fn GetMessageA(lpMsg: *void, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32) -> bool;
+extern "user32.dll" fn TranslateMessage(lpMsg: *void) -> bool;
+extern "user32.dll" fn DispatchMessageA(lpMsg: *void) -> i32;
+extern "user32.dll" fn InvalidateRect(hWnd: WindowHandle, lpRect: *void, bErase: bool) -> bool;
+extern "user32.dll" fn BeginPaint(hWnd: WindowHandle, lpPaint: *void) -> GraphicsContext;
+extern "user32.dll" fn EndPaint(hWnd: WindowHandle, lpPaint: *void);
+extern "user32.dll" fn GetClientRect(hWnd: WindowHandle, lpRect: *void) -> bool;
+extern "user32.dll" fn FillRect(hDC: GraphicsContext, lprc: *void, hbr: *void) -> i32;
+extern "user32.dll" fn Rectangle(hDC: GraphicsContext, left: i32, top: i32, right: i32, bottom: i32) -> bool;
+extern "user32.dll" fn Ellipse(hDC: GraphicsContext, left: i32, top: i32, right: i32, bottom: i32) -> bool;
+extern "user32.dll" fn CreateSolidBrush(color: u32) -> *void;
+extern "user32.dll" fn SelectObject(hDC: GraphicsContext, hObject: *void) -> *void;
+extern "user32.dll" fn DeleteObject(hObject: *void) -> bool;
+extern "user32.dll" fn SetTimer(hWnd: WindowHandle, nIDEvent: u32, uElapse: u32, lpTimerFunc: *void) -> u32;
+extern "user32.dll" fn KillTimer(hWnd: WindowHandle, uIDEvent: u32) -> bool;
+extern "user32.dll" fn PostQuitMessage(nExitCode: i32);
+extern "user32.dll" fn GetModuleHandleA(lpModuleName: *const i8) -> *void;
+extern "user32.dll" fn LoadCursorA(hInstance: *void, lpCursorName: *const i8) -> *void;
+extern "user32.dll" fn SetCursor(hCursor: *void);
+extern "user32.dll" fn GetDC(hWnd: WindowHandle) -> GraphicsContext;
+extern "user32.dll" fn ReleaseDC(hWnd: WindowHandle, hDC: GraphicsContext) -> i32;
+extern "user32.dll" fn CreateCompatibleDC(hDC: GraphicsContext) -> GraphicsContext;
+extern "user32.dll" fn CreateCompatibleBitmap(hDC: GraphicsContext, width: i32, height: i32) -> *void;
+extern "user32.dll" fn BitBlt(hDC: GraphicsContext, x: i32, y: i32, w: i32, h: i32, hSrcDC: GraphicsContext, xSrc: i32, ySrc: i32, rop: u32) -> bool;
+extern "user32.dll" fn DeleteDC(hDC: GraphicsContext) -> bool;
+extern "user32.dll" fn DeleteObject_2(hObject: *void) -> bool;
+extern "user32.dll" fn RegisterClassA(lpWndClass: *const WNDCLASSA) -> u16;
+extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, msg: u32, wParam: u32, lParam: u32) -> u32;
+extern "user32.dll" fn RegisterRawInputDevices();
+extern "user32.dll" fn GetAsyncKeyState(vKey: i32) -> i16;
+
+extern "gdi32.dll" fn TextOutA(hDC: GraphicsContext, x: i32, y: i32, lpString: *const i8, cBytes: i32) -> bool;
+extern "gdi32.dll" fn SetBkMode(hDC: GraphicsContext, mode: i32) -> i32;
+extern "gdi32.dll" fn SetTextColor(hDC: GraphicsContext, color: u32) -> u32;
+extern "gdi32.dll" fn CreateFontA(height: i32, width: i32, escapement: i32, orientation: i32, weight: i32, italic: u8, underline: u8, strikeout: u8, charset: u8, outPrecision: u8, clipPrecision: u8, quality: u8, pitchAndFamily: u8, lpszFace: *const i8) -> *void;
+extern "gdi32.dll" fn SelectObject_3(hDC: GraphicsContext, hObject: *void) -> *void;
+extern "gdi32.dll" fn DeleteObject_3(hObject: *void) -> bool;
+
+struct WNDCLASSA {
+    style: u32,
+    lpfnWndProc: *void,
+    hInstance: *void,
+    hIcon: *void,
+    hCursor: *void,
+    hbrBackground: *void,
+    lpszMenuName: *const i8,
+    lpszClassName: *const i8,
+}
+
+const WS_OVERLAPPEDWINDOW: u32 = 0x00CF0000;
+const CW_USEDEFAULT: i32 = 0x80000000;
+const WM_PAINT: u32 = 0x000F;
+const WM_KEYDOWN: u32 = 0x0100;
+const WM_KEYUP: u32 = 0x0101;
+const WM_LBUTTONDOWN: u32 = 0x0201;
+const WM_LBUTTONUP: u32 = 0x0202;
+const WM_RBUTTONDOWN: u32 = 0x0204;
+const WM_RBUTTONUP: u32 = 0x0205;
+const WM_MOUSEMOVE: u32 = 0x0200;
+const WM_DESTROY: u32 = 0x0002;
+const WM_TIMER: u32 = 0x0113;
+const WM_SIZE: u32 = 0x0005;
+const CS_HREDRAW: u32 = 0x0002;
+const CS_VREDRAW: u32 = 0x0001;
+const WS_SYSMENU: u32 = 0x00080000;
+const WS_MINIMIZEBOX: u32 = 0x00020000;
+const WS_MAXIMIZEBOX: u32 = 0x00010000;
+const WS_CAPTION: u32 = 0x00C00000;
+const SRCCOPY: u32 = 0x00CC0020;
+const IDC_ARROW: *const i8 = 32512 as *const i8;
+const TRANSPARENT: i32 = 1;
+const OUT_DEFAULT_PRECIS: i8 = 0;
+const CLIP_DEFAULT_PRECIS: i8 = 0;
+const DEFAULT_QUALITY: i8 = 0;
+const DEFAULT_PITCH: u8 = 0;
+
+#endif
+
+// ==================== 窗口API ====================
+
+fn create_window(title: string, width: i32, height: i32) -> WindowHandle {
+    #if IS_WINDOWS
+        let hInstance = GetModuleHandleA(null);
+        
+        let wndclass = WNDCLASSA {
+            style: CS_HREDRAW | CS_VREDRAW,
+            lpfnWndProc: window_proc,
+            hInstance: hInstance,
+            hIcon: null,
+            hCursor: LoadCursorA(null, IDC_ARROW),
+            hbrBackground: 1 as *void,
+            lpszMenuName: null,
+            lpszClassName: "ShootingGallery\0".c_str(),
+        };
+        
+        RegisterClassA(&wndclass);
+        
+        let hwnd = CreateWindowExA(
+            0,
+            "ShootingGallery\0".c_str(),
+            title.c_str(),
+            WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            width + 16, height + 56,
+            null,
+            null,
+            hInstance,
+            null
+        );
+        return hwnd;
+    #elif IS_LINUX
+        return null;
+    #elif IS_MACOS
+        return null;
+    #endif
+}
+
+fn show_window(window: WindowHandle) {
+    #if IS_WINDOWS
+        ShowWindow(window, 1);
+        UpdateWindow(window);
+    #endif
+}
+
+fn run_event_loop(window: WindowHandle, game: &mut ShootingGalleryState) {
+    #if IS_WINDOWS
+        let msg: [28]u8 = [0; 28];
+        while GetMessageA(&msg, window, 0, 0) {
+            TranslateMessage(&msg);
+            DispatchMessageA(&msg);
+        }
+    #endif
+}
+
+fn quit_application() {
+    #if IS_WINDOWS
+        PostQuitMessage(0);
+    #endif
+}
+
+fn set_game_timer(window: WindowHandle, interval_ms: u32) {
+    #if IS_WINDOWS
+        SetTimer(window, 1, interval_ms, null);
+    #endif
+}
+
+fn kill_game_timer(window: WindowHandle) {
+    #if IS_WINDOWS
+        KillTimer(window, 1);
+    #endif
+}
+
+fn redraw_window(window: WindowHandle) {
+    #if IS_WINDOWS
+        InvalidateRect(window, null, true);
+    #endif
+}
+
+fn get_window_client_size(window: WindowHandle, width: &mut i32, height: &mut i32) -> bool {
+    #if IS_WINDOWS
+        let rect: [4]i32 = [0; 4];
+        if GetClientRect(window, &rect) {
+            *width = rect[2] - rect[0];
+            *height = rect[3] - rect[1];
+            return true;
+        }
+        return false;
+    #else
+        return false;
+    #endif
+}
+
+// ==================== 帧缓冲API ====================
+
+private struct FBData {
+    window: WindowHandle,
+    width: i32,
+    height: i32,
+    hdc: GraphicsContext,
+    memDC: GraphicsContext,
+    bitmap: *void,
+    valid: bool,
+}
+
+private mut fb_data: FBData;
+
+fn fb_init(window: WindowHandle, width: i32, height: i32) -> bool {
+    #if IS_WINDOWS
+        fb_data.window = window;
+        fb_data.width = width;
+        fb_data.height = height;
+        fb_data.hdc = GetDC(window);
+        fb_data.memDC = CreateCompatibleDC(fb_data.hdc);
+        fb_data.bitmap = CreateCompatibleBitmap(fb_data.hdc, width, height);
+        SelectObject(fb_data.memDC, fb_data.bitmap);
+        fb_data.valid = true;
+        return true;
+    #else
+        return false;
+    #endif
+}
+
+fn fb_clear(color: Color) {
+    #if IS_WINDOWS
+        if !fb_data.valid { return; }
+        let brush = CreateSolidBrush(color_to_u32(color));
+        let old_brush = SelectObject(fb_data.memDC, brush);
+        Rectangle(fb_data.memDC, 0, 0, fb_data.width, fb_data.height);
+        SelectObject(fb_data.memDC, old_brush);
+        DeleteObject(brush);
+    #endif
+}
+
+fn fb_draw_rect(x: i32, y: i32, width: i32, height: i32, color: Color) {
+    #if IS_WINDOWS
+        if !fb_data.valid { return; }
+        let brush = CreateSolidBrush(color_to_u32(color));
+        let old_brush = SelectObject(fb_data.memDC, brush);
+        let rect: [4]i32 = [x, y, x + width, y + height];
+        FillRect(fb_data.memDC, &rect, brush);
+        SelectObject(fb_data.memDC, old_brush);
+        DeleteObject(brush);
+    #endif
+}
+
+fn fb_draw_circle(x: i32, y: i32, radius: i32, color: Color) {
+    #if IS_WINDOWS
+        if !fb_data.valid { return; }
+        let brush = CreateSolidBrush(color_to_u32(color));
+        let old_brush = SelectObject(fb_data.memDC, brush);
+        Ellipse(fb_data.memDC, x - radius, y - radius, x + radius, y + radius);
+        SelectObject(fb_data.memDC, old_brush);
+        DeleteObject(brush);
+    #endif
+}
+
+fn fb_draw_line(x1: i32, y1: i32, x2: i32, y2: i32, color: Color) {
+    #if IS_WINDOWS
+        if !fb_data.valid { return; }
+        let brush = CreateSolidBrush(color_to_u32(color));
+        let old_brush = SelectObject(fb_data.memDC, brush);
+        // GDI doesn't have direct line, use Rectangle for horizontal/vertical
+        if y1 == y2 {
+            // Horizontal line
+            let rect: [4]i32 = [x1, y1, x2 + 1, y1 + 1];
+            FillRect(fb_data.memDC, &rect, brush);
+        } else if x1 == x2 {
+            // Vertical line
+            let rect: [4]i32 = [x1, y1, x1 + 1, y2 + 1];
+            FillRect(fb_data.memDC, &rect, brush);
+        }
+        SelectObject(fb_data.memDC, old_brush);
+        DeleteObject(brush);
+    #endif
+}
+
+fn fb_present() {
+    #if IS_WINDOWS
+        if !fb_data.valid { return; }
+        BitBlt(fb_data.hdc, 0, 0, fb_data.width, fb_data.height, fb_data.memDC, 0, 0, SRCCOPY);
+    #endif
+}
+
+fn fb_shutdown() {
+    #if IS_WINDOWS
+        if fb_data.memDC != null {
+            DeleteDC(fb_data.memDC);
+        }
+        if fb_data.bitmap != null {
+            DeleteObject_2(fb_data.bitmap);
+        }
+        if fb_data.hdc != null {
+            ReleaseDC(fb_data.window, fb_data.hdc);
+        }
+        fb_data.valid = false;
+    #endif
+}
+
+fn fb_draw_text(x: i32, y: i32, text: string, color: Color) {
+    #if IS_WINDOWS
+        if !fb_data.valid { return; }
+        let prev_color = SetTextColor(fb_data.memDC, color_to_u32(color));
+        let prev_mode = SetBkMode(fb_data.memDC, TRANSPARENT);
+        
+        let font = CreateFontA(16, 0, 0, 0, 400, 0, 0, 0, 0, 
+                               OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, 
+                               DEFAULT_QUALITY, DEFAULT_PITCH, "Arial\0".c_str());
+        let old_font = SelectObject_3(fb_data.memDC, font);
+        
+        TextOutA(fb_data.memDC, x, y, text.c_str(), text.len as i32);
+        
+        SelectObject_3(fb_data.memDC, old_font);
+        DeleteObject_3(font);
+        SetBkMode(fb_data.memDC, prev_mode);
+        SetTextColor(fb_data.memDC, prev_color);
+    #endif
+}
+
+fn fb_draw_text_size(x: i32, y: i32, text: string, color: Color, size: i32) {
+    #if IS_WINDOWS
+        if !fb_data.valid { return; }
+        let prev_color = SetTextColor(fb_data.memDC, color_to_u32(color));
+        let prev_mode = SetBkMode(fb_data.memDC, TRANSPARENT);
+        
+        let font = CreateFontA(size, 0, 0, 0, 400, 0, 0, 0, 0, 
+                               OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, 
+                               DEFAULT_QUALITY, DEFAULT_PITCH, "Arial\0".c_str());
+        let old_font = SelectObject_3(fb_data.memDC, font);
+        
+        TextOutA(fb_data.memDC, x, y, text.c_str(), text.len as i32);
+        
+        SelectObject_3(fb_data.memDC, old_font);
+        DeleteObject_3(font);
+        SetBkMode(fb_data.memDC, prev_mode);
+        SetTextColor(fb_data.memDC, prev_color);
+    #endif
+}
+
+// ==================== 窗口过程 ====================
+
+#if IS_WINDOWS
+
+type KeyHandler = fn(KeyCode) -> bool;
+type TimerHandler = fn() -> bool;
+type PaintHandler = fn(i32, i32) -> void;
+type MouseHandler = fn(i32, i32) -> void;
+
+private mut key_handler: KeyHandler = null;
+private mut timer_handler: TimerHandler = null;
+private mut paint_handler: PaintHandler = null;
+private mut mouse_handler: MouseHandler = null;
+private mut mouse_move_handler: fn(i32, i32) -> void = null;
+private mut destroy_handler: fn() -> void = null;
+private mut client_width: i32 = 800;
+private mut client_height: i32 = 600;
+
+pub fn set_key_handler(h: KeyHandler) { key_handler = h; }
+pub fn set_timer_handler(h: TimerHandler) { timer_handler = h; }
+pub fn set_paint_handler(h: PaintHandler) { paint_handler = h; }
+pub fn set_mouse_handler(h: MouseHandler) { mouse_handler = h; }
+pub fn set_mouse_move_handler(h: fn(i32, i32) -> void) { mouse_move_handler = h; }
+pub fn set_destroy_handler(h: fn()) { destroy_handler = h; }
+pub fn set_client_size(w: i32, h: i32) { client_width = w; client_height = h; }
+pub fn get_client_size() -> (i32, i32) { return (client_width, client_height); }
+
+// Forward declare
+extern fn window_proc(hwnd: WindowHandle, msg: u32, wParam: u32, lParam: u32) -> u32;
+
+fn window_proc(hwnd: WindowHandle, msg: u32, wParam: u32, lParam: u32) -> u32 {
+    match msg {
+        WM_PAINT => {
+            if paint_handler != null {
+                paint_handler(client_width, client_height);
+            }
+            return 0;
+        },
+        WM_KEYDOWN => {
+            let key = map_vkey(wParam as i32);
+            if key_handler != null {
+                key_handler(key);
+            }
+            redraw_window(hwnd);
+            return 0;
+        },
+        WM_KEYUP => {
+            return 0;
+        },
+        WM_LBUTTONDOWN => {
+            if mouse_handler != null {
+                let x = (lParam & 0xFFFF) as i32;
+                let y = ((lParam >> 16) & 0xFFFF) as i32;
+                mouse_handler(x, y);
+            }
+            redraw_window(hwnd);
+            return 0;
+        },
+        WM_MOUSEMOVE => {
+            if mouse_move_handler != null {
+                let x = (lParam & 0xFFFF) as i32;
+                let y = ((lParam >> 16) & 0xFFFF) as i32;
+                mouse_move_handler(x, y);
+            }
+            return 0;
+        },
+        WM_TIMER => {
+            if timer_handler != null {
+                let needs_redraw = timer_handler();
+                if needs_redraw {
+                    redraw_window(hwnd);
+                }
+            }
+            return 0;
+        },
+        WM_SIZE => {
+            client_width = (lParam & 0xFFFF) as i32;
+            client_height = ((lParam >> 16) & 0xFFFF) as i32;
+            redraw_window(hwnd);
+            return 0;
+        },
+        WM_DESTROY => {
+            if destroy_handler != null {
+                destroy_handler();
+            }
+            PostQuitMessage(0);
+            return 0;
+        },
+        _ => {
+            return DefWindowProcA(hwnd, msg, wParam, lParam);
+        }
+    }
+}
+
+fn map_vkey(vk: i32) -> KeyCode {
+    match vk {
+        0x25 => KeyCode.KeyLeft,
+        0x26 => KeyCode.KeyUp,
+        0x27 => KeyCode.KeyRight,
+        0x28 => KeyCode.KeyDown,
+        0x20 => KeyCode.KeySpace,
+        0x1B => KeyCode.KeyEscape,
+        0x52 => KeyCode.KeyR,
+        0x57 => KeyCode.KeyW,
+        0x41 => KeyCode.KeyA,
+        0x53 => KeyCode.KeyS,
+        0x44 => KeyCode.KeyD,
+        0x50 => KeyCode.KeyP,
+        _ => KeyCode.KeyUnknown,
+    }
+}
+
+#endif
