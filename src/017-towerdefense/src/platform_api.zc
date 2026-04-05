@@ -1,0 +1,134 @@
+// platform_api.zc - 统一平台接口定义
+// 框架版本: 1.0.0
+
+// 窗口句柄类型
+pub type WindowHandle = rawptr;
+
+// 颜色类型 (0x00RRGGBB)
+pub type Color = u32;
+
+// 事件类型
+pub type MessageType = enum {
+    Quit,
+    KeyDown,
+    KeyUp,
+    MouseDown,
+    MouseUp,
+    MouseMove,
+    Resize,
+    Paint,
+};
+
+// 键盘按键
+pub type VirtualKey = enum {
+    Escape,
+    Space,
+    Enter,
+    Left,
+    Up,
+    Right,
+    Down,
+    Key0, Key1, Key2, Key3, Key4,
+    Key5, Key6, Key7, Key8, Key9,
+    A, B, C, D, E, F, G, H, I, J, K, L, M,
+    N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+};
+
+// 鼠标按钮
+pub type MouseButton = enum {
+    Left,
+    Right,
+    Middle,
+};
+
+// 事件结构
+pub struct Event {
+    msg: MessageType,
+    key: KeyEvent,
+    mouse: MouseEvent,
+    width: int,
+    height: int,
+}
+
+pub struct KeyEvent {
+    key: VirtualKey,
+}
+
+pub struct MouseEvent {
+    x: int,
+    y: int,
+    button: MouseButton,
+}
+
+// 字体类型
+pub type Font = rawptr;
+
+// 画布接口
+pub interface Canvas {
+    fn clear(color: Color);
+    fn setPixel(x: int, y: int, color: Color);
+    fn getPixel(x: int, y: int) -> Color;
+    fn drawLine(x1: int, y1: int, x2: int, y2: int, color: Color);
+    fn drawRect(x: int, y: int, w: int, h: int, color: Color);
+    fn fillRect(x: int, y: int, w: int, h: int, color: Color);
+    fn drawCircle(cx: int, cy: int, radius: int, color: Color);
+    fn fillCircle(cx: int, cy: int, radius: int, color: Color);
+    fn drawText(x: int, y: int, text: str, color: Color, font: Font);
+    fn getWidth() -> int;
+    fn getHeight() -> int;
+}
+
+// 矩形结构
+pub struct Rect {
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+}
+
+// 颜色辅助函数
+impl Color {
+    pub fn Black() -> Color { return 0xFF000000; }
+    pub fn White() -> Color { return 0xFFFFFFFF; }
+    pub fn Red() -> Color { return 0xFFFF0000; }
+    pub fn Green() -> Color { return 0xFF00FF00; }
+    pub fn Blue() -> Color { return 0xFF0000FF; }
+    pub fn Yellow() -> Color { return 0xFFFFFF00; }
+    pub fn Cyan() -> Color { return 0xFF00FFFF; }
+    pub fn Magenta() -> Color { return 0xFFFF00FF; }
+    pub fn Gray() -> Color { return 0xFF808080; }
+    pub fn LightGray() -> Color { return 0xFFC0C0C0; }
+    pub fn DarkGray() -> Color { return 0xFF404040; }
+    pub fn Orange() -> Color { return 0xFFFF8000; }
+    pub fn Purple() -> Color { return 0xFF800080; }
+    pub fn Brown() -> Color { return 0xFF8B4513; }
+    
+    pub fn RGB(r: u8, g: u8, b: u8) -> Color {
+        return 0xFF000000 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+    }
+}
+
+// 字体辅助函数
+impl Font {
+    pub fn create(name: str, size: int) -> Font {
+        return nil;
+    }
+}
+
+// 平台 API 函数声明
+extern fn createWindow(title: str, width: int, height: int) -> WindowHandle;
+extern fn closeWindow(window: WindowHandle);
+extern fn pollEvent(window: WindowHandle, event: &Event) -> bool;
+extern fn getFrameBuffer(window: WindowHandle) -> rawptr;
+extern fn getFrameBufferPitch(window: WindowHandle) -> int;
+extern fn presentFrame(window: WindowHandle);
+extern fn getTickCount() -> u32;
+extern fn sleep(ms: u32);
+extern fn initPlatform();
+extern fn shutdownPlatform();
+
+// 运行时链接检查
+fn _checkApi() {
+    var w = createWindow("test", 100, 100);
+    closeWindow(w);
+}

@@ -1,0 +1,410 @@
+// platform_api_windows.zc - Windows 平台实现
+// 框架版本: 1.0.0
+
+import std.ffi;
+
+// Windows API 常量
+const WM_PAINT = 15;
+const WM_DESTROY = 2;
+const WM_KEYDOWN = 256;
+const WM_KEYUP = 257;
+const WM_LBUTTONDOWN = 513;
+const WM_RBUTTONDOWN = 516;
+const WM_MBUTTONDOWN = 519;
+const WM_LBUTTONUP = 514;
+const WM_RBUTTONUP = 517;
+const WM_MBUTTONUP = 520;
+const WM_MOUSEMOVE = 512;
+const WM_SIZE = 5;
+
+const VK_ESCAPE = 0x1B;
+const VK_SPACE = 0x20;
+const VK_RETURN = 0x0D;
+const VK_LEFT = 0x25;
+const VK_UP = 0x26;
+const VK_RIGHT = 0x27;
+const VK_DOWN = 0x28;
+
+// Windows API 类型
+type HWND = rawptr;
+type HDC = rawptr;
+type HINSTANCE = rawptr;
+type WNDPROC = rawptr;
+
+// Windows 消息结构
+struct MSG {
+    hwnd: HWND,
+    message: u32,
+    wParam: u32,
+    lParam: i32,
+    time: u32,
+    pt: Point,
+}
+
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+struct RECT {
+    left: i32,
+    top: i32,
+    right: i32,
+    bottom: i32,
+}
+
+struct PAINTSTRUCT {
+    hdc: HDC,
+    fErase: bool,
+    rcPaint: RECT,
+    fRestore: bool,
+    fIncUpdate: bool,
+    rgbReserved: [32]u8,
+}
+
+struct WNDCLASSA {
+    style: u32,
+    lpfnWndProc: WNDPROC,
+    hInstance: HINSTANCE,
+    hIcon: rawptr,
+    hCursor: rawptr,
+    hbrBackground: rawptr,
+    lpszMenuName: rawptr,
+    lpszClassName: rawptr,
+}
+
+// 内部状态
+private static mut hwnd: HWND = nil;
+private static mut eventQueue: [10]Event;
+private static mut eventCount: int = 0;
+private static mut lastMouseX: int = 0;
+private static mut lastMouseY: int = 0;
+private static mut quitRequested: bool = false;
+
+// 键码转换
+private fn vkToVirtualKey(wParam: u32) -> VirtualKey {
+    match wParam {
+        VK_ESCAPE => return VirtualKey.Escape,
+        VK_SPACE => return VirtualKey.Space,
+        VK_RETURN => return VirtualKey.Enter,
+        VK_LEFT => return VirtualKey.Left,
+        VK_UP => return VirtualKey.Up,
+        VK_RIGHT => return VirtualKey.Right,
+        VK_DOWN => return VirtualKey.Down,
+        0x30 => return VirtualKey.Key0,
+        0x31 => return VirtualKey.Key1,
+        0x32 => return VirtualKey.Key2,
+        0x33 => return VirtualKey.Key3,
+        0x34 => return VirtualKey.Key4,
+        0x35 => return VirtualKey.Key5,
+        0x36 => return VirtualKey.Key6,
+        0x37 => return VirtualKey.Key7,
+        0x38 => return VirtualKey.Key8,
+        0x39 => return VirtualKey.Key9,
+        0x41 => return VirtualKey.A,
+        0x42 => return VirtualKey.B,
+        0x43 => return VirtualKey.C,
+        0x44 => return VirtualKey.D,
+        0x45 => return VirtualKey.E,
+        0x46 => return VirtualKey.F,
+        0x47 => return VirtualKey.G,
+        0x48 => return VirtualKey.H,
+        0x49 => return VirtualKey.I,
+        0x4A => return VirtualKey.J,
+        0x4B => return VirtualKey.K,
+        0x4C => return VirtualKey.L,
+        0x4D => return VirtualKey.M,
+        0x4E => return VirtualKey.N,
+        0x4F => return VirtualKey.O,
+        0x50 => return VirtualKey.P,
+        0x51 => return VirtualKey.Q,
+        0x52 => return VirtualKey.R,
+        0x53 => return VirtualKey.S,
+        0x54 => return VirtualKey.T,
+        0x55 => return VirtualKey.U,
+        0x56 => return VirtualKey.V,
+        0x57 => return VirtualKey.W,
+        0x58 => return VirtualKey.X,
+        0x59 => return VirtualKey.Y,
+        0x5A => return VirtualKey.Z,
+        _ => return VirtualKey.Escape,
+    }
+}
+
+// 鼠标按钮转换
+private fn msgToMouseButton(msg: u32) -> MouseButton {
+    match msg {
+        WM_LBUTTONDOWN, WM_LBUTTONUP => return MouseButton.Left,
+        WM_RBUTTONDOWN, WM_RBUTTONUP => return MouseButton.Right,
+        WM_MBUTTONDOWN, WM_MBUTTONUP => return MouseButton.Middle,
+        _ => return MouseButton.Left,
+    }
+}
+
+// 窗口过程函数
+extern fn windowProc(hwnd: HWND, msg: u32, wParam: u32, lParam: i32) -> i32 {
+    match msg {
+        WM_DESTROY => {
+            quitRequested = true;
+            return 0;
+        },
+        WM_KEYDOWN => {
+            if eventCount < 10 {
+                eventQueue[eventCount] = Event.{
+                    msg: MessageType.KeyDown,
+                    key: KeyEvent.{ key: vkToVirtualKey(wParam) },
+                    mouse: MouseEvent.{ x: 0, y: 0, button: MouseButton.Left },
+                    width: 0,
+                    height: 0,
+                };
+                eventCount = eventCount + 1;
+            }
+            return 0;
+        },
+        WM_KEYUP => {
+            if eventCount < 10 {
+                eventQueue[eventCount] = Event.{
+                    msg: MessageType.KeyUp,
+                    key: KeyEvent.{ key: vkToVirtualKey(wParam) },
+                    mouse: MouseEvent.{ x: 0, y: 0, button: MouseButton.Left },
+                    width: 0,
+                    height: 0,
+                };
+                eventCount = eventCount + 1;
+            }
+            return 0;
+        },
+        WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_MBUTTONDOWN => {
+            var x = (lParam & 0xFFFF) as int;
+            var y = ((lParam >> 16) & 0xFFFF) as int;
+            lastMouseX = x;
+            lastMouseY = y;
+            if eventCount < 10 {
+                eventQueue[eventCount] = Event.{
+                    msg: MessageType.MouseDown,
+                    key: KeyEvent.{ key: VirtualKey.Escape },
+                    mouse: MouseEvent.{ x: x, y: y, button: msgToMouseButton(msg) },
+                    width: 0,
+                    height: 0,
+                };
+                eventCount = eventCount + 1;
+            }
+            return 0;
+        },
+        WM_LBUTTONUP, WM_RBUTTONUP, WM_MBUTTONUP => {
+            var x = (lParam & 0xFFFF) as int;
+            var y = ((lParam >> 16) & 0xFFFF) as int;
+            lastMouseX = x;
+            lastMouseY = y;
+            if eventCount < 10 {
+                eventQueue[eventCount] = Event.{
+                    msg: MessageType.MouseUp,
+                    key: KeyEvent.{ key: VirtualKey.Escape },
+                    mouse: MouseEvent.{ x: x, y: y, button: msgToMouseButton(msg) },
+                    width: 0,
+                    height: 0,
+                };
+                eventCount = eventCount + 1;
+            }
+            return 0;
+        },
+        WM_MOUSEMOVE => {
+            var x = (lParam & 0xFFFF) as int;
+            var y = ((lParam >> 16) & 0xFFFF) as int;
+            lastMouseX = x;
+            lastMouseY = y;
+            return 0;
+        },
+        _ => {
+            return DefWindowProcA(hwnd, msg, wParam, lParam);
+        }
+    }
+}
+
+// Windows API 声明
+extern "user32.dll" fn RegisterClassA(wc: &WNDCLASSA) -> u16;
+extern "user32.dll" fn CreateWindowExA(exStyle: u32, className: str, windowName: str,
+    style: u32, x: i32, y: i32, width: i32, height: i32,
+    hWndParent: HWND, hMenu: rawptr, hInstance: HINSTANCE, lpParam: rawptr) -> HWND;
+extern "user32.dll" fn ShowWindow(hwnd: HWND, nCmdShow: i32) -> bool;
+extern "user32.dll" fn GetMessageA(msg: &MSG, hwnd: HWND, msgFilterMin: u32, msgFilterMax: u32) -> bool;
+extern "user32.dll" fn TranslateMessage(msg: &MSG);
+extern "user32.dll" fn DispatchMessageA(msg: &MSG) -> i32;
+extern "user32.dll" fn BeginPaint(hwnd: HWND, ps: &PAINTSTRUCT) -> HDC;
+extern "user32.dll" fn EndPaint(hwnd: HWND, ps: &PAINTSTRUCT) -> bool;
+extern "user32.dll" fn GetClientRect(hwnd: HWND, rect: &RECT);
+extern "user32.dll" fn PostQuitMessage(exitCode: i32);
+extern "user32.dll" fn DefWindowProcA(hwnd: HWND, msg: u32, wParam: u32, lParam: i32) -> i32;
+extern "user32.dll" fn GetStockObject(obj: i32) -> rawptr;
+extern "user32.dll" fn LoadCursorA(hInstance: rawptr, cursorName: rawptr) -> rawptr;
+extern "user32.dll" fn SetTimer(hwnd: HWND, timerId: u32, elapse: u32, timerFunc: rawptr) -> u32;
+extern "user32.dll" fn KillTimer(hwnd: HWND, timerId: u32) -> bool;
+extern "user32.dll" fn InvalidateRect(hwnd: HWND, rect: rawptr, erase: bool) -> bool;
+extern "gdi32.dll" fn CreateCompatibleDC(hdc: HDC) -> HDC;
+extern "gdi32.dll" fn CreateCompatibleBitmap(hdc: HDC, width: i32, height: i32) -> rawptr;
+extern "gdi32.dll" fn SelectObject(hdc: HDC, obj: rawptr) -> rawptr;
+extern "gdi32.dll" fn BitBlt(destDC: HDC, x: i32, y: i32, width: i32, height: i32,
+    srcDC: HDC, srcX: i32, srcY: i32, rop: u32) -> bool;
+extern "gdi32.dll" fn DeleteDC(hdc: HDC);
+extern "gdi32.dll" fn DeleteObject(obj: rawptr) -> bool;
+
+const DC_COMPATIBLE = 0x54002F;
+const SRCCOPY = 0x00CC0020;
+const WHITE_BRUSH = 0;
+const IDC_ARROW = 0x7F00;
+
+// 内部帧缓冲
+private static mut frameBuffer: [800 * 600]u32;
+private static mut backBuffer: HDC = nil;
+private static mut backBitmap: rawptr = nil;
+private static mut windowDC: HDC = nil;
+private static mut gameWidth: int = 0;
+private static mut gameHeight: int = 0;
+
+// 窗口注册和创建
+private fn registerWindowClass(hInstance: HINSTANCE) -> bool {
+    var wc = WNDCLASSA.{
+        style: 0,
+        lpfnWndProc: windowProc,
+        hInstance: hInstance,
+        hIcon: nil,
+        hCursor: LoadCursorA(nil, IDC_ARROW),
+        hbrBackground: GetStockObject(WHITE_BRUSH),
+        lpszMenuName: nil,
+        lpszClassName: "ZenCGame",
+    };
+    
+    var result = RegisterClassA(&wc);
+    return result != 0;
+}
+
+private fn createMainWindow(title: str, width: int, height: int) -> HWND {
+    var hInstance: HINSTANCE = nil;
+    
+    if !registerWindowClass(hInstance) {
+        return nil;
+    }
+    
+    gameWidth = width;
+    gameHeight = height;
+    
+    var hwnd = CreateWindowExA(
+        0,
+        "ZenCGame",
+        title,
+        0x00CF0000, // WS_OVERLAPPEDWINDOW | WS_VISIBLE
+        0x80000000, // CW_USEDEFAULT
+        0x80000000,
+        width + 16,  // 包含边框
+        height + 39, // 包含标题栏
+        nil,
+        nil,
+        hInstance,
+        nil
+    );
+    
+    if hwnd != nil {
+        ShowWindow(hwnd, 1);
+    }
+    
+    return hwnd;
+}
+
+// 平台 API 实现
+pub fn createWindow(title: str, width: int, height: int) -> WindowHandle {
+    hwnd = createMainWindow(title, width, height);
+    
+    if hwnd != nil {
+        // 创建双缓冲
+        windowDC = GetDC(hwnd);
+        backBuffer = CreateCompatibleDC(windowDC);
+        
+        var rect = RECT.{ left: 0, top: 0, right: width, bottom: height };
+        // 确保尺寸正确
+    }
+    
+    return hwnd as WindowHandle;
+}
+
+pub fn closeWindow(window: WindowHandle) {
+    if backBuffer != nil {
+        DeleteDC(backBuffer);
+        backBuffer = nil;
+    }
+    if windowDC != nil {
+        DeleteDC(windowDC);
+        windowDC = nil;
+    }
+}
+
+pub fn pollEvent(window: WindowHandle, event: &Event) -> bool {
+    if quitRequested {
+        event.msg = MessageType.Quit;
+        quitRequested = false;
+        return true;
+    }
+    
+    if eventCount > 0 {
+        event.msg = eventQueue[0].msg;
+        event.key = eventQueue[0].key;
+        event.mouse = eventQueue[0].mouse;
+        event.width = eventQueue[0].width;
+        event.height = eventQueue[0].height;
+        
+        for i in 0..(eventCount - 1) {
+            eventQueue[i] = eventQueue[i + 1];
+        }
+        eventCount = eventCount - 1;
+        return true;
+    }
+    
+    var msg = MSG.{};
+    if GetMessageA(&msg, hwnd, 0, 0) {
+        TranslateMessage(&msg);
+        DispatchMessageA(&msg);
+        
+        if quitRequested {
+            event.msg = MessageType.Quit;
+            quitRequested = false;
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+pub fn getFrameBuffer(window: WindowHandle) -> rawptr {
+    return frameBuffer as rawptr;
+}
+
+pub fn getFrameBufferPitch(window: WindowHandle) -> int {
+    return gameWidth * 4;
+}
+
+pub fn presentFrame(window: WindowHandle) {
+    // 实现双缓冲输出
+    // 这里简化处理，实际需要 GDI BitBlt
+}
+
+pub fn getTickCount() -> u32 {
+    return 0;
+}
+
+pub fn sleep(ms: u32) {
+    // 简化实现
+}
+
+pub fn initPlatform() {
+    // 初始化
+}
+
+pub fn shutdownPlatform() {
+    if windowDC != nil {
+        DeleteDC(windowDC);
+        windowDC = nil;
+    }
+    if backBuffer != nil {
+        DeleteDC(backBuffer);
+        backBuffer = nil;
+    }
+}
