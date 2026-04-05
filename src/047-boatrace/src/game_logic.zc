@@ -1,0 +1,783 @@
+// game_logic.zc - BoatRace游戏逻辑
+// 047-BoatRace 赛船游戏
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const WINDOW_WIDTH: int = 800;
+const WINDOW_HEIGHT: int = 600;
+
+const TRACK_LEFT: int = 50;
+const TRACK_RIGHT: int = 750;
+const TRACK_TOP: int = 80;
+const TRACK_BOTTOM: int = 550;
+
+const BOAT_WIDTH: int = 40;
+const BOAT_HEIGHT: int = 20;
+
+const INITIAL_SPEED: float = 2.0;
+const MAX_SPEED: float = 8.0;
+const ACCELERATION: float = 0.15;
+const DECELERATION: float = 0.05;
+const TURN_SPEED: float = 4.0;
+const DRIFT_FACTOR: float = 0.92;
+
+const BUOY_COUNT: int = 15;
+const BUOY_RADIUS: int = 12;
+
+const LAP_COUNT: int = 3;
+const CHECKPOINT_COUNT: int = 4;
+
+// ==================== 数据结构 ====================
+
+// 向量2D
+struct Vec2 {
+    x: float,
+    y: float,
+}
+
+// 船
+struct Boat {
+    x: float,
+    y: float,
+    angle: float,
+    speed: float,
+    vx: float,
+    vy: float,
+}
+
+// 浮标/障碍物
+struct Buoy {
+    x: int,
+    y: int,
+    color: Color,
+    radius: int,
+}
+
+// 检查点
+struct Checkpoint {
+    x: int,
+    y: int,
+    radius: int,
+    index: int,
+}
+
+// 波浪粒子
+struct Wave {
+    x: float,
+    y: float,
+    life: float,
+    size: float,
+}
+
+// ==================== BoatRace游戏类 ====================
+
+pub class BoatRaceGame extends Game {
+    // 玩家船
+    playerBoat: Boat;
+    
+    // 键盘状态
+    keyUp: bool;
+    keyLeft: bool;
+    keyRight: bool;
+    
+    // 浮标数组
+    buoys: [BUOY_COUNT]Buoy;
+    
+    // 检查点
+    checkpoints: [CHECKPOINT_COUNT]Checkpoint;
+    currentCheckpoint: int;
+    lapCount: int;
+    
+    // 波浪效果
+    waves: [50]Wave;
+    waveCount: int;
+    
+    // 赛道相关
+    trackOffset: float;
+    
+    // 游戏状态
+    gameStarted: bool;
+    gameOver: bool;
+    winner: str;
+    raceTime: u32;
+    bestTime: u32;
+    
+    // 颜色
+    waterColor: Color;
+    trackColor: Color;
+    boatColor: Color;
+    buoyColors: [4]Color;
+    
+    // onInit - 初始化游戏
+    pub fn onInit() {
+        self.setState(GameState.Playing);
+        self.gameStarted = true;
+        self.gameOver = false;
+        self.winner = "";
+        self.currentCheckpoint = 0;
+        self.lapCount = 0;
+        self.waveCount = 0;
+        self.trackOffset = 0.0;
+        self.raceTime = 0;
+        self.bestTime = 999999;
+        
+        // 初始化颜色
+        self.waterColor = Color.RGB(30, 100, 150);
+        self.trackColor = Color.RGB(20, 80, 120);
+        self.boatColor = Color.RGB(220, 180, 50);
+        
+        self.buoyColors[0] = Color.Red();
+        self.buoyColors[1] = Color.Yellow();
+        self.buoyColors[2] = Color.White();
+        self.buoyColors[3] = Color.Green();
+        
+        // 初始化玩家船
+        self.playerBoat.x = (TRACK_LEFT + TRACK_RIGHT) / 2.0;
+        self.playerBoat.y = TRACK_BOTTOM - 50.0;
+        self.playerBoat.angle = -90.0;
+        self.playerBoat.speed = 0.0;
+        self.playerBoat.vx = 0.0;
+        self.playerBoat.vy = 0.0;
+        
+        // 初始化按键状态
+        self.keyUp = false;
+        self.keyLeft = false;
+        self.keyRight = false;
+        
+        // 初始化浮标
+        self.initBuoys();
+        
+        // 初始化检查点
+        self.initCheckpoints();
+        
+        // 初始化波浪
+        self.initWaves();
+    }
+    
+    // 初始化浮标 - 赛道边界和障碍
+    fn initBuoys() {
+        // 左边界浮标
+        for i in 0..5 {
+            self.buoys[i].x = TRACK_LEFT + 20;
+            self.buoys[i].y = TRACK_TOP + (TRACK_BOTTOM - TRACK_TOP) * i / 4 + 30;
+            self.buoys[i].color = Color.Red();
+            self.buoys[i].radius = BUOY_RADIUS;
+        }
+        
+        // 右边界浮标
+        for i in 0..5 {
+            self.buoys[i + 5].x = TRACK_RIGHT - 20;
+            self.buoys[i + 5].y = TRACK_TOP + (TRACK_BOTTOM - TRACK_TOP) * i / 4 + 30;
+            self.buoys[i + 5].color = Color.Red();
+            self.buoys[i + 5].radius = BUOY_RADIUS;
+        }
+        
+        // 中间障碍浮标
+        self.buoys[10].x = 300;
+        self.buoys[10].y = 200;
+        self.buoys[10].color = Color.Yellow();
+        self.buoys[10].radius = BUOY_RADIUS;
+        
+        self.buoys[11].x = 500;
+        self.buoys[11].y = 300;
+        self.buoys[11].color = Color.Yellow();
+        self.buoys[11].radius = BUOY_RADIUS;
+        
+        self.buoys[12].x = 350;
+        self.buoys[12].y = 400;
+        self.buoys[12].color = Color.Yellow();
+        self.buoys[12].radius = BUOY_RADIUS;
+        
+        self.buoys[13].x = 550;
+        self.buoys[13].y = 450;
+        self.buoys[13].color = Color.Yellow();
+        self.buoys[13].radius = BUOY_RADIUS;
+        
+        self.buoys[14].x = 200;
+        self.buoys[14].y = 350;
+        self.buoys[14].color = Color.Yellow();
+        self.buoys[14].radius = BUOY_RADIUS;
+    }
+    
+    // 初始化检查点
+    fn initCheckpoints() {
+        // 起点/终点
+        self.checkpoints[0].x = (TRACK_LEFT + TRACK_RIGHT) / 2;
+        self.checkpoints[0].y = TRACK_BOTTOM - 30;
+        self.checkpoints[0].radius = 40;
+        self.checkpoints[0].index = 0;
+        
+        // 上检查点
+        self.checkpoints[1].x = (TRACK_LEFT + TRACK_RIGHT) / 2;
+        self.checkpoints[1].y = TRACK_TOP + 50;
+        self.checkpoints[1].radius = 40;
+        self.checkpoints[1].index = 1;
+        
+        // 左检查点
+        self.checkpoints[2].x = TRACK_LEFT + 60;
+        self.checkpoints[2].y = (TRACK_TOP + TRACK_BOTTOM) / 2;
+        self.checkpoints[2].radius = 40;
+        self.checkpoints[2].index = 2;
+        
+        // 右检查点
+        self.checkpoints[3].x = TRACK_RIGHT - 60;
+        self.checkpoints[3].y = (TRACK_TOP + TRACK_BOTTOM) / 2;
+        self.checkpoints[3].radius = 40;
+        self.checkpoints[3].index = 3;
+    }
+    
+    // 初始化波浪
+    fn initWaves() {
+        for i in 0..50 {
+            self.waves[i].x = 0.0;
+            self.waves[i].y = 0.0;
+            self.waves[i].life = 0.0;
+            self.waves[i].size = 0.0;
+        }
+        self.waveCount = 0;
+    }
+    
+    // onShutdown - 关闭清理
+    pub fn onShutdown() {
+    }
+    
+    // onUpdate - 每帧更新
+    pub fn onUpdate(dt: u32) {
+        if self.gameOver {
+            return;
+        }
+        
+        // 更新计时
+        self.raceTime = self.raceTime + dt;
+        
+        // 更新船只
+        self.updateBoat(dt);
+        
+        // 更新波浪
+        self.updateWaves(dt);
+        
+        // 检查碰撞
+        self.checkCollisions();
+        
+        // 检查点检测
+        self.checkCheckpoints();
+        
+        // 检查胜负
+        self.checkWinCondition();
+        
+        // 赛道滚动效果
+        self.trackOffset = self.trackOffset + self.playerBoat.speed * 0.5;
+        if self.trackOffset > 40.0 {
+            self.trackOffset = 0.0;
+        }
+    }
+    
+    // 更新船只
+    fn updateBoat(dt: u32) {
+        // 加速/减速
+        if self.keyUp {
+            self.playerBoat.speed = self.playerBoat.speed + ACCELERATION;
+            if self.playerBoat.speed > MAX_SPEED {
+                self.playerBoat.speed = MAX_SPEED;
+            }
+        } else {
+            self.playerBoat.speed = self.playerBoat.speed - DECELERATION;
+            if self.playerBoat.speed < 0.0 {
+                self.playerBoat.speed = 0.0;
+            }
+        }
+        
+        // 转向
+        if self.keyLeft {
+            self.playerBoat.angle = self.playerBoat.angle - TURN_SPEED;
+        }
+        if self.keyRight {
+            self.playerBoat.angle = self.playerBoat.angle + TURN_SPEED;
+        }
+        
+        // 根据角度计算速度
+        var angleRad = self.playerBoat.angle * 3.14159 / 180.0;
+        var targetVx = self.cos(angleRad) * self.playerBoat.speed;
+        var targetVy = self.sin(angleRad) * self.playerBoat.speed;
+        
+        // 漂移效果
+        self.playerBoat.vx = self.playerBoat.vx * DRIFT_FACTOR + targetVx * (1.0 - DRIFT_FACTOR);
+        self.playerBoat.vy = self.playerBoat.vy * DRIFT_FACTOR + targetVy * (1.0 - DRIFT_FACTOR);
+        
+        // 更新位置
+        self.playerBoat.x = self.playerBoat.x + self.playerBoat.vx;
+        self.playerBoat.y = self.playerBoat.y + self.playerBoat.vy;
+        
+        // 边界限制
+        if self.playerBoat.x < TRACK_LEFT as float + BOAT_WIDTH / 2 {
+            self.playerBoat.x = TRACK_LEFT as float + BOAT_WIDTH / 2;
+            self.playerBoat.vx = 0.0;
+        }
+        if self.playerBoat.x > TRACK_RIGHT as float - BOAT_WIDTH / 2 {
+            self.playerBoat.x = TRACK_RIGHT as float - BOAT_WIDTH / 2;
+            self.playerBoat.vx = 0.0;
+        }
+        if self.playerBoat.y < TRACK_TOP as float + BOAT_HEIGHT / 2 {
+            self.playerBoat.y = TRACK_TOP as float + BOAT_HEIGHT / 2;
+            self.playerBoat.vy = 0.0;
+        }
+        if self.playerBoat.y > TRACK_BOTTOM as float - BOAT_HEIGHT / 2 {
+            self.playerBoat.y = TRACK_BOTTOM as float - BOAT_HEIGHT / 2;
+            self.playerBoat.vy = 0.0;
+        }
+        
+        // 生成波浪
+        if self.playerBoat.speed > 1.0 && self.waveCount < 50 {
+            self.waves[self.waveCount].x = self.playerBoat.x - self.cos(angleRad) * 20.0;
+            self.waves[self.waveCount].y = self.playerBoat.y - self.sin(angleRad) * 20.0;
+            self.waves[self.waveCount].life = 30.0;
+            self.waves[self.waveCount].size = self.playerBoat.speed * 2.0;
+            self.waveCount = self.waveCount + 1;
+        }
+    }
+    
+    // 更新波浪
+    fn updateWaves(dt: u32) {
+        for i in 0..50 {
+            if self.waves[i].life > 0.0 {
+                self.waves[i].life = self.waves[i].life - 1.0;
+                self.waves[i].size = self.waves[i].size + 0.3;
+            }
+        }
+    }
+    
+    // 检查碰撞
+    fn checkCollisions() {
+        var boatX = self.playerBoat.x as int;
+        var boatY = self.playerBoat.y as int;
+        
+        for i in 0..BUOY_COUNT {
+            var dx = boatX - self.buoys[i].x;
+            var dy = boatY - self.buoys[i].y;
+            var dist = self.sqrtInt(dx * dx + dy * dy);
+            
+            if dist < BUOY_RADIUS + BOAT_WIDTH / 2 {
+                // 碰撞，减速
+                self.playerBoat.speed = self.playerBoat.speed * 0.5;
+                
+                // 反弹
+                var angle = self.atan2(dy, dx);
+                self.playerBoat.x = self.playerBoat.x + self.cos(angle) * 5.0;
+                self.playerBoat.y = self.playerBoat.y + self.sin(angle) * 5.0;
+            }
+        }
+    }
+    
+    // 检查检查点
+    fn checkCheckpoints() {
+        var nextCheckpoint = (self.currentCheckpoint + 1) % CHECKPOINT_COUNT;
+        var cp = self.checkpoints[nextCheckpoint];
+        
+        var dx = self.playerBoat.x as int - cp.x;
+        var dy = self.playerBoat.y as int - cp.y;
+        var dist = self.sqrtInt(dx * dx + dy * dy);
+        
+        if dist < cp.radius + BOAT_WIDTH / 2 {
+            if nextCheckpoint == 0 && self.currentCheckpoint == CHECKPOINT_COUNT - 1 {
+                // 通过一圈
+                self.lapCount = self.lapCount + 1;
+                self.addScore(100);
+            }
+            self.currentCheckpoint = nextCheckpoint;
+        }
+    }
+    
+    // 检查胜负
+    fn checkWinCondition() {
+        if self.lapCount >= LAP_COUNT {
+            self.gameOver = true;
+            self.winner = "玩家";
+            self.setState(GameState.Won);
+            if self.raceTime < self.bestTime {
+                self.bestTime = self.raceTime;
+            }
+        }
+    }
+    
+    // onRender - 渲染画面
+    pub fn onRender(canvas: Canvas) {
+        // 绘制水背景
+        self.drawWater(canvas);
+        
+        // 绘制赛道
+        self.drawTrack(canvas);
+        
+        // 绘制检查点
+        self.drawCheckpoints(canvas);
+        
+        // 绘制浮标
+        self.drawBuoys(canvas);
+        
+        // 绘制波浪
+        self.drawWaves(canvas);
+        
+        // 绘制船只
+        self.drawBoat(canvas);
+        
+        // 绘制UI
+        self.drawUI(canvas);
+        
+        if self.gameOver {
+            self.drawGameOver(canvas);
+        }
+    }
+    
+    // 绘制水背景
+    fn drawWater(canvas: Canvas) {
+        canvas.clear(self.waterColor);
+        
+        // 绘制波浪纹理
+        for y in 0..self.height {
+            for x in 0..self.width {
+                var wave = self.sin(x as float * 0.05 + self.trackOffset * 0.1 + y as float * 0.02) * 5.0;
+                if (x + y as int + wave as int) % 40 < 2 {
+                    canvas.setPixel(x, y, Color.RGB(40, 120, 170));
+                }
+            }
+        }
+    }
+    
+    // 绘制赛道
+    fn drawTrack(canvas: Canvas) {
+        // 赛道背景
+        canvas.fillRect(TRACK_LEFT, TRACK_TOP, TRACK_RIGHT - TRACK_LEFT, TRACK_BOTTOM - TRACK_TOP, self.trackColor);
+        
+        // 赛道边界线
+        canvas.drawRect(TRACK_LEFT, TRACK_TOP, TRACK_RIGHT - TRACK_LEFT, TRACK_BOTTOM - TRACK_TOP, Color.White());
+        
+        // 起跑线
+        var startX = (TRACK_LEFT + TRACK_RIGHT) / 2;
+        for i in 0..10 {
+            var y = TRACK_BOTTOM - 60 + i * 6;
+            if i % 2 == 0 {
+                canvas.drawLine(startX - 30, y, startX + 30, y, Color.White());
+            }
+        }
+        
+        // 赛道编号标记
+        var font = Font.("Arial", 12);
+        canvas.drawText(TRACK_LEFT + 5, TRACK_TOP + 5, "1", Color.White(), font);
+        canvas.drawText(TRACK_RIGHT - 20, TRACK_TOP + 5, "2", Color.White(), font);
+        canvas.drawText(TRACK_LEFT + 5, TRACK_BOTTOM - 20, "3", Color.White(), font);
+        canvas.drawText(TRACK_RIGHT - 20, TRACK_BOTTOM - 20, "4", Color.White(), font);
+    }
+    
+    // 绘制检查点
+    fn drawCheckpoints(canvas: Canvas) {
+        for i in 0..CHECKPOINT_COUNT {
+            var cp = self.checkpoints[i];
+            var color = if i == (self.currentCheckpoint + 1) % CHECKPOINT_COUNT {
+                Color.Green()
+            } else {
+                Color.RGB(100, 100, 100)
+            };
+            
+            // 绘制检查点圆圈
+            canvas.drawCircle(cp.x, cp.y, cp.radius, color);
+            
+            // 填充半透明
+            for r in 0..cp.radius {
+                for angle in 0..360 {
+                    var rad = angle as float * 3.14159 / 180.0;
+                    var px = cp.x + (r as float * self.cos(rad)) as int;
+                    var py = cp.y + (r as float * self.sin(rad)) as int;
+                    if px >= 0 && px < self.width && py >= 0 && py < self.height {
+                        if r < cp.radius - 2 {
+                            canvas.setPixel(px, py, Color.ARGB(80, 0, 255, 0));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // 绘制浮标
+    fn drawBuoys(canvas: Canvas) {
+        for i in 0..BUOY_COUNT {
+            var buoy = self.buoys[i];
+            
+            // 浮标主体
+            canvas.fillCircle(buoy.x, buoy.y, buoy.radius, buoy.color);
+            
+            // 高光
+            canvas.fillCircle(buoy.x - 3, buoy.y - 3, buoy.radius / 3, Color.White());
+        }
+    }
+    
+    // 绘制波浪
+    fn drawWaves(canvas: Canvas) {
+        for i in 0..50 {
+            if self.waves[i].life > 0.0 {
+                var alpha = (self.waves[i].life / 30.0 * 200.0) as u8;
+                var waveColor = Color.ARGB(alpha, 200, 230, 255);
+                canvas.drawCircle(self.waves[i].x as int, self.waves[i].y as int, self.waves[i].size as int, waveColor);
+            }
+        }
+    }
+    
+    // 绘制船只
+    fn drawBoat(canvas: Canvas) {
+        var x = self.playerBoat.x as int;
+        var y = self.playerBoat.y as int;
+        var angle = self.playerBoat.angle;
+        
+        // 保存画布状态（简化版本直接绘制）
+        
+        // 绘制船体
+        var halfW = BOAT_WIDTH / 2;
+        var halfH = BOAT_HEIGHT / 2;
+        
+        // 绘制船身形（三角形）
+        var tipX = x + (halfW as float * self.cos(angle * 3.14159 / 180.0)) as int;
+        var tipY = y + (halfW as float * self.sin(angle * 3.14159 / 180.0)) as int;
+        
+        var backAngle = angle + 180.0;
+        var backX1 = x + (halfH as float * self.cos((backAngle - 30.0) * 3.14159 / 180.0)) as int;
+        var backY1 = y + (halfH as float * self.sin((backAngle - 30.0) * 3.14159 / 180.0)) as int;
+        var backX2 = x + (halfH as float * self.cos((backAngle + 30.0) * 3.14159 / 180.0)) as int;
+        var backY2 = y + (halfH as float * self.sin((backAngle + 30.0) * 3.14159 / 180.0)) as int;
+        
+        // 绘制船体轮廓
+        canvas.drawLine(tipX, tipY, backX1, backY1, self.boatColor);
+        canvas.drawLine(tipX, tipY, backX2, backY2, self.boatColor);
+        canvas.drawLine(backX1, backY1, backX2, backY2, self.boatColor);
+        
+        // 填充船体
+        for px in (backX1)..(backX2) {
+            for py in (min(backY1, backY2))..(max(backY1, backY2)) {
+                canvas.setPixel(px, py, self.boatColor);
+            }
+        }
+        
+        // 绘制驾驶舱
+        canvas.fillCircle(x, y, 5, Color.RGB(100, 50, 20));
+        
+        // 绘制速度线
+        if self.playerBoat.speed > 2.0 {
+            var speedLines = (self.playerBoat.speed / MAX_SPEED * 5.0) as int;
+            for i in 0..speedLines {
+                var lineAngle = angle + 180.0 + (i - speedLines / 2) * 10.0;
+                var lineLen = 15 + (self.playerBoat.speed * 2.0) as int;
+                var startX = x - (halfW as float * self.cos(angle * 3.14159 / 180.0)) as int;
+                var startY = y - (halfW as float * self.sin(angle * 3.14159 / 180.0)) as int;
+                var endX = startX - (lineLen as float * self.cos(lineAngle * 3.14159 / 180.0)) as int;
+                var endY = startY - (lineLen as float * self.sin(lineAngle * 3.14159 / 180.0)) as int;
+                canvas.drawLine(startX, startY, endX, endY, Color.Cyan());
+            }
+        }
+    }
+    
+    // 绘制UI
+    fn drawUI(canvas: Canvas) {
+        // 顶部信息栏背景
+        canvas.fillRect(0, 0, self.width, 50, Color.Black());
+        
+        // 标题
+        var font = Font.("Arial", 24);
+        var titleFont = Font.("Arial", 16);
+        canvas.drawText(self.width / 2 - 80, 10, "赛船大赛", Color.Yellow(), font);
+        
+        // 圈数
+        var lapText = "第 " ++ self.intToString(self.lapCount + 1) ++ " / " ++ self.intToString(LAP_COUNT) ++ " 圈";
+        canvas.drawText(10, 15, lapText, Color.White(), titleFont);
+        
+        // 时间
+        var timeText = "时间: " ++ self.formatTime(self.raceTime);
+        canvas.drawText(self.width - 150, 15, timeText, Color.White(), titleFont);
+        
+        // 速度表
+        var speedText = "速度: " ++ self.intToString((self.playerBoat.speed / MAX_SPEED * 100.0) as int) ++ "%";
+        canvas.drawText(self.width / 2 - 50, 15, speedText, Color.Cyan(), titleFont);
+        
+        // 速度条
+        canvas.drawRect(self.width / 2 + 50, 15, 100, 15, Color.Gray());
+        var speedBarWidth = (self.playerBoat.speed / MAX_SPEED * 100.0) as int;
+        canvas.fillRect(self.width / 2 + 50, 15, speedBarWidth, 15, Color.Green());
+        
+        // 下一检查点提示
+        var nextCP = (self.currentCheckpoint + 1) % CHECKPOINT_COUNT;
+        var cpNames = ["起点/终点", "上方", "左侧", "右侧"];
+        var cpHint = "下一检查点: " ++ cpNames[nextCP];
+        canvas.drawText(self.width / 2 - 80, 35, cpHint, Color.LightGray(), Font.("Arial", 12));
+    }
+    
+    // 绘制游戏结束
+    fn drawGameOver(canvas: Canvas) {
+        canvas.fillRect(0, 0, self.width, self.height, Color.ARGB(180, 0, 0, 0));
+        
+        var font = Font.("Arial", 48);
+        var text = "🏆 " ++ self.winner ++ " 获胜! 🏆";
+        canvas.drawText(self.width / 2 - 180, self.height / 2 - 80, text, Color.Yellow(), font);
+        
+        var timeFont = Font.("Arial", 28);
+        var timeText = "完成时间: " ++ self.formatTime(self.raceTime);
+        canvas.drawText(self.width / 2 - 120, self.height / 2 - 20, timeText, Color.White(), timeFont);
+        
+        if self.bestTime < 999999 {
+            var bestText = "最佳时间: " ++ self.formatTime(self.bestTime);
+            canvas.drawText(self.width / 2 - 100, self.height / 2 + 20, bestText, Color.Green(), timeFont);
+        }
+        
+        var smallFont = Font.("Arial", 20);
+        var restartText = "按 R 键重新开始";
+        canvas.drawText(self.width / 2 - 100, self.height / 2 + 80, restartText, Color.White(), smallFont);
+    }
+    
+    // onKeyDown - 键盘按下
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.Up => {
+                self.keyUp = true;
+            }
+            VirtualKey.Left => {
+                self.keyLeft = true;
+            }
+            VirtualKey.Right => {
+                self.keyRight = true;
+            }
+            VirtualKey.KeyR => {
+                if self.gameOver {
+                    self.onInit();
+                }
+            }
+            VirtualKey.Space => {
+                if !self.gameStarted {
+                    self.gameStarted = true;
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    // onKeyUp - 键盘释放
+    pub fn onKeyUp(key: VirtualKey) {
+        match key {
+            VirtualKey.Up => {
+                self.keyUp = false;
+            }
+            VirtualKey.Left => {
+                self.keyLeft = false;
+            }
+            VirtualKey.Right => {
+                self.keyRight = false;
+            }
+            _ => {}
+        }
+    }
+    
+    // onMouseDown - 鼠标按下
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+    }
+    
+    // onMouseUp - 鼠标释放
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+    }
+    
+    // ============ 辅助函数 ============
+    
+    fn cos(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = 1.0;
+        var term = 1.0;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn sin(x: float) -> float {
+        var rad = x * 3.14159 / 180.0;
+        var result = rad;
+        var term = rad;
+        for i in 1..6 {
+            term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
+            result = result + term;
+        }
+        return result;
+    }
+    
+    fn atan2(y: float, x: float) -> float {
+        if x > 0.0 {
+            return self.atan(y / x) * 180.0 / 3.14159;
+        } else if x < 0.0 && y >= 0.0 {
+            return (self.atan(y / x) + 3.14159) * 180.0 / 3.14159;
+        } else if x < 0.0 && y < 0.0 {
+            return (self.atan(y / x) - 3.14159) * 180.0 / 3.14159;
+        } else if x == 0.0 && y > 0.0 {
+            return 90.0;
+        } else if x == 0.0 && y < 0.0 {
+            return -90.0;
+        }
+        return 0.0;
+    }
+    
+    fn atan(x: float) -> float {
+        var result = x;
+        var term = x;
+        for i in 1..10 {
+            term = term * (-x * x);
+            result = result + term / (2 * i + 1);
+        }
+        return result;
+    }
+    
+    fn sqrtInt(n: int) -> int {
+        if n < 0 {
+            return 0;
+        }
+        var x = n;
+        var y = 1;
+        while y < x {
+            x = (x + y) / 2;
+            y = n / x;
+        }
+        return x;
+    }
+    
+    fn intToString(n: int) -> str {
+        if n == 0 {
+            return "0";
+        }
+        var result = "";
+        var negative = false;
+        var num = n;
+        if num < 0 {
+            negative = true;
+            num = -num;
+        }
+        while num > 0 {
+            var digit = num % 10;
+            result = (digit as char + "") ++ result;
+            num = num / 10;
+        }
+        return if negative { "-" ++ result } else { result };
+    }
+    
+    fn formatTime(ms: u32) -> str {
+        var seconds = ms / 1000;
+        var minutes = seconds / 60;
+        var secs = seconds % 60;
+        var millis = (ms % 1000) / 10;
+        
+        var minStr = self.intToString(minutes as int);
+        var secStr = self.intToString(secs as int);
+        var msStr = self.intToString(millis as int);
+        
+        if secs < 10 {
+            secStr = "0" ++ secStr;
+        }
+        if millis < 10 {
+            msStr = "0" ++ msStr;
+        }
+        
+        return minStr ++ ":" ++ secStr ++ "." ++ msStr;
+    }
+}
