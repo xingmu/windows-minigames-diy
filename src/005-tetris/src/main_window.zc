@@ -1,0 +1,694 @@
+// main_window.zc - Zen-C Tetris 游戏主程序
+// 使用 003-framework 框架，继承 Game 类
+
+import std.io;
+import std.string;
+
+// 导入框架
+import "platform_api.zc";
+import "game.zc";
+
+// ==================== 游戏常量 ====================
+
+const BOARD_WIDTH: int = 10;      // 游戏区宽度（格子）
+const BOARD_HEIGHT: int = 20;     // 游戏区高度（格子）
+const CELL_SIZE: int = 30;        // 每个格子像素大小
+const GAME_AREA_X: int = 20;      // 游戏区左边界
+const GAME_AREA_Y: int = 20;      // 游戏区上边界
+const SIDE_PANEL_X: int = 340;    // 右侧面板X位置
+const SIDE_PANEL_WIDTH: int = 180; // 右侧面板宽度
+const WINDOW_WIDTH: int = 540;     // 窗口宽度
+const WINDOW_HEIGHT: int = 640;    // 窗口高度
+
+// ==================== 7种方块定义 ====================
+// 每个方块4个状态（旋转0-3），每个状态4个格子坐标
+// 坐标格式: (col, row)，col是列(左右)，row是行(上下)
+
+// I方块 - 青色
+const I_SHAPE: [[int; 4]; 4] = [
+    [[0,1], [1,1], [2,1], [3,1]],   // 旋转0：水平
+    [[2,0], [2,1], [2,2], [2,3]],   // 旋转1：垂直
+    [[0,2], [1,2], [2,2], [3,2]],   // 旋转2：水平
+    [[1,0], [1,1], [1,2], [1,3]],   // 旋转3：垂直
+];
+
+// O方块 - 黄色
+const O_SHAPE: [[int; 4]; 4] = [
+    [[1,0], [2,0], [1,1], [2,1]],   // 旋转0
+    [[1,0], [2,0], [1,1], [2,1]],   // 旋转1（相同）
+    [[1,0], [2,0], [1,1], [2,1]],   // 旋转2（相同）
+    [[1,0], [2,0], [1,1], [2,1]],   // 旋转3（相同）
+];
+
+// T方块 - 紫色
+const T_SHAPE: [[int; 4]; 4] = [
+    [[1,0], [0,1], [1,1], [2,1]],   // 旋转0
+    [[1,0], [1,1], [2,1], [1,2]],   // 旋转1
+    [[0,1], [1,1], [2,1], [1,2]],   // 旋转2
+    [[1,0], [0,1], [1,1], [1,2]],   // 旋转3
+];
+
+// S方块 - 绿色
+const S_SHAPE: [[int; 4]; 4] = [
+    [[1,0], [2,0], [0,1], [1,1]],   // 旋转0
+    [[1,0], [1,1], [2,1], [2,2]],   // 旋转1
+    [[1,1], [2,1], [0,2], [1,2]],   // 旋转2
+    [[0,0], [0,1], [1,1], [1,2]],   // 旋转3
+];
+
+// Z方块 - 红色
+const Z_SHAPE: [[int; 4]; 4] = [
+    [[0,0], [1,0], [1,1], [2,1]],   // 旋转0
+    [[2,0], [1,1], [2,1], [1,2]],   // 旋转1
+    [[0,1], [1,1], [1,2], [2,2]],   // 旋转2
+    [[1,0], [0,1], [1,1], [0,2]],   // 旋转3
+];
+
+// J方块 - 蓝色
+const J_SHAPE: [[int; 4]; 4] = [
+    [[0,0], [0,1], [1,1], [2,1]],   // 旋转0
+    [[1,0], [2,0], [1,1], [1,2]],   // 旋转1
+    [[0,1], [1,1], [2,1], [2,2]],   // 旋转2
+    [[1,0], [1,1], [0,2], [1,2]],   // 旋转3
+];
+
+// L方块 - 橙色
+const L_SHAPE: [[int; 4]; 4] = [
+    [[2,0], [0,1], [1,1], [2,1]],   // 旋转0
+    [[1,0], [1,1], [1,2], [2,2]],   // 旋转1
+    [[0,1], [1,1], [2,1], [0,2]],   // 旋转2
+    [[0,0], [1,0], [1,1], [1,2]],   // 旋转3
+];
+
+// 方块类型枚举
+enum TetrominoType {
+    TypeI,  // 0
+    TypeO,  // 1
+    TypeT,  // 2
+    TypeS,  // 3
+    TypeZ,  // 4
+    TypeJ,  // 5
+    TypeL,  // 6
+}
+
+// 方块颜色 (RGB)
+fn getTetrominoColor(t: TetrominoType) -> Color {
+    match t {
+        TetrominoType.TypeI => return Color.RGB(0, 255, 255);   // 青色
+        TetrominoType.TypeO => return Color.RGB(255, 255, 0);   // 黄色
+        TetrominoType.TypeT => return Color.RGB(128, 0, 128);   // 紫色
+        TetrominoType.TypeS => return Color.RGB(0, 255, 0);     // 绿色
+        TetrominoType.TypeZ => return Color.RGB(255, 0, 0);     // 红色
+        TetrominoType.TypeJ => return Color.RGB(0, 0, 255);     // 蓝色
+        TetrominoType.TypeL => return Color.RGB(255, 165, 0);   // 橙色
+    }
+}
+
+// 获取方块形状
+fn getTetrominoShape(t: TetrominoType, rotation: int) -> [int; 4] {
+    var rot = rotation % 4;
+    match t {
+        TetrominoType.TypeI => return I_SHAPE[rot],
+        TetrominoType.TypeO => return O_SHAPE[rot],
+        TetrominoType.TypeT => return T_SHAPE[rot],
+        TetrominoType.TypeS => return S_SHAPE[rot],
+        TetrominoType.TypeZ => return Z_SHAPE[rot],
+        TetrominoType.TypeJ => return J_SHAPE[rot],
+        TetrominoType.TypeL => return L_SHAPE[rot],
+    }
+}
+
+// ==================== 当前方块 ====================
+struct CurrentPiece {
+    pieceType: TetrominoType;
+    x: int;           // 方块左上角在棋盘上的X（列）
+    y: int;           // 方块左上角在棋盘上的Y（行）
+    rotation: int;    // 旋转状态 0-3
+}
+
+// ==================== 俄罗斯方块游戏类 ====================
+class TetrisGame extends Game {
+    // 棋盘：存储每个格子的颜色，0表示空
+    board: [BOARD_HEIGHT][BOARD_WIDTH]int;
+    
+    // 当前下落的方块
+    currentPiece: CurrentPiece;
+    
+    // 下一个方块类型
+    nextPieceType: TetrominoType;
+    
+    // 下落计时（用于控制下落速度）
+    dropTimer: u32;
+    dropInterval: u32;  // 毫秒
+    
+    // 软降计时（加速下落）
+    softDropInterval: u32;
+    
+    // 游戏是否结束
+    gameOver: bool;
+    
+    // 分数
+    score: int;
+    lines: int;  // 消除的总行数
+    
+    // 锁定延迟（方块落到底后短暂等待）
+    lockDelay: u32;
+    lockDelayMax: u32;
+    
+    // 构造函数
+    pub fn create(title: str, width: int, height: int, fps: int) {
+        self.width = width;
+        self.height = height;
+        self.targetFPS = fps;
+        self.frameTime = 1000 / fps as u32;
+        self.state = GameState.Ready;
+        self.score = 0;
+        self.running = false;
+        
+        // 创建窗口
+        self.window = createWindow(title, width, height);
+        if self.window == nil {
+            println("错误: 无法创建窗口");
+            return;
+        }
+        
+        // 初始化游戏数据
+        self.dropInterval = 500;    // 正常下落速度：500ms
+        self.softDropInterval = 50; // 软降速度：50ms
+        self.lockDelayMax = 500;     // 锁定延迟：500ms
+        self.dropTimer = 0;
+        self.lockDelay = 0;
+        self.gameOver = false;
+        self.lines = 0;
+        
+        // 初始化棋盘
+        for y in 0..BOARD_HEIGHT {
+            for x in 0..BOARD_WIDTH {
+                self.board[y][x] = 0;
+            }
+        }
+        
+        // 初始化随机数
+        setRandomSeed(getTickCount());
+        
+        // 生成第一个方块
+        self.nextPieceType = self.randomPieceType();
+        self.spawnNewPiece();
+        
+        self.state = GameState.Playing;
+        
+        println("俄罗斯方块游戏创建成功: " ++ title);
+    }
+    
+    // 生成随机方块类型
+    fn randomPieceType() -> TetrominoType {
+        var r = rand() % 7;
+        match r {
+            0 => return TetrominoType.TypeI,
+            1 => return TetrominoType.TypeO,
+            2 => return TetrominoType.TypeT,
+            3 => return TetrominoType.TypeS,
+            4 => return TetrominoType.TypeZ,
+            5 => return TetrominoType.TypeJ,
+            6 => return TetrominoType.TypeL,
+        }
+        return TetrominoType.TypeI;
+    }
+    
+    // 生成新方块
+    fn spawnNewPiece() {
+        self.currentPiece.pieceType = self.nextPieceType;
+        self.currentPiece.x = 3;    // 从中间位置下落
+        self.currentPiece.y = 0;     // 从顶部开始
+        self.currentPiece.rotation = 0;
+        self.nextPieceType = self.randomPieceType();
+        self.lockDelay = 0;
+        
+        // 检查游戏结束（如果新方块生成位置就有碰撞）
+        if self.checkCollision(self.currentPiece.x, self.currentPiece.y, self.currentPiece.rotation) {
+            self.gameOver = true;
+            self.state = GameState.Lost;
+        }
+    }
+    
+    // 检查碰撞
+    fn checkCollision(pieceX: int, pieceY: int, rotation: int) -> bool {
+        var shape = getTetrominoShape(self.currentPiece.pieceType, rotation);
+        
+        for i in 0..4 {
+            var bx = pieceX + shape[i * 2];
+            var by = pieceY + shape[i * 2 + 1];
+            
+            // 检查边界
+            if bx < 0 || bx >= BOARD_WIDTH || by >= BOARD_HEIGHT {
+                return true;
+            }
+            
+            // 检查棋盘（只检查y>=0的位置）
+            if by >= 0 {
+                if self.board[by][bx] != 0 {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    // 锁定当前方块到棋盘
+    fn lockPiece() {
+        var shape = getTetrominoShape(self.currentPiece.pieceType, self.currentPiece.rotation);
+        var colorIdx = (self.currentPiece.pieceType as int) + 1;  // 1-7对应不同颜色
+        
+        for i in 0..4 {
+            var bx = self.currentPiece.x + shape[i * 2];
+            var by = self.currentPiece.y + shape[i * 2 + 1];
+            
+            if by >= 0 && by < BOARD_HEIGHT && bx >= 0 && bx < BOARD_WIDTH {
+                self.board[by][bx] = colorIdx;
+            }
+        }
+        
+        // 消除满行
+        self.clearLines();
+        
+        // 生成新方块
+        self.spawnNewPiece();
+    }
+    
+    // 消除满行
+    fn clearLines() {
+        var linesCleared = 0;
+        
+        // 从下往上检查
+        for y in 0..BOARD_HEIGHT {
+            var full = true;
+            for x in 0..BOARD_WIDTH {
+                if self.board[y][x] == 0 {
+                    full = false;
+                    break;
+                }
+            }
+            
+            if full {
+                linesCleared = linesCleared + 1;
+                
+                // 向下移动上面的所有行
+                for ry in y..0 {
+                    for x in 0..BOARD_WIDTH {
+                        self.board[ry][x] = self.board[ry - 1][x];
+                    }
+                }
+                
+                // 清空最上面一行
+                for x in 0..BOARD_WIDTH {
+                    self.board[0][x] = 0;
+                }
+                
+                // 重新检查当前行（因为上面的行掉下来了）
+                y = y - 1;
+            }
+        }
+        
+        // 计分
+        if linesCleared > 0 {
+            // 消除1行: 100, 2行: 300, 3行: 500, 4行: 800
+            match linesCleared {
+                1 => self.score = self.score + 100,
+                2 => self.score = self.score + 300,
+                3 => self.score = self.score + 500,
+                4 => self.score = self.score + 800,
+                _ => {}
+            }
+            self.lines = self.lines + linesCleared;
+        }
+    }
+    
+    // 移动方块
+    fn movePiece(dx: int, dy: int) -> bool {
+        var newX = self.currentPiece.x + dx;
+        var newY = self.currentPiece.y + dy;
+        
+        if !self.checkCollision(newX, newY, self.currentPiece.rotation) {
+            self.currentPiece.x = newX;
+            self.currentPiece.y = newY;
+            return true;
+        }
+        return false;
+    }
+    
+    // 旋转方块
+    fn rotatePiece() {
+        var newRotation = (self.currentPiece.rotation + 1) % 4;
+        
+        // 尝试正常旋转
+        if !self.checkCollision(self.currentPiece.x, self.currentPiece.y, newRotation) {
+            self.currentPiece.rotation = newRotation;
+            return;
+        }
+        
+        // 墙壁踢：如果正常旋转失败，尝试左右偏移
+        var kicks: [int; 4] = [1, -1, 2, -2];
+        for i in 0..4 {
+            var kickX = kicks[i];
+            if !self.checkCollision(self.currentPiece.x + kickX, self.currentPiece.y, newRotation) {
+                self.currentPiece.x = self.currentPiece.x + kickX;
+                self.currentPiece.rotation = newRotation;
+                return;
+            }
+        }
+    }
+    
+    // 硬降：直接落到底部
+    fn hardDrop() {
+        while self.movePiece(0, 1) {
+            self.score = self.score + 2;  // 硬降给2分
+        }
+        self.lockPiece();
+    }
+    
+    // 获取棋盘格子颜色
+    fn getCellColor(colorIdx: int) -> Color {
+        if colorIdx == 0 {
+            return Color.RGB(30, 30, 30);  // 空：深灰
+        }
+        
+        // 1-7 对应 I, O, T, S, Z, J, L
+        var types: [TetrominoType; 7] = [
+            TetrominoType.TypeI, TetrominoType.TypeO, TetrominoType.TypeT,
+            TetrominoType.TypeS, TetrominoType.TypeZ, TetrominoType.TypeJ,
+            TetrominoType.TypeL
+        ];
+        
+        var color = getTetrominoColor(types[colorIdx - 1]);
+        
+        // 已填充的格子用深色
+        return Color.RGB(
+            ((color >> 16) & 0xFF) as u8 * 3 / 4,
+            ((color >> 8) & 0xFF) as u8 * 3 / 4,
+            (color & 0xFF) as u8 * 3 / 4
+        );
+    }
+    
+    // ==================== Game 类方法实现 ====================
+    
+    pub fn onInit() {
+        println("Tetris 游戏初始化");
+        self.dropTimer = getTickCount();
+    }
+    
+    pub fn onShutdown() {
+        println("Tetris 游戏关闭");
+    }
+    
+    pub fn onUpdate(dt: u32) {
+        if self.gameOver {
+            return;
+        }
+        
+        var interval = self.dropInterval;
+        
+        // 检查是否按住了下方向键（软降）
+        if isKeyDown(VirtualKey.Down) {
+            interval = self.softDropInterval;
+        }
+        
+        // 检查是否可以继续下落
+        if !self.checkCollision(self.currentPiece.x, self.currentPiece.y + 1, self.currentPiece.rotation) {
+            // 可以下落
+            self.dropTimer = self.dropTimer + dt;
+            
+            if self.dropTimer >= interval {
+                self.movePiece(0, 1);
+                self.dropTimer = 0;
+                
+                // 软降加分
+                if isKeyDown(VirtualKey.Down) {
+                    self.score = self.score + 1;
+                }
+            }
+        } else {
+            // 不能下落，触发锁定延迟
+            self.lockDelay = self.lockDelay + dt;
+            if self.lockDelay >= self.lockDelayMax {
+                self.lockPiece();
+                self.dropTimer = 0;
+            }
+        }
+    }
+    
+    pub fn onRender(canvas: Canvas) {
+        // 清屏
+        canvas.clear(Color.RGB(15, 15, 25));
+        
+        // 绘制游戏区域背景
+        canvas.fillRect(GAME_AREA_X, GAME_AREA_Y, 
+                        BOARD_WIDTH * CELL_SIZE, 
+                        BOARD_HEIGHT * CELL_SIZE, 
+                        Color.RGB(20, 20, 35));
+        
+        // 绘制棋盘格子边框
+        for y in 0..=BOARD_HEIGHT {
+            canvas.drawLine(GAME_AREA_X, GAME_AREA_Y + y * CELL_SIZE,
+                           GAME_AREA_X + BOARD_WIDTH * CELL_SIZE, 
+                           GAME_AREA_Y + y * CELL_SIZE,
+                           Color.RGB(50, 50, 70));
+        }
+        for x in 0..=BOARD_WIDTH {
+            canvas.drawLine(GAME_AREA_X + x * CELL_SIZE, GAME_AREA_Y,
+                           GAME_AREA_X + x * CELL_SIZE,
+                           GAME_AREA_Y + BOARD_HEIGHT * CELL_SIZE,
+                           Color.RGB(50, 50, 70));
+        }
+        
+        // 绘制已固定的方块
+        for y in 0..BOARD_HEIGHT {
+            for x in 0..BOARD_WIDTH {
+                if self.board[y][x] != 0 {
+                    var cellX = GAME_AREA_X + x * CELL_SIZE;
+                    var cellY = GAME_AREA_Y + y * CELL_SIZE;
+                    
+                    // 填充格子
+                    canvas.fillRect(cellX + 1, cellY + 1,
+                                   CELL_SIZE - 2, CELL_SIZE - 2,
+                                   self.getCellColor(self.board[y][x]));
+                    
+                    // 绘制高光边
+                    canvas.drawLine(cellX + 1, cellY + 1,
+                                   cellX + CELL_SIZE - 2, cellY + 1,
+                                   Color.RGB(100, 100, 120));
+                    canvas.drawLine(cellX + 1, cellY + 1,
+                                   cellX + 1, cellY + CELL_SIZE - 2,
+                                   Color.RGB(100, 100, 120));
+                }
+            }
+        }
+        
+        // 绘制当前下落的方块
+        if !self.gameOver {
+            var shape = getTetrominoShape(self.currentPiece.pieceType, self.currentPiece.rotation);
+            var pieceColor = getTetrominoColor(self.currentPiece.pieceType);
+            
+            for i in 0..4 {
+                var bx = self.currentPiece.x + shape[i * 2];
+                var by = self.currentPiece.y + shape[i * 2 + 1];
+                
+                if by >= 0 && by < BOARD_HEIGHT && bx >= 0 && bx < BOARD_WIDTH {
+                    var cellX = GAME_AREA_X + bx * CELL_SIZE;
+                    var cellY = GAME_AREA_Y + by * CELL_SIZE;
+                    
+                    // 填充格子
+                    canvas.fillRect(cellX + 1, cellY + 1,
+                                   CELL_SIZE - 2, CELL_SIZE - 2,
+                                   pieceColor);
+                    
+                    // 绘制高光边
+                    canvas.drawLine(cellX + 1, cellY + 1,
+                                   cellX + CELL_SIZE - 2, cellY + 1,
+                                   Color.White());
+                    canvas.drawLine(cellX + 1, cellY + 1,
+                                   cellX + 1, cellY + CELL_SIZE - 2,
+                                   Color.White());
+                }
+            }
+        }
+        
+        // 绘制游戏区域边框
+        canvas.drawRect(GAME_AREA_X - 2, GAME_AREA_Y - 2,
+                       BOARD_WIDTH * CELL_SIZE + 4,
+                       BOARD_HEIGHT * CELL_SIZE + 4,
+                       Color.RGB(100, 100, 140));
+        
+        // ==================== 绘制右侧面板 ====================
+        
+        // 面板背景
+        canvas.fillRect(SIDE_PANEL_X, GAME_AREA_Y,
+                        SIDE_PANEL_WIDTH, BOARD_HEIGHT * CELL_SIZE,
+                        Color.RGB(25, 25, 40));
+        
+        // 面板边框
+        canvas.drawRect(SIDE_PANEL_X - 1, GAME_AREA_Y - 1,
+                        SIDE_PANEL_WIDTH + 2, BOARD_HEIGHT * CELL_SIZE + 2,
+                        Color.RGB(80, 80, 120));
+        
+        // SCORE 标题
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 30,
+                        "SCORE", Color.RGB(150, 150, 180), Font.("Arial", 14));
+        
+        // 分数数值
+        var scoreStr = self.score.toString();
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 55,
+                        scoreStr, Color.White(), Font.("Arial", 28));
+        
+        // LINES 标题
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 120,
+                        "LINES", Color.RGB(150, 150, 180), Font.("Arial", 14));
+        
+        // 消除行数
+        var linesStr = self.lines.toString();
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 145,
+                        linesStr, Color.White(), Font.("Arial", 28));
+        
+        // NEXT 方块标题
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 220,
+                        "NEXT", Color.RGB(150, 150, 180), Font.("Arial", 14));
+        
+        // 绘制下一个方块预览
+        self.drawNextPiecePreview(canvas, SIDE_PANEL_X + 40, GAME_AREA_Y + 250);
+        
+        // 控制说明
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 370,
+                        "CONTROLS", Color.RGB(150, 150, 180), Font.("Arial", 14));
+        
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 400,
+                        "< >  Move", Color.RGB(200, 200, 200), Font.("Arial", 12));
+        
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 425,
+                        "^   Rotate", Color.RGB(200, 200, 200), Font.("Arial", 12));
+        
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 450,
+                        "v   Soft Drop", Color.RGB(200, 200, 200), Font.("Arial", 12));
+        
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 475,
+                        "SPC Hard Drop", Color.RGB(200, 200, 200), Font.("Arial", 12));
+        
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 500,
+                        "ESC Quit", Color.RGB(200, 200, 200), Font.("Arial", 12));
+        
+        // 游戏结束画面
+        if self.gameOver {
+            // 半透明遮罩
+            canvas.fillRect(GAME_AREA_X, GAME_AREA_Y,
+                           BOARD_WIDTH * CELL_SIZE, BOARD_HEIGHT * CELL_SIZE,
+                           Color.RGB(0, 0, 0, 180));
+            
+            // GAME OVER 文字
+            canvas.drawText(GAME_AREA_X + 40, GAME_AREA_Y + 200,
+                            "GAME OVER", Color.RGB(255, 80, 80), Font.("Arial", 32));
+            
+            canvas.drawText(GAME_AREA_X + 55, GAME_AREA_Y + 260,
+                            "Press ESC", Color.RGB(200, 200, 200), Font.("Arial", 18));
+            canvas.drawText(GAME_AREA_X + 55, GAME_AREA_Y + 290,
+                            "to quit", Color.RGB(200, 200, 200), Font.("Arial", 18));
+        }
+    }
+    
+    // 绘制下一个方块预览
+    fn drawNextPiecePreview(canvas: Canvas, startX: int, startY: int) {
+        var shape = getTetrominoShape(self.nextPieceType, 0);
+        var pieceColor = getTetrominoColor(self.nextPieceType);
+        var previewCellSize = 25;
+        
+        // 计算方块边界
+        var minX = 4, maxX = 0, minY = 4, maxY = 0;
+        for i in 0..4 {
+            var sx = shape[i * 2];
+            var sy = shape[i * 2 + 1];
+            if sx < minX { minX = sx; }
+            if sx > maxX { maxX = sx; }
+            if sy < minY { minY = sy; }
+            if sy > maxY { maxY = sy; }
+        }
+        
+        // 居中偏移
+        var pieceWidth = (maxX - minX + 1) * previewCellSize;
+        var pieceHeight = (maxY - minY + 1) * previewCellSize;
+        var offsetX = startX + (4 * previewCellSize - pieceWidth) / 2;
+        var offsetY = startY;
+        
+        // 绘制背景
+        canvas.fillRect(startX - 5, startY - 5, 4 * previewCellSize + 10, 
+                        4 * previewCellSize + 10, Color.RGB(20, 20, 35));
+        
+        // 绘制方块
+        for i in 0..4 {
+            var px = offsetX + (shape[i * 2] - minX) * previewCellSize;
+            var py = offsetY + (shape[i * 2 + 1] - minY) * previewCellSize;
+            
+            canvas.fillRect(px + 1, py + 1, previewCellSize - 2, previewCellSize - 2, pieceColor);
+        }
+    }
+    
+    pub fn onKeyDown(key: VirtualKey) {
+        if self.gameOver {
+            return;
+        }
+        
+        match key {
+            VirtualKey.Left => {
+                self.movePiece(-1, 0);
+            }
+            VirtualKey.Right => {
+                self.movePiece(1, 0);
+            }
+            VirtualKey.Down => {
+                // 软降在 onUpdate 中处理
+            }
+            VirtualKey.Up => {
+                self.rotatePiece();
+            }
+            VirtualKey.Space => {
+                self.hardDrop();
+            }
+            _ => {}
+        }
+    }
+    
+    pub fn onKeyUp(key: VirtualKey) {
+        // 软降松开时不特殊处理，因为 onUpdate 会检查 isKeyDown
+    }
+    
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        // 鼠标操作暂不实现
+    }
+    
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+        // 鼠标操作暂不实现
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() {
+    println("===========================================");
+    println("  Zen-C 俄罗斯方块游戏");
+    println("  使用 003-framework 框架");
+    println("===========================================");
+    
+    // 初始化平台
+    initPlatform();
+    
+    // 创建游戏实例
+    var game = TetrisGame.("Tetris - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    
+    // 运行游戏
+    game.run();
+    
+    // 销毁游戏
+    game.destroy();
+    
+    // 关闭平台
+    shutdownPlatform();
+    
+    println("游戏退出!");
+}
