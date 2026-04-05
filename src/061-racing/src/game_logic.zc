@@ -1,0 +1,486 @@
+// game_logic.zc - 俯视角赛车游戏纯逻辑
+// 所有平台共用相同的游戏逻辑代码
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const TRACK_WIDTH: i32 = 800;
+const TRACK_HEIGHT: i32 = 600;
+const CAR_WIDTH: i32 = 20;
+const CAR_HEIGHT: i32 = 32;
+const MAX_SPEED: f32 = 8.0;
+const ACCELERATION: f32 = 0.15;
+const BRAKE_POWER: f32 = 0.25;
+const FRICTION: f32 = 0.02;
+const TURN_SPEED: f32 = 0.06;
+const OFF_TRACK_SPEED_MULT: f32 = 0.4;
+const TOTAL_LAPS: i32 = 3;
+
+// 车的状态
+enum CarState {
+    Normal,
+    OffTrack,
+    Boosted
+}
+
+// 检查点数量
+const NUM_CHECKPOINTS: i32 = 4;
+
+// ==================== 数据结构 ====================
+
+// 向量2D
+struct Vec2 {
+    x: f32,
+    y: f32
+}
+
+// 赛车结构
+struct Car {
+    x: f32,
+    y: f32,
+    angle: f32,       // 弧度
+    speed: f32,
+    state: CarState,
+    boost_timer: i32
+}
+
+// 检查点结构
+struct Checkpoint {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    passed: bool
+}
+
+// 游戏状态
+struct GameState {
+    car: Car,
+    checkpoints: [NUM_CHECKPOINTS]Checkpoint,
+    current_checkpoint: i32,
+    lap: i32,
+    race_finished: bool,
+    paused: bool,
+    game_over: bool,
+    
+    // 时间相关
+    race_start_time: i64,
+    lap_start_time: i64,
+    best_lap_time: i64,
+    last_lap_time: i64,
+    
+    // 按键状态
+    key_up: bool,
+    key_down: bool,
+    key_left: bool,
+    key_right: bool,
+    
+    // 窗口尺寸
+    window_width: i32,
+    window_height: i32
+}
+
+// ==================== 赛道定义 ====================
+
+// 赛道边界 (矩形赛道带圆角)
+const TRACK_MARGIN: i32 = 60;       // 赛道外边距
+const TRACK_BORDER: i32 = 30;       // 边界线宽度
+const TRACK_CORNER_R: i32 = 80;     // 弯道半径
+
+// 起点线位置
+const START_LINE_X: i32 = 400;
+const START_LINE_Y: i32 = 480;
+const START_LINE_W: i32 = 80;
+const START_LINE_H: i32 = 10;
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut GameState) {
+    // 初始化随机种子
+    let seed = time.now().nanos();
+    math.srand(seed);
+    
+    // 初始化赛车位置 (起点线上方)
+    game.car.x = START_LINE_X as f32;
+    game.car.y = START_LINE_Y as f32 - 50.0;
+    game.car.angle = 0.0;  // 面向右
+    game.car.speed = 0.0;
+    game.car.state = CarState::Normal;
+    game.car.boost_timer = 0;
+    
+    // 初始化检查点 (逆时针分布在赛道四个区域)
+    // 北检查点
+    game.checkpoints[0] = Checkpoint {
+        x: 370, y: 100, width: 60, height: 20, passed: false
+    };
+    // 西检查点
+    game.checkpoints[1] = Checkpoint {
+        x: 100, y: 270, width: 20, height: 60, passed: false
+    };
+    // 南检查点
+    game.checkpoints[2] = Checkpoint {
+        x: 370, y: 480, width: 60, height: 20, passed: false
+    };
+    // 东检查点
+    game.checkpoints[3] = Checkpoint {
+        x: 680, y: 270, width: 20, height: 60, passed: false
+    };
+    
+    game.current_checkpoint = 0;
+    game.lap = 0;
+    game.race_finished = false;
+    game.paused = false;
+    game.game_over = false;
+    game.best_lap_time = 0;
+    game.last_lap_time = 0;
+    
+    // 按键状态初始化
+    game.key_up = false;
+    game.key_down = false;
+    game.key_left = false;
+    game.key_right = false;
+    
+    // 窗口尺寸
+    game.window_width = 800;
+    game.window_height = 600;
+    
+    // 记录比赛开始时间
+    game.race_start_time = time.now().millis();
+    game.lap_start_time = game.race_start_time;
+}
+
+// 处理输入
+fn handle_input(game: &mut GameState, key: i32, pressed: bool) -> bool {
+    match key {
+        // 上
+        38 | 87 | 119 => {
+            game.key_up = pressed;
+        },
+        // 下
+        40 | 83 | 115 => {
+            game.key_down = pressed;
+        },
+        // 左
+        37 | 65 | 97 => {
+            game.key_left = pressed;
+        },
+        // 右
+        39 | 68 | 100 => {
+            game.key_right = pressed;
+        },
+        // 空格 - 暂停
+        32 => {
+            if pressed {
+                game.paused = !game.paused;
+            }
+        },
+        // ESC - 退出
+        27 => {
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+// 设置按键状态 (用于持续按键检测)
+fn set_key_state(game: &mut GameState, key: i32, pressed: bool) {
+    match key {
+        38 | 87 | 119 => game.key_up = pressed,
+        40 | 83 | 115 => game.key_down = pressed,
+        37 | 65 | 97 => game.key_left = pressed,
+        39 | 68 | 100 => game.key_right = pressed,
+        _ => {}
+    }
+}
+
+// 更新赛车
+fn update_car(game: &mut GameState) {
+    if game.race_finished || game.paused {
+        return;
+    }
+    
+    // 加速/刹车
+    if game.key_up {
+        game.car.speed = game.car.speed + ACCELERATION;
+        if game.car.speed > MAX_SPEED {
+            game.car.speed = MAX_SPEED;
+        }
+    }
+    
+    if game.key_down {
+        game.car.speed = game.car.speed - BRAKE_POWER;
+        if game.car.speed < -MAX_SPEED * 0.4 {
+            game.car.speed = -MAX_SPEED * 0.4;
+        }
+    }
+    
+    // 摩擦力减速
+    if !game.key_up && !game.key_down {
+        if game.car.speed > 0.0 {
+            game.car.speed = game.car.speed - FRICTION;
+            if game.car.speed < 0.0 {
+                game.car.speed = 0.0;
+            }
+        } else if game.car.speed < 0.0 {
+            game.car.speed = game.car.speed + FRICTION;
+            if game.car.speed > 0.0 {
+                game.car.speed = 0.0;
+            }
+        }
+    }
+    
+    // 转向 (需要速度才能转向)
+    let turn_factor = if game.car.speed > 0.5 { 1.0 } else if game.car.speed < -0.5 { -1.0 } else { 0.0 };
+    
+    if game.key_left {
+        game.car.angle = game.car.angle - TURN_SPEED * turn_factor;
+    }
+    if game.key_right {
+        game.car.angle = game.car.angle + TURN_SPEED * turn_factor;
+    }
+    
+    // 检查是否在赛道上
+    let on_track = is_on_track(game.car.x as i32, game.car.y as i32);
+    if !on_track {
+        game.car.state = CarState::OffTrack;
+        // 赛道外减速
+        if game.car.speed > MAX_SPEED * OFF_TRACK_SPEED_MULT {
+            game.car.speed = game.car.speed * 0.95;
+        }
+    } else {
+        game.car.state = CarState::Normal;
+    }
+    
+    // boost计时器
+    if game.car.boost_timer > 0 {
+        game.car.boost_timer = game.car.boost_timer - 1;
+        if game.car.boost_timer == 0 {
+            game.car.state = CarState::Normal;
+        }
+    }
+    
+    // 移动赛车
+    let vx = math.cos(game.car.angle) * game.car.speed;
+    let vy = math.sin(game.car.angle) * game.car.speed;
+    
+    game.car.x = game.car.x + vx;
+    game.car.y = game.car.y + vy;
+    
+    // 边界碰撞 (保护性)
+    if game.car.x < 10.0 { game.car.x = 10.0; game.car.speed = game.car.speed * 0.3; }
+    if game.car.x > (game.window_width - 10) as f32 { game.car.x = (game.window_width - 10) as f32; game.car.speed = game.car.speed * 0.3; }
+    if game.car.y < 10.0 { game.car.y = 10.0; game.car.speed = game.car.speed * 0.3; }
+    if game.car.y > (game.window_height - 10) as f32 { game.car.y = (game.window_height - 10) as f32; game.car.speed = game.car.speed * 0.3; }
+}
+
+// 检查坐标是否在赛道上
+fn is_on_track(x: i32, y: i32) -> bool {
+    // 简化赛道检测: 矩形赛道(顶部和底部水平段)
+    // 中间区域(左上和左下, 右上右下)为弯道
+    
+    let margin = TRACK_MARGIN;
+    let border = TRACK_BORDER;
+    
+    // 赛道外边界
+    let track_outer_left = margin;
+    let track_outer_right = TRACK_WIDTH - margin;
+    let track_outer_top = margin;
+    let track_outer_bottom = TRACK_HEIGHT - margin;
+    
+    // 赛道内边界
+    let track_inner_left = margin + border;
+    let track_inner_right = TRACK_WIDTH - margin - border;
+    let track_inner_top = margin + border;
+    let track_inner_bottom = TRACK_HEIGHT - margin - border;
+    
+    // 中心通道 (这部分不是赛道)
+    let center_left = track_inner_left + border;
+    let center_right = track_inner_right - border;
+    let center_top = track_inner_top + border;
+    let center_bottom = track_inner_bottom - border;
+    
+    // 检测是否在外赛道边界内
+    let in_outer = x >= track_outer_left && x <= track_outer_right &&
+                   y >= track_outer_top && y <= track_outer_bottom;
+    
+    // 检测是否在中心通道内 (这部分不是赛道)
+    let in_center = x >= center_left && x <= center_right &&
+                    y >= center_top && y <= center_bottom;
+    
+    // 检测是否在内赛道边界内但不在中心通道内
+    let in_inner = x >= track_inner_left && x <= track_inner_right &&
+                   y >= track_inner_top && y <= track_inner_bottom;
+    
+    // 在赛道上 = 在外边界内 且 (不在中心 或 在内边界内)
+    // 即: in_outer AND (NOT in_center OR in_inner)
+    // 简化: in_outer AND (in_inner OR NOT in_center)
+    return in_outer && (in_inner || !in_center);
+}
+
+// 检查点检测
+fn check_checkpoint(game: &mut GameState) {
+    if game.race_finished || game.paused {
+        return;
+    }
+    
+    let cx = game.car.x as i32;
+    let cy = game.car.y as i32;
+    
+    let cp = game.checkpoints[game.current_checkpoint];
+    
+    // 检查是否经过当前检查点
+    if cx >= cp.x && cx <= cp.x + cp.width &&
+       cy >= cp.y && cy <= cp.y + cp.height {
+        
+        // 标记检查点为通过
+        game.checkpoints[game.current_checkpoint].passed = true;
+        
+        // 移动到下一个检查点
+        game.current_checkpoint = game.current_checkpoint + 1;
+        
+        // 如果通过了所有检查点
+        if game.current_checkpoint >= NUM_CHECKPOINTS {
+            // 完成一圈
+            let now = time.now().millis();
+            game.last_lap_time = now - game.lap_start_time;
+            
+            if game.best_lap_time == 0 || game.last_lap_time < game.best_lap_time {
+                game.best_lap_time = game.last_lap_time;
+            }
+            
+            game.lap = game.lap + 1;
+            game.lap_start_time = now;
+            
+            // 重置检查点
+            game.current_checkpoint = 0;
+            for i in 0..NUM_CHECKPOINTS {
+                game.checkpoints[i].passed = false;
+            }
+            
+            // 检查是否完成比赛
+            if game.lap >= TOTAL_LAPS {
+                game.race_finished = true;
+            }
+        }
+    }
+}
+
+// 更新游戏状态
+fn update_game(game: &mut GameState) {
+    if game.game_over {
+        return;
+    }
+    
+    update_car(game);
+    check_checkpoint(game);
+}
+
+// 获取赛车位置
+fn get_car_position(game: &GameState) -> Vec2 {
+    Vec2 { x: game.car.x, y: game.car.y }
+}
+
+// 获取赛车角度 (弧度)
+fn get_car_angle(game: &GameState) -> f32 {
+    game.car.angle
+}
+
+// 获取赛车速度
+fn get_car_speed(game: &GameState) -> f32 {
+    game.car.speed
+}
+
+// 获取赛车状态
+fn get_car_state(game: &GameState) -> CarState {
+    game.car.state
+}
+
+// 获取当前圈数
+fn get_lap(game: &GameState) -> i32 {
+    game.lap
+}
+
+// 获取当前检查点索引
+fn get_current_checkpoint(game: &GameState) -> i32 {
+    game.current_checkpoint
+}
+
+// 获取比赛是否完成
+fn is_race_finished(game: &GameState) -> bool {
+    game.race_finished
+}
+
+// 获取暂停状态
+fn is_paused(game: &GameState) -> bool {
+    game.paused
+}
+
+// 获取游戏是否结束
+fn is_game_over(game: &GameState) -> bool {
+    game.game_over
+}
+
+// 获取最后圈时间 (毫秒)
+fn get_last_lap_time(game: &GameState) -> i64 {
+    game.last_lap_time
+}
+
+// 获取最佳圈时间 (毫秒)
+fn get_best_lap_time(game: &GameState) -> i64 {
+    game.best_lap_time
+}
+
+// 格式化时间 (毫秒转 MM:SS.mmm)
+fn format_time(ms: i64) -> string {
+    if ms <= 0 {
+        return "00:00.000".to_string();
+    }
+    
+    let total_seconds = ms / 1000;
+    let minutes = total_seconds / 60;
+    let seconds = total_seconds % 60;
+    let millis = ms % 1000;
+    
+    format("{:02}:{:02}.{:03}", minutes, seconds, millis)
+}
+
+// 获取速度百分比 (0-100)
+fn get_speed_percent(game: &GameState) -> i32 {
+    let percent = (math.abs(game.car.speed) / MAX_SPEED * 100.0) as i32;
+    if percent > 100 { 100 } else { percent }
+}
+
+// 获取圈数文本
+fn get_lap_text(game: &GameState) -> string {
+    format("LAP {}/{}", game.lap, TOTAL_LAPS)
+}
+
+// 获取检查点文本
+fn get_checkpoint_text(game: &GameState) -> string {
+    format("CP {}/{}", game.current_checkpoint, NUM_CHECKPOINTS)
+}
+
+// 获取速度文本
+fn get_speed_text(game: &GameState) -> string {
+    format("{} km/h", get_speed_percent(game) * 2)
+}
+
+// 获取游戏状态文本
+fn get_game_status_text(game: &GameState) -> string {
+    if game.race_finished {
+        return "🏁 比赛完成!";
+    } else if game.paused {
+        return "⏸️  暂停中 - 按空格继续";
+    } else {
+        return "🏎️  赛车中...";
+    }
+}
+
+// 获取控制说明
+fn get_controls_text() -> string {
+    "控制: W/↑加速  S/↓刹车  A/←左转  D/→右转  空格暂停  ESC退出"
+}

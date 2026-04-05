@@ -1,0 +1,531 @@
+// main_window.zc - Zen-C 俯视角赛车游戏
+// 所有平台使用同一份Zen-C代码
+
+import std.io;
+import std.string;
+import std.ffi;
+
+// 导入游戏逻辑和平台API
+import "game_logic.zc";
+import "platform_api.zc";
+
+// ==================== 常量 ====================
+
+const WINDOW_WIDTH = 800;
+const WINDOW_HEIGHT = 600;
+const GAME_WIDTH = 800;
+const GAME_HEIGHT = 600;
+
+// ==================== 颜色定义 ====================
+
+// 赛道颜色
+const TRACK_OUTER_COLOR: Color = Color.RGB(60, 60, 60);      // 赛道外 (深灰)
+const TRACK_INNER_COLOR: Color = Color.RGB(80, 80, 80);       // 赛道内 (灰)
+const GRASS_COLOR: Color = Color.RGB(34, 139, 34);            // 草地 (绿色)
+const TRACK_BORDER_COLOR: Color = Color.RGB(255, 255, 255);   // 赛道边界线 (白)
+const START_LINE_COLOR: Color = Color.RGB(255, 255, 0);      // 起点线 (黄)
+const FINISH_LINE_COLOR: Color = Color.RGB(255, 0, 0);        // 终点线 (红)
+
+// 赛车颜色
+const CAR_COLOR: Color = Color.RGB(220, 20, 60);             // 赛车身 (深红)
+const CAR_ACCENT_COLOR: Color = Color.RGB(255, 255, 255);    // 赛车条纹 (白)
+
+// UI颜色
+const UI_BG_COLOR: Color = Color.RGB(20, 20, 30);             // UI背景 (深蓝黑)
+const UI_BORDER_COLOR: Color = Color.RGB(100, 100, 150);      // UI边框
+const TEXT_COLOR: Color = Color.RGB(255, 255, 255);          // 文字 (白)
+const ACCENT_COLOR: Color = Color.RGB(255, 200, 0);          // 强调色 (金)
+
+// 检查点颜色
+const CHECKPOINT_COLOR: Color = Color.RGB(0, 200, 255);       // 检查点 (青)
+
+// ==================== 图形绘制函数 ====================
+
+// 绘制像素矩形
+fn draw_pixel_rect(ctx: &GraphicsContext, x: i32, y: i32, w: i32, h: i32, color: Color) {
+    for py in y..(y + h) {
+        for px in x..(x + w) {
+            draw_pixel(ctx, px, py, color);
+        }
+    }
+}
+
+// 绘制像素线 (Bresenham)
+fn draw_pixel_line(ctx: &GraphicsContext, x1: i32, y1: i32, x2: i32, y2: i32, color: Color) {
+    let dx = if x2 > x1 { x2 - x1 } else { x1 - x2 };
+    let dy = if y2 > y1 { y2 - y1 } else { y1 - y2 };
+    let sx = if x1 < x2 { 1 } else { -1 };
+    let sy = if y1 < y2 { 1 } else { -1 };
+    let mut err = dx - dy;
+    let mut x = x1;
+    let mut y = y1;
+    
+    loop {
+        draw_pixel(ctx, x, y, color);
+        
+        if x == x2 && y == y2 {
+            break;
+        }
+        
+        let e2 = 2 * err;
+        if e2 > -dy {
+            err = err - dy;
+            x = x + sx;
+        }
+        if e2 < dx {
+            err = err + dx;
+            y = y + sy;
+        }
+    }
+}
+
+// 绘制像素圆
+fn draw_pixel_circle(ctx: &GraphicsContext, cx: i32, cy: i32, radius: i32, color: Color) {
+    let mut x = 0;
+    let mut y = radius;
+    let mut d = 3 - 2 * radius;
+    
+    loop {
+        draw_pixel(ctx, cx + x, cy + y, color);
+        draw_pixel(ctx, cx - x, cy + y, color);
+        draw_pixel(ctx, cx + x, cy - y, color);
+        draw_pixel(ctx, cx - x, cy - y, color);
+        draw_pixel(ctx, cx + y, cy + x, color);
+        draw_pixel(ctx, cx - y, cy + x, color);
+        draw_pixel(ctx, cx + y, cy - x, color);
+        draw_pixel(ctx, cx - y, cy - x, color);
+        
+        if d < 0 {
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            y = y - 1;
+        }
+        
+        x = x + 1;
+        if x > y {
+            break;
+        }
+    }
+}
+
+// 绘制填充像素圆
+fn draw_filled_circle(ctx: &GraphicsContext, cx: i32, cy: i32, radius: i32, color: Color) {
+    for py in (cy - radius)..(cy + radius + 1) {
+        for px in (cx - radius)..(cx + radius + 1) {
+            let dx = px - cx;
+            let dy = py - cy;
+            if dx * dx + dy * dy <= radius * radius {
+                draw_pixel(ctx, px, py, color);
+            }
+        }
+    }
+}
+
+// 绘制赛道背景
+fn draw_track_background(ctx: &GraphicsContext) {
+    // 草地背景
+    draw_pixel_rect(ctx, 0, 0, GAME_WIDTH, GAME_HEIGHT, GRASS_COLOR);
+    
+    let margin = TRACK_MARGIN;
+    let border = TRACK_BORDER;
+    
+    // 赛道外边界 (灰色矩形)
+    draw_pixel_rect(ctx, margin, margin, 
+                    GAME_WIDTH - margin * 2, 
+                    GAME_HEIGHT - margin * 2, 
+                    TRACK_OUTER_COLOR);
+    
+    // 赛道内边界 (绿色/草地)
+    draw_pixel_rect(ctx, margin + border, margin + border,
+                    GAME_WIDTH - margin * 2 - border * 2,
+                    GAME_HEIGHT - margin * 2 - border * 2,
+                    GRASS_COLOR);
+    
+    // 赛道中心通道 (也是草地)
+    let center_margin = margin + border * 2;
+    draw_pixel_rect(ctx, center_margin, center_margin,
+                    GAME_WIDTH - center_margin * 2,
+                    GAME_HEIGHT - center_margin * 2,
+                    GRASS_COLOR);
+    
+    // 绘制赛道边界线 (白色)
+    // 上边界
+    draw_pixel_line(ctx, margin, margin, GAME_WIDTH - margin, margin, TRACK_BORDER_COLOR);
+    // 下边界
+    draw_pixel_line(ctx, margin, GAME_HEIGHT - margin, GAME_WIDTH - margin, GAME_HEIGHT - margin, TRACK_BORDER_COLOR);
+    // 左边界
+    draw_pixel_line(ctx, margin, margin, margin, GAME_HEIGHT - margin, TRACK_BORDER_COLOR);
+    // 右边界
+    draw_pixel_line(ctx, GAME_WIDTH - margin, margin, GAME_WIDTH - margin, GAME_HEIGHT - margin, TRACK_BORDER_COLOR);
+    
+    // 内边界线
+    let inner = margin + border;
+    draw_pixel_line(ctx, inner, inner, GAME_WIDTH - inner, inner, TRACK_BORDER_COLOR);
+    draw_pixel_line(ctx, inner, GAME_HEIGHT - inner, GAME_WIDTH - inner, GAME_HEIGHT - inner, TRACK_BORDER_COLOR);
+    draw_pixel_line(ctx, inner, inner, inner, GAME_HEIGHT - inner, TRACK_BORDER_COLOR);
+    draw_pixel_line(ctx, GAME_WIDTH - inner, inner, GAME_WIDTH - inner, GAME_HEIGHT - inner, TRACK_BORDER_COLOR);
+    
+    // 绘制起点线 (黄色方格图案)
+    let sl_x = START_LINE_X - START_LINE_W / 2;
+    let sl_y = START_LINE_Y - START_LINE_H / 2;
+    let checker_size = 10;
+    for row in 0..(START_LINE_H / checker_size) {
+        for col in 0..(START_LINE_W / checker_size) {
+            let color = if (row + col) % 2 == 0 { START_LINE_COLOR } else { Color.Black() };
+            draw_pixel_rect(ctx, sl_x + col * checker_size, sl_y + row * checker_size,
+                           checker_size, checker_size, color);
+        }
+    }
+    
+    // 绘制检查点 (半透明提示)
+    // 北检查点 - 上方水平
+    draw_pixel_rect(ctx, 370, 100, 60, 20, Color.ARGB(80, 0, 200, 255));
+    // 西检查点 - 左侧垂直
+    draw_pixel_rect(ctx, 100, 270, 20, 60, Color.ARGB(80, 0, 200, 255));
+    // 南检查点 - 下方水平
+    draw_pixel_rect(ctx, 370, 480, 60, 20, Color.ARGB(80, 0, 200, 255));
+    // 东检查点 - 右侧垂直
+    draw_pixel_rect(ctx, 680, 270, 20, 60, Color.ARGB(80, 0, 200, 255));
+}
+
+// 绘制赛车
+fn draw_car(ctx: &GraphicsContext, x: f32, y: f32, angle: f32, state: CarState) {
+    let cx = x as i32;
+    let cy = y as i32;
+    
+    // 根据角度计算四个角的坐标
+    let cos_a = math.cos(angle);
+    let sin_a = math.sin(angle);
+    
+    // 车的尺寸
+    let hw = CAR_WIDTH / 2;
+    let hh = CAR_HEIGHT / 2;
+    
+    // 计算四个角 (相对于中心)
+    let corners_x = [
+        -hw,  hw,  hw, -hw
+    ];
+    let corners_y = [
+        -hh, -hh,  hh,  hh
+    ];
+    
+    // 旋转并转换为中心点数组
+    let mut pts_x: [4]i32 = [0; 4];
+    let mut pts_y: [4]i32 = [0; 4];
+    
+    for i in 0..4 {
+        let rx = corners_x[i] as f32 * cos_a - corners_y[i] as f32 * sin_a;
+        let ry = corners_x[i] as f32 * sin_a + corners_y[i] as f32 * cos_a;
+        pts_x[i] = cx + rx as i32;
+        pts_y[i] = cy + ry as i32;
+    }
+    
+    // 根据状态选择颜色
+    let body_color = match state {
+        CarState::OffTrack => Color.RGB(180, 120, 60),  // 土色表示打滑
+        CarState::Boosted => Color.RGB(255, 100, 0),    // 橙色表示加速
+        _ => CAR_COLOR
+    };
+    
+    // 绘制车身 (4个点组成的多边形简化为矩形)
+    // 计算 bounding box
+    let mut min_x = pts_x[0];
+    let mut max_x = pts_x[0];
+    let mut min_y = pts_y[0];
+    let mut max_y = pts_y[0];
+    for i in 1..4 {
+        if pts_x[i] < min_x { min_x = pts_x[i]; }
+        if pts_x[i] > max_x { max_x = pts_x[i]; }
+        if pts_y[i] < min_y { min_y = pts_y[i]; }
+        if pts_y[i] > max_y { max_y = pts_y[i]; }
+    }
+    
+    draw_pixel_rect(ctx, min_x, min_y, max_x - min_x, max_y - min_y, body_color);
+    
+    // 绘制车头方向指示 (白色小三角在前部)
+    // 前部中心
+    let front_y = cy - hh;
+    let front_x = cx;
+    // 旋转前部点
+    let front_rx = (0 as f32) * cos_a - (-hh as f32) * sin_a;
+    let front_ry = (0 as f32) * sin_a + (-hh as f32) * cos_a;
+    let tip_x = cx + front_rx as i32;
+    let tip_y = cy + front_ry as i32;
+    
+    // 左肩
+    let left_rx = (-(hw - 4) as f32) * cos_a - (-(hh - 4) as f32) * sin_a;
+    let left_ry = (-(hw - 4) as f32) * sin_a + (-(hh - 4) as f32) * cos_a;
+    let left_x = cx + left_rx as i32;
+    let left_y = cy + left_ry as i32;
+    
+    // 右肩
+    let right_rx = ((hw - 4) as f32) * cos_a - (-(hh - 4) as f32) * sin_a;
+    let right_ry = ((hw - 4) as f32) * sin_a + (-(hh - 4) as f32) * cos_a;
+    let right_x = cx + right_rx as i32;
+    let right_y = cy + right_ry as i32;
+    
+    // 绘制车头三角
+    draw_pixel_line(ctx, tip_x, tip_y, left_x, left_y, CAR_ACCENT_COLOR);
+    draw_pixel_line(ctx, tip_x, tip_y, right_x, right_y, CAR_ACCENT_COLOR);
+    
+    // 绘制引擎火焰 (如果加速中)
+    if state == CarState::Boosted || state == CarState::OffTrack {
+        let flame_len = if state == CarState::Boosted { 15 } else { 8 };
+        // 后部中心
+        let back_rx = (0 as f32) * cos_a - (hh as f32) * sin_a;
+        let back_ry = (0 as f32) * sin_a + (hh as f32) * cos_a;
+        let back_x = cx + back_rx as i32;
+        let back_y = cy + back_ry as i32;
+        
+        // 左火焰点
+        let lf_rx = (-(hw / 2) as f32) * cos_a - (hh as f32 + flame_len as f32) * sin_a;
+        let lf_ry = (-(hw / 2) as f32) * sin_a + (hh as f32 + flame_len as f32) * cos_a;
+        let lf_x = cx + lf_rx as i32;
+        let lf_y = cy + lf_ry as i32;
+        
+        // 右火焰点
+        let rf_rx = ((hw / 2) as f32) * cos_a - (hh as f32 + flame_len as f32) * sin_a;
+        let rf_ry = ((hw / 2) as f32) * sin_a + (hh as f32 + flame_len as f32) * cos_a;
+        let rf_x = cx + rf_rx as i32;
+        let rf_y = cy + rf_ry as i32;
+        
+        draw_pixel_line(ctx, back_x, back_y, lf_x, lf_y, Color.RGB(255, 100, 0));
+        draw_pixel_line(ctx, back_x, back_y, rf_x, rf_y, Color.RGB(255, 100, 0));
+    }
+}
+
+// 绘制UI面板
+fn draw_ui_panel(ctx: &GraphicsContext, x: i32, y: i32, w: i32, h: i32) {
+    // 面板背景
+    draw_pixel_rect(ctx, x, y, w, h, Color.RGB(20, 20, 30));
+    // 边框
+    draw_pixel_line(ctx, x, y, x + w, y, UI_BORDER_COLOR);
+    draw_pixel_line(ctx, x + w, y, x + w, y + h, UI_BORDER_COLOR);
+    draw_pixel_line(ctx, x + w, y + h, x, y + h, UI_BORDER_COLOR);
+    draw_pixel_line(ctx, x, y + h, x, y, UI_BORDER_COLOR);
+}
+
+// 绘制速度表
+fn draw_speedometer(ctx: &GraphicsContext, x: i32, y: i32, speed_pct: i32) {
+    // 速度条背景
+    let bar_width = 120;
+    let bar_height = 16;
+    draw_pixel_rect(ctx, x, y, bar_width, bar_height, Color.RGB(40, 40, 50));
+    
+    // 速度条填充
+    let fill_width = (speed_pct as i32 * bar_width) / 100;
+    let speed_color = if speed_pct > 80 { Color.RGB(255, 60, 60) }
+                      else if speed_pct > 50 { Color.RGB(255, 200, 0) }
+                      else { Color.RGB(60, 200, 60) };
+    draw_pixel_rect(ctx, x + 2, y + 2, fill_width - 4, bar_height - 4, speed_color);
+    
+    // 边框
+    draw_pixel_line(ctx, x, y, x + bar_width, y, Color.White());
+    draw_pixel_line(ctx, x + bar_width, y, x + bar_width, y + bar_height, Color.White());
+    draw_pixel_line(ctx, x + bar_width, y + bar_height, x, y + bar_height, Color.White());
+    draw_pixel_line(ctx, x, y + bar_height, x, y, Color.White());
+}
+
+// 绘制时间
+fn draw_time(ctx: &GraphicsContext, x: i32, y: i32, label: string, time_ms: i64) {
+    let time_str = format_time(time_ms);
+    // 标签在左，时间在右 (这里简化处理)
+    let text_x = x + 5;
+    let text_y = y + 5;
+    
+    // 绘制时间字符串 (简化版本 - 画矩形代替文字)
+    // 实际平台需要字体支持
+    // 这里用方块数量模拟文字长度
+    let char_count = len(label) + len(time_str);
+    draw_pixel_rect(ctx, text_x, text_y, char_count * 6, 10, TEXT_COLOR);
+}
+
+// 绘制游戏HUD
+fn draw_hud(ctx: &GraphicsContext, game: &GameState) {
+    // 顶部面板 - 圈数和检查点
+    draw_ui_panel(ctx, 10, 10, 200, 40);
+    
+    // 底部面板 - 速度和计时
+    draw_ui_panel(ctx, GAME_WIDTH - 210, 10, 200, 70);
+    
+    // 速度面板
+    draw_ui_panel(ctx, 10, GAME_HEIGHT - 50, 180, 40);
+    
+    // 左下角面板 - 检查点
+    draw_ui_panel(ctx, 10, GAME_HEIGHT - 110, 120, 50);
+    
+    // 右下角 - 时间面板
+    draw_ui_panel(ctx, GAME_WIDTH - 160, GAME_HEIGHT - 110, 150, 50);
+    
+    // 完成比赛时显示结束面板
+    if game.race_finished {
+        draw_ui_panel(ctx, GAME_WIDTH / 2 - 150, GAME_HEIGHT / 2 - 60, 300, 120);
+    }
+    
+    // 打印状态信息到控制台
+    io.println("--- Racing HUD ---");
+    io.println(get_lap_text(game));
+    io.println(get_speed_text(game));
+    io.println(get_game_status_text(game));
+    io.println("Best lap: {}", format_time(game.best_lap_time));
+    io.println("Last lap: {}", format_time(game.last_lap_time));
+}
+
+// 绘制整个游戏画面
+fn draw_game(ctx: &GraphicsContext, game: &GameState) {
+    // 绘制赛道背景
+    draw_track_background(ctx);
+    
+    // 绘制赛车
+    let car_pos = get_car_position(game);
+    let car_angle = get_car_angle(game);
+    let car_state = get_car_state(game);
+    draw_car(ctx, car_pos.x, car_pos.y, car_angle, car_state);
+    
+    // 绘制HUD
+    draw_hud(ctx, game);
+}
+
+// ==================== 平台特定代码 ====================
+
+#if IS_WINDOWS
+
+// Windows 消息处理
+extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
+    match uMsg {
+        WM_PAINT => {
+            let mut ps: [64]u8 = [0; 64];
+            let hdc = BeginPaint(hwnd, &ps);
+            
+            let mut rect: [4]i32 = [0; 4];
+            GetClientRect(hwnd, &rect);
+            let width = rect[2] - rect[0];
+            let height = rect[3] - rect[1];
+            
+            // 绘制 (简化)
+            on_paint(hdc, width, height);
+            
+            EndPaint(hwnd, &ps);
+            return 0;
+        },
+        
+        WM_KEYDOWN => {
+            let key = wParam as i32;
+            if key == 27 { // ESC
+                running = false;
+                PostQuitMessage(0);
+            } else {
+                handle_input_key(&mut game, key, true);
+                InvalidateRect(hwnd, null, true);
+            }
+            return 0;
+        },
+        
+        WM_KEYUP => {
+            let key = wParam as i32;
+            handle_input_key(&mut game, key, false);
+            InvalidateRect(hwnd, null, true);
+            return 0;
+        },
+        
+        WM_TIMER => {
+            update_game(&mut game);
+            InvalidateRect(hwnd, null, false);
+            return 0;
+        },
+        
+        WM_DESTROY => {
+            running = false;
+            PostQuitMessage(0);
+            return 0;
+        },
+        
+        _ => {
+            return DefWindowProcA(hwnd, uMsg, wParam, lParam);
+        }
+    }
+}
+
+extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32;
+
+#elif IS_LINUX || IS_MACOS
+
+// Linux/macOS 事件处理 (简化)
+fn handle_platform_events() {
+    // 平台特定事件处理
+}
+
+#endif
+
+// 绘制回调
+fn on_paint(ctx: &GraphicsContext, width: i32, height: i32) {
+    game.window_width = width;
+    game.window_height = height;
+    draw_game(ctx, &game);
+}
+
+// 按键输入处理
+fn handle_input_key(game: &mut GameState, key: i32, pressed: bool) {
+    handle_input(game, key, pressed);
+}
+
+// ==================== 主函数 ====================
+
+fn main() {
+    io.println("========================================");
+    io.println("Zen-C Racing Game - 俯视角赛车");
+    io.println("========================================");
+    io.println("平台: {}", 
+        #if IS_WINDOWS
+            "Windows"
+        #elif IS_LINUX
+            "Linux"
+        #elif IS_MACOS
+            "macOS"
+        #else
+            "未知"
+        #endif
+    );
+    io.println("========================================");
+    
+    // 初始化游戏
+    init_game(&mut game);
+    
+    // 创建窗口
+    let window_title = "Zen-C Racing - 俯视角赛车";
+    let window = createWindow(window_title, WINDOW_WIDTH, WINDOW_HEIGHT);
+    
+    if window == nil {
+        io.println("错误: 无法创建窗口");
+        return;
+    }
+    
+    io.println("窗口创建成功!");
+    io.println("游戏已初始化");
+    io.println(get_controls_text());
+    io.println("========================================");
+    
+    // 显示窗口
+    showWindow(window);
+    
+    // 设置游戏定时器 (60fps)
+    setGameTimer(window, 16);
+    
+    // 运行事件循环
+    runEventLoop(window);
+    
+    io.println("游戏结束!");
+    io.println("最终圈数: {}", game.lap);
+    io.println("最佳单圈: {}", format_time(game.best_lap_time));
+    io.println("========================================");
+    
+    // 清理
+    quitApplication();
+}
+
+// ==================== 全局变量 ====================
+
+static mut game: GameState;
+static mut window: WindowHandle;
+static mut running: bool = true;
