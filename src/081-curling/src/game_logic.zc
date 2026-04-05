@@ -1,0 +1,727 @@
+// game_logic.zc - Zen-C 冰壶游戏核心逻辑
+// Curling - 冰壶投掷与得分
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 500;
+const GAME_HEIGHT: i32 = 750;
+
+// 冰道尺寸
+const SHEET_LEFT: i32 = 80;
+const SHEET_RIGHT: i32 = 420;
+const SHEET_TOP: i32 = 80;
+const SHEET_BOTTOM: i32 = 680;
+const SHEET_WIDTH: i32 = SHEET_RIGHT - SHEET_LEFT;
+const SHEET_HEIGHT: i32 = SHEET_BOTTOM - SHEET_TOP;
+
+// 发球线位置 (玩家站的位置)
+const HOG_LINE_Y: i32 = SHEET_BOTTOM - 100;
+const FOUL_LINE_Y: i32 = SHEET_BOTTOM - 60;
+
+// 圆垒 (House) 中心
+const HOUSE_CX: i32 = (SHEET_LEFT + SHEET_RIGHT) / 2;
+const HOUSE_CY: i32 = SHEET_TOP + 150;
+
+// 圆垒半径
+const HOUSE_R12: i32 = 12;   // 12英尺外圈
+const HOUSE_R8: i32 = 8;     // 8英尺圈
+const HOUSE_R4: i32 = 4;     // 4英尺圈
+const HOUSE_R1: i32 = 2;     // 1英尺内圈 (按钮)
+
+// 冰壶石
+const STONE_RADIUS: i32 = 16;
+const STONE_HANDLE_RADIUS: i32 = 8;
+
+// 最大石头数量
+const MAX_STONES: i32 = 16;
+const STONES_PER_END: i32 = 8;  // 每局每队8个石头
+
+// 物理参数
+const ICE_FRICTION: i32 = 1;      // 冰面摩擦
+const CURL_FACTOR: i32 = 2;       // 旋转 curling 系数
+const MAX_VELOCITY: i32 = 20;
+const MIN_VELOCITY: i32 = 1;
+const GUARD_LINE_Y: i32 = SHEET_TOP + 250;  // 护卫线
+
+// ==================== 颜色定义 ====================
+
+const ICE_COLOR: Color = Color.RGB(220, 240, 255);    // 冰面浅蓝
+const ICE_DARK_COLOR: Color = Color.RGB(180, 210, 240); // 冰面深色
+const STONE_RED: Color = Color.RGB(180, 30, 30);       // 红队石头
+const STONE_YELLOW: Color = Color.RGB(220, 180, 30);   // 黄队石头
+const HOG_LINE_COLOR: Color = Color.RGB(50, 50, 200);  // 中区线 (蓝)
+const CENTER_LINE_COLOR: Color = Color.RGB(200, 50, 50); // 中央线 (红)
+const HOUSE_COLOR: Color = Color.RGB(30, 80, 200);     // 圆垒蓝
+
+const PLAYER_RED: i32 = 1;
+const PLAYER_YELLOW: i32 = 2;
+
+// ==================== 数据结构 ====================
+
+// 冰壶石状态
+struct Stone {
+    x: i32,
+    y: i32,
+    vx: i32,
+    vy: i32,
+    radius: i32,
+    color: Color,
+    active: bool,       // 是否在场地上
+    inHouse: bool,      // 是否在圆垒内
+    isScored: bool,     // 是否已计分
+    player: i32,        // 1=红队, 2=黄队
+    rotation: i32,      // 旋转角度
+    curling: i32,       // 旋转方向: -1=左偏, 0=无, 1=右偏
+    passedHogLine: bool, // 是否已越过发球线
+}
+
+// 游戏状态枚举
+enum GameStatus {
+    Ready,       // 等待投掷
+    Aiming,      // 瞄准中
+    Charging,    // 蓄力中
+    Sliding,     // 石头滑行中
+    Sweeping,    // 清扫中 (冰面摩擦减少)
+    Settling,    // 石头稳定
+    EndRound,    // 本轮结束计分
+    GameOver,    // 游戏结束
+    NextStone,   // 准备下一块石头
+}
+
+// 回合记录
+struct RoundState {
+    currentPlayer: i32,  // 当前应投掷的玩家
+    stonesThrown: i32,    // 本局已投石头数
+    stones: [MAX_STONES]Stone,
+    stoneCount: i32,
+}
+
+// 游戏全局状态
+struct CurlingState {
+    stones: [MAX_STONES]Stone,
+    stoneCount: i32,
+    status: GameStatus,
+    score1: i32,      // 红队分数
+    score2: i32,      // 黄队分数
+    currentPlayer: i32, // 当前玩家 (1=红, 2=黄)
+    stonesThisEnd: i32, // 本局已投石头数
+    endNumber: i32,   // 当前局数 (1-8)
+    mouseX: i32,
+    mouseY: i32,
+    chargeStartX: i32,
+    chargeStartY: i32,
+    power: i32,       // 投掷力度
+    aimAngle: i32,    // 瞄准角度
+    curl: i32,        // 旋转方向
+    sweepPower: i32,  // 清扫力度
+    isSweeping: bool, // 是否正在清扫
+    width: i32,
+    height: i32,
+    throwStoneIndex: i32, // 当前投掷的石头索引
+    lastStoneInHouse: i32, // 最后进入圆垒的石头索引
+}
+
+// ==================== 辅助函数 ====================
+
+fn abs(n: i32) -> i32 {
+    if n < 0 { -n } else { n }
+}
+
+fn min(a: i32, b: i32) -> i32 {
+    if a < b { a } else { b }
+}
+
+fn max(a: i32, b: i32) -> i32 {
+    if a > b { a } else { b }
+}
+
+fn clamp(v: i32, minV: i32, maxV: i32) -> i32 {
+    if v < minV { return minV; }
+    if v > maxV { return maxV; }
+    return v;
+}
+
+fn dist2(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    return dx * dx + dy * dy;
+}
+
+fn dist(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+    let d2 = dist2(x1, y1, x2, y2);
+    return sqrt_int(d2);
+}
+
+fn sqrt_int(n: i32) -> i32 {
+    if n <= 0 { return 0; }
+    let mut x = n;
+    let mut y = 1;
+    while y < x {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    return x;
+}
+
+// ==================== 石头管理 ====================
+
+// 初始化石头
+fn initStone(index: i32, player: i32) -> Stone {
+    let color = if player == PLAYER_RED { STONE_RED } else { STONE_YELLOW };
+    return Stone.{
+        x: HOUSE_CX,
+        y: FOUL_LINE_Y,
+        vx: 0, vy: 0,
+        radius: STONE_RADIUS,
+        color: color,
+        active: false,
+        inHouse: false,
+        isScored: false,
+        player: player,
+        rotation: 0,
+        curling: 0,
+        passedHogLine: false,
+    };
+}
+
+// 重置石头到发射位置
+fn resetStoneToThrow(state: &mut CurlingState, index: i32) {
+    let player = if state.currentPlayer == 1 { PLAYER_RED } else { PLAYER_YELLOW };
+    let color = if player == PLAYER_RED { STONE_RED } else { STONE_YELLOW };
+
+    state.stones[index].x = HOUSE_CX;
+    state.stones[index].y = FOUL_LINE_Y;
+    state.stones[index].vx = 0;
+    state.stones[index].vy = 0;
+    state.stones[index].radius = STONE_RADIUS;
+    state.stones[index].color = color;
+    state.stones[index].active = false;
+    state.stones[index].inHouse = false;
+    state.stones[index].isScored = false;
+    state.stones[index].player = player;
+    state.stones[index].rotation = 0;
+    state.stones[index].curling = 0;
+    state.stones[index].passedHogLine = false;
+}
+
+// 初始化游戏
+fn initGame(state: &mut CurlingState) {
+    state.width = GAME_WIDTH;
+    state.height = GAME_HEIGHT;
+    state.endNumber = 1;
+    state.stonesThisEnd = 0;
+    state.currentPlayer = PLAYER_RED;
+    state.score1 = 0;
+    state.score2 = 0;
+    state.status = GameStatus.Ready;
+    state.power = 0;
+    state.aimAngle = 0;
+    state.curl = 0;
+    state.mouseX = HOUSE_CX;
+    state.mouseY = FOUL_LINE_Y;
+    state.sweepPower = 0;
+    state.isSweeping = false;
+    state.stoneCount = 0;
+    state.throwStoneIndex = 0;
+    state.lastStoneInHouse = -1;
+
+    // 预分配石头 (每队8个)
+    for i in 0..MAX_STONES {
+        state.stones[i] = initStone(i, if i < 8 { PLAYER_RED } else { PLAYER_YELLOW });
+    }
+}
+
+// ==================== 投掷逻辑 ====================
+
+// 执行投掷
+fn throwStone(state: &mut CurlingState, power: i32, angle: i32, curlDir: i32) {
+    if state.stoneCount >= MAX_STONES {
+        return;
+    }
+
+    let idx = state.stoneCount;
+    resetStoneToThrow(state, idx);
+    state.throwStoneIndex = idx;
+
+    // 标准化角度 (-45 到 45 度)
+    let clampedAngle = clamp(angle, -45, 45);
+    let rad = clampedAngle as f32 * 3.14159 / 180.0;
+
+    // 计算速度分量 (负Y向上滑行)
+    let speed = power;
+    state.stones[idx].vx = (speed as f32 * math.sin(rad)) as i32;
+    state.stones[idx].vy = -(speed as f32 * math.cos(rad)) as i32;
+    state.stones[idx].active = true;
+    state.stones[idx].curling = curlDir;
+    state.stones[idx].rotation = curlDir * 5;
+
+    state.stoneCount = state.stoneCount + 1;
+    state.stonesThisEnd = state.stonesThisEnd + 1;
+    state.status = GameStatus.Sliding;
+}
+
+// ==================== 物理更新 ====================
+
+// 检查石头是否在圆垒内
+fn isInHouse(x: i32, y: i32) -> bool {
+    let d = dist(x, y, HOUSE_CX, HOUSE_CY);
+    return d <= HOUSE_R12 + STONE_RADIUS;
+}
+
+// 检查石头是否越过发球线
+fn hasPassedHogLine(stone: &Stone) -> bool {
+    return stone.y < HOG_LINE_Y;
+}
+
+// 更新滑行石头
+fn updateSlidingStone(state: &mut CurlingState) -> bool {
+    let idx = state.throwStoneIndex;
+    if idx < 0 || idx >= state.stoneCount {
+        return false;
+    }
+
+    let stone = &mut state.stones[idx];
+    if !stone.active {
+        return false;
+    }
+
+    // 清扫效果: 减少摩擦
+    let friction = if state.isSweeping && state.status == GameStatus.Sweeping {
+        ICE_FRICTION / 2
+    } else {
+        ICE_FRICTION
+    };
+
+    // 应用旋转 curling 效应
+    if stone.curling != 0 {
+        stone.vx = stone.vx + stone.curling * CURL_FACTOR;
+    }
+
+    // 移动
+    stone.x = stone.x + stone.vx;
+    stone.y = stone.y + stone.vy;
+
+    // 边界反弹
+    if stone.x - stone.radius <= SHEET_LEFT {
+        stone.x = SHEET_LEFT + stone.radius;
+        stone.vx = -stone.vx / 2;
+        stone.curling = 0; // 碰到边停止旋转
+    }
+    if stone.x + stone.radius >= SHEET_RIGHT {
+        stone.x = SHEET_RIGHT - stone.radius;
+        stone.vx = -stone.vx / 2;
+        stone.curling = 0;
+    }
+
+    // 顶部边界
+    if stone.y - stone.radius <= SHEET_TOP {
+        stone.y = SHEET_TOP + stone.radius;
+        stone.vy = -stone.vy / 2;
+    }
+
+    // 记录是否越过发球线
+    if hasPassedHogLine(stone) {
+        stone.passedHogLine = true;
+    }
+
+    // 检测是否在圆垒内
+    stone.inHouse = isInHouse(stone.x, stone.y);
+    if stone.inHouse {
+        state.lastStoneInHouse = idx;
+    }
+
+    // 摩擦减速
+    if stone.vx > 0 {
+        stone.vx = max(0, stone.vx - friction);
+    } else if stone.vx < 0 {
+        stone.vx = min(0, stone.vx + friction);
+    }
+    if stone.vy > 0 {
+        stone.vy = max(0, stone.vy - friction);
+    } else if stone.vy < 0 {
+        stone.vy = min(0, stone.vy + friction);
+    }
+
+    // 更新旋转角度
+    if stone.curling != 0 {
+        stone.rotation = stone.rotation + stone.curling * 2;
+    }
+
+    // 停止检测
+    let speed = sqrt_int(stone.vx * stone.vx + stone.vy * stone.vy);
+
+    // 出界: 如果石头完全滑出场地顶边
+    if stone.y < SHEET_TOP - stone.radius * 2 {
+        stone.active = false;
+        state.status = GameStatus.Settling;
+        return false;
+    }
+
+    if speed <= MIN_VELOCITY {
+        stone.vx = 0;
+        stone.vy = 0;
+        stone.active = false;
+        stone.curling = 0;
+        state.status = GameStatus.Settling;
+        return false;
+    }
+
+    return true;
+}
+
+// 石头间碰撞检测
+fn checkStoneCollision(state: &mut CurlingState) {
+    let idx = state.throwStoneIndex;
+    if idx < 0 || idx >= state.stoneCount {
+        return;
+    }
+
+    let currentStone = &state.stones[idx];
+    if !currentStone.active {
+        return;
+    }
+
+    for i in 0..state.stoneCount {
+        if i == idx {
+            continue;
+        }
+
+        let other = &state.stones[i];
+        if !other.active {
+            continue;
+        }
+
+        let d = dist(currentStone.x, currentStone.y, other.x, other.y);
+        let minDist = currentStone.radius + other.radius;
+
+        if d < minDist && d > 0 {
+            // 碰撞!
+            let dx = other.x - currentStone.x;
+            let dy = other.y - currentStone.y;
+            let nx = dx * 100 / d;
+            let ny = dy * 100 / d;
+
+            // 交换速度 (弹性碰撞简化)
+            let tempVx = currentStone.vx;
+            let tempVy = currentStone.vy;
+
+            // 计算碰撞后的速度
+            let impactSpeed = sqrt_int(currentStone.vx * currentStone.vx + currentStone.vy * currentStone.vy);
+            let bounceFactor = 70;
+
+            currentStone.vx = currentStone.vx * (-bounceFactor) / 100 + other.vx * bounceFactor / 100;
+            currentStone.vy = currentStone.vy * (-bounceFactor) / 100 + other.vy * bounceFactor / 100;
+            other.vx = tempVx * bounceFactor / 100;
+            other.vy = tempVy * bounceFactor / 100;
+
+            // 分离石头
+            let overlap = (minDist - d) / 2 + 1;
+            currentStone.x = currentStone.x - nx * overlap / 100;
+            currentStone.y = currentStone.y - ny * overlap / 100;
+            other.x = other.x + nx * overlap / 100;
+            other.y = other.y + ny * overlap / 100;
+
+            // 被撞的石头变为 active
+            if !other.active && (other.vx != 0 || other.vy != 0) {
+                other.active = true;
+            }
+        }
+    }
+}
+
+// 更新所有石头
+fn updateAllStones(state: &mut CurlingState) -> bool {
+    var anyMoving = false;
+
+    for i in 0..state.stoneCount {
+        let stone = &mut state.stones[i];
+        if !stone.active {
+            continue;
+        }
+
+        anyMoving = true;
+
+        // 应用 curling
+        if stone.curling != 0 {
+            stone.vx = stone.vx + stone.curling * CURL_FACTOR / 2;
+        }
+
+        // 移动
+        stone.x = stone.x + stone.vx;
+        stone.y = stone.y + stone.vy;
+
+        // 边界
+        if stone.x - stone.radius <= SHEET_LEFT {
+            stone.x = SHEET_LEFT + stone.radius;
+            stone.vx = -stone.vx / 2;
+        }
+        if stone.x + stone.radius >= SHEET_RIGHT {
+            stone.x = SHEET_RIGHT - stone.radius;
+            stone.vx = -stone.vx / 2;
+        }
+        if stone.y - stone.radius <= SHEET_TOP {
+            stone.y = SHEET_TOP + stone.radius;
+            stone.vy = -stone.vy / 2;
+        }
+
+        // 摩擦
+        let friction = if state.isSweeping && i == state.throwStoneIndex {
+            ICE_FRICTION / 2
+        } else {
+            ICE_FRICTION
+        };
+
+        if stone.vx > 0 {
+            stone.vx = max(0, stone.vx - friction);
+        } else if stone.vx < 0 {
+            stone.vx = min(0, stone.vx + friction);
+        }
+        if stone.vy > 0 {
+            stone.vy = max(0, stone.vy - friction);
+        } else if stone.vy < 0 {
+            stone.vy = min(0, stone.vy + friction);
+        }
+
+        // 更新旋转
+        if stone.curling != 0 {
+            stone.rotation = stone.rotation + stone.curling * 2;
+        }
+
+        // 检测停止
+        let speed = sqrt_int(stone.vx * stone.vx + stone.vy * stone.vy);
+        if speed <= MIN_VELOCITY {
+            stone.vx = 0;
+            stone.vy = 0;
+            stone.active = false;
+            stone.curling = 0;
+        }
+    }
+
+    return anyMoving;
+}
+
+// ==================== 得分计算 ====================
+
+// 计算本局得分
+fn calculateEndScore(state: &mut CurlingState) -> (i32, i32) {
+    // 找出最接近圆心的石头
+    var closestDist = 99999;
+    var closestPlayer = 0;
+    var scores = (0, 0);
+
+    // 只计算在圆垒内的石头
+    for i in 0..state.stoneCount {
+        let stone = &state.stones[i];
+        if !stone.inHouse {
+            continue;
+        }
+
+        let d = dist(stone.x, stone.y, HOUSE_CX, HOUSE_CY);
+        if d < closestDist {
+            closestDist = d;
+            closestPlayer = stone.player;
+        }
+    }
+
+    if closestPlayer == 0 {
+        return scores;
+    }
+
+    // 最近的球队得分
+    var scoringPlayer = closestPlayer;
+    var score = 0;
+
+    for i in 0..state.stoneCount {
+        let stone = &state.stones[i];
+        if stone.player == scoringPlayer && stone.inHouse {
+            score = score + 1;
+        }
+    }
+
+    if scoringPlayer == PLAYER_RED {
+        scores.0 = score;
+    } else {
+        scores.1 = score;
+    }
+
+    return scores;
+}
+
+// ==================== 游戏流程 ====================
+
+// 下一块石头
+fn nextStone(state: &mut CurlingState) {
+    // 切换玩家
+    if state.currentPlayer == PLAYER_RED {
+        state.currentPlayer = PLAYER_YELLOW;
+    } else {
+        state.currentPlayer = PLAYER_RED;
+    }
+
+    // 检查本局是否结束 (8个石头投完)
+    if state.stonesThisEnd >= STONES_PER_END {
+        // 计算得分
+        let scores = calculateEndScore(state);
+        state.score1 = state.score1 + scores.0;
+        state.score2 = state.score2 + scores.1;
+
+        // 检查游戏是否结束 (8局)
+        if state.endNumber >= 8 {
+            state.status = GameStatus.GameOver;
+        } else {
+            // 下一局
+            state.endNumber = state.endNumber + 1;
+            state.stonesThisEnd = 0;
+            state.stoneCount = 0;
+            state.lastStoneInHouse = -1;
+            state.currentPlayer = PLAYER_RED; // 每局红队先手
+            state.status = GameStatus.EndRound;
+        }
+    } else {
+        state.status = GameStatus.Ready;
+    }
+}
+
+// 开始下一局
+fn startNextEnd(state: &mut CurlingState) {
+    state.stoneCount = 0;
+    state.stonesThisEnd = 0;
+    state.lastStoneInHouse = -1;
+    state.currentPlayer = PLAYER_RED;
+    state.status = GameStatus.Ready;
+}
+
+// ==================== 游戏主更新 ====================
+
+fn updateGame(state: &mut CurlingState) -> bool {
+    match state.status {
+        GameStatus.Sliding, GameStatus.Sweeping => {
+            let moving = updateSlidingStone(state);
+            checkStoneCollision(state);
+            let othersMoving = updateAllStones(state);
+
+            if !moving && !othersMoving {
+                state.isSweeping = false;
+                state.status = GameStatus.Settling;
+            }
+            return true;
+        },
+        GameStatus.Settling => {
+            let anyMoving = updateAllStones(state);
+
+            if !anyMoving {
+                state.status = GameStatus.NextStone;
+            }
+            return true;
+        },
+        GameStatus.NextStone => {
+            nextStone(state);
+            return true;
+        },
+        _ => {
+            return false;
+        }
+    }
+}
+
+// ==================== 鼠标处理 ====================
+
+fn onMouseDown(state: &mut CurlingState, x: i32, y: i32) {
+    if state.status == GameStatus.GameOver {
+        initGame(state);
+        return;
+    }
+
+    if state.status == GameStatus.EndRound {
+        startNextEnd(state);
+        return;
+    }
+
+    if state.status != GameStatus.Ready {
+        // 开始清扫
+        if state.status == GameStatus.Sliding || state.status == GameStatus.Sweeping {
+            state.isSweeping = true;
+            state.sweepPower = 50;
+        }
+        return;
+    }
+
+    state.status = GameStatus.Charging;
+    state.chargeStartX = x;
+    state.chargeStartY = y;
+    state.mouseX = x;
+    state.mouseY = y;
+}
+
+fn onMouseMove(state: &mut CurlingState, x: i32, y: i32) {
+    state.mouseX = x;
+    state.mouseY = y;
+
+    if state.status == GameStatus.Sweeping {
+        state.sweepPower = 100;
+        return;
+    }
+
+    if state.status == GameStatus.Charging {
+        // 计算蓄力 (拖拽距离)
+        let dx = state.chargeStartX - x;
+        let dy = state.chargeStartY - y;
+        let dragDist = sqrt_int(dx * dx + dy * dy);
+
+        state.power = clamp(dragDist / 6, 0, MAX_VELOCITY);
+
+        // 计算瞄准角度 (基于左右偏移)
+        if dy > 0 {
+            state.aimAngle = clamp(dx * 45 / dy, -45, 45);
+        }
+
+        // 计算旋转方向 (基于拖拽方向)
+        state.curl = clamp(dx / 20, -1, 1);
+    }
+}
+
+fn onMouseUp(state: &mut CurlingState, x: i32, y: i32) {
+    if state.status == GameStatus.Sweeping {
+        state.isSweeping = false;
+        return;
+    }
+
+    if state.status == GameStatus.Charging {
+        if state.power >= 3 {
+            throwStone(state, state.power, state.aimAngle, state.curl);
+        } else {
+            state.status = GameStatus.Ready;
+            state.power = 0;
+        }
+    }
+}
+
+// ==================== 状态查询 ====================
+
+fn getStatusText(state: &CurlingState) -> string {
+    match state.status {
+        GameStatus.Ready => {
+            let player = if state.currentPlayer == PLAYER_RED { "红队" } else { "黄队" };
+            return "第" ++ state.endNumber.toString() ++ "局 | " ++ player ++ " | 点击蓄力投球 | 按住清扫";
+        },
+        GameStatus.Charging => return "蓄力: " ++ state.power.toString() ++ " | 角度: " ++ state.aimAngle.toString() ++ "° | 旋转: " ++ state.curl.toString(),
+        GameStatus.Sliding => {
+            if state.isSweeping {
+                return "滑行中 - 清扫!";
+            }
+            return "石头滑行中...";
+        },
+        GameStatus.Sweeping => return "清扫中 - 减少摩擦!",
+        GameStatus.Settling => return "等待稳定...",
+        GameStatus.NextStone => return "准备下一块石头...",
+        GameStatus.EndRound => return "本局结束! 点击开始下一局",
+        GameStatus.GameOver => return "游戏结束! 点击重新开始",
+        _ => return "",
+    }
+}
+
+fn getControlsText() -> string {
+    "控制: 点击拖拽蓄力 | 松开投球 | 滑行时按住可清扫 | R 重新开始"
+}

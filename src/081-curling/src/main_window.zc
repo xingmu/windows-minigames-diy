@@ -1,0 +1,451 @@
+// main_window.zc - Zen-C 冰壶游戏主程序
+
+import std.io;
+import std.math;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 辅助绘制函数 ====================
+
+fn sqrt_int_local(n: i32) -> i32 {
+    if n <= 0 { return 0; }
+    let mut x = n;
+    let mut y = 1;
+    while y < x {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    return x;
+}
+
+// 使用横线绘制填充圆
+fn fb_fill_circle(x: i32, y: i32, radius: i32, color: Color) {
+    if radius <= 0 { return; }
+    for dy in (-radius)..(radius + 1) {
+        let dx = sqrt_int_local(radius * radius - dy * dy);
+        fb_draw_line(x - dx, y + dy, x + dx, y + dy, color);
+    }
+}
+
+// ==================== 全局变量 ====================
+
+static mut game: CurlingState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut game_speed: u32 = 16;  // ~60 FPS
+
+// ==================== 事件处理 ====================
+
+fn on_key(key: KeyCode) -> bool {
+    match key {
+        KeyCode.KeyR => {
+            initGame(&mut game);
+        },
+        KeyCode.KeyEscape => {
+            running = false;
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+fn on_timer() -> bool {
+    return updateGame(&mut game);
+}
+
+fn on_paint(w: i32, h: i32) {
+    if !fb_data.valid {
+        fb_init(window, w, h);
+    }
+
+    // 清屏 - 深色背景
+    fb_clear(rgb(30, 30, 40));
+
+    // 绘制冰面
+    drawIceSheet();
+
+    // 绘制发球线和护卫线
+    drawLines();
+
+    // 绘制圆垒 (House)
+    drawHouse();
+
+    // 绘制所有石头
+    drawStones();
+
+    // 绘制瞄准和蓄力指示
+    if game.status == GameStatus.Charging || game.status == GameStatus.Ready {
+        drawAimIndicator();
+    }
+
+    // 绘制清扫指示
+    if game.isSweeping {
+        drawSweepIndicator();
+    }
+
+    // 绘制UI
+    drawUI();
+
+    // 呈现画面
+    fb_present();
+}
+
+fn on_mouse_down(x: i32, y: i32) {
+    onMouseDown(&mut game, x, y);
+}
+
+fn on_mouse_move(x: i32, y: i32) {
+    onMouseMove(&mut game, x, y);
+}
+
+fn on_mouse_up(x: i32, y: i32) {
+    onMouseUp(&mut game, x, y);
+}
+
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 绘制函数 ====================
+
+fn drawIceSheet() {
+    // 冰面背景
+    fb_draw_rect(SHEET_LEFT, SHEET_TOP, SHEET_WIDTH, SHEET_HEIGHT, ICE_COLOR);
+
+    // 冰面纹理 (竖条纹模拟冰面)
+    for i in 0..20 {
+        let x = SHEET_LEFT + i * (SHEET_WIDTH / 20);
+        let alpha = if i % 2 == 0 { 8 } else { 0 };
+        if alpha > 0 {
+            fb_draw_rect(x, SHEET_TOP, SHEET_WIDTH / 40, SHEET_HEIGHT, rgb(180, 210, 240));
+        }
+    }
+
+    // 冰面边缘
+    fb_draw_rect(SHEET_LEFT - 8, SHEET_TOP - 8, 8, SHEET_HEIGHT + 16, rgb(80, 60, 40));
+    fb_draw_rect(SHEET_RIGHT, SHEET_TOP - 8, 8, SHEET_HEIGHT + 16, rgb(80, 60, 40));
+    fb_draw_rect(SHEET_LEFT - 8, SHEET_TOP - 8, SHEET_WIDTH + 16, 8, rgb(80, 60, 40));
+    fb_draw_rect(SHEET_LEFT - 8, SHEET_BOTTOM, SHEET_WIDTH + 16, 8, rgb(80, 60, 40));
+}
+
+fn drawLines() {
+    // 中心线 (红)
+    let centerX = (SHEET_LEFT + SHEET_RIGHT) / 2;
+    fb_draw_line(centerX, SHEET_TOP, centerX, SHEET_BOTTOM, CENTER_LINE_COLOR);
+
+    // 发球线 ( Hog Line ) - 蓝线
+    fb_draw_line(SHEET_LEFT, HOG_LINE_Y, SHEET_RIGHT, HOG_LINE_Y, HOG_LINE_COLOR);
+    fb_draw_line(SHEET_LEFT, HOG_LINE_Y + 4, SHEET_RIGHT, HOG_LINE_Y + 4, HOG_LINE_COLOR);
+
+    // 发球区前缘线 (红)
+    fb_draw_line(SHEET_LEFT, FOUL_LINE_Y, SHEET_RIGHT, FOUL_LINE_Y, rgb(200, 50, 50));
+
+    // 护卫线
+    fb_draw_line(SHEET_LEFT, GUARD_LINE_Y, SHEET_RIGHT, GUARD_LINE_Y, rgb(150, 150, 150));
+}
+
+fn drawHouse() {
+    let cx = HOUSE_CX;
+    let cy = HOUSE_CY;
+
+    // 外圈 12英尺 - 蓝色
+    fb_draw_circle(cx, cy, HOUSE_R12, rgb(30, 80, 200));
+    fb_draw_circle(cx, cy, HOUSE_R12, rgb(30, 80, 200));
+    fb_fill_circle(cx, cy, HOUSE_R12, rgb(200, 220, 255));
+
+    // 8英尺圈 - 红色
+    fb_draw_circle(cx, cy, HOUSE_R8, rgb(200, 50, 50));
+    fb_fill_circle(cx, cy, HOUSE_R8, rgb(255, 240, 240));
+
+    // 4英尺圈 - 蓝色
+    fb_draw_circle(cx, cy, HOUSE_R4, rgb(30, 80, 200));
+    fb_fill_circle(cx, cy, HOUSE_R4, rgb(220, 235, 255));
+
+    // 1英尺内圈 (按钮) - 红色
+    fb_draw_circle(cx, cy, HOUSE_R1, rgb(200, 50, 50));
+    fb_fill_circle(cx, cy, HOUSE_R1, rgb(255, 200, 200));
+
+    // 中心点
+    fb_draw_circle(cx, cy, 2, rgb(255, 255, 255));
+
+    // T线 (通过按钮的线)
+    fb_draw_line(cx - HOUSE_R12 - 10, cy, cx + HOUSE_R12 + 10, cy, rgb(150, 150, 150));
+}
+
+fn drawStones() {
+    for i in 0..game.stoneCount {
+        let stone = game.stones[i];
+
+        if !stone.active && i >= game.stoneCount {
+            continue;
+        }
+
+        // 石头阴影
+        fb_draw_circle(stone.x + 2, stone.y + 2, stone.radius, rgb(0, 0, 0));
+        fb_draw_circle(stone.x + 2, stone.y + 2, stone.radius - 1, rgb(0, 0, 0));
+
+        // 石头主体
+        let baseColor = stone.color;
+        fb_draw_circle(stone.x, stone.y, stone.radius, baseColor);
+
+        // 石头顶部效果 (根据旋转方向调整颜色)
+        let highlightColor = if stone.player == PLAYER_RED {
+            rgb(220, 80, 80)
+        } else {
+            rgb(240, 200, 60)
+        };
+        fb_draw_circle(stone.x - 3, stone.y - 3, stone.radius / 3, highlightColor);
+
+        // 手柄 (handle) - 石头中间的小圆
+        let handleX = stone.x;
+        let handleY = stone.y;
+
+        // 旋转指示: 手柄方向
+        let handleRad = stone.rotation as f32 * 3.14159 / 180.0;
+        let handleDx = (3 as f32 * math.sin(handleRad)) as i32;
+        let handleDy = -(3 as f32 * math.cos(handleRad)) as i32;
+
+        fb_draw_circle(handleX + handleDx, handleY + handleDy, STONE_HANDLE_RADIUS, rgb(60, 60, 60));
+
+        // 如果在圆垒内且是最后进入的，标记一下
+        if stone.inHouse && i == game.lastStoneInHouse {
+            // 闪烁效果
+            let pulseColor = if stone.player == PLAYER_RED {
+                rgb(255, 100, 100)
+            } else {
+                rgb(255, 220, 80)
+            };
+            fb_draw_circle(stone.x, stone.y, stone.radius + 3, pulseColor);
+        }
+    }
+}
+
+fn drawAimIndicator() {
+    // 当前投掷的石头如果在滑行中，不显示瞄准线
+    let throwingStoneActive = game.stoneCount > 0 && 
+        game.stones[game.stoneCount - 1].active;
+    if throwingStoneActive {
+        return;
+    }
+
+    let throwX = HOUSE_CX;
+    let throwY = FOUL_LINE_Y;
+
+    // 蓄力条
+    if game.status == GameStatus.Charging && game.power > 0 {
+        let barWidth = 80;
+        let barHeight = 8;
+        let barX = throwX - barWidth / 2;
+        let barY = throwY + 30;
+
+        fb_draw_rect(barX, barY, barWidth, barHeight, rgb(80, 80, 80));
+        let fillW = (game.power as f32 / MAX_VELOCITY as f32 * barWidth as f32) as i32;
+        let powerColor = if game.power < 8 {
+            rgb(100, 200, 100)
+        } else if game.power < 15 {
+            rgb(255, 200, 0)
+        } else {
+            rgb(255, 80, 80)
+        };
+        fb_draw_rect(barX, barY, fillW, barHeight, powerColor);
+    }
+
+    // 瞄准方向线
+    if game.status == GameStatus.Charging || game.status == GameStatus.Ready {
+        let aimLen = 50 + game.power * 15;
+        let rad = game.aimAngle as f32 * 3.14159 / 180.0;
+
+        let aimEndX = throwX + (aimLen as f32 * math.sin(rad)) as i32;
+        let aimEndY = throwY - (aimLen as f32 * math.cos(rad)) as i32;
+
+        // 绘制虚线
+        let steps = 8;
+        for s in 0..steps {
+            let t1 = s as f32 / steps as f32;
+            let t2 = (s + 1) as f32 / steps as f32;
+            let x1 = throwX + (aimEndX - throwX) * t1;
+            let y1 = throwY + (aimEndY - throwY) * t1;
+            let x2 = throwX + (aimEndX - throwX) * t2;
+            let y2 = throwY + (aimEndY - throwY) * t2;
+            if s % 2 == 0 {
+                fb_draw_line(x1, y1, x2, y2, rgb(100, 200, 255));
+            }
+        }
+
+        // 旋转指示 (curl)
+        if game.curl != 0 {
+            let curlLen = 30;
+            let curlX = aimEndX + game.curl * curlLen;
+            let curlY = aimEndY;
+            fb_draw_line(aimEndX, aimEndY, curlX, curlY, if game.curl < 0 { rgb(255, 100, 100) } else { rgb(100, 255, 100) });
+            fb_draw_circle(curlX, curlY, 3, if game.curl < 0 { rgb(255, 100, 100) } else { rgb(100, 255, 100) });
+        }
+
+        // 瞄准点
+        fb_draw_circle(aimEndX, aimEndY, 4, rgb(255, 255, 100));
+    }
+}
+
+fn drawSweepIndicator() {
+    if game.stoneCount == 0 {
+        return;
+    }
+
+    let idx = game.throwStoneIndex;
+    if idx < 0 || idx >= game.stoneCount {
+        return;
+    }
+
+    let stone = game.stones[idx];
+
+    // 在石头后面画清扫效果
+    let sweepLen = 60;
+    let sweepY = stone.y + sweepLen;
+
+    // 清扫线条
+    for i in 0..5 {
+        let offsetX = (i - 2) * 6;
+        let alpha = 200 - i * 30;
+        let color = rgb(255, 255, 255);
+        fb_draw_line(stone.x + offsetX - 10, stone.y + 15, stone.x + offsetX + 10, sweepY, color);
+    }
+
+    // 清扫提示文字
+    fb_draw_text_size(stone.x - 30, sweepY + 5, "SWEEP!", rgb(255, 255, 100), 14);
+}
+
+fn drawUI() {
+    // 标题
+    fb_draw_text_size(10, 8, "冰壶 - Curling", rgb(200, 240, 255), 20);
+
+    // 分数
+    let redScore = "红队: " ++ game.score1.toString();
+    let yellowScore = "黄队: " ++ game.score2.toString();
+    fb_draw_text_size(GAME_WIDTH - 130, 8, redScore, rgb(255, 150, 150), 18);
+    fb_draw_text_size(GAME_WIDTH - 130, 28, yellowScore, rgb(255, 220, 100), 18);
+
+    // 当前状态
+    let status = getStatusText(&game);
+    let statusColor = if game.currentPlayer == PLAYER_RED {
+        rgb(255, 180, 180)
+    } else {
+        rgb(255, 220, 100)
+    };
+    fb_draw_text_size(10, GAME_HEIGHT - 35, status, statusColor, 14);
+
+    // 剩余石头
+    let remaining = STONES_PER_END - game.stonesThisEnd;
+    let remText = "剩余: " ++ remaining.toString() ++ " 球";
+    fb_draw_text_size(GAME_WIDTH - 100, GAME_HEIGHT - 35, remText, rgb(180, 180, 180), 14);
+
+    // 控制说明
+    let controls = getControlsText();
+    fb_draw_text_size(10, GAME_HEIGHT - 18, controls, rgb(120, 120, 120), 12);
+
+    // 绘制得分板
+    drawScoreBoard();
+}
+
+fn drawScoreBoard() {
+    let boardX = SHEET_LEFT;
+    let boardY = 38;
+    let boxW = 40;
+    let boxH = 25;
+
+    // 背景
+    fb_draw_rect(boardX - 2, boardY - 2, boxW * 8 + 4, boxH + 4, rgb(60, 60, 60));
+
+    // 绘制每局小框
+    for e in 0..8 {
+        let x = boardX + e * boxW;
+        let frameColor = if e + 1 == game.endNumber { rgb(100, 100, 100) } else { rgb(80, 80, 80) };
+        fb_draw_rect(x, boardY, boxW, boxH, frameColor);
+
+        // 局号
+        let endNum = (e + 1).toString();
+        fb_draw_text_size(x + 2, boardY + 2, endNum, rgb(200, 200, 200), 12);
+
+        // 红队分数
+        let redScore = if e == 0 { game.score1 } else { 0 }; // 简化显示
+        let yellowScore = if e == 0 { game.score2 } else { 0 };
+
+        // 显示最后一局的分数变化
+        if e == 7 {
+            let redStr = game.score1.toString();
+            let yellowStr = game.score2.toString();
+            fb_draw_text_size(x + 2, boardY + 10, redStr, rgb(255, 150, 150), 12);
+            fb_draw_text_size(x + 20, boardY + 10, yellowStr, rgb(255, 220, 100), 12);
+        }
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C 冰壶游戏 - Curling");
+    io.println("========================================");
+
+    // 初始化游戏状态
+    initGame(&mut game);
+
+    // 创建窗口
+    let title = "冰壶 - Curling";
+    window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 获取实际客户区大小
+    let mut cw = 0;
+    let mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        game.width = cw;
+        game.height = ch;
+        set_client_size(cw, ch);
+    }
+
+    // 设置事件处理器
+    set_key_handler(on_key);
+    set_timer_handler(on_timer);
+    set_paint_handler(on_paint);
+    set_mouse_down_handler(on_mouse_down);
+    set_mouse_move_handler(on_mouse_move);
+    set_mouse_up_handler(on_mouse_up);
+    set_destroy_handler(on_destroy);
+
+    // 显示窗口
+    show_window(window);
+
+    // 设置游戏定时器
+    set_game_timer(window, game_speed);
+
+    io.println("窗口创建成功!");
+    io.println("点击并向上拖拽蓄力投球");
+    io.println("滑行时按住可以清扫(减少摩擦)");
+    io.println("按 R 重新开始, ESC 退出");
+    io.println("========================================");
+
+    // 初始绘制
+    redraw_window(window);
+
+    // 运行事件循环
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("最终得分 - 红队: " ++ game.score1.toString() ++ " | 黄队: " ++ game.score2.toString());
+    io.println("========================================");
+
+    0
+}
+
+// 入口点
+pub fn gameMain() {
+    main();
+}
