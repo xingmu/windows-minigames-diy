@@ -1,0 +1,35 @@
+// main_window.zc - Pingpong (2P) Game Entry
+// 074-Pingpong 乒乓球 - 双人版
+// 与006不同：双人本地对战模式
+
+import std.io;
+
+// 导入框架和游戏
+import "platform_api.zc";
+import "game.zc";
+import "game_logic.zc";
+
+// 主函数
+pub fn main() {
+    io.println("===========================================");
+    io.println("  Zen-C Pingpong 乒乓球 - 双人对战版");
+    io.println("  玩家1: W/S  玩家2: 上/下箭头");
+    io.println("===========================================");
+    
+    // 初始化平台
+    initPlatform();
+    
+    // 创建游戏
+    var game = PingpongGame.("Pingpong 2P - 乒乓球双人对战", 800, 600, 60);
+    
+    // 运行游戏
+    game.run();
+    
+    // 清理
+    game.destroy();
+    shutdownPlatform();
+    
+    io.println("游戏已退出，再见!");
+    
+    0
+}
