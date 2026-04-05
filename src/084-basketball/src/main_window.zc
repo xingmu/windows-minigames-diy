@@ -1,0 +1,616 @@
+// main_window.zc - Zen-C 篮球游戏 v1.0
+// 框架版本: 1.0.0
+
+import std.io;
+import std.math;
+
+// 导入框架
+import "platform_api.zc";
+import "game.zc";
+
+// ==================== 游戏配置 ====================
+
+const WINDOW_WIDTH = 800;
+const WINDOW_HEIGHT = 600;
+const COURT_COLOR = Color.RGB(200, 140, 90);
+const LINE_COLOR = Color.White();
+const BALL_COLOR = Color.Orange();
+const RIM_COLOR = Color.Red();
+const NET_COLOR = Color.White();
+const BACKBOARD_COLOR = Color.RGB(180, 180, 180);
+
+// ==================== 游戏状态 ====================
+
+enum GamePhase {
+    Aiming,      // 瞄准中
+    Shooting,    // 飞行中
+    Scored,      // 进球
+    Missed,      // 失误
+    Reset,       // 重置
+};
+
+pub struct BasketballGame {
+    // 游戏状态
+    phase: GamePhase;
+    score: int;
+    attempts: int;
+    
+    // 篮球位置
+    ballX: int;
+    ballY: int;
+    
+    // 投篮参数
+    aimX: int;          // 目标瞄准X
+    aimY: int;          // 目标瞄准Y
+    power: int;         // 力量 0-100
+    angle: int;         // 角度 0-90
+    
+    // 球的飞行速度
+    ballVX: int;
+    ballVY: int;
+    
+    // 篮筐位置
+    hoopX: int;
+    hoopY: int;
+    hoopRadius: int;
+    
+    // 后篮板
+    backboardX: int;
+    backboardY: int;
+    backboardW: int;
+    backboardH: int;
+    
+    // 进球动画
+    scoreTimer: int;
+    
+    // 失误动画
+    missTimer: int;
+}
+
+static mut game: BasketballGame;
+
+// ==================== 初始化 ====================
+
+fn initGame(mut game: &BasketballGame) {
+    game.phase = GamePhase.Aiming;
+    game.score = 0;
+    game.attempts = 0;
+    game.power = 50;
+    game.angle = 45;
+    
+    // 篮筐位置 (右侧)
+    game.hoopX = 680;
+    game.hoopY = 200;
+    game.hoopRadius = 30;
+    
+    // 后篮板
+    game.backboardX = 720;
+    game.backboardY = 140;
+    game.backboardW = 10;
+    game.backboardH = 120;
+    
+    // 篮球初始位置 (左侧)
+    resetBall(mut game);
+}
+
+fn resetBall(mut game: &BasketballGame) {
+    game.ballX = 120;
+    game.ballY = 450;
+    game.ballVX = 0;
+    game.ballVY = 0;
+    game.phase = GamePhase.Aiming;
+}
+
+// ==================== 更新逻辑 ====================
+
+fn updateGame(mut game: &BasketballGame) {
+    match game.phase {
+        GamePhase.Aiming => {
+            // 瞄准中 - 等待按键
+        },
+        GamePhase.Shooting => {
+            // 球在飞行
+            updateBallFlight(mut game);
+        },
+        GamePhase.Scored => {
+            // 进球动画
+            game.scoreTimer = game.scoreTimer - 1;
+            if game.scoreTimer <= 0 {
+                game.attempts = game.attempts + 1;
+                resetBall(mut game);
+            }
+        },
+        GamePhase.Missed => {
+            // 失误动画
+            game.missTimer = game.missTimer - 1;
+            if game.missTimer <= 0 {
+                game.attempts = game.attempts + 1;
+                resetBall(mut game);
+            }
+        },
+        GamePhase.Reset => {
+            resetBall(mut game);
+        },
+        _ => {}
+    }
+}
+
+fn updateBallFlight(mut game: &BasketballGame) {
+    // 物理更新
+    game.ballX = game.ballX + game.ballVX;
+    game.ballY = game.ballY + game.ballVY;
+    
+    // 重力
+    game.ballVY = game.ballVY + 2;
+    
+    // 边界检测
+    if game.ballY > WINDOW_HEIGHT + 50 {
+        // 球落地
+        game.phase = GamePhase.Missed;
+        game.missTimer = 30;
+        return;
+    }
+    
+    if game.ballX > WINDOW_WIDTH + 50 {
+        // 球出界
+        game.phase = GamePhase.Missed;
+        game.missTimer = 30;
+        return;
+    }
+    
+    // 后篮板碰撞
+    if game.ballX + 15 >= game.backboardX &&
+       game.ballX - 15 <= game.backboardX + game.backboardW &&
+       game.ballY + 15 >= game.backboardY &&
+       game.ballY - 15 <= game.backboardY + game.backboardH {
+        game.ballVX = -abs(game.ballVX) / 2;
+        game.ballX = game.backboardX - 16;
+    }
+    
+    // 篮筐碰撞检测
+    checkHoopCollision(mut game);
+}
+
+fn checkHoopCollision(mut game: &BasketballGame) {
+    // 简单的篮筐碰撞检测
+    // 检测球是否穿过篮筐
+    
+    // 篮筐中心点
+    var hoopCX = game.hoopX;
+    var hoopCY = game.hoopY;
+    
+    // 检测球是否在篮筐附近
+    var dx = game.ballX - hoopCX;
+    var dy = game.ballY - hoopCY;
+    var dist = sqrt(dx*dx + dy*dy);
+    
+    // 球应该从上方进入
+    if game.ballVY > 0 && dist < game.hoopRadius + 10 {
+        // 检查是否在篮筐范围内（穿过）
+        if game.ballX > hoopCX - game.hoopRadius + 5 &&
+           game.ballX < hoopCX + game.hoopRadius - 5 &&
+           game.ballY > hoopCY - 10 &&
+           game.ballY < hoopCY + 20 {
+            // 进球！
+            game.phase = GamePhase.Scored;
+            game.score = game.score + 2;
+            game.scoreTimer = 60;
+        }
+    }
+    
+    // 篮筐边缘碰撞（没进球）
+    if dist > game.hoopRadius - 15 && dist < game.hoopRadius + 15 {
+        // 碰到篮筐
+        var nx = dx / dist;
+        var ny = dy / dist;
+        
+        // 反弹
+        var dot = game.ballVX * nx + game.ballVY * ny;
+        game.ballVX = game.ballVX - 2 * dot * nx;
+        game.ballVY = game.ballVY - 2 * dot * ny;
+        
+        // 能量损失
+        game.ballVX = game.ballVX * 3 / 4;
+        game.ballVY = game.ballVY * 3 / 4;
+    }
+}
+
+// ==================== 绘制函数 ====================
+
+fn drawGame(canvas: &Canvas, game: &BasketballGame) {
+    // 绘制球场
+    drawCourt(canvas);
+    
+    // 绘制篮筐
+    drawHoop(canvas, game);
+    
+    // 绘制篮球
+    drawBall(canvas, game);
+    
+    // 绘制瞄准线
+    if game.phase == GamePhase.Aiming {
+        drawAimLine(canvas, game);
+        drawPowerMeter(canvas, game);
+    }
+    
+    // 绘制UI
+    drawUI(canvas, game);
+    
+    // 进球特效
+    if game.phase == GamePhase.Scored {
+        drawScoreEffect(canvas, game);
+    }
+}
+
+fn drawCourt(canvas: &Canvas) {
+    // 球场背景
+    canvas.clear(Color.RGB(50, 50, 50));
+    
+    // 木地板
+    canvas.fillRect(0, 500, WINDOW_WIDTH, 100, COURT_COLOR);
+    
+    // 木纹
+    for i in 0..20 {
+        var x = i * 40;
+        canvas.drawLine(x, 500, x, 600, Color.RGB(180, 130, 80));
+    }
+    
+    // 三分线 (半圆)
+    canvas.drawArc(680, 500, 200, 180, 0, 180, LINE_COLOR);
+    canvas.drawLine(480, 500, 480, 450, LINE_COLOR);
+    
+    // 罚球线
+    canvas.drawLine(500, 450, 500, 500, LINE_COLOR);
+    canvas.drawLine(400, 450, 600, 450, LINE_COLOR);
+    
+    // 禁区
+    canvas.drawRect(600, 350, 150, 150, LINE_COLOR);
+    
+    // 篮板位置标记
+    canvas.drawRect(715, 140, 10, 120, Color.RGB(100, 100, 100));
+}
+
+fn drawHoop(canvas: &Canvas, game: &BasketballGame) {
+    // 后篮板
+    canvas.fillRect(game.backboardX, game.backboardY, game.backboardW, game.backboardH, BACKBOARD_COLOR);
+    canvas.drawRect(game.backboardX, game.backboardY, game.backboardW, game.backboardH, Color.DarkGray());
+    
+    // 篮筐 (金属环)
+    canvas.drawCircle(game.hoopX, game.hoopY, game.hoopRadius, RIM_COLOR);
+    
+    // 篮筐厚度
+    for r in (game.hoopRadius - 5)..(game.hoopRadius + 5) {
+        canvas.drawCircle(game.hoopX, game.hoopY, r, RIM_COLOR);
+    }
+    
+    // 篮网 (简化)
+    drawNet(canvas, game);
+}
+
+fn drawNet(canvas: &Canvas, game: &BasketballGame) {
+    // 简化的篮网绘制
+    var netTop = game.hoopY + 5;
+    var netBottom = game.hoopY + 60;
+    var netLeft = game.hoopX - 25;
+    var netRight = game.hoopX + 25;
+    
+    // 垂直线
+    for i in 0..6 {
+        var x = netLeft + i * 10;
+        canvas.drawLine(x, netTop, x, netBottom, NET_COLOR);
+    }
+    
+    // 水平环
+    for y in 0..5 {
+        var yy = netTop + y * 12;
+        canvas.drawLine(netLeft, yy, netRight, yy, NET_COLOR);
+    }
+    
+    // 斜线装饰
+    for i in 0..4 {
+        var x1 = netLeft + i * 13;
+        var x2 = netLeft + (i + 1) * 13;
+        canvas.drawLine(x1, netTop, x2, netBottom, NET_COLOR);
+        canvas.drawLine(x2, netTop, x1, netBottom, NET_COLOR);
+    }
+}
+
+fn drawBall(canvas: &Canvas, game: &BasketballGame) {
+    var bx = game.ballX;
+    var by = game.ballY;
+    var radius = 15;
+    
+    // 球体阴影
+    canvas.fillCircle(bx + 3, by + 3, radius, Color.RGB(150, 80, 0));
+    
+    // 篮球主体
+    canvas.fillCircle(bx, by, radius, BALL_COLOR);
+    
+    // 球的纹理 (线条)
+    canvas.drawLine(bx - radius, by, bx + radius, by, Color.RGB(100, 50, 0));
+    canvas.drawLine(bx, by - radius, bx, by + radius, Color.RGB(100, 50, 0));
+    
+    // 球纹曲线
+    canvas.drawEllipse(bx, by, radius - 3, radius - 6, Color.RGB(100, 50, 0));
+}
+
+fn drawEllipse(canvas: &Canvas, cx: int, cy: int, rx: int, ry: int, color: Color) {
+    // 简化椭圆绘制
+    for y in (-ry)..ry {
+        for x in (-rx)..rx {
+            if (x * x) / (rx * rx) + (y * y) / (ry * ry) <= 1 {
+                canvas.setPixel(cx + x, cy + y, color);
+            }
+        }
+    }
+}
+
+fn drawAimLine(canvas: &Canvas, game: &BasketballGame) {
+    // 绘制瞄准线和预测轨迹
+    var startX = game.ballX;
+    var startY = game.ballY;
+    
+    // 计算速度和角度
+    var angleRad = game.angle * 3.14159 / 180;
+    var speed = game.power / 10 + 5;
+    var vx = (cos(angleRad) * speed) as int;
+    var vy = -(sin(angleRad) * speed) as int;
+    
+    // 预测轨迹点
+    var px = startX;
+    var py = startY;
+    var pvx = vx;
+    var pvy = vy;
+    
+    for i in 0..30 {
+        px = px + pvx;
+        py = py + pvy;
+        pvy = pvy + 2;
+        
+        // 绘制预测点
+        if px > 0 && px < WINDOW_WIDTH && py > 0 && py < WINDOW_HEIGHT {
+            var alpha = 255 - i * 8;
+            if alpha > 0 {
+                canvas.setPixel(px, py, Color.RGB(255, 255, 0));
+            }
+        }
+        
+        if py > WINDOW_HEIGHT {
+            break;
+        }
+    }
+    
+    // 目标标记
+    var targetX = game.ballX + vx * 20;
+    var targetY = game.ballY - vy * 15;
+    canvas.drawCircle(targetX, targetY, 5, Color.Yellow());
+}
+
+fn drawPowerMeter(canvas: &Canvas, game: &BasketballGame) {
+    // 力量条背景
+    var meterX = 20;
+    var meterY = 100;
+    var meterW = 30;
+    var meterH = 200;
+    
+    canvas.drawRect(meterX, meterY, meterW, meterH, Color.Gray());
+    canvas.fillRect(meterX + 2, meterY + 2, meterW - 4, meterH - 4, Color.DarkGray());
+    
+    // 力量填充
+    var fillH = (meterH - 4) * game.power / 100;
+    var powerColor = Color.Green();
+    if game.power > 70 {
+        powerColor = Color.Red();
+    } else if game.power > 40 {
+        powerColor = Color.Yellow();
+    }
+    
+    canvas.fillRect(meterX + 2, meterY + meterH - 2 - fillH, meterW - 4, fillH, powerColor);
+    
+    // 标签
+    canvas.drawText(meterX - 5, meterY - 20, "POWER", Color.White(), Font.("Arial", 12));
+    
+    // 角度指示
+    var angleText = game.angle.toString() ++ "°";
+    canvas.drawText(meterX - 10, meterY + meterH + 10, angleText, Color.White(), Font.("Arial", 12));
+}
+
+fn drawUI(canvas: &Canvas, game: &BasketballGame) {
+    // 分数
+    var scoreText = "SCORE: " ++ game.score.toString();
+    canvas.drawText(WINDOW_WIDTH / 2 - 50, 20, scoreText, Color.White(), Font.("Arial", 24));
+    
+    // 投篮次数
+    var attemptsText = "ATTEMPTS: " ++ game.attempts.toString();
+    canvas.drawText(WINDOW_WIDTH / 2 - 60, 50, attemptsText, Color.LightGray(), Font.("Arial", 16));
+    
+    // 命中率
+    var accuracy = 0;
+    if game.attempts > 0 {
+        accuracy = game.score * 100 / (game.attempts * 2);
+    }
+    var accuracyText = "ACCURACY: " ++ accuracy.toString() ++ "%";
+    canvas.drawText(WINDOW_WIDTH / 2 - 60, 75, accuracyText, Color.LightGray(), Font.("Arial", 16));
+    
+    // 控制提示
+    if game.phase == GamePhase.Aiming {
+        canvas.drawText(20, WINDOW_HEIGHT - 60, "UP/DOWN: Angle  LEFT/RIGHT: Power", Color.LightGray(), Font.("Arial", 14));
+        canvas.drawText(20, WINDOW_HEIGHT - 40, "SPACE: Shoot  R: Reset", Color.LightGray(), Font.("Arial", 14));
+    }
+    
+    // 进球提示
+    if game.phase == GamePhase.Scored {
+        canvas.drawText(WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2, "SCORE!", Color.Yellow(), Font.("Arial", 48));
+    }
+}
+
+fn drawScoreEffect(canvas: &Canvas, game: &BasketballGame) {
+    // 简单的得分特效 - 粒子效果
+    var t = 60 - game.scoreTimer;
+    var cx = game.hoopX;
+    var cy = game.hoopY;
+    
+    for i in 0..8 {
+        var angle = i * 45 + t * 5;
+        var radius = t * 3;
+        var px = cx + (cos(angle * 3.14159 / 180) * radius) as int;
+        var py = cy + (sin(angle * 3.14159 / 180) * radius) as int;
+        
+        if px > 0 && px < WINDOW_WIDTH && py > 0 && py < WINDOW_HEIGHT {
+            canvas.setPixel(px, py, Color.Yellow());
+        }
+    }
+}
+
+// ==================== 输入处理 ====================
+
+fn onKeyDown(key: VirtualKey) {
+    match key {
+        VirtualKey.Up => {
+            if game.phase == GamePhase.Aiming && game.angle < 85 {
+                game.angle = game.angle + 2;
+            }
+        },
+        VirtualKey.Down => {
+            if game.phase == GamePhase.Aiming && game.angle > 10 {
+                game.angle = game.angle - 2;
+            }
+        },
+        VirtualKey.Left => {
+            if game.phase == GamePhase.Aiming && game.power > 10 {
+                game.power = game.power - 5;
+            }
+        },
+        VirtualKey.Right => {
+            if game.phase == GamePhase.Aiming && game.power < 100 {
+                game.power = game.power + 5;
+            }
+        },
+        VirtualKey.Space => {
+            if game.phase == GamePhase.Aiming {
+                shootBall(mut &game);
+            }
+        },
+        VirtualKey.KeyR => {
+            game.attempts = game.attempts + 1;
+            resetBall(mut &game);
+        },
+        VirtualKey.Escape => {
+            game.phase = GamePhase.Missed;
+        },
+        _ => {}
+    }
+}
+
+fn shootBall(mut game: &BasketballGame) {
+    game.phase = GamePhase.Shooting;
+    
+    // 根据角度和力量计算速度
+    var angleRad = game.angle * 3.14159 / 180;
+    var speed = game.power / 10 + 8;
+    
+    game.ballVX = (cos(angleRad) * speed) as int;
+    game.ballVY = -(sin(angleRad) * speed) as int;
+}
+
+// ==================== 数学辅助 ====================
+
+fn abs(x: int) -> int {
+    return if x < 0 { -x } else { x };
+}
+
+fn cos(degrees: f64) -> f64 {
+    // 简化的cos实现
+    var rad = degrees * 3.14159 / 180;
+    var x = rad;
+    var result = 1.0;
+    var term = 1.0;
+    
+    for i in 1..10 {
+        term = -term * x * x / ((2 * i - 1) * (2 * i));
+        result = result + term;
+    }
+    
+    return result;
+}
+
+fn sin(degrees: f64) -> f64 {
+    // 简化的sin实现
+    var rad = degrees * 3.14159 / 180;
+    var x = rad;
+    var result = x;
+    var term = x;
+    
+    for i in 1..10 {
+        term = -term * x * x / ((2 * i) * (2 * i + 1));
+        result = result + term;
+    }
+    
+    return result;
+}
+
+fn sqrt(n: int) -> int {
+    if n < 0 {
+        return 0;
+    }
+    
+    var x = n;
+    var y = 1;
+    
+    while y < x {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    
+    return x;
+}
+
+// ==================== 主函数 ====================
+
+pub fn main() {
+    println("===========================================");
+    println("  Zen-C 篮球游戏 v1.0");
+    println("  投篮练习游戏");
+    println("===========================================");
+    
+    // 初始化游戏
+    initGame(mut &game);
+    
+    // 游戏主循环
+    while game.phase != GamePhase.Missed || game.missTimer > 0 {
+        // 处理输入 (简化，实际需要消息循环)
+        // 更新游戏
+        updateGame(mut &game);
+        
+        // 渲染 (需要窗口和canvas)
+        // drawGame(&canvas, &game);
+        
+        // 简单延迟
+        // sleep(16);
+    }
+    
+    println("游戏结束!");
+    println("最终得分: " ++ game.score.toString());
+    println("投篮次数: " ++ game.attempts.toString());
+}
+
+// 导出绘制函数供外部调用
+pub fn draw(canvas: &Canvas) {
+    drawGame(canvas, &game);
+}
+
+pub fn update() {
+    updateGame(mut &game);
+}
+
+pub fn keyDown(key: VirtualKey) {
+    onKeyDown(key);
+}
+
+pub fn getScore() -> int {
+    return game.score;
+}
+
+pub fn getAttempts() -> int {
+    return game.attempts;
+}
