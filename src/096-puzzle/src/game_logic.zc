@@ -1,0 +1,296 @@
+// game_logic.zc - 15滑块拼图核心逻辑 (096-Puzzle)
+// 4x4网格，数字1-15，0表示空白
+// 所有平台共用相同的游戏逻辑代码
+
+import std.math;
+import std.time;
+
+// ==================== 游戏常量 ====================
+
+const GRID_SIZE = 4;            // 4x4 拼图 (15-puzzle)
+const TILE_COUNT = GRID_SIZE * GRID_SIZE;
+const WINNING_VALUE = TILE_COUNT - 1;  // 15为最后一个数字
+
+// ==================== 数据结构 ====================
+
+// 游戏板 - 4x4网格，0表示空白
+struct Board {
+    cells: [TILE_COUNT]i32,  // 存储1-15和0(空白)
+}
+
+// 游戏状态
+struct GameData {
+    board: Board,
+    moves: i32,
+    solved: bool,
+    started: bool,
+    start_time: i64,         // 开始时间(毫秒)
+    end_time: i64,           // 完成时间(毫秒)
+}
+
+// ==================== 辅助函数 ====================
+
+// 获取格子索引
+fn cell_index(x: i32, y: i32) -> i32 {
+    return y * GRID_SIZE + x;
+}
+
+// 获取格子值
+fn get_cell(board: &Board, x: i32, y: i32) -> i32 {
+    if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
+        return -1;
+    }
+    return board.cells[cell_index(x, y)];
+}
+
+// 设置格子值
+fn set_cell(board: &mut Board, x: i32, y: i32, value: i32) {
+    if x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE {
+        board.cells[cell_index(x, y)] = value;
+    }
+}
+
+// 找空白位置
+fn find_empty(board: &Board) -> (i32, i32) {
+    for y in 0..GRID_SIZE {
+        for x in 0..GRID_SIZE {
+            if board.cells[cell_index(x, y)] == 0 {
+                return (x, y);
+            }
+        }
+    }
+    return (-1, -1);
+}
+
+// 初始化游戏
+fn init_game(game: &mut GameData) {
+    // 初始化随机数种子
+    let seed = time.now().nanos();
+    math.srand(seed);
+    
+    // 设置为完成状态(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0)
+    for i in 0..(TILE_COUNT - 1) {
+        game.board.cells[i] = i + 1 as i32;
+    }
+    game.board.cells[TILE_COUNT - 1] = 0;
+    
+    // 重置状态
+    game.moves = 0;
+    game.solved = false;
+    game.started = false;
+    game.start_time = 0;
+    game.end_time = 0;
+}
+
+// 生成一个可解的随机拼图
+fn shuffle_game(game: &mut GameData) {
+    // 首先设置为完成状态
+    for i in 0..(TILE_COUNT - 1) {
+        game.board.cells[i] = i + 1 as i32;
+    }
+    game.board.cells[TILE_COUNT - 1] = 0;
+    
+    // 随机交换多次来打乱（保证有解）
+    let swaps = 200 + math.rand() % 200;
+    for i in 0..swaps {
+        let (ex, ey) = find_empty(&game.board);
+        if ex < 0 { continue; }
+        
+        // 收集可移动的相邻位置
+        var neighbors: [4](i32, i32);
+        var neighbor_count = 0;
+        
+        // 上
+        if ey > 0 {
+            neighbors[neighbor_count] = (ex, ey - 1);
+            neighbor_count = neighbor_count + 1;
+        }
+        // 下
+        if ey < GRID_SIZE - 1 {
+            neighbors[neighbor_count] = (ex, ey + 1);
+            neighbor_count = neighbor_count + 1;
+        }
+        // 左
+        if ex > 0 {
+            neighbors[neighbor_count] = (ex - 1, ey);
+            neighbor_count = neighbor_count + 1;
+        }
+        // 右
+        if ex < GRID_SIZE - 1 {
+            neighbors[neighbor_count] = (ex + 1, ey);
+            neighbor_count = neighbor_count + 1;
+        }
+        
+        // 随机选择一个邻居交换
+        if neighbor_count > 0 {
+            let idx = math.rand() % neighbor_count;
+            let (nx, ny) = neighbors[idx];
+            let temp = game.board.cells[cell_index(nx, ny)];
+            game.board.cells[cell_index(nx, ny)] = 0;
+            game.board.cells[cell_index(ex, ey)] = temp;
+        }
+    }
+    
+    // 如果恰好已经完成，再打乱一次
+    if check_solved(&game.board) {
+        shuffle_game(game);
+        return;
+    }
+    
+    // 重置状态
+    game.moves = 0;
+    game.solved = false;
+    game.started = false;
+    game.start_time = 0;
+    game.end_time = 0;
+}
+
+// 检查拼图是否完成
+fn check_solved(board: &Board) -> bool {
+    for i in 0..(TILE_COUNT - 1) {
+        if board.cells[i] != (i + 1) as i32 {
+            return false;
+        }
+    }
+    return board.cells[TILE_COUNT - 1] == 0;
+}
+
+// 尝试移动指定位置的方块
+fn try_move(game: &mut GameData, x: i32, y: i32) -> bool {
+    if game.solved {
+        return false;
+    }
+    
+    // 检查是否与空白位置相邻
+    let (ex, ey) = find_empty(&game.board);
+    if ex < 0 { return false; }
+    
+    // 检查是否相邻
+    let dx = abs(x - ex);
+    let dy = abs(y - ey);
+    
+    if !((dx == 1 && dy == 0) || (dx == 0 && dy == 1)) {
+        return false;
+    }
+    
+    // 检查值是否有效
+    let value = get_cell(&game.board, x, y);
+    if value <= 0 || value >= TILE_COUNT {
+        return false;
+    }
+    
+    // 记录开始时间
+    if !game.started {
+        game.started = true;
+        game.start_time = time.now().millis();
+    }
+    
+    // 交换
+    set_cell(&mut game.board, ex, ey, value);
+    set_cell(&mut game.board, x, y, 0);
+    
+    game.moves = game.moves + 1;
+    
+    // 检查是否完成
+    if check_solved(&game.board) {
+        game.solved = true;
+        game.end_time = time.now().millis();
+    }
+    
+    return true;
+}
+
+// 处理输入 - 根据方向键移动空白位置旁边的方块
+fn handle_input(game: &mut GameData, key_code: i32) -> bool {
+    if game.solved {
+        // 完成后按任意键重新开始
+        return true;
+    }
+    
+    let (ex, ey) = find_empty(&game.board);
+    if ex < 0 { return false; }
+    
+    var moved = false;
+    
+    match key_code {
+        // 上箭头或W - 空白上移 = 下面的方块下移
+        38 | 87 | 119 => {
+            if ey < GRID_SIZE - 1 {
+                moved = try_move(game, ex, ey + 1);
+            }
+        },
+        // 下箭头或S - 空白下移 = 上面的方块上移
+        40 | 83 | 115 => {
+            if ey > 0 {
+                moved = try_move(game, ex, ey - 1);
+            }
+        },
+        // 左箭头或A - 空白左移 = 右边的方块左移
+        37 | 65 | 97 => {
+            if ex < GRID_SIZE - 1 {
+                moved = try_move(game, ex + 1, ey);
+            }
+        },
+        // 右箭头或D - 空白右移 = 左边的方块右移
+        39 | 68 | 100 => {
+            if ex > 0 {
+                moved = try_move(game, ex - 1, ey);
+            }
+        },
+        // R键 - 重新开始
+        82 | 114 => {
+            shuffle_game(game);
+            return true;
+        },
+        _ => {}
+    }
+    
+    return moved;
+}
+
+// 获取格子值
+fn get_tile_value(game: &GameData, index: i32) -> i32 {
+    if index >= 0 && index < TILE_COUNT {
+        return game.board.cells[index];
+    }
+    return -1;
+}
+
+// 获取移动次数
+fn get_moves(game: &GameData) -> i32 {
+    return game.moves;
+}
+
+// 是否已完成
+fn is_solved(game: &GameData) -> bool {
+    return game.solved;
+}
+
+// 是否已开始
+fn is_started(game: &GameData) -> bool {
+    return game.started;
+}
+
+// 获取用时(秒)
+fn get_elapsed_seconds(game: &GameData) -> i32 {
+    if !game.started {
+        return 0;
+    }
+    let end = if game.solved { game.end_time } else { time.now().millis() };
+    return ((end - game.start_time) / 1000) as i32;
+}
+
+// 获取排名评价
+fn get_rank(moves: i32) -> string {
+    if moves < 50 {
+        return "大师";
+    } else if moves < 80 {
+        return "高手";
+    } else if moves < 120 {
+        return "熟练";
+    } else if moves < 200 {
+        return "入门";
+    } else {
+        return "新手";
+    }
+}
