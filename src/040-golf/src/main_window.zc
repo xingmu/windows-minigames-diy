@@ -1,0 +1,511 @@
+// main_window.zc - Zen-C 高尔夫游戏主程序
+// 鼠标蓄力方向，挥杆击球
+
+import std.io;
+import std.math;
+
+// 导入平台API
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 常量 ====================
+
+const UI_TOP: i32 = 40;
+const UI_BOTTOM: i32 = 40;
+
+// ==================== 全局变量 ====================
+
+static mut game: GolfState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+
+// 帧缓冲数据
+static mut fb_buffer: rawptr = null;
+static mut fb_pitch: i32 = 0;
+static mut fb_width: i32 = GAME_WIDTH;
+static mut fb_height: i32 = GAME_HEIGHT;
+
+// ==================== 帧缓冲画布实现 ====================
+
+fn fb_set_pixel(x: i32, y: i32, color: Color) {
+    if x < 0 || x >= fb_width || y < 0 || y >= fb_height {
+        return;
+    }
+    let offset = y * (fb_pitch / 4) + x;
+    let pixels = fb_buffer as u32 mut;
+    pixels[offset] = color;
+}
+
+fn fb_draw_line(x1: i32, y1: i32, x2: i32, y2: i32, color: Color) {
+    let dx = abs(x2 - x1);
+    let dy = abs(y2 - y1);
+    let sx = if x1 < x2 { 1 } else { -1 };
+    let sy = if y1 < y2 { 1 } else { -1 };
+    let mut err = dx - dy;
+
+    let mut x = x1;
+    let mut y = y1;
+
+    loop {
+        fb_set_pixel(x, y, color);
+
+        if x == x2 && y == y2 {
+            break;
+        }
+
+        let e2 = 2 * err;
+        if e2 > -dy {
+            err = err - dy;
+            x = x + sx;
+        }
+        if e2 < dx {
+            err = err + dx;
+            y = y + sy;
+        }
+    }
+}
+
+fn fb_fill_rect(x: i32, y: i32, w: i32, h: i32, color: Color) {
+    for py in y..(y + h) {
+        for px in x..(x + w) {
+            fb_set_pixel(px, py, color);
+        }
+    }
+}
+
+fn fb_draw_circle(cx: i32, cy: i32, radius: i32, color: Color) {
+    let mut d = 3 - 2 * radius;
+    let mut x = 0;
+    let mut y = radius;
+
+    loop {
+        fb_set_pixel(cx + x, cy + y, color);
+        fb_set_pixel(cx - x, cy + y, color);
+        fb_set_pixel(cx + x, cy - y, color);
+        fb_set_pixel(cx - x, cy - y, color);
+        fb_set_pixel(cx + y, cy + x, color);
+        fb_set_pixel(cx - y, cy + x, color);
+        fb_set_pixel(cx + y, cy - x, color);
+        fb_set_pixel(cx - y, cy - x, color);
+
+        if d < 0 {
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            y = y - 1;
+        }
+
+        x = x + 1;
+        if x > y {
+            break;
+        }
+    }
+}
+
+fn fb_fill_circle(cx: i32, cy: i32, radius: i32, color: Color) {
+    for py in (cy - radius)..(cy + radius + 1) {
+        for px in (cx - radius)..(cx + radius + 1) {
+            if (px - cx) * (px - cx) + (py - cy) * (py - cy) <= radius * radius {
+                fb_set_pixel(px, py, color);
+            }
+        }
+    }
+}
+
+fn fb_clear(color: Color) {
+    let count = fb_pitch * fb_height / 4;
+    let pixels = fb_buffer as u32 mut;
+    for i in 0..count {
+        pixels[i] = color;
+    }
+}
+
+fn fb_present() {
+    if window != null {
+        presentFrame(window);
+    }
+}
+
+// ==================== 事件处理 ====================
+
+fn handle_key(key: VirtualKey) -> bool {
+    if key == VirtualKey.Escape {
+        running = false;
+        return false;
+    }
+    if key == VirtualKey.Space {
+        if game.status == GameStatus.Ready {
+            // 空格轻击
+            shoot(&mut game, 5, 100, 0);
+        }
+    }
+    if key == VirtualKey.Enter {
+        if game.status == GameStatus.HoleIn {
+            // 回车进入下一洞
+            if game.currentHole < 8 {
+                loadHole(&mut game, game.currentHole + 1);
+            } else {
+                game.status = GameStatus.GameComplete;
+            }
+        }
+    }
+    return true;
+}
+
+fn handle_timer() -> bool {
+    // 进球动画
+    if game.status == GameStatus.HoleIn {
+        game.holeAnimTimer = game.holeAnimTimer - 1;
+        if game.holeAnimTimer <= 0 {
+            // 自动进入下一洞
+            if game.currentHole < 8 {
+                loadHole(&mut game, game.currentHole + 1);
+            } else {
+                game.status = GameStatus.GameComplete;
+            }
+        }
+        return true;
+    }
+    
+    if game.status == GameStatus.Moving {
+        let stillMoving = updatePhysics(&mut game);
+        if !stillMoving && allStopped(&game) {
+            game.status = GameStatus.Ready;
+        }
+        return true;
+    }
+    return false;
+}
+
+fn handle_mouse_down(x: i32, y: i32, button: MouseButton) {
+    onMouseDown(&mut game, x, y);
+}
+
+fn handle_mouse_up(x: i32, y: i32, button: MouseButton) {
+    onMouseUp(&mut game, x, y);
+}
+
+fn handle_mouse_move(x: i32, y: i32) {
+    onMouseMove(&mut game, x, y);
+}
+
+// ==================== 绘制函数 ====================
+
+fn render_game() {
+    // 清屏 - 天空蓝
+    fb_clear(Color.RGB(135, 206, 235));
+    
+    // 绘制球场 (绿色草地)
+    let grassColor = Color.RGB(60, 142, 60);
+    let fairwayColor = Color.RGB(74, 168, 74);
+    let fringeColor = Color.RGB(50, 120, 50);
+    
+    // 球场边框 (木色)
+    let woodColor = Color.RGB(101, 67, 33);
+    fb_fill_rect(0, 0, GAME_WIDTH, UI_TOP, woodColor);
+    fb_fill_rect(0, GAME_HEIGHT - UI_BOTTOM, GAME_WIDTH, UI_BOTTOM, woodColor);
+    fb_fill_rect(0, UI_TOP, 40, GAME_HEIGHT - UI_TOP - UI_BOTTOM, woodColor);
+    fb_fill_rect(GAME_WIDTH - 40, UI_TOP, 40, GAME_HEIGHT - UI_TOP - UI_BOTTOM, woodColor);
+    
+    // 草地背景
+    fb_fill_rect(40, UI_TOP, GAME_WIDTH - 80, GAME_HEIGHT - UI_TOP - UI_BOTTOM, grassColor);
+    
+    // 绘制球道 (椭圆形渐变效果)
+    let holeX = game.course.holeX;
+    let holeY = game.course.holeY;
+    let teeX = game.course.teeX;
+    let teeY = game.course.teeY;
+    
+    // 简化的球道效果 - 从发球台到球洞的渐变
+    fb_fill_rect(40, UI_TOP, GAME_WIDTH - 80, GAME_HEIGHT - UI_TOP - UI_BOTTOM, fairwayColor);
+    
+    // 发球台 (发球区)
+    let teeSize = 25;
+    fb_fill_rect(teeX - teeSize, teeY - teeSize, teeSize * 2, teeSize * 2, fringeColor);
+    fb_draw_rect(teeX - teeSize, teeY - teeSize, teeSize * 2, teeSize * 2, Color.White());
+    
+    // 绘制果岭 (洞周围)
+    let greenRadius = 50;
+    fb_fill_circle(holeX, holeY, greenRadius, Color.RGB(50, 130, 50));
+    
+    // 绘制洞
+    fb_fill_circle(holeX, holeY, HOLE_RADIUS, Color.Black());
+    fb_draw_circle(holeX, holeY, HOLE_RADIUS + 2, Color.RGB(255, 255, 255));
+    
+    // 绘制旗帜
+    let flagX = holeX;
+    let flagY = holeY - 40;
+    fb_draw_line(flagX, holeY, flagX, flagY, Color.White());
+    fb_fill_rect(flagX, flagY, 20, 12, Color.Red());
+    
+    // 绘制障碍物
+    for i in 0..game.course.obsCount {
+        let obs = game.course.obstacles[i];
+        let minX = min(obs.x1, obs.x2);
+        let maxX = max(obs.x1, obs.x2);
+        let minY = min(obs.y1, obs.y2);
+        let maxY = max(obs.y1, obs.y2);
+        let w = maxX - minX;
+        let h = maxY - minY;
+        
+        match obs.typ {
+            0 => {  // 墙壁 - 棕色石头
+                fb_fill_rect(minX, minY, w, h, Color.RGB(101, 67, 33));
+                fb_draw_rect(minX, minY, w, h, Color.RGB(60, 40, 20));
+            },
+            1 => {  // 水障碍 - 蓝色
+                fb_fill_rect(minX, minY, w, h, Color.RGB(30, 100, 200));
+                // 水波效果
+                for wave in 0..4 {
+                    let waveY = minY + wave * h / 4 + h / 8;
+                    fb_draw_line(minX + 5, waveY, maxX - 5, waveY, Color.RGB(60, 140, 255));
+                }
+            },
+            2 => {  // 沙坑 - 浅黄色
+                fb_fill_rect(minX, minY, w, h, Color.RGB(230, 210, 150));
+                // 沙坑纹理
+                for dot in 0..10 {
+                    let dotX = minX + ((dot * 17) % w);
+                    let dotY = minY + ((dot * 23) % h);
+                    fb_set_pixel(dotX, dotY, Color.RGB(200, 180, 120));
+                }
+            },
+            _ => {}
+        }
+    }
+    
+    // 绘制球
+    if game.status != GameStatus.HoleIn {
+        // 球阴影
+        fb_fill_circle(game.ballX + 3, game.ballY + 3, BALL_RADIUS, Color.RGB(0, 0, 0));
+        
+        // 球体
+        fb_fill_circle(game.ballX, game.ballY, BALL_RADIUS, Color.White());
+        
+        // 球体高光
+        let hx = game.ballX - BALL_RADIUS / 3;
+        let hy = game.ballY - BALL_RADIUS / 3;
+        let hr = BALL_RADIUS / 3;
+        fb_fill_circle(hx, hy, hr, Color.RGB(255, 255, 255));
+    }
+    
+    // 进球动画
+    if game.status == GameStatus.HoleIn {
+        let anim = 60 - game.holeAnimTimer;
+        if anim < 20 {
+            // 缩小消失动画
+            let scale = (20 - anim) as f32 / 20.0;
+            let r = (BALL_RADIUS as f32 * scale) as i32;
+            if r > 0 {
+                fb_fill_circle(holeX, holeY, r, Color.White());
+            }
+        }
+        
+        // 显示庆祝文字
+        let celebrate = "第" ++ (game.currentHole + 1).toString() ++ "洞完成! " ++ game.strokes.toString() ++ "杆";
+        draw_text(GAME_WIDTH / 2 - 150, GAME_HEIGHT / 2 - 50, celebrate, Color.Yellow(), 28);
+        draw_text(GAME_WIDTH / 2 - 100, GAME_HEIGHT / 2, "按回车进入下一洞", Color.White(), 18);
+    }
+    
+    // 绘制瞄准线和力度指示
+    if (game.status == GameStatus.Dragging) {
+        // 瞄准方向线 (从球到鼠标)
+        let aimDist = sqrt_int(dist2(0, 0, game.aimX, game.aimY));
+        if aimDist > 0 && game.power > 0 {
+            let aimLen = 80 + game.power * 5;
+            let aimEndX = game.ballX + game.aimX * aimLen / aimDist;
+            let aimEndY = game.ballY + game.aimY * aimLen / aimDist;
+            
+            // 虚线瞄准
+            let steps = 15;
+            for s in 0..steps {
+                let t1 = s as f32 / steps as f32;
+                let t2 = (s + 1) as f32 / steps as f32;
+                let x1 = game.ballX + (aimEndX - game.ballX) * t1;
+                let y1 = game.ballY + (aimEndY - game.ballY) * t1;
+                let x2 = game.ballX + (aimEndX - game.ballX) * t2;
+                let y2 = game.ballY + (aimEndY - game.ballY) * t2;
+                if s % 2 == 0 {
+                    fb_draw_line(x1 as i32, y1 as i32, x2 as i32, y2 as i32, Color.RGB(255, 255, 100));
+                }
+            }
+            
+            // 终点靶圈
+            fb_draw_circle(aimEndX, aimEndY, 5, Color.Yellow());
+        }
+        
+        // 蓄力条
+        if game.power > 0 {
+            let barWidth = 120;
+            let barHeight = 12;
+            let barX = game.ballX - barWidth / 2;
+            let barY = game.ballY - 50;
+            
+            // 背景
+            fb_draw_rect(barX, barY, barWidth, barHeight, Color.White());
+            
+            // 填充
+            let fillW = (game.power as f32 / MAX_POWER as f32 * barWidth as f32) as i32;
+            let powerColor = if game.power < 10 {
+                Color.Green()
+            } else if game.power < 20 {
+                Color.Yellow()
+            } else {
+                Color.Red()
+            };
+            fb_fill_rect(barX, barY, fillW, barHeight, powerColor);
+            
+            // 力度文字
+            let powerText = "力度: " ++ game.power.toString();
+            draw_text(barX, barY - 18, powerText, Color.White(), 14);
+        }
+        
+        // 绘制拖拽线 (从起点到当前鼠标)
+        if game.power > 1 {
+            let dragColor = Color.RGB(200, 100, 100);
+            fb_draw_line(game.dragStartX, game.dragStartY, game.mouseX, game.mouseY, dragColor);
+            fb_draw_circle(game.dragStartX, game.dragStartY, 5, Color.Red());
+        }
+        
+        // 绘制球杆
+        if game.power > 0 {
+            let stickLen = 50 + game.power * 4;
+            let stickDist = sqrt_int(dist2(0, 0, game.aimX, game.aimY));
+            if stickDist > 0 {
+                // 球杆从球向后延伸
+                let stickEndX = game.ballX - game.aimX * stickLen / stickDist;
+                let stickEndY = game.ballY - game.aimY * stickLen / stickDist;
+                
+                // 球杆
+                fb_draw_line(stickEndX, stickEndY, game.ballX, game.ballY, STICK_COLOR);
+                // 球杆头
+                fb_draw_line(stickEndX, stickEndY, stickEndX - game.aimX * 5 / stickDist, stickEndY - game.aimY * 5 / stickDist, STICK_TIP_COLOR);
+            }
+        }
+    }
+    
+    // 游戏完成画面
+    if game.status == GameStatus.GameComplete {
+        fb_clear(Color.RGB(20, 60, 20));
+        
+        let title = "球场完成!";
+        draw_text(GAME_WIDTH / 2 - 100, 100, title, Color.Yellow(), 36);
+        
+        let scoreText = "总杆数: " ++ game.totalStrokes.toString();
+        draw_text(GAME_WIDTH / 2 - 80, 160, scoreText, Color.White(), 24);
+        
+        // 计算标准杆
+        let totalPar = 3 + 3 + 4 + 3 + 3 + 4 + 3 + 4 + 3;  // 30
+        let diff = game.totalStrokes - totalPar;
+        let rating = if diff <= -5 {
+            "完美! 低于标准杆 " ++ (-diff).toString() ++ " 杆"
+        } else if diff < 0 {
+            "不错! 低于标准杆 " ++ (-diff).toString() ++ " 杆"
+        } else if diff == 0 {
+            "标准杆完成!"
+        } else {
+            "高于标准杆 " ++ diff.toString() ++ " 杆"
+        };
+        draw_text(GAME_WIDTH / 2 - 150, 200, rating, Color.Cyan(), 20);
+        
+        draw_text(GAME_WIDTH / 2 - 150, 260, "按任意键重新开始", Color.RGB(180, 180, 180), 18);
+    }
+    
+    // ==================== UI 绘制 ====================
+    
+    if game.status != GameStatus.GameComplete {
+        // 顶部信息栏
+        fb_fill_rect(0, 0, GAME_WIDTH, UI_TOP, Color.RGB(60, 40, 20));
+        
+        // 洞号
+        let holeText = "第" ++ (game.currentHole + 1).toString() ++ "洞  " ++ game.course.name;
+        draw_text(50, 12, holeText, Color.Yellow(), 18);
+        
+        // 标准杆
+        let parText = "标准杆: " ++ game.course.holes[game.currentHole].par.toString();
+        draw_text(300, 12, parText, Color.White(), 16);
+        
+        // 当前杆数
+        let strokeText = "当前: " ++ game.strokes.toString() ++ " 杆";
+        draw_text(450, 12, strokeText, Color.Cyan(), 16);
+        
+        // 总杆数
+        let totalText = "累计: " ++ game.totalStrokes.toString() ++ " 杆";
+        draw_text(600, 12, totalText, Color.RGB(200, 200, 100), 16);
+        
+        // 底部信息栏
+        fb_fill_rect(0, GAME_HEIGHT - UI_BOTTOM, GAME_WIDTH, UI_BOTTOM, Color.RGB(60, 40, 20));
+        
+        let status = getStatusText(&game);
+        draw_text(50, GAME_HEIGHT - 28, status, Color.Yellow(), 16);
+        
+        let controls = "点击拖拽瞄准 | 松开击球 | 空格轻击 | ESC 退出";
+        draw_text(GAME_WIDTH - 400, GAME_HEIGHT - 28, controls, Color.RGB(150, 150, 150), 14);
+    }
+}
+
+// 简单的文字绘制 (用矩形块模拟)
+fn draw_text(x: i32, y: i32, text: string, color: Color, size: i32) {
+    let charW = size * 2 / 3;
+    let charH = size;
+
+    var px = x;
+    var py = y;
+
+    for i in 0..len(text) {
+        if text[i] == ' ' {
+            px = px + charW;
+            continue;
+        }
+        if text[i] == '\n' {
+            py = py + charH;
+            px = x;
+            continue;
+        }
+
+        // 背景
+        fb_fill_rect(px, py, charW, charH, Color.RGB(30, 30, 30));
+        // 边框
+        fb_draw_rect(px, py, charW, charH, color);
+        // 字符占位点
+        fb_set_pixel(px + charW / 3, py + charH / 3, color);
+
+        px = px + charW + 2;
+        if px > GAME_WIDTH - charW {
+            py = py + charH;
+            px = x;
+        }
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C 高尔夫游戏 - Mini Golf");
+    io.println("========================================");
+
+    // 初始化游戏状态
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "高尔夫 - Mini Golf";
+    window = createWindow(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    io.println("窗口创建成功!");
+    io.println("点击并拖拽控制击球方向和力度");
+    io.println("========================================");
+
+    0
+}
+
+// ==================== 入口点桩 ====================
+
+pub fn gameMain() {
+    main();
+}

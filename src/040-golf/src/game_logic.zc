@@ -1,0 +1,705 @@
+// game_logic.zc - Zen-C 高尔夫游戏核心逻辑
+// 鼠标蓄力方向，挥杆击球
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 800;
+const GAME_HEIGHT: i32 = 600;
+
+// 球半径
+const BALL_RADIUS: i32 = 8;
+
+// 洞的半径
+const HOLE_RADIUS: i32 = 14;
+
+// 最大击球力度
+const MAX_POWER: i32 = 30;
+
+// 摩擦系数 (每帧速度衰减)
+const FRICTION: i32 = 3;
+
+// 最小速度阈值
+const MIN_VELOCITY: i32 = 1;
+
+// 墙壁反弹系数
+const BOUNCE: i32 = 80;
+
+// ==================== 游戏状态 ====================
+
+enum GameStatus {
+    Ready,       // 等待击球
+    Aiming,      // 瞄准中
+    Dragging,    // 拖拽蓄力
+    Moving,      // 球运动中
+    HoleIn,     // 进球!
+    GameComplete,// 洞完成
+}
+
+struct Obstacle {
+    x1: i32, y1: i32, x2: i32, y2: i32,  // 矩形区域
+    typ: i32,  // 0=墙, 1=水, 2=沙坑
+}
+
+struct Hole {
+    x: i32, y: i32, par: i32,
+}
+
+struct Course {
+    holes: [9]Hole,
+    obstacles: [20]Obstacle,
+    obsCount: i32,
+    teeX: i32, teeY: i32,
+    holeX: i32, holeY: i32,
+    name: string,
+}
+
+struct GolfState {
+    ballX: i32,
+    ballY: i32,
+    vx: i32,
+    vy: i32,
+    radius: i32,
+    
+    status: GameStatus,
+    currentHole: i32,
+    strokes: i32,
+    totalStrokes: i32,
+    score: i32,  // 相对于标准杆
+    
+    mouseX: i32,
+    mouseY: i32,
+    dragStartX: i32,
+    dragStartY: i32,
+    aimX: i32,
+    aimY: i32,
+    power: i32,
+    
+    width: i32,
+    height: i32,
+    
+    course: Course,
+    
+    // 进球动画
+    holeAnimTimer: i32,
+}
+
+// ==================== 课程数据 ====================
+
+fn createCourse0() -> Course {
+    // 第1洞: 简单直洞
+    return Course.{
+        holes: [
+            Hole.{ x: 700, y: 300, par: 3 },
+            Hole.{ x: 650, y: 150, par: 3 },
+            Hole.{ x: 200, y: 500, par: 4 },
+            Hole.{ x: 400, y: 300, par: 3 },
+            Hole.{ x: 700, y: 500, par: 3 },
+            Hole.{ x: 150, y: 150, par: 4 },
+            Hole.{ x: 400, y: 100, par: 3 },
+            Hole.{ x: 600, y: 450, par: 4 },
+            Hole.{ x: 350, y: 400, par: 3 },
+        ],
+        teeX: 100,
+        teeY: 300,
+        holeX: 700,
+        holeY: 300,
+        obstacles: [
+            Obstacle.{ x1: 0, y1: 0, x2: 0, y2: 0, typ: 0 },
+        ],
+        obsCount: 0,
+        name: "第1洞 - 练习场",
+    };
+}
+
+fn createCourse1() -> Course {
+    // 第2洞: L形
+    var c = Course.{
+        holes: [
+            Hole.{ x: 700, y: 300, par: 3 },
+            Hole.{ x: 650, y: 150, par: 3 },
+            Hole.{ x: 200, y: 500, par: 4 },
+            Hole.{ x: 400, y: 300, par: 3 },
+            Hole.{ x: 700, y: 500, par: 3 },
+            Hole.{ x: 150, y: 150, par: 4 },
+            Hole.{ x: 400, y: 100, par: 3 },
+            Hole.{ x: 600, y: 450, par: 4 },
+            Hole.{ x: 350, y: 400, par: 3 },
+        ],
+        teeX: 100,
+        teeY: 100,
+        holeX: 700,
+        holeY: 500,
+        obsCount: 4,
+        name: "第2洞 - L弯道",
+    };
+    
+    // 中间墙壁
+    c.obstacles[0] = Obstacle.{ x1: 350, y1: 200, x2: 380, y2: 500, typ: 0 };
+    // 水障碍
+    c.obstacles[1] = Obstacle.{ x1: 200, y1: 300, x2: 300, y2: 350, typ: 1 };
+    // 沙坑
+    c.obstacles[2] = Obstacle.{ x1: 500, y1: 400, x2: 580, y2: 480, typ: 2 };
+    // 沙坑
+    c.obstacles[3] = Obstacle.{ x1: 250, y1: 450, x2: 320, y2: 520, typ: 2 };
+    
+    return c;
+}
+
+fn createCourse2() -> Course {
+    // 第3洞: 有水障碍
+    var c = Course.{
+        holes: [
+            Hole.{ x: 700, y: 300, par: 3 },
+            Hole.{ x: 650, y: 150, par: 3 },
+            Hole.{ x: 200, y: 500, par: 4 },
+            Hole.{ x: 400, y: 300, par: 3 },
+            Hole.{ x: 700, y: 500, par: 3 },
+            Hole.{ x: 150, y: 150, par: 4 },
+            Hole.{ x: 400, y: 100, par: 3 },
+            Hole.{ x: 600, y: 450, par: 4 },
+            Hole.{ x: 350, y: 400, par: 3 },
+        ],
+        teeX: 100,
+        teeY: 300,
+        holeX: 650,
+        holeY: 300,
+        obsCount: 5,
+        name: "第3洞 - 水池障碍",
+    };
+    
+    // 中心水障碍
+    c.obstacles[0] = Obstacle.{ x1: 350, y1: 220, x2: 500, y2: 380, typ: 1 };
+    // 墙壁
+    c.obstacles[1] = Obstacle.{ x1: 200, y1: 100, x2: 230, y2: 200, typ: 0 };
+    c.obstacles[2] = Obstacle.{ x1: 200, y1: 400, x2: 230, y2: 500, typ: 0 };
+    // 沙坑
+    c.obstacles[3] = Obstacle.{ x1: 550, y1: 200, x2: 620, y2: 260, typ: 2 };
+    c.obstacles[4] = Obstacle.{ x1: 550, y1: 340, x2: 620, y2: 400, typ: 2 };
+    
+    return c;
+}
+
+fn createCourse3() -> Course {
+    // 第4洞: 曲折
+    var c = Course.{
+        holes: [
+            Hole.{ x: 700, y: 300, par: 3 },
+            Hole.{ x: 650, y: 150, par: 3 },
+            Hole.{ x: 200, y: 500, par: 4 },
+            Hole.{ x: 400, y: 300, par: 3 },
+            Hole.{ x: 700, y: 500, par: 3 },
+            Hole.{ x: 150, y: 150, par: 4 },
+            Hole.{ x: 400, y: 100, par: 3 },
+            Hole.{ x: 600, y: 450, par: 4 },
+            Hole.{ x: 350, y: 400, par: 3 },
+        ],
+        teeX: 80,
+        teeY: 550,
+        holeX: 720,
+        holeY: 80,
+        obsCount: 4,
+        name: "第4洞 - 曲折迷宫",
+    };
+    
+    // 折墙
+    c.obstacles[0] = Obstacle.{ x1: 200, y1: 100, x2: 230, y2: 450, typ: 0 };
+    c.obstacles[1] = Obstacle.{ x1: 400, y1: 150, x2: 430, y2: 500, typ: 0 };
+    c.obstacles[2] = Obstacle.{ x1: 580, y1: 100, x2: 610, y2: 400, typ: 0 };
+    c.obstacles[3] = Obstacle.{ x1: 300, y1: 300, x2: 350, y2: 330, typ: 1 };
+    
+    return c;
+}
+
+fn createCourse4() -> Course {
+    // 第5洞: 狭长通道
+    var c = Course.{
+        holes: [
+            Hole.{ x: 700, y: 300, par: 3 },
+            Hole.{ x: 650, y: 150, par: 3 },
+            Hole.{ x: 200, y: 500, par: 4 },
+            Hole.{ x: 400, y: 300, par: 3 },
+            Hole.{ x: 700, y: 500, par: 3 },
+            Hole.{ x: 150, y: 150, par: 4 },
+            Hole.{ x: 400, y: 100, par: 3 },
+            Hole.{ x: 600, y: 450, par: 4 },
+            Hole.{ x: 350, y: 400, par: 3 },
+        ],
+        teeX: 80,
+        teeY: 300,
+        holeX: 720,
+        holeY: 300,
+        obsCount: 2,
+        name: "第5洞 - 狭长通道",
+    };
+    
+    // 上墙壁
+    c.obstacles[0] = Obstacle.{ x1: 150, y1: 220, x2: 680, y2: 250, typ: 0 };
+    // 下墙壁
+    c.obstacles[1] = Obstacle.{ x1: 150, y1: 350, x2: 680, y2: 380, typ: 0 };
+    
+    return c;
+}
+
+fn createCourse5() -> Course {
+    // 第6洞: 圆形障碍
+    var c = Course.{
+        holes: [
+            Hole.{ x: 700, y: 300, par: 3 },
+            Hole.{ x: 650, y: 150, par: 3 },
+            Hole.{ x: 200, y: 500, par: 4 },
+            Hole.{ x: 400, y: 300, par: 3 },
+            Hole.{ x: 700, y: 500, par: 3 },
+            Hole.{ x: 150, y: 150, par: 4 },
+            Hole.{ x: 400, y: 100, par: 3 },
+            Hole.{ x: 600, y: 450, par: 4 },
+            Hole.{ x: 350, y: 400, par: 3 },
+        ],
+        teeX: 100,
+        teeY: 300,
+        holeX: 680,
+        holeY: 300,
+        obsCount: 3,
+        name: "第6洞 - 圆形迷宫",
+    };
+    
+    // 圆形石头 (用矩形近似)
+    c.obstacles[0] = Obstacle.{ x1: 280, y1: 240, x2: 340, y2: 300, typ: 0 };
+    c.obstacles[1] = Obstacle.{ x1: 420, y1: 180, x2: 480, y2: 240, typ: 0 };
+    c.obstacles[2] = Obstacle.{ x1: 450, y1: 340, x2: 510, y2: 400, typ: 0 };
+    
+    return c;
+}
+
+fn createCourse6() -> Course {
+    // 第7洞: 沙坑地狱
+    var c = Course.{
+        holes: [
+            Hole.{ x: 700, y: 300, par: 3 },
+            Hole.{ x: 650, y: 150, par: 3 },
+            Hole.{ x: 200, y: 500, par: 4 },
+            Hole.{ x: 400, y: 300, par: 3 },
+            Hole.{ x: 700, y: 500, par: 3 },
+            Hole.{ x: 150, y: 150, par: 4 },
+            Hole.{ x: 400, y: 100, par: 3 },
+            Hole.{ x: 600, y: 450, par: 4 },
+            Hole.{ x: 350, y: 400, par: 3 },
+        ],
+        teeX: 100,
+        teeY: 300,
+        holeX: 680,
+        holeY: 300,
+        obsCount: 5,
+        name: "第7洞 - 沙坑阵",
+    };
+    
+    c.obstacles[0] = Obstacle.{ x1: 250, y1: 180, x2: 350, y2: 240, typ: 2 };
+    c.obstacles[1] = Obstacle.{ x1: 380, y1: 250, x2: 480, y2: 310, typ: 2 };
+    c.obstacles[2] = Obstacle.{ x1: 250, y1: 360, x2: 350, y2: 420, typ: 2 };
+    c.obstacles[3] = Obstacle.{ x1: 500, y1: 150, x2: 560, y2: 210, typ: 2 };
+    c.obstacles[4] = Obstacle.{ x1: 500, y1: 390, x2: 560, y2: 450, typ: 2 };
+    
+    return c;
+}
+
+fn createCourse7() -> Course {
+    // 第8洞: 梯田
+    var c = Course.{
+        holes: [
+            Hole.{ x: 700, y: 300, par: 3 },
+            Hole.{ x: 650, y: 150, par: 3 },
+            Hole.{ x: 200, y: 500, par: 4 },
+            Hole.{ x: 400, y: 300, par: 3 },
+            Hole.{ x: 700, y: 500, par: 3 },
+            Hole.{ x: 150, y: 150, par: 4 },
+            Hole.{ x: 400, y: 100, par: 3 },
+            Hole.{ x: 600, y: 450, par: 4 },
+            Hole.{ x: 350, y: 400, par: 3 },
+        ],
+        teeX: 80,
+        teeY: 100,
+        holeX: 700,
+        holeY: 500,
+        obsCount: 3,
+        name: "第8洞 - 梯田挑战",
+    };
+    
+    c.obstacles[0] = Obstacle.{ x1: 200, y1: 180, x2: 230, y2: 420, typ: 0 };
+    c.obstacles[1] = Obstacle.{ x1: 400, y1: 220, x2: 430, y2: 480, typ: 0 };
+    c.obstacles[2] = Obstacle.{ x1: 580, y1: 100, x2: 610, y2: 400, typ: 0 };
+    
+    return c;
+}
+
+fn createCourse8() -> Course {
+    // 第9洞: 最终挑战
+    var c = Course.{
+        holes: [
+            Hole.{ x: 700, y: 300, par: 3 },
+            Hole.{ x: 650, y: 150, par: 3 },
+            Hole.{ x: 200, y: 500, par: 4 },
+            Hole.{ x: 400, y: 300, par: 3 },
+            Hole.{ x: 700, y: 500, par: 3 },
+            Hole.{ x: 150, y: 150, par: 4 },
+            Hole.{ x: 400, y: 100, par: 3 },
+            Hole.{ x: 600, y: 450, par: 4 },
+            Hole.{ x: 350, y: 400, par: 3 },
+        ],
+        teeX: 80,
+        teeY: 550,
+        holeX: 720,
+        holeY: 80,
+        obsCount: 6,
+        name: "第9洞 - 王者之洞",
+    };
+    
+    // 复杂障碍
+    c.obstacles[0] = Obstacle.{ x1: 200, y1: 150, x2: 230, y2: 450, typ: 0 };
+    c.obstacles[1] = Obstacle.{ x1: 400, y1: 100, x2: 430, y2: 350, typ: 0 };
+    c.obstacles[2] = Obstacle.{ x1: 550, y1: 200, x2: 580, y2: 500, typ: 0 };
+    c.obstacles[3] = Obstacle.{ x1: 300, y1: 280, x2: 380, y2: 320, typ: 1 };
+    c.obstacles[4] = Obstacle.{ x1: 480, y1: 380, x2: 540, y2: 440, typ: 2 };
+    c.obstacles[5] = Obstacle.{ x1: 620, y1: 120, x2: 680, y2: 180, typ: 2 };
+    
+    return c;
+}
+
+fn getCourse(holeIndex: i32) -> Course {
+    match holeIndex {
+        0 => return createCourse0(),
+        1 => return createCourse1(),
+        2 => return createCourse2(),
+        3 => return createCourse3(),
+        4 => return createCourse4(),
+        5 => return createCourse5(),
+        6 => return createCourse6(),
+        7 => return createCourse7(),
+        8 => return createCourse8(),
+        _ => return createCourse0(),
+    }
+}
+
+// ==================== 辅助函数 ====================
+
+fn abs(n: i32) -> i32 {
+    if n < 0 { -n } else { n }
+}
+
+fn min(a: i32, b: i32) -> i32 {
+    if a < b { a } else { b }
+}
+
+fn max(a: i32, b: i32) -> i32 {
+    if a > b { a } else { b }
+}
+
+fn dist2(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    return dx * dx + dy * dy;
+}
+
+fn sqrt_int(n: i32) -> i32 {
+    if n <= 0 { return 0; }
+    let mut x = n;
+    let mut y = 1;
+    while y < x {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    return x;
+}
+
+fn distance(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+    return sqrt_int(dist2(x1, y1, x2, y2));
+}
+
+// ==================== 球杆绘制辅助 ====================
+
+// 球杆颜色
+const STICK_COLOR: Color = Color.RGB(139, 90, 43);
+const STICK_TIP_COLOR: Color = Color.RGB(200, 180, 150);
+
+// ==================== 障碍物碰撞 ====================
+
+fn pointInRect(px: i32, py: i32, x1: i32, y1: i32, x2: i32, y2: i32) -> bool {
+    let minX = min(x1, x2);
+    let maxX = max(x1, x2);
+    let minY = min(y1, y2);
+    let maxY = max(y1, y2);
+    return px >= minX && px <= maxX && py >= minY && py <= maxY;
+}
+
+fn circleRectIntersect(cx: i32, cy: i32, r: i32, x1: i32, y1: i32, x2: i32, y2: i32) -> bool {
+    let minX = min(x1, x2);
+    let maxX = max(x1, x2);
+    let minY = min(y1, y2);
+    let maxY = max(y1, y2);
+    
+    let closestX = max(minX, min(cx, maxX));
+    let closestY = max(minY, min(cy, maxY));
+    
+    let dx = cx - closestX;
+    let dy = cy - closestY;
+    
+    return (dx * dx + dy * dy) <= (r * r);
+}
+
+// ==================== 初始化 ====================
+
+fn init_game(state: &mut GolfState) {
+    state.width = GAME_WIDTH;
+    state.height = GAME_HEIGHT;
+    state.radius = BALL_RADIUS;
+    state.currentHole = 0;
+    state.totalStrokes = 0;
+    state.score = 0;
+    state.holeAnimTimer = 0;
+    
+    loadHole(state, 0);
+}
+
+fn loadHole(state: &mut GolfState, holeIndex: i32) {
+    state.currentHole = holeIndex;
+    state.course = getCourse(holeIndex);
+    state.ballX = state.course.teeX;
+    state.ballY = state.course.teeY;
+    state.vx = 0;
+    state.vy = 0;
+    state.strokes = 0;
+    state.status = GameStatus.Ready;
+    state.power = 0;
+    state.aimX = 1;
+    state.aimY = 0;
+    state.holeAnimTimer = 0;
+}
+
+// ==================== 物理更新 ====================
+
+fn updatePhysics(state: &mut GolfState) -> bool {
+    var anyMoving = false;
+    
+    // 检查是否在沙坑中 (沙坑摩擦更大)
+    var inSand = false;
+    for i in 0..state.course.obsCount {
+        let obs = state.course.obstacles[i];
+        if obs.typ == 2 {  // 沙坑
+            if pointInRect(state.ballX, state.ballY, obs.x1, obs.y1, obs.x2, obs.y2) {
+                inSand = true;
+                break;
+            }
+        }
+    }
+    
+    // 沙坑中摩擦更大
+    let friction = if inSand { FRICTION * 3 } else { FRICTION };
+    
+    // 移动球
+    state.ballX = state.ballX + state.vx;
+    state.ballY = state.ballY + state.vy;
+    
+    // 应用摩擦力
+    if state.vx != 0 || state.vy != 0 {
+        if state.vx > 0 {
+            state.vx = max(0, state.vx - friction);
+        } else {
+            state.vx = min(0, state.vx + friction);
+        }
+        if state.vy > 0 {
+            state.vy = max(0, state.vy - friction);
+        } else {
+            state.vy = min(0, state.vy + friction);
+        }
+        
+        // 检查停止
+        if abs(state.vx) <= MIN_VELOCITY && abs(state.vy) <= MIN_VELOCITY {
+            state.vx = 0;
+            state.vy = 0;
+        } else {
+            anyMoving = true;
+        }
+    }
+    
+    // 边界碰撞
+    // 左边界
+    if state.ballX - state.radius <= 40 {
+        state.ballX = 40 + state.radius;
+        state.vx = -state.vx * BOUNCE / 100;
+    }
+    // 右边界
+    if state.ballX + state.radius >= GAME_WIDTH - 40 {
+        state.ballX = GAME_WIDTH - 40 - state.radius;
+        state.vx = -state.vx * BOUNCE / 100;
+    }
+    // 上边界
+    if state.ballY - state.radius <= 40 {
+        state.ballY = 40 + state.radius;
+        state.vy = -state.vy * BOUNCE / 100;
+    }
+    // 下边界
+    if state.ballY + state.radius >= GAME_HEIGHT - 40 {
+        state.ballY = GAME_HEIGHT - 40 - state.radius;
+        state.vy = -state.vy * BOUNCE / 100;
+    }
+    
+    // 障碍物碰撞
+    for i in 0..state.course.obsCount {
+        let obs = state.course.obstacles[i];
+        
+        if obs.typ == 0 {  // 墙壁
+            if circleRectIntersect(state.ballX, state.ballY, state.radius, obs.x1, obs.y1, obs.x2, obs.y2) {
+                // 计算碰撞法向量 (简化: 用矩形边缘)
+                let centerX = (obs.x1 + obs.x2) / 2;
+                let centerY = (obs.y1 + obs.y2) / 2;
+                
+                let dx = state.ballX - centerX;
+                let dy = state.ballY - centerY;
+                
+                // 确定从哪个方向反弹
+                let overlapX = abs(state.ballX - centerX) - abs(obs.x2 - obs.x1) / 2;
+                let overlapY = abs(state.ballY - centerY) - abs(obs.y2 - obs.y1) / 2;
+                
+                if overlapX > overlapY {
+                    state.vx = -state.vx * BOUNCE / 100;
+                    if dx > 0 {
+                        state.ballX = obs.x2 + state.radius;
+                    } else {
+                        state.ballX = obs.x1 - state.radius;
+                    }
+                } else {
+                    state.vy = -state.vy * BOUNCE / 100;
+                    if dy > 0 {
+                        state.ballY = obs.y2 + state.radius;
+                    } else {
+                        state.ballY = obs.y1 - state.radius;
+                    }
+                }
+                anyMoving = true;
+            }
+        }
+        
+        if obs.typ == 1 {  // 水障碍 - 罚一杆
+            if pointInRect(state.ballX, state.ballY, obs.x1, obs.y1, obs.x2, obs.y2) {
+                // 球落水, 罚一杆, 回到上一个位置
+                state.strokes = state.strokes + 1;
+                state.vx = 0;
+                state.vy = 0;
+                state.status = GameStatus.Ready;
+                // 不重置球位置,让玩家继续
+            }
+        }
+    }
+    
+    // 检查进洞
+    let holeX = state.course.holeX;
+    let holeY = state.course.holeY;
+    let distToHole = distance(state.ballX, state.ballY, holeX, holeY);
+    
+    if distToHole < HOLE_RADIUS - 2 && abs(state.vx) < 8 && abs(state.vy) < 8 {
+        state.status = GameStatus.HoleIn;
+        state.holeAnimTimer = 60;
+        state.ballX = holeX;
+        state.ballY = holeY;
+        state.vx = 0;
+        state.vy = 0;
+    }
+    
+    return anyMoving;
+}
+
+// 检查所有物体是否静止
+fn allStopped(state: &GolfState) -> bool {
+    return state.vx == 0 && state.vy == 0;
+}
+
+// 击球
+fn shoot(state: &mut GolfState, power: i32, dx: i32, dy: i32) {
+    let dist = sqrt_int(dx * dx + dy * dy);
+    if dist == 0 || power <= 0 {
+        return;
+    }
+    
+    // 标准化方向
+    let nx = dx * 100 / dist;
+    let ny = dy * 100 / dist;
+    
+    // 应用力度 (从拖拽起点到终点方向击球)
+    let speed = power;
+    state.vx = nx * speed / 100;
+    state.vy = ny * speed / 100;
+    
+    state.status = GameStatus.Moving;
+    state.strokes = state.strokes + 1;
+    state.totalStrokes = state.totalStrokes + 1;
+    state.power = 0;
+}
+
+// ==================== 鼠标处理 ====================
+
+fn onMouseDown(state: &mut GolfState, x: i32, y: i32) {
+    if state.status == GameStatus.HoleIn {
+        // 进球动画结束后进入下一洞
+        return;
+    }
+    
+    if state.status == GameStatus.GameComplete {
+        // 重新开始
+        init_game(state);
+        return;
+    }
+    
+    if state.status == GameStatus.Moving {
+        return;
+    }
+    
+    state.status = GameStatus.Dragging;
+    state.dragStartX = x;
+    state.dragStartY = y;
+    state.mouseX = x;
+    state.mouseY = y;
+}
+
+fn onMouseMove(state: &mut GolfState, x: i32, y: i32) {
+    state.mouseX = x;
+    state.mouseY = y;
+    
+    if state.status == GameStatus.Dragging {
+        // 计算瞄准方向 (从球到鼠标)
+        state.aimX = x - state.ballX;
+        state.aimY = y - state.ballY;
+        
+        // 计算蓄力 (拖拽距离)
+        let dragDist = sqrt_int(dist2(state.dragStartX, state.dragStartY, x, y));
+        state.power = min(dragDist / 4, MAX_POWER);
+    }
+}
+
+fn onMouseUp(state: &mut GolfState, x: i32, y: i32) {
+    if state.status == GameStatus.Dragging {
+        if state.power > 1 {
+            // 从拖拽起点到终点的反方向就是击球方向 (拉弓射箭)
+            let dx = state.dragStartX - x;
+            let dy = state.dragStartY - y;
+            shoot(state, state.power, dx, dy);
+        } else {
+            state.status = GameStatus.Ready;
+            state.power = 0;
+        }
+    }
+}
+
+// ==================== 状态查询 ====================
+
+fn getStatusText(state: &GolfState) -> string {
+    match state.status {
+        GameStatus.Ready => return "点击并拖拽瞄准击球方向",
+        GameStatus.Aiming => return "瞄准中...",
+        GameStatus.Dragging => return "蓄力中: " ++ state.power.toString(),
+        GameStatus.Moving => return "球运动中...",
+        GameStatus.HoleIn => return "进洞了! +" ++ state.strokes.toString() ++ "杆",
+        GameStatus.GameComplete => return "球场完成! 总杆数: " ++ state.totalStrokes.toString(),
+    }
+}
+
+fn getHoleName(state: &GolfState) -> string {
+    return state.course.name;
+}
