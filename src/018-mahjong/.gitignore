@@ -1,0 +1,19 @@
+# Build outputs
+build/*.exe
+build/*.o
+build/*.c
+build/*.h
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Zen-C cache
+*.zcc
+*.zcache

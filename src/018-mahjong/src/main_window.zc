@@ -1,0 +1,1243 @@
+// main_window.zc - Zen-C 麻将游戏主程序
+// 使用 003-framework 框架，继承 Game 类
+
+import std.io;
+import std.string;
+
+// 导入框架
+import "platform_api.zc";
+import "game.zc";
+
+// 导入麻将逻辑
+import "mahjong_logic.zc";
+
+// ==================== 游戏常量 ====================
+
+const WINDOW_WIDTH = 900;       // 窗口宽度
+const WINDOW_HEIGHT = 700;      // 窗口高度
+const TILE_WIDTH = 40;          // 牌宽度
+const TILE_HEIGHT = 56;         // 牌高度
+const TILE_GAP = 2;             // 牌间距
+
+// 玩家区域位置
+const PLAYER_HAND_Y = 580;      // 玩家手牌Y坐标
+const AI1_HAND_Y = 20;          // 电脑1手牌Y坐标
+const AI2_HAND_X = 820;         // 电脑2手牌X坐标
+const AI3_HAND_X = 20;          // 电脑3手牌X坐标
+
+// 玩家出牌区
+const PLAYER_DISCARD_X = 300;
+const PLAYER_DISCARD_Y = 480;
+
+// 牌墙位置
+const WALL_X = 600;
+const WALL_Y = 200;
+
+// 摸牌区
+const DRAW_X = 700;
+const DRAW_Y = 350;
+
+// 操作按钮区域
+const BTN_Y = 640;
+const BTN_WIDTH = 80;
+const BTN_HEIGHT = 40;
+
+// ==================== 游戏阶段 ====================
+
+pub type GamePhase = enum {
+    Start,      // 开始界面
+    Deal,       // 发牌
+    Playing,    // 游戏中
+    OPERATING,  // 等待玩家操作（吃碰杠胡）
+    GAMEOver,   // 游戏结束
+};
+
+// 玩家座位 (0=玩家, 1=下家AI, 2=对家AI, 3=上家AI)
+const PLAYER_SEAT = 0;
+const AI1_SEAT = 1;
+const AI2_SEAT = 2;
+const AI3_SEAT = 3;
+
+// 当前操作玩家
+const CURRENT_DEALER = 0;  // 庄家座位
+
+// ==================== 麻将游戏类 ====================
+
+class MahjongGame extends Game {
+    // 游戏阶段
+    phase: GamePhase;
+    
+    // 牌墙
+    wall: TileWall;
+    
+    // 各玩家手牌
+    playerHand: [TileType; MAX_HAND_SIZE];
+    ai1Hand: [TileType; MAX_HAND_SIZE];
+    ai2Hand: [TileType; MAX_HAND_SIZE];
+    ai3Hand: [TileType; MAX_HAND_SIZE];
+    
+    // 各玩家手牌数
+    playerHandSize: int;
+    ai1HandSize: int;
+    ai2HandSize: int;
+    ai3HandSize: int;
+    
+    // 各玩家牌组（吃碰杠）
+    playerMelds: Melds;
+    ai1Melds: Melds;
+    ai2Melds: Melds;
+    ai3Melds: Melds;
+    
+    // 各玩家打出的牌
+    playerDiscarded: [TileType; 64];
+    ai1Discarded: [TileType; 64];
+    ai2Discarded: [TileType; 64];
+    ai3Discarded: [TileType; 64];
+    
+    // 各玩家打出的牌数
+    playerDiscardCount: int;
+    ai1DiscardCount: int;
+    ai2DiscardCount: int;
+    ai3DiscardCount: int;
+    
+    // 当前摸牌玩家
+    currentPlayer: int;
+    
+    // 最后打出的牌
+    lastDiscarded: TileType;
+    lastDiscardPlayer: int;  // 谁打出的
+    
+    // 最后摸的牌（用于杠）
+    lastDrawn: TileType;
+    
+    // 当前玩家可进行的操作
+    currentOperation: PlayerOperation;
+    
+    // AI级别
+    aiLevel: AILevel;
+    
+    // 玩家分数
+    playerScore: int;
+    ai1Score: int;
+    ai2Score: int;
+    ai3Score: int;
+    
+    // 庄家标记
+    dealerSeat: int;
+    
+    // 回合数
+    roundNumber: int;
+    
+    // 操作等待计时
+    operationTimer: u32;
+    
+    // 选中的牌（用于玩家选择）
+    selectedTile: int;
+    
+    // 操作按钮可见性
+    showChiBtn: bool;
+    showPengBtn: bool;
+    showGangBtn: bool;
+    showHuBtn: bool;
+    showCancelBtn: bool;
+    
+    // 操作按钮区域
+    chiBtnRect: Rect;
+    pengBtnRect: Rect;
+    gangBtnRect: Rect;
+    huBtnRect: Rect;
+    cancelBtnRect: Rect;
+    
+    // 构造函数
+    pub fn create(title: str, width: int, height: int, fps: int) {
+        self.width = width;
+        self.height = height;
+        self.targetFPS = fps;
+        self.frameTime = 1000 / fps as u32;
+        self.state = GameState.Ready;
+        self.running = false;
+        
+        // 创建窗口
+        self.window = createWindow(title, width, height);
+        if self.window == nil {
+            println("错误: 无法创建窗口");
+            return;
+        }
+        
+        // 初始化游戏数据
+        self.phase = GamePhase.Start;
+        self.aiLevel = AILevel.Normal;
+        self.currentPlayer = PLAYER_SEAT;
+        self.dealerSeat = PLAYER_SEAT;
+        self.roundNumber = 0;
+        self.selectedTile = -1;
+        self.operationTimer = 0;
+        
+        // 初始化分数
+        self.playerScore = 0;
+        self.ai1Score = 0;
+        self.ai2Score = 0;
+        self.ai3Score = 0;
+        
+        // 初始化手牌
+        for i in 0..MAX_HAND_SIZE {
+            self.playerHand[i] = TileType.Wan1;
+            self.ai1Hand[i] = TileType.Wan1;
+            self.ai2Hand[i] = TileType.Wan1;
+            self.ai3Hand[i] = TileType.Wan1;
+        }
+        
+        // 初始化牌组
+        self.playerMelds = Melds.new();
+        self.ai1Melds = Melds.new();
+        self.ai2Melds = Melds.new();
+        self.ai3Melds = Melds.new();
+        
+        // 初始化打出的牌
+        for i in 0..64 {
+            self.playerDiscarded[i] = TileType.Wan1;
+            self.ai1Discarded[i] = TileType.Wan1;
+            self.ai2Discarded[i] = TileType.Wan1;
+            self.ai3Discarded[i] = TileType.Wan1;
+        }
+        
+        // 初始化牌墙
+        self.wall = TileWall.new();
+        
+        // 初始化操作
+        self.currentOperation.canChi = false;
+        self.currentOperation.canPeng = false;
+        self.currentOperation.canGang = false;
+        self.currentOperation.canHu = false;
+        
+        // 初始化按钮区域
+        self.chiBtnRect = Rect.new(WINDOW_WIDTH / 2 - 200, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
+        self.pengBtnRect = Rect.new(WINDOW_WIDTH / 2 - 100, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
+        self.gangBtnRect = Rect.new(WINDOW_WIDTH / 2, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
+        self.huBtnRect = Rect.new(WINDOW_WIDTH / 2 + 100, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
+        self.cancelBtnRect = Rect.new(WINDOW_WIDTH / 2 + 200, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
+        
+        self.showChiBtn = false;
+        self.showPengBtn = false;
+        self.showGangBtn = false;
+        self.showHuBtn = false;
+        self.showCancelBtn = false;
+        
+        println("麻将游戏创建成功: " ++ title);
+    }
+    
+    // 开始新游戏
+    fn startNewGame() {
+        self.phase = GamePhase.Deal;
+        self.currentPlayer = self.dealerSeat;
+        self.roundNumber = self.roundNumber + 1;
+        
+        // 重置手牌数
+        self.playerHandSize = 0;
+        self.ai1HandSize = 0;
+        self.ai2HandSize = 0;
+        self.ai3HandSize = 0;
+        
+        // 重置牌组
+        self.playerMelds = Melds.new();
+        self.ai1Melds = Melds.new();
+        self.ai2Melds = Melds.new();
+        self.ai3Melds = Melds.new();
+        
+        // 重置打出的牌
+        self.playerDiscardCount = 0;
+        self.ai1DiscardCount = 0;
+        self.ai2DiscardCount = 0;
+        self.ai3DiscardCount = 0;
+        
+        // 洗牌
+        self.wall.shuffle();
+        
+        // 掷骰子
+        self.wall.rollDice();
+        
+        // 发牌
+        self.dealTiles();
+        
+        self.phase = GamePhase.Playing;
+    }
+    
+    // 发牌（每人13张，庄家14张）
+    fn dealTiles() {
+        // 庄家先摸牌，所以庄家发13张，其他家发13张
+        var dealOrder: [int; 4] = [self.dealerSeat, 
+                                   (self.dealerSeat + 1) % 4, 
+                                   (self.dealerSeat + 2) % 4, 
+                                   (self.dealerSeat + 3) % 4];
+        
+        // 每人13张
+        for round in 0..13 {
+            for i in 0..4 {
+                var tile = self.wall.draw();
+                var seat = dealOrder[i];
+                self.addTileToHand(seat, tile);
+            }
+        }
+        
+        // 庄家多摸一张（14张）
+        var dealerTile = self.wall.draw();
+        self.addTileToHand(self.dealerSeat, dealerTile);
+        
+        // 排序手牌
+        sortHand(self.playerHand, self.playerHandSize);
+        sortHand(self.ai1Hand, self.ai1HandSize);
+        sortHand(self.ai2Hand, self.ai2HandSize);
+        sortHand(self.ai3Hand, self.ai3HandSize);
+    }
+    
+    // 给指定玩家添加牌
+    fn addTileToHand(seat: int, tile: TileType) {
+        match seat {
+            PLAYER_SEAT => {
+                if self.playerHandSize < MAX_HAND_SIZE {
+                    self.playerHand[self.playerHandSize] = tile;
+                    self.playerHandSize = self.playerHandSize + 1;
+                }
+            }
+            AI1_SEAT => {
+                if self.ai1HandSize < MAX_HAND_SIZE {
+                    self.ai1Hand[self.ai1HandSize] = tile;
+                    self.ai1HandSize = self.ai1HandSize + 1;
+                }
+            }
+            AI2_SEAT => {
+                if self.ai2HandSize < MAX_HAND_SIZE {
+                    self.ai2Hand[self.ai2HandSize] = tile;
+                    self.ai2HandSize = self.ai2HandSize + 1;
+                }
+            }
+            AI3_SEAT => {
+                if self.ai3HandSize < MAX_HAND_SIZE {
+                    self.ai3Hand[self.ai3HandSize] = tile;
+                    self.ai3HandSize = self.ai3HandSize + 1;
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    // 获取指定玩家的手牌
+    fn getHand(seat: int) -> &[TileType; MAX_HAND_SIZE] {
+        match seat {
+            PLAYER_SEAT => return &self.playerHand,
+            AI1_SEAT => return &self.ai1Hand,
+            AI2_SEAT => return &self.ai2Hand,
+            AI3_SEAT => return &self.ai3Hand,
+            _ => return &self.playerHand,
+        }
+    }
+    
+    // 获取指定玩家的手牌数
+    fn getHandSize(seat: int) -> int {
+        match seat {
+            PLAYER_SEAT => return self.playerHandSize,
+            AI1_SEAT => return self.ai1HandSize,
+            AI2_SEAT => return self.ai2HandSize,
+            AI3_SEAT => return self.ai3HandSize,
+            _ => return 0,
+        }
+    }
+    
+    // 玩家摸牌
+    fn playerDrawTile() {
+        if self.wall.remaining() <= 0 {
+            // 荒局（牌墙摸完）
+            self.phase = GamePhase.GAMEOver;
+            return;
+        }
+        
+        var tile = self.wall.draw();
+        self.lastDrawn = tile;
+        
+        // 添加到手牌
+        self.playerHand[self.playerHandSize] = tile;
+        self.playerHandSize = self.playerHandSize + 1;
+        sortHand(self.playerHand, self.playerHandSize);
+        
+        // 检查能否杠
+        self.checkGangOption();
+    }
+    
+    // AI摸牌
+    fn aiDrawTile(seat: int) {
+        if self.wall.remaining() <= 0 {
+            self.phase = GamePhase.GAMEOver;
+            return;
+        }
+        
+        var tile = self.wall.draw();
+        self.lastDrawn = tile;
+        
+        match seat {
+            AI1_SEAT => {
+                self.ai1Hand[self.ai1HandSize] = tile;
+                self.ai1HandSize = self.ai1HandSize + 1;
+                sortHand(self.ai1Hand, self.ai1HandSize);
+            }
+            AI2_SEAT => {
+                self.ai2Hand[self.ai2HandSize] = tile;
+                self.ai2HandSize = self.ai2HandSize + 1;
+                sortHand(self.ai2Hand, self.ai2HandSize);
+            }
+            AI3_SEAT => {
+                self.ai3Hand[self.ai3HandSize] = tile;
+                self.ai3HandSize = self.ai3HandSize + 1;
+                sortHand(self.ai3Hand, self.ai3HandSize);
+            }
+            _ => {}
+        }
+    }
+    
+    // 检查玩家能否杠
+    fn checkGangOption() {
+        // 明杠：手牌有3张和摸来的牌相同
+        var gangTiles = getGangTiles(self.playerHand, self.playerHandSize, self.lastDrawn);
+        
+        // 统计有多少个可以杠的
+        var canGang = false;
+        for i in 0..34 {
+            if gangTiles[i] {
+                canGang = true;
+                break;
+            }
+        }
+        
+        self.showGangBtn = canGang;
+        self.currentOperation.canGang = canGang;
+    }
+    
+    // 玩家打出牌
+    fn playerDiscardTile(tileIndex: int) {
+        if tileIndex < 0 || tileIndex >= self.playerHandSize {
+            return;
+        }
+        
+        var tile = self.playerHand[tileIndex];
+        
+        // 移除手牌
+        for i in tileIndex..(self.playerHandSize - 1) {
+            self.playerHand[i] = self.playerHand[i + 1];
+        }
+        self.playerHandSize = self.playerHandSize - 1;
+        
+        // 添加到打出的牌
+        self.playerDiscarded[self.playerDiscardCount] = tile;
+        self.playerDiscardCount = self.playerDiscardCount + 1;
+        
+        self.lastDiscarded = tile;
+        self.lastDiscardPlayer = PLAYER_SEAT;
+        
+        // 切换到下家摸牌
+        self.currentPlayer = (self.currentPlayer + 1) % 4;
+        
+        // 检查其他玩家能否操作
+        self.checkOtherPlayerOperations();
+    }
+    
+    // AI打出牌
+    fn aiDiscardTile(seat: int) {
+        var hand = self.getHand(seat);
+        var handSize = self.getHandSize(seat);
+        
+        // AI决策
+        var decision = aiDecision(hand, handSize, self.aiLevel, nil);
+        
+        // 移除手牌
+        var tile = decision.discardTile;
+        removeFromHand(hand, handSize, tile);
+        
+        // 更新手牌数
+        match seat {
+            AI1_SEAT => self.ai1HandSize = self.ai1HandSize - 1,
+            AI2_SEAT => self.ai2HandSize = self.ai2HandSize - 1,
+            AI3_SEAT => self.ai3HandSize = self.ai3HandSize - 1,
+            _ => {}
+        }
+        
+        // 添加到打出的牌
+        match seat {
+            AI1_SEAT => {
+                self.ai1Discarded[self.ai1DiscardCount] = tile;
+                self.ai1DiscardCount = self.ai1DiscardCount + 1;
+            }
+            AI2_SEAT => {
+                self.ai2Discarded[self.ai2DiscardCount] = tile;
+                self.ai2DiscardCount = self.ai2DiscardCount + 1;
+            }
+            AI3_SEAT => {
+                self.ai3Discarded[self.ai3DiscardCount] = tile;
+                self.ai3DiscardCount = self.ai3DiscardCount + 1;
+            }
+            _ => {}
+        }
+        
+        self.lastDiscarded = tile;
+        self.lastDiscardPlayer = seat;
+        
+        // 切换到下家
+        self.currentPlayer = (self.currentPlayer + 1) % 4;
+        
+        // 检查其他玩家能否操作
+        self.checkOtherPlayerOperations();
+    }
+    
+    // 检查其他玩家能否吃碰杠胡
+    fn checkOtherPlayerOperations() {
+        // 清除操作状态
+        self.currentOperation.canChi = false;
+        self.currentOperation.canPeng = false;
+        self.currentOperation.canGang = false;
+        self.currentOperation.canHu = false;
+        
+        // 检查玩家能否操作（别人打出牌后）
+        if self.lastDiscardPlayer != PLAYER_SEAT {
+            var fromPlayer = (self.lastDiscardPlayer + 3) % 4;  // 相对位置
+            
+            // 检查胡
+            if canHu(self.playerHand, self.playerHandSize) {
+                self.currentOperation.canHu = true;
+                self.showHuBtn = true;
+            }
+            
+            // 检查碰
+            if canPeng(self.playerHand, self.playerHandSize, self.lastDiscarded) {
+                self.currentOperation.canPeng = true;
+                self.showPengBtn = true;
+            }
+            
+            // 检查吃（只有下家可以吃）
+            if canChi(self.playerHand, self.playerHandSize, self.lastDiscarded, fromPlayer) {
+                self.currentOperation.canChi = true;
+                self.showChiBtn = true;
+            }
+        }
+        
+        // 如果玩家有操作机会，进入操作阶段
+        if self.currentOperation.canChi || self.currentOperation.canPeng || 
+           self.currentOperation.canGang || self.currentOperation.canHu {
+            self.phase = GamePhase.OPERATING;
+            self.operationTimer = getTickCount();
+            self.showCancelBtn = true;
+            return;
+        }
+        
+        // 否则下家摸牌
+        self.phase = GamePhase.Playing;
+        
+        // 如果是玩家摸牌
+        if self.currentPlayer == PLAYER_SEAT {
+            self.playerDrawTile();
+        }
+    }
+    
+    // 玩家执行碰
+    fn playerPeng() {
+        if !self.currentOperation.canPeng {
+            return;
+        }
+        
+        var tile = self.lastDiscarded;
+        
+        // 从手牌移除2张
+        var removed = 0;
+        var i = 0;
+        while removed < 2 && i < self.playerHandSize {
+            if self.playerHand[i] == tile {
+                // 移除这张牌
+                for j in i..(self.playerHandSize - 1) {
+                    self.playerHand[j] = self.playerHand[j + 1];
+                }
+                self.playerHandSize = self.playerHandSize - 1;
+                removed = removed + 1;
+            } else {
+                i = i + 1;
+            }
+        }
+        
+        // 记录牌组
+        self.playerMelds.peng = [tile, tile, tile];
+        self.playerMelds.hasPeng = true;
+        
+        // 清除操作
+        self.showPengBtn = false;
+        self.showChiBtn = false;
+        self.showHuBtn = false;
+        self.showCancelBtn = false;
+        
+        self.phase = GamePhase.Playing;
+        
+        // 玩家需要打出一张牌
+        // （等待玩家选择）
+    }
+    
+    // 玩家执行吃
+    fn playerChi(tile1: TileType, tile2: TileType) {
+        if !self.currentOperation.canChi {
+            return;
+        }
+        
+        // 从手牌移除这两张
+        removeFromHand(self.playerHand, self.playerHandSize, tile1);
+        self.playerHandSize = self.playerHandSize - 1;
+        removeFromHand(self.playerHand, self.playerHandSize, tile2);
+        self.playerHandSize = self.playerHandSize - 1;
+        
+        // 记录牌组
+        self.playerMelds.chi = [tile1, self.lastDiscarded, tile2];
+        self.playerMelds.hasChi = true;
+        
+        // 清除操作
+        self.showPengBtn = false;
+        self.showChiBtn = false;
+        self.showHuBtn = false;
+        self.showCancelBtn = false;
+        
+        self.phase = GamePhase.Playing;
+    }
+    
+    // 玩家执行杠
+    fn playerGang() {
+        if !self.currentOperation.canGang && 
+           !canGang(self.playerHand, self.playerHandSize, self.lastDrawn) {
+            return;
+        }
+        
+        var tile = self.lastDrawn;
+        
+        // 从手牌移除3张
+        var removed = 0;
+        var i = 0;
+        while removed < 3 && i < self.playerHandSize {
+            if self.playerHand[i] == tile {
+                for j in i..(self.playerHandSize - 1) {
+                    self.playerHand[j] = self.playerHand[j + 1];
+                }
+                self.playerHandSize = self.playerHandSize - 1;
+                removed = removed + 1;
+            } else {
+                i = i + 1;
+            }
+        }
+        
+        // 记录牌组
+        self.playerMelds.gang = [tile, tile, tile, tile];
+        self.playerMelds.hasGang = true;
+        
+        // 清除操作
+        self.showGangBtn = false;
+        self.showCancelBtn = false;
+        
+        self.phase = GamePhase.Playing;
+        
+        // 杠后摸牌（补张）
+        self.playerDrawTile();
+    }
+    
+    // 玩家胡牌
+    fn playerHu() {
+        if !self.currentOperation.canHu {
+            return;
+        }
+        
+        // 胡牌！
+        self.playerScore = self.playerScore + 1;
+        
+        // 清除操作
+        self.showHuBtn = false;
+        self.showPengBtn = false;
+        self.showChiBtn = false;
+        self.showGangBtn = false;
+        self.showCancelBtn = false;
+        
+        self.phase = GamePhase.GAMEOver;
+    }
+    
+    // 玩家取消操作
+    fn playerCancel() {
+        self.showChiBtn = false;
+        self.showPengBtn = false;
+        self.showGangBtn = false;
+        self.showHuBtn = false;
+        self.showCancelBtn = false;
+        
+        self.currentOperation.canChi = false;
+        self.currentOperation.canPeng = false;
+        self.currentOperation.canGang = false;
+        self.currentOperation.canHu = false;
+        
+        self.phase = GamePhase.Playing;
+        
+        // 下家摸牌
+        if self.currentPlayer == PLAYER_SEAT {
+            self.playerDrawTile();
+        }
+    }
+    
+    // ==================== Game 类方法实现 ====================
+    
+    pub fn onInit() {
+        println("麻将游戏初始化");
+    }
+    
+    pub fn onShutdown() {
+        println("麻将游戏关闭");
+    }
+    
+    pub fn onUpdate(dt: u32) {
+        match self.phase {
+            GamePhase.Start => {
+                // 等待玩家开始
+            }
+            GamePhase.Deal => {
+                // 发牌中
+            }
+            GamePhase.Playing => {
+                // AI回合
+                if self.currentPlayer != PLAYER_SEAT {
+                    // 简单延迟后AI出牌
+                    self.operationTimer = self.operationTimer + dt;
+                    if self.operationTimer > 500 {
+                        self.aiDiscardTile(self.currentPlayer);
+                        self.operationTimer = 0;
+                    }
+                }
+            }
+            GamePhase.OPERATING => {
+                // 等待玩家操作超时后自动过
+                var elapsed = getTickCount() - self.operationTimer;
+                if elapsed > 10000 {  // 10秒超时
+                    self.playerCancel();
+                }
+            }
+            GamePhase.GAMEOver => {
+                // 游戏结束
+            }
+        }
+    }
+    
+    pub fn onRender(canvas: Canvas) {
+        // 清屏
+        canvas.clear(Color.RGB(30, 80, 50));
+        
+        match self.phase {
+            GamePhase.Start => {
+                self.renderStartScreen(canvas);
+            }
+            GamePhase.Deal => {
+                self.renderGameScreen(canvas);
+            }
+            GamePhase.Playing => {
+                self.renderGameScreen(canvas);
+            }
+            GamePhase.OPERATING => {
+                self.renderGameScreen(canvas);
+                self.renderOperationButtons(canvas);
+            }
+            GamePhase.GAMEOver => {
+                self.renderGameScreen(canvas);
+                self.renderGameOver(canvas);
+            }
+        }
+    }
+    
+    // 渲染开始画面
+    fn renderStartScreen(canvas: Canvas) {
+        // 标题
+        canvas.drawText(WINDOW_WIDTH / 2 - 100, 150, 
+                        "Zen-C 麻将", Color.Yellow(), Font.("Arial", 48));
+        
+        canvas.drawText(WINDOW_WIDTH / 2 - 150, 250, 
+                        "Mahjong Game", Color.White(), Font.("Arial", 24));
+        
+        // 开始按钮
+        canvas.fillRect(WINDOW_WIDTH / 2 - 100, 400, 200, 60, Color.RGB(100, 50, 0));
+        canvas.drawRect(WINDOW_WIDTH / 2 - 100, 400, 200, 60, Color.Yellow());
+        canvas.drawText(WINDOW_WIDTH / 2 - 50, 420, "开始游戏", Color.White(), Font.("Arial", 20));
+        
+        // 操作说明
+        canvas.drawText(WINDOW_WIDTH / 2 - 150, 520, 
+                        "操作说明:", Color.White(), Font.("Arial", 16));
+        canvas.drawText(WINDOW_WIDTH / 2 - 150, 550, 
+                        "鼠标点击选择手牌", Color.LightGray(), Font.("Arial", 14));
+        canvas.drawText(WINDOW_WIDTH / 2 - 150, 575, 
+                        "右键点击打出选中的牌", Color.LightGray(), Font.("Arial", 14));
+        canvas.drawText(WINDOW_WIDTH / 2 - 150, 600, 
+                        "ESC 退出游戏", Color.LightGray(), Font.("Arial", 14));
+    }
+    
+    // 渲染游戏画面
+    fn renderGameScreen(canvas: Canvas) {
+        // 渲染牌墙
+        self.renderWall(canvas);
+        
+        // 渲染各玩家打出的牌
+        self.renderDiscardedTiles(canvas);
+        
+        // 渲染玩家手牌
+        self.renderPlayerHand(canvas);
+        
+        // 渲染AI手牌（简化显示）
+        self.renderAIHands(canvas);
+        
+        // 渲染信息面板
+        self.renderInfoPanel(canvas);
+    }
+    
+    // 渲染牌墙
+    fn renderWall(canvas: Canvas) {
+        // 牌墙背景
+        canvas.fillRect(WALL_X - 10, WALL_Y - 10, 180, 300, Color.RGB(60, 40, 20));
+        canvas.drawRect(WALL_X - 10, WALL_Y - 10, 180, 300, Color.RGB(100, 80, 40));
+        
+        // 渲染牌墙上的牌（简化显示）
+        var tilesShown = min(self.wall.remaining() / 4, 30);
+        for row in 0..5 {
+            for col in 0..6 {
+                var idx = row * 6 + col;
+                if idx < tilesShown {
+                    var tx = WALL_X + col * 28;
+                    var ty = WALL_Y + row * 28;
+                    self.drawTileBack(canvas, tx, ty);
+                }
+            }
+        }
+        
+        // 剩余牌数
+        var remainingStr = "剩余: " ++ self.wall.remaining().toString();
+        canvas.drawText(WALL_X, WALL_Y + 160, remainingStr, Color.White(), Font.("Arial", 12));
+        
+        // 骰子点数
+        var diceStr = "骰子: " ++ self.wall.dice[0].toString() ++ "," ++ self.wall.dice[1].toString();
+        canvas.drawText(WALL_X, WALL_Y + 180, diceStr, Color.White(), Font.("Arial", 12));
+    }
+    
+    // 渲染各玩家打出的牌
+    fn renderDiscardedTiles(canvas: Canvas) {
+        // 玩家打出的牌（左下角）
+        canvas.drawText(30, PLAYER_DISCARD_Y - 20, "你的出牌:", Color.White(), Font.("Arial", 12));
+        for i in 0..self.playerDiscardCount {
+            var col = i % 10;
+            var row = i / 10;
+            var tx = 30 + col * 45;
+            var ty = PLAYER_DISCARD_Y + row * 60;
+            self.drawTile(canvas, tx, ty, self.playerDiscarded[i]);
+        }
+        
+        // AI1打出的牌（上方中间）
+        canvas.drawText(WINDOW_WIDTH / 2 - 50, 70, "上家出牌:", Color.White(), Font.("Arial", 12));
+        for i in 0..self.ai1DiscardCount {
+            var col = i % 10;
+            var row = i / 10;
+            var tx = WINDOW_WIDTH / 2 - 200 + col * 45;
+            var ty = 90 + row * 50;
+            self.drawTileRotated(canvas, tx, ty, self.ai1Discarded[i]);
+        }
+        
+        // AI2打出的牌（右侧）
+        canvas.drawText(830, 80, "下家出牌:", Color.White(), Font.("Arial", 12));
+        for i in 0..self.ai2DiscardCount {
+            var col = i % 3;
+            var row = i / 3;
+            var tx = 850;
+            var ty = 110 + row * 55;
+            self.drawTileRotated(canvas, tx, ty, self.ai2Discarded[i]);
+        }
+        
+        // AI3打出的牌（左侧）
+        canvas.drawText(30, 80, "对家出牌:", Color.White(), Font.("Arial", 12));
+        for i in 0..self.ai3DiscardCount {
+            var col = i % 3;
+            var row = i / 3;
+            var tx = 40;
+            var ty = 110 + row * 55;
+            self.drawTileRotated(canvas, tx, ty, self.ai3Discarded[i]);
+        }
+    }
+    
+    // 渲染玩家手牌
+    fn renderPlayerHand(canvas: Canvas) {
+        var startX = (WINDOW_WIDTH - self.playerHandSize * (TILE_WIDTH + TILE_GAP)) / 2;
+        
+        canvas.drawText(startX, PLAYER_HAND_Y - 20, "你的手牌:", Color.White(), Font.("Arial", 12));
+        
+        for i in 0..self.playerHandSize {
+            var tx = startX + i * (TILE_WIDTH + TILE_GAP);
+            var ty = PLAYER_HAND_Y;
+            
+            // 高亮选中的牌
+            if i == self.selectedTile {
+                canvas.fillRect(tx - 2, ty - 2, TILE_WIDTH + 4, TILE_HEIGHT + 4, Color.Yellow());
+            }
+            
+            self.drawTile(canvas, tx, ty, self.playerHand[i]);
+        }
+        
+        // 当前出牌提示
+        if self.phase == GamePhase.Playing && self.currentPlayer == PLAYER_SEAT {
+            canvas.drawText(startX + 200, PLAYER_HAND_Y + TILE_HEIGHT + 10, 
+                            "请选择要打出的牌 (右键点击)", Color.Cyan(), Font.("Arial", 14));
+        }
+    }
+    
+    // 渲染AI手牌（简化显示）
+    fn renderAIHands(canvas: Canvas) {
+        // AI1（上方）
+        canvas.drawText(WINDOW_WIDTH / 2 - 30, AI1_HAND_Y + 5, 
+                        "AI1 (" ++ self.ai1HandSize.toString() ++ "张)", Color.White(), Font.("Arial", 12));
+        for i in 0..self.ai1HandSize {
+            var tx = WINDOW_WIDTH / 2 - 200 + i * 20;
+            var ty = AI1_HAND_Y + 25;
+            self.drawTileBack(canvas, tx, ty);
+        }
+        
+        // AI2（右侧）
+        canvas.drawText(AI2_HAND_X + 5, 50, 
+                         "AI2 (" ++ self.ai2HandSize.toString() ++ "张)", Color.White(), Font.("Arial", 12));
+        for i in 0..self.ai2HandSize {
+            var tx = AI2_HAND_X - 25;
+            var ty = 70 + i * 20;
+            self.drawTileBackRotated(canvas, tx, ty);
+        }
+        
+        // AI3（左侧）
+        canvas.drawText(AI3_HAND_X + 5, 50, 
+                         "AI3 (" ++ self.ai3HandSize.toString() ++ "张)", Color.White(), Font.("Arial", 12));
+        for i in 0..self.ai3HandSize {
+            var tx = AI3_HAND_X + 25;
+            var ty = 70 + i * 20;
+            self.drawTileBackRotated(canvas, tx, ty);
+        }
+    }
+    
+    // 渲染信息面板
+    fn renderInfoPanel(canvas: Canvas) {
+        // 回合信息
+        canvas.fillRect(30, 30, 200, 80, Color.RGB(20, 20, 30));
+        canvas.drawRect(30, 30, 200, 80, Color.RGB(100, 100, 100));
+        
+        canvas.drawText(40, 40, "回合: " ++ self.roundNumber.toString(), Color.White(), Font.("Arial", 14));
+        canvas.drawText(40, 60, "你的分数: " ++ self.playerScore.toString(), Color.Yellow(), Font.("Arial", 14));
+        
+        // 当前操作玩家
+        var currentName = "你";
+        if self.currentPlayer == AI1_SEAT { currentName = "AI1"; }
+        else if self.currentPlayer == AI2_SEAT { currentName = "AI2"; }
+        else if self.currentPlayer == AI3_SEAT { currentName = "AI3"; }
+        
+        canvas.drawText(40, 80, "当前: " ++ currentName, Color.Cyan(), Font.("Arial", 14));
+        
+        // 最后打出的牌
+        if self.lastDiscardPlayer >= 0 {
+            var discarder = "你";
+            if self.lastDiscardPlayer == AI1_SEAT { discarder = "AI1"; }
+            else if self.lastDiscardPlayer == AI2_SEAT { discarder = "AI2"; }
+            else if self.lastDiscardPlayer == AI3_SEAT { discarder = "AI3"; }
+            
+            var tileName = getTileName(self.lastDiscarded);
+            canvas.drawText(40, 130, "最后: " ++ discarder ++ "打出", Color.LightGray(), Font.("Arial", 12));
+            
+            // 显示最后打出的牌
+            self.drawTile(canvas, 140, 118, self.lastDiscarded);
+        }
+    }
+    
+    // 渲染操作按钮
+    fn renderOperationButtons(canvas: Canvas) {
+        var btnX = WINDOW_WIDTH / 2 - 200;
+        
+        // 操作提示
+        canvas.fillRect(WINDOW_WIDTH / 2 - 150, BTN_Y - 40, 300, 35, Color.RGB(0, 0, 0, 200));
+        canvas.drawText(WINDOW_WIDTH / 2 - 100, BTN_Y - 30, 
+                        "请选择操作", Color.Yellow(), Font.("Arial", 18));
+        
+        if self.showChiBtn {
+            self.drawButton(canvas, btnX, BTN_Y, "吃", Color.Orange());
+            btnX = btnX + 100;
+        }
+        
+        if self.showPengBtn {
+            self.drawButton(canvas, btnX, BTN_Y, "碰", Color.Blue());
+            btnX = btnX + 100;
+        }
+        
+        if self.showGangBtn {
+            self.drawButton(canvas, btnX, BTN_Y, "杠", Color.Purple());
+            btnX = btnX + 100;
+        }
+        
+        if self.showHuBtn {
+            self.drawButton(canvas, btnX, BTN_Y, "胡", Color.Red());
+            btnX = btnX + 100;
+        }
+        
+        if self.showCancelBtn {
+            self.drawButton(canvas, btnX, BTN_Y, "取消", Color.Gray());
+        }
+    }
+    
+    // 渲染游戏结束画面
+    fn renderGameOver(canvas: Canvas) {
+        // 半透明遮罩
+        canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.RGB(0, 0, 0, 180));
+        
+        // 结果框
+        canvas.fillRect(WINDOW_WIDTH / 2 - 200, 200, 400, 300, Color.RGB(40, 40, 60));
+        canvas.drawRect(WINDOW_WIDTH / 2 - 200, 200, 400, 300, Color.Yellow());
+        
+        canvas.drawText(WINDOW_WIDTH / 2 - 80, 220, "游戏结束", Color.Yellow(), Font.("Arial", 32));
+        
+        // 分数
+        canvas.drawText(WINDOW_WIDTH / 2 - 150, 280, 
+                        "你的得分: " ++ self.playerScore.toString(), Color.White(), Font.("Arial", 20));
+        canvas.drawText(WINDOW_WIDTH / 2 - 150, 320, 
+                        "AI1得分: " ++ self.ai1Score.toString(), Color.LightGray(), Font.("Arial", 16));
+        canvas.drawText(WINDOW_WIDTH / 2 - 150, 350, 
+                        "AI2得分: " ++ self.ai2Score.toString(), Color.LightGray(), Font.("Arial", 16));
+        canvas.drawText(WINDOW_WIDTH / 2 - 150, 380, 
+                        "AI3得分: " ++ self.ai3Score.toString(), Color.LightGray(), Font.("Arial", 16));
+        
+        // 重新开始按钮
+        canvas.fillRect(WINDOW_WIDTH / 2 - 80, 430, 160, 50, Color.RGB(100, 50, 0));
+        canvas.drawRect(WINDOW_WIDTH / 2 - 80, 430, 160, 50, Color.Yellow());
+        canvas.drawText(WINDOW_WIDTH / 2 - 40, 450, "再来一局", Color.White(), Font.("Arial", 18));
+    }
+    
+    // 绘制一张牌（正面）
+    fn drawTile(canvas: Canvas, x: int, y: int, tile: TileType) {
+        var (r, g, b) = getTileColor(tile);
+        
+        // 牌底
+        canvas.fillRect(x, y, TILE_WIDTH, TILE_HEIGHT, Color.RGB(250, 250, 220));
+        
+        // 牌边框
+        canvas.drawRect(x, y, TILE_WIDTH, TILE_HEIGHT, Color.RGB(50, 50, 50));
+        
+        // 牌面颜色条
+        canvas.fillRect(x + 2, y + 2, TILE_WIDTH - 4, 12, Color.RGB(r, g, b));
+        
+        // 牌面文字
+        var name = getTileChar(tile);
+        canvas.drawText(x + 4, y + 18, name, Color.Black(), Font.("Arial", 14));
+    }
+    
+    // 绘制一张牌的背面
+    fn drawTileBack(canvas: Canvas, x: int, y: int) {
+        // 牌底
+        canvas.fillRect(x, y, 24, 32, Color.RGB(30, 80, 50));
+        canvas.drawRect(x, y, 24, 32, Color.RGB(100, 150, 100));
+        
+        // 花纹
+        canvas.fillRect(x + 4, y + 4, 16, 24, Color.RGB(50, 100, 70));
+    }
+    
+    // 绘制旋转的牌（AI用）
+    fn drawTileRotated(canvas: Canvas, x: int, y: int, tile: TileType) {
+        var (r, g, b) = getTileColor(tile);
+        
+        // 简化的水平显示
+        var w = 36;
+        var h = 48;
+        
+        canvas.fillRect(x, y, w, h, Color.RGB(250, 250, 220));
+        canvas.drawRect(x, y, w, h, Color.RGB(50, 50, 50));
+        canvas.fillRect(x + 2, y + 2, w - 4, 10, Color.RGB(r, g, b));
+        
+        var name = getTileChar(tile);
+        canvas.drawText(x + 3, y + 16, name, Color.Black(), Font.("Arial", 12));
+    }
+    
+    // 绘制旋转的牌背面
+    fn drawTileBackRotated(canvas: Canvas, x: int, y: int) {
+        canvas.fillRect(x, y, 30, 18, Color.RGB(30, 80, 50));
+        canvas.drawRect(x, y, 30, 18, Color.RGB(100, 150, 100));
+        canvas.fillRect(x + 2, y + 2, 26, 14, Color.RGB(50, 100, 70));
+    }
+    
+    // 绘制按钮
+    fn drawButton(canvas: Canvas, x: int, y: int, text: str, color: Color) {
+        canvas.fillRect(x, y, BTN_WIDTH, BTN_HEIGHT, color);
+        canvas.drawRect(x, y, BTN_WIDTH, BTN_HEIGHT, Color.White());
+        canvas.drawText(x + 15, y + 12, text, Color.White(), Font.("Arial", 16));
+    }
+    
+    // 获取点击的牌索引
+    fn getClickedTileIndex(mx: int, my: int) -> int {
+        if my < PLAYER_HAND_Y || my > PLAYER_HAND_Y + TILE_HEIGHT {
+            return -1;
+        }
+        
+        var startX = (WINDOW_WIDTH - self.playerHandSize * (TILE_WIDTH + TILE_GAP)) / 2;
+        
+        var relX = mx - startX;
+        if relX < 0 {
+            return -1;
+        }
+        
+        var index = relX / (TILE_WIDTH + TILE_GAP);
+        if index >= 0 && index < self.playerHandSize {
+            return index;
+        }
+        
+        return -1;
+    }
+    
+    // 获取点击的按钮
+    fn getClickedButton(mx: int, my: int) -> str {
+        if self.showChiBtn && self.chiBtnRect.contains(mx, my) {
+            return "chi";
+        }
+        if self.showPengBtn && self.pengBtnRect.contains(mx, my) {
+            return "peng";
+        }
+        if self.showGangBtn && self.gangBtnRect.contains(mx, my) {
+            return "gang";
+        }
+        if self.showHuBtn && self.huBtnRect.contains(mx, my) {
+            return "hu";
+        }
+        if self.showCancelBtn && self.cancelBtnRect.contains(mx, my) {
+            return "cancel";
+        }
+        
+        // 开始按钮
+        if self.phase == GamePhase.Start {
+            var startBtn = Rect.new(WINDOW_WIDTH / 2 - 100, 400, 200, 60);
+            if startBtn.contains(mx, my) {
+                return "start";
+            }
+        }
+        
+        // 重新开始按钮
+        if self.phase == GamePhase.GAMEOver {
+            var restartBtn = Rect.new(WINDOW_WIDTH / 2 - 80, 430, 160, 50);
+            if restartBtn.contains(mx, my) {
+                return "restart";
+            }
+        }
+        
+        return "";
+    }
+    
+    // ==================== 事件处理 ====================
+    
+    pub fn onKeyDown(key: VirtualKey) {
+        match key {
+            VirtualKey.Escape => {
+                self.running = false;
+            }
+            VirtualKey.Left => {
+                // 向左选择
+                if self.selectedTile > 0 {
+                    self.selectedTile = self.selectedTile - 1;
+                }
+            }
+            VirtualKey.Right => {
+                // 向右选择
+                if self.selectedTile < self.playerHandSize - 1 {
+                    self.selectedTile = self.selectedTile + 1;
+                }
+            }
+            VirtualKey.Enter, VirtualKey.Space => {
+                // 确认选择，打出牌
+                if self.phase == GamePhase.Playing && self.currentPlayer == PLAYER_SEAT {
+                    if self.selectedTile >= 0 && self.selectedTile < self.playerHandSize {
+                        self.playerDiscardTile(self.selectedTile);
+                        self.selectedTile = -1;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    pub fn onKeyUp(key: VirtualKey) {
+        // 无需处理
+    }
+    
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        match button {
+            MouseButton.Left => {
+                var btn = self.getClickedButton(x, y);
+                
+                match btn {
+                    "start" => {
+                        self.startNewGame();
+                    }
+                    "restart" => {
+                        self.startNewGame();
+                    }
+                    "chi" => {
+                        // 简化处理：自动吃
+                        self.playerChi(self.playerHand[0], self.playerHand[1]);
+                    }
+                    "peng" => {
+                        self.playerPeng();
+                    }
+                    "gang" => {
+                        self.playerGang();
+                    }
+                    "hu" => {
+                        self.playerHu();
+                    }
+                    "cancel" => {
+                        self.playerCancel();
+                    }
+                    _ => {
+                        // 检查是否点击了手牌
+                        if self.phase == GamePhase.Playing && self.currentPlayer == PLAYER_SEAT {
+                            var tileIndex = self.getClickedTileIndex(x, y);
+                            if tileIndex >= 0 {
+                                self.selectedTile = tileIndex;
+                            }
+                        }
+                    }
+                }
+            }
+            MouseButton.Right => {
+                // 右键打出选中的牌
+                if self.phase == GamePhase.Playing && self.currentPlayer == PLAYER_SEAT {
+                    if self.selectedTile >= 0 && self.selectedTile < self.playerHandSize {
+                        self.playerDiscardTile(self.selectedTile);
+                        self.selectedTile = -1;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+        // 无需处理
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() {
+    println("===========================================");
+    println("  Zen-C 麻将游戏");
+    println("  使用 003-framework 框架");
+    println("===========================================");
+    
+    // 初始化平台
+    initPlatform();
+    
+    // 创建游戏实例
+    var game = MahjongGame.("Mahjong - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    
+    // 运行游戏
+    game.run();
+    
+    // 销毁游戏
+    game.destroy();
+    
+    // 关闭平台
+    shutdownPlatform();
+    
+    println("游戏退出!");
+}
