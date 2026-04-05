@@ -1,0 +1,208 @@
+// main_window.zc - Zen-C Pachinko（弹珠台）游戏主程序
+
+import std.io;
+
+// 导入游戏逻辑
+import "platform_api.zc";
+import "game_logic.zc";
+
+// ==================== 全局变量 ====================
+
+static mut game: PachinkoState;
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut game_speed: u32 = 16;  // ~60 FPS
+
+// ==================== 事件处理 ====================
+
+fn on_key(key: KeyCode) -> bool {
+    return handle_input(&mut game, key);
+}
+
+fn on_key_up(key: KeyCode) {
+    handle_key_up(&mut game, key);
+}
+
+fn on_timer() -> bool {
+    if game.status == GameStatus.Playing {
+        return update_game(&mut game);
+    }
+    return false;
+}
+
+fn on_paint(w: i32, h: i32) {
+    // 确保帧缓冲初始化
+    if !fb_data.valid {
+        fb_init(window, w, h);
+    }
+
+    // 清屏 - 深蓝色背景
+    fb_clear(rgb(20, 20, 50));
+
+    // 绘制得分区域
+    for i in 0..5 {
+        let zone = game.zones[i];
+        fb_draw_rect(zone.x, zone.y, zone.width, zone.height, zone.color);
+        // 绘制分数文字
+        let score_str = zone.value.toString();
+        let text_x = zone.x + zone.width / 2 - 15;
+        let text_y = zone.y + 8;
+        fb_draw_text_size(text_x, text_y, score_str, rgb(0, 0, 0), 14);
+    }
+
+    // 绘制钉子
+    for i in 0..(PEG_ROWS * PEG_COLS) {
+        let peg = game.pegs[i];
+        let color = if peg.hit {
+            rgb(255, 255, 200)
+        } else {
+            peg.color
+        };
+        fb_draw_circle(peg.x, peg.y, peg.radius, color);
+    }
+
+    // 绘制翻转器
+    for i in 0..2 {
+        let f = game.flippers[i];
+        let end_x = f.x + (math.cos(f.angle) * f.length as f32) as i32;
+        let end_y = f.y + (math.sin(f.angle) * f.length as f32) as i32;
+        fb_draw_line(f.x, f.y, end_x, end_y, rgb(200, 200, 200), f.width);
+    }
+
+    // 绘制弹珠
+    for i in 0..MAX_BALLS {
+        if game.balls[i].active {
+            let ball = game.balls[i];
+            fb_draw_circle(ball.x as i32, ball.y as i32, ball.radius, rgb(255, 220, 100));
+        }
+    }
+
+    // 绘制发射器
+    fb_draw_rect(game.launcher.x, game.launcher.y, game.launcher.width, game.launcher.height, rgb(100, 150, 255));
+    // 发射器指示器
+    let indicator_h = 4 + (game.launcher.power - LAUNCH_POWER_MIN) * 2;
+    fb_draw_rect(game.launcher.x + game.launcher.width / 2 - 3,
+                 game.launcher.y - indicator_h,
+                 6, indicator_h, rgb(255, 100, 100));
+
+    // 绘制分数
+    let score_str = "分数: " ++ game.score.toString();
+    fb_draw_text_size(10, 10, score_str, rgb(255, 255, 255), 20);
+
+    // 绘制剩余球数
+    let balls_str = "剩余: " ++ game.balls_remaining.toString() ++ " 球";
+    fb_draw_text_size(10, 38, balls_str, rgb(200, 200, 200), 16);
+
+    // 绘制瞄准指示
+    if game.status == GameStatus.Aiming || game.status == GameStatus.Ready {
+        let ball_x = game.launcher.x + game.launcher.width / 2;
+        let ball_y = game.launcher.y;
+        // 绘制虚线轨迹
+        for j in 0..8 {
+            let yy = ball_y - j * 10 - 10;
+            if yy > PEG_START_Y {
+                fb_draw_circle(ball_x, yy, 2, rgb(255, 255, 100));
+            }
+        }
+    }
+
+    // 绘制状态文本
+    let status = get_status_text(&game);
+    fb_draw_text_size(GAME_WIDTH / 2 - 130, GAME_HEIGHT / 2, status, rgb(255, 255, 0), 18);
+
+    // 绘制控制说明
+    fb_draw_text_size(10, GAME_HEIGHT - 30, get_controls_text(), rgb(150, 150, 150), 14);
+
+    // 绘制分隔线
+    fb_draw_line(0, SCORE_ZONE_Y - 5, GAME_WIDTH, SCORE_ZONE_Y - 5, rgb(100, 100, 100), 1);
+
+    // 呈现画面
+    fb_present();
+}
+
+fn on_mouse(x: i32, y: i32) {
+    // 鼠标点击发射
+    if game.status == GameStatus.Ready || game.status == GameStatus.Aiming {
+        if y < GAME_HEIGHT - 100 {
+            game.status = GameStatus.Playing;
+            let ball_idx = get_free_ball(&game);
+            if ball_idx >= 0 {
+                game.balls[ball_idx].x = (game.launcher.x + game.launcher.width / 2) as f32;
+                game.balls[ball_idx].y = game.launcher.y as f32;
+                game.balls[ball_idx].vx = 0 as f32;
+                game.balls[ball_idx].vy = -(game.launcher.power as f32);
+                game.balls[ball_idx].active = true;
+                game.balls[ball_idx].trail = 0;
+                game.balls[ball_idx].radius = BALL_RADIUS;
+            }
+        }
+    } else if game.status == GameStatus.GameOver {
+        init_game(&mut game);
+    }
+}
+
+fn on_destroy() {
+    fb_shutdown();
+}
+
+// ==================== 主函数 ====================
+
+fn main() -> i32 {
+    io.println("========================================");
+    io.println("Zen-C Pachinko 弹珠台游戏");
+    io.println("========================================");
+
+    // 初始化游戏状态
+    init_game(&mut game);
+
+    // 创建窗口
+    let title = "Pachinko - 弹珠台游戏";
+    window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
+
+    if window == null {
+        io.println("错误: 无法创建窗口");
+        return 1;
+    }
+
+    // 获取实际客户区大小
+    let mut cw = 0;
+    let mut ch = 0;
+    get_window_client_size(window, &mut cw, &mut ch);
+    if cw > 0 && ch > 0 {
+        game.width = cw;
+        game.height = ch;
+        set_client_size(cw, ch);
+    }
+
+    // 设置事件处理器
+    set_key_handler(on_key);
+    set_key_up_handler(on_key_up);
+    set_timer_handler(on_timer);
+    set_paint_handler(on_paint);
+    set_mouse_handler(on_mouse);
+    set_destroy_handler(on_destroy);
+
+    // 显示窗口
+    show_window(window);
+
+    // 设置游戏定时器
+    set_game_timer(window, game_speed);
+
+    io.println("窗口创建成功!");
+    io.println("按空格键发射弹珠");
+    io.println("使用 ↑ ↓ 调整发射力度");
+    io.println("使用 ← → 控制翻转器");
+    io.println("========================================");
+
+    // 初始绘制
+    redraw_window(window);
+
+    // 运行事件循环
+    run_event_loop(window);
+
+    io.println("游戏结束!");
+    io.println("最终得分: " ++ game.score.toString());
+    io.println("========================================");
+
+    0
+}

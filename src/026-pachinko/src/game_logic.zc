@@ -1,0 +1,567 @@
+// game_logic.zc - Zen-C Pachinko（弹珠台）游戏核心逻辑
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 480;
+const GAME_HEIGHT: i32 = 640;
+const BALL_RADIUS: i32 = 8;
+const PEG_RADIUS: i32 = 6;
+const LAUNCHER_WIDTH: i32 = 60;
+const LAUNCHER_HEIGHT: i32 = 12;
+const FLIPPER_LENGTH: i32 = 60;
+const FLIPPER_WIDTH: i32 = 10;
+const GRAVITY: i32 = 2;
+const BOUNCE: f32 = 0.75;
+const MAX_BALLS: i32 = 5;
+
+// 弹珠发射器位置
+const LAUNCHER_X: i32 = (GAME_WIDTH - LAUNCHER_WIDTH) / 2;
+const LAUNCHER_Y: i32 = GAME_HEIGHT - 50;
+
+// 弹珠发射力度
+const LAUNCH_POWER_MIN: i32 = 12;
+const LAUNCH_POWER_MAX: i32 = 20;
+
+// 钉子网格
+const PEG_ROWS: i32 = 8;
+const PEG_COLS: i32 = 9;
+const PEG_SPACING_X: i32 = 50;
+const PEG_SPACING_Y: i32 = 55;
+const PEG_START_X: i32 = 40;
+const PEG_START_Y: i32 = 120;
+
+// 得分区域
+const SCORE_ZONE_HEIGHT: i32 = 30;
+const SCORE_ZONE_Y: i32 = GAME_HEIGHT - SCORE_ZONE_HEIGHT;
+
+// 翻转器
+const FLIPPER_Y: i32 = GAME_HEIGHT - 90;
+const FLIPPER_PIVOT_LEFT: i32 = 70;
+const FLIPPER_PIVOT_RIGHT: i32 = GAME_WIDTH - 70;
+const FLIPPER_ANGLE_SPEED: f32 = 0.15;
+const FLIPPER_MAX_ANGLE: f32 = 0.6;
+
+// ==================== 得分区域 ====================
+
+const SCORE_ZONE_VALUES: [5]i32 = [500, 200, 100, 50, 10];
+
+// ==================== 游戏状态 ====================
+
+enum GameStatus {
+    Ready,
+    Aiming,
+    Playing,
+    GameOver,
+}
+
+// ==================== 数据结构 ====================
+
+struct Ball {
+    x: f32,
+    y: f32,
+    vx: f32,
+    vy: f32,
+    radius: i32,
+    active: bool,
+    trail: i32,
+}
+
+struct Peg {
+    x: i32,
+    y: i32,
+    radius: i32,
+    hit: bool,
+    color: Color,
+}
+
+struct Flipper {
+    x: i32,
+    y: i32,
+    length: i32,
+    width: i32,
+    angle: f32,
+    target_angle: f32,
+    is_left: bool,
+}
+
+struct Launcher {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    power: i32,
+    aiming: bool,
+}
+
+struct ScoreZone {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    value: i32,
+    color: Color,
+}
+
+struct PachinkoState {
+    balls: [MAX_BALLS]Ball,
+    pegs: [PEG_ROWS * PEG_COLS]Peg,
+    flippers: [2]Flipper,
+    launcher: Launcher,
+    zones: [5]ScoreZone,
+    score: i32,
+    balls_remaining: i32,
+    status: GameStatus,
+    width: i32,
+    height: i32,
+}
+
+// ==================== 游戏逻辑函数 ====================
+
+// 初始化游戏
+fn init_game(game: &mut PachinkoState) {
+    game.width = GAME_WIDTH;
+    game.height = GAME_HEIGHT;
+    game.score = 0;
+    game.balls_remaining = MAX_BALLS;
+    game.status = GameStatus.Ready;
+
+    // 初始化发射器
+    game.launcher = Launcher {
+        x: LAUNCHER_X,
+        y: LAUNCHER_Y,
+        width: LAUNCHER_WIDTH,
+        height: LAUNCHER_HEIGHT,
+        power: 15,
+        aiming: false,
+    };
+
+    // 初始化弹珠（全部未激活）
+    for i in 0..MAX_BALLS {
+        game.balls[i] = Ball {
+            x: 0 as f32,
+            y: 0 as f32,
+            vx: 0 as f32,
+            vy: 0 as f32,
+            radius: BALL_RADIUS,
+            active: false,
+            trail: 0,
+        };
+    }
+
+    // 初始化钉子网格
+    init_pegs(game);
+
+    // 初始化翻转器
+    game.flippers[0] = Flipper {
+        x: FLIPPER_PIVOT_LEFT,
+        y: FLIPPER_Y,
+        length: FLIPPER_LENGTH,
+        width: FLIPPER_WIDTH,
+        angle: 0.3,
+        target_angle: 0.3,
+        is_left: true,
+    };
+    game.flippers[1] = Flipper {
+        x: FLIPPER_PIVOT_RIGHT,
+        y: FLIPPER_Y,
+        length: FLIPPER_LENGTH,
+        width: FLIPPER_WIDTH,
+        angle: 3.14 - 0.3,
+        target_angle: 3.14 - 0.3,
+        is_left: false,
+    };
+
+    // 初始化得分区域
+    init_zones(game);
+}
+
+// 初始化钉子
+fn init_pegs(game: &mut PachinkoState) {
+    for row in 0..PEG_ROWS {
+        for col in 0..PEG_COLS {
+            let index = row * PEG_COLS + col;
+            // 奇数行错开
+            let offset_x = if row % 2 == 1 { PEG_SPACING_X / 2 } else { 0 };
+            let peg_x = PEG_START_X + col * PEG_SPACING_X + offset_x;
+            let peg_y = PEG_START_Y + row * PEG_SPACING_Y;
+
+            // 交替颜色
+            let hue = (row + col) % 3;
+            let color = if hue == 0 {
+                rgb(255, 100, 100)
+            } else if hue == 1 {
+                rgb(100, 100, 255)
+            } else {
+                rgb(100, 255, 100)
+            };
+
+            game.pegs[index] = Peg {
+                x: peg_x,
+                y: peg_y,
+                radius: PEG_RADIUS,
+                hit: false,
+                color: color,
+            };
+        }
+    }
+}
+
+// 初始化得分区域
+fn init_zones(game: &mut PachinkoState) {
+    let zone_width = GAME_WIDTH / 5;
+    let colors: [5]Color = [
+        rgb(255, 215, 0),   // 金色 - 500分
+        rgb(255, 69, 0),    // 橙红 - 200分
+        rgb(255, 165, 0),   // 橙色 - 100分
+        rgb(192, 192, 192), // 银色 - 50分
+        rgb(139, 69, 19),  // 棕色 - 10分
+    ];
+    for i in 0..5 {
+        game.zones[i] = ScoreZone {
+            x: i * zone_width,
+            y: SCORE_ZONE_Y,
+            width: zone_width,
+            height: SCORE_ZONE_HEIGHT,
+            value: SCORE_ZONE_VALUES[i],
+            color: colors[i],
+        };
+    }
+}
+
+// 获取空闲弹珠
+fn get_free_ball(game: &PachinkoState) -> i32 {
+    for i in 0..MAX_BALLS {
+        if !game.balls[i].active {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// 发射弹珠
+fn launch_ball(game: &mut PachinkoState) -> bool {
+    if game.status == GameStatus.Ready || game.status == GameStatus.Aiming {
+        let ball_idx = get_free_ball(game);
+        if ball_idx >= 0 {
+            game.balls[ball_idx].x = (game.launcher.x + game.launcher.width / 2) as f32;
+            game.balls[ball_idx].y = game.launcher.y as f32;
+            game.balls[ball_idx].vx = 0 as f32;
+            game.balls[ball_idx].vy = -(game.launcher.power as f32);
+            game.balls[ball_idx].active = true;
+            game.balls[ball_idx].trail = 0;
+            game.balls[ball_idx].radius = BALL_RADIUS;
+            game.status = GameStatus.Playing;
+            return true;
+        }
+    }
+    return false;
+}
+
+// 更新瞄准
+fn update_aiming(game: &mut PachinkoState, delta_power: i32) {
+    if game.status == GameStatus.Ready || game.status == GameStatus.Aiming {
+        game.launcher.power = game.launcher.power + delta_power;
+        if game.launcher.power < LAUNCH_POWER_MIN {
+            game.launcher.power = LAUNCH_POWER_MIN;
+        }
+        if game.launcher.power > LAUNCH_POWER_MAX {
+            game.launcher.power = LAUNCH_POWER_MAX;
+        }
+        game.status = GameStatus.Aiming;
+    }
+}
+
+// 处理键盘输入
+fn handle_input(game: &mut PachinkoState, key: KeyCode) -> bool {
+    match key {
+        KeyCode.KeySpace => {
+            if game.status == GameStatus.GameOver {
+                init_game(game);
+            } else {
+                launch_ball(game);
+            }
+        },
+        KeyCode.KeyUp => {
+            update_aiming(game, 1);
+        },
+        KeyCode.KeyDown => {
+            update_aiming(game, -1);
+        },
+        KeyCode.KeyLeft => {
+            game.flippers[0].target_angle = FLIPPER_MAX_ANGLE;
+        },
+        KeyCode.KeyRight => {
+            game.flippers[1].target_angle = 3.14 - FLIPPER_MAX_ANGLE;
+        },
+        KeyCode.KeyEscape => {
+            return false;
+        },
+        _ => {}
+    }
+    return true;
+}
+
+// 释放翻转器
+fn handle_key_up(game: &mut PachinkoState, key: KeyCode) {
+    match key {
+        KeyCode.KeyLeft => {
+            game.flippers[0].target_angle = 0.3;
+        },
+        KeyCode.KeyRight => {
+            game.flippers[1].target_angle = 3.14 - 0.3;
+        },
+        _ => {}
+    }
+}
+
+// 球与钉子碰撞
+fn ball_peg_collision(ball: &mut Ball, peg: &Peg) {
+    let dx = ball.x - peg.x as f32;
+    let dy = ball.y - peg.y as f32;
+    let dist_sq = dx * dx + dy * dy;
+    let min_dist = (ball.radius + peg.radius) as f32;
+    let min_dist_sq = min_dist * min_dist;
+
+    if dist_sq < min_dist_sq && dist_sq > 0.001 {
+        // 碰撞法线
+        let dist = math.sqrt(dist_sq) as f32;
+        let nx = dx / dist;
+        let ny = dy / dist;
+
+        // 分离球和钉子
+        let overlap = min_dist - dist;
+        ball.x = ball.x + nx * overlap;
+        ball.y = ball.y + ny * overlap;
+
+        // 反弹
+        let dot = ball.vx * nx + ball.vy * ny;
+        ball.vx = (ball.vx - 2.0 * dot * nx) * BOUNCE;
+        ball.vy = (ball.vy - 2.0 * dot * ny) * BOUNCE;
+
+        // 添加一点随机性
+        let r = (math.rand() % 20 - 10) as f32 / 100.0;
+        ball.vx = ball.vx + r;
+
+        // 标记钉子被击中
+        peg.hit = true;
+    }
+}
+
+// 球与翻转器碰撞
+fn ball_flipper_collision(ball: &mut Ball, flipper: &Flipper) {
+    let end_x = flipper.x as f32 + math.cos(flipper.angle) * flipper.length as f32;
+    let end_y = flipper.y as f32 + math.sin(flipper.angle) * flipper.length as f32;
+
+    // 点到线段的最近点
+    let ax = ball.x - flipper.x as f32;
+    let ay = ball.y - flipper.y as f32;
+    let bx = end_x - flipper.x as f32;
+    let by = end_y - flipper.y as f32;
+
+    let t_num = ax * bx + ay * by;
+    let t_den = bx * bx + by * by;
+    if t_den == 0 { return; }
+    let t = t_num / t_den;
+    if t < 0.0 { t = 0.0; }
+    if t > 1.0 { t = 1.0; }
+
+    let closest_x = flipper.x as f32 + t * bx;
+    let closest_y = flipper.y as f32 + t * by;
+
+    let dx = ball.x - closest_x;
+    let dy = ball.y - closest_y;
+    let dist_sq = dx * dx + dy * dy;
+    let min_dist = (ball.radius + flipper.width / 2) as f32;
+    let min_dist_sq = min_dist * min_dist;
+
+    if dist_sq < min_dist_sq && dist_sq > 0.001 {
+        let dist = math.sqrt(dist_sq) as f32;
+        let nx = dx / dist;
+        let ny = dy / dist;
+
+        // 分离
+        let overlap = min_dist - dist;
+        ball.x = ball.x + nx * overlap;
+        ball.y = ball.y + ny * overlap;
+
+        // 反弹（翻转器会给球一个向上的力）
+        let dot = ball.vx * nx + ball.vy * ny;
+        ball.vx = ball.vx - 2.0 * dot * nx;
+        ball.vy = ball.vy - 2.0 * dot * ny;
+
+        // 翻转器特殊效果：如果翻转器正在向上移动，给球额外速度
+        let flipper_up = if flipper.is_left {
+            flipper.angle < flipper.target_angle - 0.1
+        } else {
+            flipper.angle > flipper.target_angle + 0.1
+        };
+
+        if flipper_up && ball.vy > 0.0 {
+            ball.vy = -(abs_f(ball.vy)) - 5.0;
+            ball.vx = ball.vx + if flipper.is_left { 3.0 } else { -3.0 };
+        }
+    }
+}
+
+// 球与墙壁碰撞
+fn ball_wall_collision(ball: &mut Ball) {
+    // 左右墙
+    if ball.x - ball.radius as f32 < 0.0 {
+        ball.x = ball.radius as f32;
+        ball.vx = -ball.vx * BOUNCE;
+    }
+    if ball.x + ball.radius as f32 > GAME_WIDTH as f32 {
+        ball.x = (GAME_WIDTH - ball.radius) as f32;
+        ball.vx = -ball.vx * BOUNCE;
+    }
+    // 顶部
+    if ball.y - ball.radius as f32 < 0.0 {
+        ball.y = ball.radius as f32;
+        ball.vy = -ball.vy * BOUNCE;
+    }
+}
+
+// 检查得分
+fn check_score_zone(game: &mut PachinkoState, ball: &mut Ball) -> bool {
+    if ball.y + ball.radius as f32 >= SCORE_ZONE_Y as f32 {
+        for i in 0..5 {
+            let zone = game.zones[i];
+            if ball.x >= zone.x as f32 && ball.x < (zone.x + zone.width) as f32 {
+                game.score = game.score + zone.value;
+                return true;
+            }
+        }
+        // 没碰到任何区域，球消失
+        return true;
+    }
+    return false;
+}
+
+// 更新翻转器
+fn update_flippers(game: &mut PachinkoState) {
+    for i in 0..2 {
+        let diff = game.flippers[i].target_angle - game.flippers[i].angle;
+        if abs_i(diff as i32) > 1 {
+            if diff > 0.0 {
+                game.flippers[i].angle = game.flippers[i].angle + FLIPPER_ANGLE_SPEED;
+            } else {
+                game.flippers[i].angle = game.flippers[i].angle - FLIPPER_ANGLE_SPEED;
+            }
+        }
+    }
+}
+
+// 更新游戏逻辑
+fn update_game(game: &mut PachinkoState) -> bool {
+    // 更新翻转器
+    update_flippers(game);
+
+    // 更新每个活跃的球
+    for i in 0..MAX_BALLS {
+        if !game.balls[i].active {
+            continue;
+        }
+
+        let ball = &mut game.balls[i];
+
+        // 重力
+        ball.vy = ball.vy + GRAVITY as f32;
+
+        // 速度限制
+        let speed = math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+        if speed > 15.0 {
+            ball.vx = ball.vx * 15.0 / speed;
+            ball.vy = ball.vy * 15.0 / speed;
+        }
+
+        // 移动
+        ball.x = ball.x + ball.vx;
+        ball.y = ball.y + ball.vy;
+
+        // 更新轨迹
+        ball.trail = ball.trail + 1;
+        if ball.trail > 20 {
+            ball.trail = 0;
+        }
+
+        // 墙壁碰撞
+        ball_wall_collision(ball);
+
+        // 钉子碰撞
+        for j in 0..(PEG_ROWS * PEG_COLS) {
+            ball_peg_collision(ball, &game.pegs[j]);
+        }
+
+        // 翻转器碰撞
+        for j in 0..2 {
+            ball_flipper_collision(ball, &game.flippers[j]);
+        }
+
+        // 检查是否落入得分区
+        if check_score_zone(game, ball) {
+            ball.active = false;
+        }
+
+        // 球掉出底部
+        if ball.y > GAME_HEIGHT as f32 + 50.0 {
+            ball.active = false;
+        }
+    }
+
+    // 检查是否所有球都完了
+    if game.status == GameStatus.Playing {
+        let mut any_active = false;
+        for i in 0..MAX_BALLS {
+            if game.balls[i].active {
+                any_active = true;
+                break;
+            }
+        }
+        if !any_active {
+            game.balls_remaining = game.balls_remaining - 1;
+            if game.balls_remaining <= 0 {
+                game.status = GameStatus.GameOver;
+            } else {
+                game.status = GameStatus.Ready;
+            }
+        }
+    }
+
+    return true;
+}
+
+// 获取分数
+fn get_score(game: &PachinkoState) -> i32 {
+    game.score
+}
+
+// 获取剩余球数
+fn get_balls_remaining(game: &PachinkoState) -> i32 {
+    game.balls_remaining
+}
+
+// 获取状态文本
+fn get_status_text(game: &PachinkoState) -> string {
+    match game.status {
+        GameStatus.Ready => return "按空格发射弹珠  ↑↓调整力度",
+        GameStatus.Aiming => return "按空格发射弹珠  力度: " ++ game.launcher.power.toString(),
+        GameStatus.Playing => return "游戏中...",
+        GameStatus.GameOver => return "游戏结束! 按空格重新开始",
+    }
+}
+
+// 获取控制说明
+fn get_controls_text() -> string {
+    "↑↓:力度 空格:发射  ←→:翻转器"
+}
+
+// 绝对值函数
+fn abs_i(n: i32) -> i32 {
+    if n < 0 { -n } else { n }
+}
+
+fn abs_f(n: f32) -> f32 {
+    if n < 0.0 { -n } else { n }
+}
