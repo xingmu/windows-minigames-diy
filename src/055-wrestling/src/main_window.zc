@@ -1,0 +1,45 @@
+// main_window.zc - 055-Wrestling 入口点
+// 职业摔跤风格游戏
+
+import "platform_api.zc";
+import "game.zc";
+import "game_logic.zc";
+
+pub fn main() {
+    println("===========================================");
+    println("  055-Wrestling 职业摔跤");
+    println("  Zen-C + 003-framework");
+    println("===========================================");
+    println("");
+    println("控制说明:");
+    println("  方向键: 移动/冲刺");
+    println("  A键: 抓举/攻击 (靠近敌人)");
+    println("  B键: 特殊技 (组合方向键)");
+    println("  C键: 闪避");
+    println("  A+C: 压制 (需在倒地的敌人身上)");
+    println("  B+C: 嘲讽 (恢复能量)");
+    println("  上下+B: 过肩摔");
+    println("  左右+B: 爱尔兰鞭");
+    println("  Enter: 重新开始");
+    println("  ESC: 退出");
+    println("");
+    
+    // 初始化平台
+    initPlatform();
+    
+    println("正在创建游戏窗口...");
+    println("");
+    
+    // 创建游戏实例
+    var game = WrestlingGame.create();
+    
+    // 运行游戏
+    game.run();
+    
+    // 清理
+    game.destroy();
+    shutdownPlatform();
+    
+    println("");
+    println("游戏已退出");
+}

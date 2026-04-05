@@ -1,0 +1,1165 @@
+// game_logic.zc - 摔跤游戏核心逻辑
+// 055-Wrestling 职业摔跤风格游戏
+
+import "platform_api.zc";
+import "game.zc";
+
+// ============================================================================
+// 常量定义
+// ============================================================================
+
+// 屏幕尺寸
+private val SCREEN_WIDTH = 800;
+private val SCREEN_HEIGHT = 600;
+
+// 颜色定义
+private val COLOR_BG = Color.RGB(30, 30, 50);
+private val COLOR_RING = Color.RGB(60, 60, 80);
+private val COLOR_ROPE = Color.RGB(200, 50, 50);
+private val COLOR_CORNER = Color.RGB(255, 200, 50);
+private val COLOR_MAT = Color.RGB(80, 40, 40);
+private val COLOR_PLAYER1 = Color.RGB(220, 50, 50);
+private val COLOR_PLAYER2 = Color.RGB(50, 50, 220);
+private val COLOR_HP_BG = Color.RGB(80, 80, 80);
+private val COLOR_HP_P1 = Color.RGB(255, 100, 100);
+private val COLOR_HP_P2 = Color.RGB(100, 100, 255);
+private val COLOR_ENERGY_BG = Color.RGB(50, 50, 50);
+private val COLOR_ENERGY = Color.RGB(255, 200, 0);
+private val COLOR_TEXT = Color.White();
+private val COLOR_HIT = Color.Yellow();
+private val COLOR_PIN = Color.Magenta();
+
+// 摔跤台属性
+private val RING_TOP = 300;
+private val RING_BOTTOM = 480;
+private val RING_LEFT = 80;
+private val RING_RIGHT = 720;
+
+// 摔跤手属性
+private val MAX_HP = 100;
+private val MAX_ENERGY = 100;
+private val STUN_TIME = 800;
+private val GRAPPLE_RANGE = 80;
+private val ATTACK_RANGE = 90;
+private val MOVE_SPEED = 6;
+private val DASH_SPEED = 18;
+private val JUMP_POWER = 12;
+private val GRAVITY = 1;
+
+// 招数类型
+pub type MoveType = enum {
+    None,
+    Grapple,       // 抓举
+    BodySlam,      // 身体砸击
+    Suplex,        // 过肩摔
+    Throw,         // 抛摔
+    IrishWhip,     // 爱尔兰鞭 (撞绳弹回)
+    Pin,           // 压制
+    Finish,        // 终结技
+    Taunt,         // 嘲讽
+    Dodge,         // 闪避
+};
+
+// 摔跤手状态
+pub type WrestlerState = enum {
+    Idle,
+    Walking,
+    Running,
+    Jumping,
+    Grapping,
+    Attacking,
+    Stunned,
+    Grabbbed,
+    BeingThrown,
+    Pinned,
+    Taunting,
+};
+
+// ============================================================================
+// 摔跤手类
+// ============================================================================
+
+class Wrestler {
+    // 位置
+    x: int;
+    y: int;
+    facingRight: bool;
+    
+    // 物理属性
+    vx: int;
+    vy: int;
+    grounded: bool;
+    
+    // 战斗属性
+    hp: int;
+    maxHp: int;
+    energy: int;
+    maxEnergy: int;
+    stunTimer: u32;
+    
+    // 当前动作
+    currentMove: MoveType;
+    moveTimer: u32;
+    hitCooldown: u32;
+    
+    // 动画
+    state: WrestlerState;
+    animTimer: u32;
+    
+    // 状态
+    isGrappling: bool;
+    isBeingGrappled: bool;
+    isPinning: bool;
+    pinCount: int;
+    pinTimer: u32;
+    isDodging: bool;
+    
+    // 特效
+    effects: WrestlerEffect[10];
+    effectCount: int;
+    
+    pub fn create(x: int, facingRight: bool) {
+        self.x = x;
+        self.y = RING_BOTTOM;
+        self.facingRight = facingRight;
+        self.vx = 0;
+        self.vy = 0;
+        self.grounded = true;
+        self.maxHp = MAX_HP;
+        self.hp = MAX_HP;
+        self.maxEnergy = MAX_ENERGY;
+        self.energy = MAX_ENERGY;
+        self.stunTimer = 0;
+        self.currentMove = MoveType.None;
+        self.moveTimer = 0;
+        self.hitCooldown = 0;
+        self.state = WrestlerState.Idle;
+        self.animTimer = 0;
+        self.isGrappling = false;
+        self.isBeingGrappled = false;
+        self.isPinning = false;
+        self.pinCount = 0;
+        self.pinTimer = 0;
+        self.isDodging = false;
+        self.effectCount = 0;
+    }
+    
+    pub fn reset(x: int) {
+        self.x = x;
+        self.y = RING_BOTTOM;
+        self.vx = 0;
+        self.vy = 0;
+        self.grounded = true;
+        self.hp = MAX_HP;
+        self.energy = MAX_ENERGY;
+        self.stunTimer = 0;
+        self.currentMove = MoveType.None;
+        self.moveTimer = 0;
+        self.hitCooldown = 0;
+        self.state = WrestlerState.Idle;
+        self.isGrappling = false;
+        self.isBeingGrappled = false;
+        self.isPinning = false;
+        self.pinCount = 0;
+        self.pinTimer = 0;
+        self.isDodging = false;
+        self.effectCount = 0;
+    }
+    
+    pub fn addEffect(fx: int, fy: int, text: str, color: Color) {
+        if self.effectCount < 10 {
+            self.effects[self.effectCount] = WrestlerEffect.{
+                x: fx,
+                y: fy,
+                text: text,
+                color: color,
+                timer: 800,
+                vy: -2
+            };
+            self.effectCount = self.effectCount + 1;
+        }
+    }
+    
+    pub fn grapple(opponent: &Wrestler) -> bool {
+        if self.moveTimer > 0 || self.stunTimer > 0 || self.energy < 15 {
+            return false;
+        }
+        
+        var dist = abs(self.x - opponent.x);
+        var dy = abs(self.y - opponent.y);
+        
+        if dist < GRAPPLE_RANGE && dy < 60 {
+            self.currentMove = MoveType.Grapple;
+            self.moveTimer = 400;
+            self.energy = self.energy - 15;
+            self.state = WrestlerState.Grapping;
+            self.isGrappling = true;
+            opponent.isBeingGrappled = true;
+            opponent.state = WrestlerState.Grabbbed;
+            opponent.currentMove = MoveType.None;
+            opponent.addEffect(opponent.x, opponent.y - 60, "GRAPPLED!", Color.Cyan());
+            return true;
+        }
+        return false;
+    }
+    
+    pub fn executeMove(move: MoveType, opponent: &Wrestler, damage: int, energyCost: int) {
+        if self.moveTimer > 0 || self.stunTimer > 0 || self.energy < energyCost {
+            return;
+        }
+        
+        var dist = abs(self.x - opponent.x);
+        var dy = abs(self.y - opponent.y);
+        
+        if dist > ATTACK_RANGE || dy > 60 {
+            return;
+        }
+        
+        self.currentMove = move;
+        self.moveTimer = 500;
+        self.energy = self.energy - energyCost;
+        self.state = WrestlerState.Attacking;
+        
+        if !opponent.isDodging {
+            opponent.takeDamage(damage);
+            opponent.stunTimer = STUN_TIME;
+            opponent.state = WrestlerState.Stunned;
+            
+            // 击退
+            var knockback = if self.facingRight { 40 } else { -40 };
+            opponent.x = opponent.x + knockback;
+            opponent.vx = knockback / 2;
+            
+            // 特效
+            if damage >= 25 {
+                opponent.addEffect(opponent.x, opponent.y - 70, "SLAM!", Color.Yellow());
+            } else if damage >= 15 {
+                opponent.addEffect(opponent.x, opponent.y - 50, "IMPACT!", Color.Orange());
+            } else {
+                opponent.addEffect(opponent.x, opponent.y - 40, "HIT!", Color.White());
+            }
+        } else {
+            opponent.addEffect(opponent.x, opponent.y - 40, "DODGED!", Color.Cyan());
+            opponent.isDodging = false;
+        }
+        
+        opponent.hitCooldown = 300;
+    }
+    
+    pub fn attemptPin(opponent: &Wrestler) -> bool {
+        if self.moveTimer > 0 || self.stunTimer > 0 || self.energy < 20 {
+            return false;
+        }
+        
+        var dist = abs(self.x - opponent.x);
+        var dy = abs(self.y - opponent.y);
+        
+        // 必须在对手上方才能压制
+        if dist < 60 && dy < 30 && opponent.state != WrestlerState.Pinned {
+            self.currentMove = MoveType.Pin;
+            self.moveTimer = 2000;
+            self.energy = self.energy - 20;
+            self.isPinning = true;
+            opponent.isPinning = true;
+            opponent.state = WrestlerState.Pinned;
+            opponent.pinTimer = 0;
+            return true;
+        }
+        return false;
+    }
+    
+    pub fn takeDamage(damage: int) {
+        self.hp = self.hp - damage;
+        if self.hp < 0 {
+            self.hp = 0;
+        }
+        self.energy = self.energy - damage / 2;
+        if self.energy < 0 {
+            self.energy = 0;
+        }
+    }
+    
+    pub fn update(dt: u32) {
+        // 更新计时器
+        if self.stunTimer > 0 {
+            self.stunTimer = self.stunTimer - dt;
+            if self.stunTimer <= 0 {
+                self.stunTimer = 0;
+                if self.state == WrestlerState.Stunned {
+                    self.state = WrestlerState.Idle;
+                }
+            }
+        }
+        
+        if self.moveTimer > 0 {
+            self.moveTimer = self.moveTimer - dt;
+            if self.moveTimer <= 0 {
+                self.moveTimer = 0;
+                self.currentMove = MoveType.None;
+                if self.state == WrestlerState.Grapping || self.state == WrestlerState.Attacking {
+                    self.state = WrestlerState.Idle;
+                }
+                if self.isPinning {
+                    self.isPinning = false;
+                }
+            }
+        }
+        
+        if self.hitCooldown > 0 {
+            self.hitCooldown = self.hitCooldown - dt;
+            if self.hitCooldown <= 0 {
+                self.hitCooldown = 0;
+            }
+        }
+        
+        // 能量恢复
+        if self.energy < self.maxEnergy && self.stunTimer == 0 && self.moveTimer == 0 {
+            self.energy = self.energy + 1;
+            if self.energy > self.maxEnergy {
+                self.energy = self.maxEnergy;
+            }
+        }
+        
+        // 更新特效
+        for i in 0..self.effectCount {
+            self.effects[i].timer = self.effects[i].timer - dt;
+            self.effects[i].y = self.effects[i].y + self.effects[i].vy;
+        }
+        
+        // 清理过期特效
+        var newCount = 0;
+        for i in 0..self.effectCount {
+            if self.effects[i].timer > 0 {
+                self.effects[newCount] = self.effects[i];
+                newCount = newCount + 1;
+            }
+        }
+        self.effectCount = newCount;
+        
+        // 重力
+        if !self.grounded {
+            self.vy = self.vy + GRAVITY;
+        }
+        
+        // 应用速度
+        self.x = self.x + self.vx;
+        self.y = self.y + self.vy;
+        
+        // 边界检测 - 摔跤台
+        if self.x < RING_LEFT + 30 {
+            self.x = RING_LEFT + 30;
+            self.vx = 0;
+        }
+        if self.x > RING_RIGHT - 30 {
+            self.x = RING_RIGHT - 30;
+            self.vx = 0;
+        }
+        
+        // 地面检测
+        if self.y > RING_BOTTOM {
+            self.y = RING_BOTTOM;
+            self.vy = 0;
+            self.grounded = true;
+        }
+        
+        // 绳索反弹
+        if self.y < RING_TOP + 50 && self.x < RING_LEFT + 50 {
+            self.x = RING_LEFT + 60;
+            self.vx = DASH_SPEED / 2;
+        }
+        if self.y < RING_TOP + 50 && self.x > RING_RIGHT - 50 {
+            self.x = RING_RIGHT - 60;
+            self.vx = -DASH_SPEED / 2;
+        }
+        
+        // 阻力
+        self.vx = self.vx / 3;
+        
+        // 压制计时
+        if self.isPinning && self.state == WrestlerState.Pinned {
+            self.pinTimer = self.pinTimer + dt;
+        }
+        
+        // 脱离被抓
+        if self.isBeingGrappled && self.stunTimer == 0 {
+            var randVal = 0;
+            var i = 0;
+            while i < 5 {
+                randVal = randVal + i * 7;
+                i = i + 1;
+            }
+            randVal = randVal % 100;
+            if randVal < 3 || self.moveTimer == 0 {
+                self.isBeingGrappled = false;
+                self.state = WrestlerState.Idle;
+            }
+        }
+    }
+    
+    pub fn move(dir: int) {
+        if self.stunTimer > 0 || self.moveTimer > 0 || self.isBeingGrappled || self.isPinning {
+            return;
+        }
+        self.vx = dir * MOVE_SPEED;
+        self.state = if dir != 0 { WrestlerState.Walking } else { WrestlerState.Idle };
+    }
+    
+    pub fn run(dir: int) {
+        if self.stunTimer > 0 || self.moveTimer > 0 || self.isBeingGrappled || self.isPinning {
+            return;
+        }
+        if self.energy < 10 {
+            self.move(dir);
+            return;
+        }
+        self.vx = dir * DASH_SPEED;
+        self.energy = self.energy - 5;
+        self.state = WrestlerState.Running;
+    }
+    
+    pub fn jump() {
+        if !self.grounded || self.stunTimer > 0 || self.isBeingGrappled || self.isPinning {
+            return;
+        }
+        self.vy = -JUMP_POWER;
+        self.grounded = false;
+        self.state = WrestlerState.Jumping;
+    }
+    
+    pub fn dodge() {
+        if self.stunTimer > 0 || self.moveTimer > 0 || self.isBeingGrappled || self.isPinning {
+            return;
+        }
+        if self.energy < 15 {
+            return;
+        }
+        self.isDodging = true;
+        self.energy = self.energy - 15;
+        self.moveTimer = 300;
+        
+        // 向后闪避
+        var dir = if self.facingRight { -1 } else { 1 };
+        self.vx = dir * MOVE_SPEED * 2;
+    }
+    
+    pub fn taunt() {
+        if self.stunTimer > 0 || self.moveTimer > 0 || self.isBeingGrappled || self.isPinning {
+            return;
+        }
+        self.state = WrestlerState.Taunting;
+        self.moveTimer = 1000;
+        self.energy = self.energy + 20;
+        if self.energy > self.maxEnergy {
+            self.energy = self.maxEnergy;
+        }
+        self.addEffect(self.x, self.y - 80, "POWER UP!", Color.Yellow());
+    }
+    
+    pub fn isInMove() -> bool {
+        return self.moveTimer > 0 && (self.state == WrestlerState.Grapping || self.state == WrestlerState.Attacking);
+    }
+}
+
+// 特效结构
+struct WrestlerEffect {
+    x: int;
+    y: int;
+    text: str;
+    color: Color;
+    timer: u32;
+    vy: int;
+}
+
+// ============================================================================
+// 摔跤游戏主类
+// ============================================================================
+
+class WrestlingGame extends Game {
+    // 摔跤手
+    player1: Wrestler;
+    player2: Wrestler;
+    
+    // 游戏状态
+    round: int;
+    wins1: int;
+    wins2: int;
+    roundTimer: u32;
+    countdown: int;
+    countdownTimer: u32;
+    
+    // 输入状态
+    p1Left: bool;
+    p1Right: bool;
+    p1Up: bool;
+    p1Down: bool;
+    p1A: bool;
+    p1B: bool;
+    p1C: bool;
+    p1A_Pressed: bool;
+    p1B_Pressed: bool;
+    
+    // UI 动画
+    uiShake: int;
+    pinProgress1: int;
+    pinProgress2: int;
+    
+    pub fn create() {
+        super.create("055-Wrestling 职业摔跤", SCREEN_WIDTH, SCREEN_HEIGHT, 60);
+        
+        self.player1 = Wrestler.create(250, true);
+        self.player2 = Wrestler.create(550, false);
+        
+        self.round = 1;
+        self.wins1 = 0;
+        self.wins2 = 0;
+        self.roundTimer = 120000;
+        self.countdown = 3;
+        self.countdownTimer = 0;
+        
+        self.p1Left = false;
+        self.p1Right = false;
+        self.p1Up = false;
+        self.p1Down = false;
+        self.p1A = false;
+        self.p1B = false;
+        self.p1C = false;
+        self.p1A_Pressed = false;
+        self.p1B_Pressed = false;
+        
+        self.uiShake = 0;
+        self.pinProgress1 = 0;
+        self.pinProgress2 = 0;
+    }
+    
+    pub fn onInit() {
+        self.setState(GameState.Playing);
+        self.countdownTimer = 1000;
+        self.countdown = 3;
+    }
+    
+    pub fn startRound() {
+        self.player1.reset(250);
+        self.player2.reset(550);
+        self.roundTimer = 120000;
+        self.countdown = 3;
+        self.countdownTimer = 1000;
+        self.pinProgress1 = 0;
+        self.pinProgress2 = 0;
+    }
+    
+    pub fn onShutdown() {
+        // 清理
+    }
+    
+    pub fn onUpdate(dt: u32) {
+        // 倒计时
+        if self.countdownTimer > 0 {
+            self.countdownTimer = self.countdownTimer - dt;
+            if self.countdownTimer <= 0 {
+                self.countdown = self.countdown - 1;
+                if self.countdown > 0 {
+                    self.countdownTimer = 1000;
+                }
+            }
+            return;
+        }
+        
+        // 更新倒计时
+        if self.roundTimer > 0 {
+            self.roundTimer = self.roundTimer - dt;
+        }
+        
+        // 处理玩家1输入
+        self.handlePlayer1Input();
+        
+        // 处理玩家2输入 (AI)
+        self.handlePlayer2AI();
+        
+        // 更新摔跤手
+        self.player1.update(dt);
+        self.player2.update(dt);
+        
+        // 更新UI动画
+        if self.uiShake > 0 {
+            self.uiShake = self.uiShake - 1;
+        }
+        
+        // 更新压制进度
+        if self.player1.isPinning && self.player2.state == WrestlerState.Pinned {
+            self.pinProgress1 = self.pinProgress1 + dt;
+            if self.pinProgress1 >= 3000 {
+                // 压制成功
+            }
+        } else {
+            self.pinProgress1 = 0;
+        }
+        
+        if self.player2.isPinning && self.player1.state == WrestlerState.Pinned {
+            self.pinProgress2 = self.pinProgress2 + dt;
+        } else {
+            self.pinProgress2 = 0;
+        }
+        
+        // 检查胜负
+        self.checkWinCondition();
+    }
+    
+    pub fn handlePlayer1Input() {
+        // 移动
+        if self.player1.stunTimer == 0 && self.player1.moveTimer == 0 && !self.player1.isBeingGrappled && !self.player1.isPinning {
+            if self.p1Left {
+                self.player1.move(-1);
+                self.player1.facingRight = false;
+            } else if self.p1Right {
+                self.player1.move(1);
+                self.player1.facingRight = true;
+            }
+        }
+        
+        // 跳跃
+        if self.p1Up && self.player1.grounded {
+            self.player1.jump();
+        }
+        
+        // 闪避 (C键)
+        if self.p1C && !self.p1A_Pressed && !self.p1B_Pressed {
+            self.player1.dodge();
+        }
+        
+        // 抓举 (A键 - 近身)
+        if self.p1A && !self.p1A_Pressed && self.player1.stunTimer == 0 {
+            self.p1A_Pressed = true;
+            if !self.player1.isInMove() {
+                // 优先尝试抓举
+                if !self.player1.grapple(&self.player2) {
+                    // 如果抓不到，使用普通攻击
+                    if self.p1Up {
+                        self.player1.executeMove(MoveType.BodySlam, &self.player2, 15, 20);
+                    } else if self.p1Down {
+                        self.player1.executeMove(MoveType.Throw, &self.player2, 10, 15);
+                    } else {
+                        self.player1.executeMove(MoveType.Grapple, &self.player2, 8, 10);
+                    }
+                }
+                self.uiShake = 5;
+            }
+        }
+        if !self.p1A {
+            self.p1A_Pressed = false;
+        }
+        
+        // 特殊技 (B键)
+        if self.p1B && !self.p1B_Pressed && self.player1.stunTimer == 0 {
+            self.p1B_Pressed = true;
+            if !self.player1.isInMove() {
+                // 组合键判断终结技
+                if self.p1Up && self.p1Down {
+                    // 上下+B = 过肩摔
+                    self.player1.executeMove(MoveType.Suplex, &self.player2, 30, 35);
+                } else if self.p1Left && self.p1Right {
+                    // 左右+B = 爱尔兰鞭
+                    self.player1.executeMove(MoveType.IrishWhip, &self.player2, 20, 25);
+                } else if self.p1C {
+                    // C+B = 终结技
+                    self.player1.executeMove(MoveType.Finish, &self.player2, 40, 50);
+                } else {
+                    // 普通特殊技
+                    self.player1.executeMove(MoveType.BodySlam, &self.player2, 18, 25);
+                }
+                self.uiShake = 7;
+            }
+        }
+        if !self.p1B {
+            self.p1B_Pressed = false;
+        }
+        
+        // 压制 (同时按A+C)
+        if self.p1A && self.p1C && self.player1.stunTimer == 0 {
+            self.player1.attemptPin(&self.player2);
+        }
+        
+        // 嘲讽 (同时按B+C)
+        if self.p1B && self.p1C && self.player1.stunTimer == 0 {
+            self.player1.taunt();
+        }
+    }
+    
+    pub fn handlePlayer2AI() {
+        var dist = abs(self.player2.x - self.player1.x);
+        var dy = abs(self.player2.y - self.player1.y);
+        
+        // 简单AI：接近玩家并随机攻击
+        if self.player2.stunTimer == 0 && self.player2.moveTimer == 0 && !self.player2.isBeingGrappled && !self.player2.isPinning {
+            if dist > 120 {
+                // 接近
+                if self.player2.x < self.player1.x {
+                    self.player2.move(1);
+                } else {
+                    self.player2.move(-1);
+                }
+                self.player2.facingRight = self.player1.x > self.player2.x;
+            } else if dist < 60 {
+                // 太近了，后退
+                if self.player2.x < self.player1.x {
+                    self.player2.move(-1);
+                } else {
+                    self.player2.move(1);
+                }
+            }
+        }
+        
+        // 随机决定行动
+        var randVal = 0;
+        var i = 0;
+        while i < 10 {
+            randVal = randVal + i * 13;
+            i = i + 1;
+        }
+        randVal = randVal % 100;
+        
+        // 随机攻击/抓举
+        if randVal < 3 && !self.player2.isInMove() && self.player2.stunTimer == 0 && dist < GRAPPLE_RANGE + 20 && dy < 60 {
+            var atkRand = randVal % 5;
+            if atkRand == 0 {
+                self.player2.executeMove(MoveType.Grapple, &self.player1, 8, 10);
+            } else if atkRand == 1 {
+                self.player2.executeMove(MoveType.BodySlam, &self.player1, 15, 20);
+            } else if atkRand == 2 {
+                self.player2.executeMove(MoveType.Suplex, &self.player1, 25, 30);
+            } else if atkRand == 3 {
+                self.player2.grapple(&self.player1);
+            } else {
+                self.player2.executeMove(MoveType.Throw, &self.player1, 12, 15);
+            }
+        }
+        
+        // 随机压制
+        if randVal > 97 && dist < 60 && dy < 30 && self.player1.state == WrestlerState.Stunned {
+            self.player2.attemptPin(&self.player1);
+        }
+        
+        // 随机跳跃
+        if randVal > 90 && self.player2.grounded {
+            self.player2.jump();
+        }
+        
+        // 随机闪避
+        if randVal > 95 && dist < 100 {
+            self.player2.dodge();
+        }
+    }
+    
+    pub fn checkWinCondition() {
+        var winner = -1;
+        
+        // HP判定
+        if self.player1.hp <= 0 {
+            winner = 2;
+        } else if self.player2.hp <= 0 {
+            winner = 1;
+        }
+        // 压制成功判定
+        else if self.pinProgress1 >= 3000 {
+            winner = 1;
+        } else if self.pinProgress2 >= 3000 {
+            winner = 2;
+        }
+        // 时间到判定
+        else if self.roundTimer <= 0 {
+            if self.player1.hp > self.player2.hp {
+                winner = 1;
+            } else if self.player2.hp > self.player1.hp {
+                winner = 2;
+            } else {
+                winner = 0;
+            }
+        }
+        
+        if winner > 0 {
+            if winner == 1 {
+                self.wins1 = self.wins1 + 1;
+            } else {
+                self.wins2 = self.wins2 + 1;
+            }
+            
+            // 检查是否有人赢得比赛 (2局2胜)
+            if self.wins1 >= 2 {
+                self.setState(GameState.Won);
+                self.player1.addEffect(self.player1.x, self.player1.y - 100, "WINNER!", Color.Yellow());
+            } else if self.wins2 >= 2 {
+                self.setState(GameState.Lost);
+                self.player2.addEffect(self.player2.x, self.player2.y - 100, "CPU WINS!", Color.Red());
+            } else {
+                self.round = self.round + 1;
+                self.startRound();
+            }
+        } else if winner == 0 {
+            // 平局，进入下一轮
+            self.round = self.round + 1;
+            self.startRound();
+        }
+    }
+    
+    pub fn onRender(canvas: &Canvas) {
+        canvas.clear(COLOR_BG);
+        self.drawRing(canvas);
+        self.drawWrestler(canvas, &self.player1, true);
+        self.drawWrestler(canvas, &self.player2, false);
+        self.drawEffects(canvas);
+        self.drawUI(canvas);
+        
+        if self.countdownTimer > 0 || self.countdown > 0 {
+            self.drawCountdown(canvas);
+        }
+    }
+    
+    pub fn drawRing(canvas: &Canvas) {
+        // 摔跤台背景
+        canvas.fillRect(RING_LEFT - 20, RING_TOP - 20, RING_RIGHT - RING_LEFT + 40, RING_BOTTOM - RING_TOP + 60, COLOR_RING);
+        
+        // 摔跤垫
+        canvas.fillRect(RING_LEFT, RING_TOP, RING_RIGHT - RING_LEFT, RING_BOTTOM - RING_TOP, COLOR_MAT);
+        
+        // 垫子图案
+        canvas.drawRect(RING_LEFT + 10, RING_TOP + 10, RING_RIGHT - RING_LEFT - 20, RING_BOTTOM - RING_TOP - 20, Color.RGB(100, 60, 60));
+        
+        // 中心圆
+        canvas.drawCircle(SCREEN_WIDTH / 2, (RING_TOP + RING_BOTTOM) / 2, 80, Color.RGB(120, 80, 80));
+        
+        // 四角柱
+        canvas.fillRect(RING_LEFT - 15, RING_TOP - 60, 20, 80, COLOR_CORNER);
+        canvas.fillRect(RING_RIGHT - 5, RING_TOP - 60, 20, 80, COLOR_CORNER);
+        
+        // 三层绳索
+        var ropeY1 = RING_TOP + 30;
+        var ropeY2 = RING_TOP + 60;
+        var ropeY3 = RING_TOP + 90;
+        
+        // 绳索颜色交替
+        var ropeColor1 = COLOR_ROPE;
+        var ropeColor2 = Color.White();
+        var ropeColor3 = COLOR_ROPE;
+        
+        canvas.drawLine(RING_LEFT, ropeY1, RING_RIGHT, ropeY1, ropeColor1);
+        canvas.drawLine(RING_LEFT, ropeY2, RING_RIGHT, ropeY2, ropeColor2);
+        canvas.drawLine(RING_LEFT, ropeY3, RING_RIGHT, ropeY3, ropeColor3);
+        
+        // 侧边绳索
+        canvas.drawLine(RING_LEFT, ropeY1, RING_LEFT, RING_BOTTOM - 20, ropeColor1);
+        canvas.drawLine(RING_RIGHT, ropeY1, RING_RIGHT, RING_BOTTOM - 20, ropeColor1);
+        canvas.drawLine(RING_LEFT, ropeY2, RING_LEFT, RING_BOTTOM - 20, ropeColor2);
+        canvas.drawLine(RING_RIGHT, ropeY2, RING_RIGHT, RING_BOTTOM - 20, ropeColor2);
+        canvas.drawLine(RING_LEFT, ropeY3, RING_LEFT, RING_BOTTOM - 20, ropeColor3);
+        canvas.drawLine(RING_RIGHT, ropeY3, RING_RIGHT, RING_BOTTOM - 20, ropeColor3);
+        
+        // 观众席提示
+        canvas.drawText(20, 100, "CROWD>>>", Color.DarkGray(), Font.new("Arial", 14));
+        canvas.drawText(SCREEN_WIDTH - 120, 100, "<<<CROWD", Color.DarkGray(), Font.new("Arial", 14));
+    }
+    
+    pub fn drawWrestler(canvas: &Canvas, wrestler: &Wrestler, isPlayer1: bool) {
+        var color = if isPlayer1 { COLOR_PLAYER1 } else { COLOR_PLAYER2 };
+        var x = wrestler.x;
+        var y = wrestler.y;
+        
+        if self.uiShake > 0 {
+            x = x + (self.randInt(0, 7) - 3);
+            y = y + (self.randInt(0, 7) - 3);
+        }
+        
+        var bodyColor = color;
+        if wrestler.state == WrestlerState.Stunned {
+            bodyColor = Color.LightGray();
+        }
+        
+        var st = wrestler.state;
+        
+        // 身体
+        if st == WrestlerState.Idle || st == WrestlerState.Walking {
+            // 头部
+            canvas.fillCircle(x, y - 70, 22, bodyColor);
+            // 身体
+            canvas.fillRect(x - 18, y - 48, 36, 55, bodyColor);
+            // 手臂
+            canvas.fillRect(x - 35, y - 40, 20, 12, bodyColor);
+            canvas.fillRect(x + 15, y - 40, 20, 12, bodyColor);
+            // 腿
+            var legOffset = if st == WrestlerState.Walking { (getTickCount() / 150) as int % 10 - 5 } else { 0 };
+            canvas.fillRect(x - 15 + legOffset, y + 7, 12, 45, bodyColor);
+            canvas.fillRect(x + 3 - legOffset, y + 7, 12, 45, bodyColor);
+            // 摔跤短裤
+            canvas.fillRect(x - 18, y + 7, 36, 15, Color.White());
+        } else if st == WrestlerState.Grapping {
+            // 抓举姿势 - 弯腰伸手
+            canvas.fillCircle(x, y - 65, 22, bodyColor);
+            canvas.fillRect(x - 10, y - 43, 30, 50, bodyColor);
+            // 伸出的手臂
+            var armDir = if wrestler.facingRight { 1 } else { -1 };
+            canvas.fillRect(x + armDir * 15, y - 35, 40 * armDir, 14, bodyColor);
+            canvas.fillRect(x - 30, y - 25, 15, 12, bodyColor);
+            canvas.fillRect(x + 15, y - 25, 15, 12, bodyColor);
+            canvas.fillRect(x - 15, y + 7, 12, 45, bodyColor);
+            canvas.fillRect(x + 3, y + 7, 12, 45, bodyColor);
+            canvas.fillRect(x - 18, y + 7, 36, 15, Color.White());
+        } else if st == WrestlerState.Grabbbed {
+            // 被抓住 - 身体前倾
+            canvas.fillCircle(x, y - 55, 22, bodyColor);
+            canvas.fillRect(x - 15, y - 33, 30, 45, bodyColor);
+            canvas.fillRect(x - 30, y - 20, 18, 12, bodyColor);
+            canvas.fillRect(x + 12, y - 20, 18, 12, bodyColor);
+            canvas.fillRect(x - 12, y + 12, 12, 40, bodyColor);
+            canvas.fillRect(x, y + 12, 12, 40, bodyColor);
+        } else if st == WrestlerState.Attacking {
+            // 攻击姿势 - 挥拳/过肩
+            canvas.fillCircle(x, y - 60, 22, bodyColor);
+            canvas.fillRect(x - 12, y - 38, 30, 48, bodyColor);
+            // 挥出的一拳
+            var armDir = if wrestler.facingRight { 1 } else { -1 };
+            canvas.fillRect(x + armDir * 18, y - 40, 45 * armDir, 16, bodyColor);
+            // 另一只手抓住
+            canvas.fillRect(x - 35, y - 30, 20, 12, bodyColor);
+            canvas.fillRect(x - 15, y + 10, 12, 40, bodyColor);
+            canvas.fillRect(x + 3, y + 10, 12, 40, bodyColor);
+            canvas.fillRect(x - 18, y + 10, 36, 15, Color.White());
+        } else if st == WrestlerState.Stunned {
+            // 眩晕 - 星星乱飞
+            canvas.fillCircle(x, y - 60, 20, bodyColor);
+            canvas.fillRect(x - 15, y - 40, 30, 45, bodyColor);
+            canvas.fillRect(x - 12, y + 5, 10, 45, bodyColor);
+            canvas.fillRect(x + 2, y + 5, 10, 45, bodyColor);
+            // 星星
+            var starAngle = (getTickCount() / 100) as int % 360;
+            canvas.fillCircle(x + 30, y - 80, 5, Color.Yellow());
+            canvas.fillCircle(x - 30, y - 75, 4, Color.Yellow());
+            canvas.fillCircle(x + 20, y - 90, 3, Color.Yellow());
+        } else if st == WrestlerState.Pinned {
+            // 被压制 - 躺在地上
+            var dir = if wrestler.facingRight { 1 } else { -1 };
+            canvas.fillCircle(x + dir * 40, y - 15, 20, bodyColor);
+            canvas.fillRect(x + dir * 20, y - 10, 35, 20, bodyColor);
+            canvas.fillRect(x + dir * 5, y + 10, 25, 10, bodyColor);
+        } else if st == WrestlerState.Jumping {
+            // 跳跃
+            canvas.fillCircle(x, y - 75, 22, bodyColor);
+            canvas.fillRect(x - 15, y - 53, 30, 48, bodyColor);
+            canvas.fillRect(x - 35, y - 35, 22, 12, bodyColor);
+            canvas.fillRect(x + 13, y - 35, 22, 12, bodyColor);
+            canvas.fillRect(x - 12, y - 5, 10, 30, bodyColor);
+            canvas.fillRect(x + 2, y - 5, 10, 30, bodyColor);
+            canvas.fillRect(x - 18, y + 7, 36, 15, Color.White());
+        } else if st == WrestlerState.Running {
+            // 冲刺
+            var runOff = (getTickCount() / 80) as int % 8 - 4;
+            canvas.fillCircle(x, y - 68, 22, bodyColor);
+            canvas.fillRect(x - 18, y - 46, 36, 52, bodyColor);
+            canvas.fillRect(x + 20, y - 38, 30, 12, bodyColor);
+            canvas.fillRect(x - 50, y - 30, 30, 12, bodyColor);
+            canvas.fillRect(x - 15 + runOff, y + 6, 12, 45, bodyColor);
+            canvas.fillRect(x + 3 - runOff, y + 6, 12, 45, bodyColor);
+            canvas.fillRect(x - 18, y + 6, 36, 15, Color.White());
+        } else if st == WrestlerState.Taunting {
+            // 嘲讽 - 举臂欢呼
+            canvas.fillCircle(x, y - 70, 22, bodyColor);
+            canvas.fillRect(x - 18, y - 48, 36, 55, bodyColor);
+            canvas.fillRect(x - 35, y - 90, 15, 50, bodyColor);
+            canvas.fillRect(x + 20, y - 90, 15, 50, bodyColor);
+            canvas.fillRect(x - 15, y + 7, 12, 45, bodyColor);
+            canvas.fillRect(x + 3, y + 7, 12, 45, bodyColor);
+            canvas.fillRect(x - 18, y + 7, 36, 15, Color.White());
+        } else {
+            // 默认
+            canvas.fillCircle(x, y - 70, 22, bodyColor);
+            canvas.fillRect(x - 18, y - 48, 36, 55, bodyColor);
+            canvas.fillRect(x - 15, y + 7, 12, 45, bodyColor);
+            canvas.fillRect(x + 3, y + 7, 12, 45, bodyColor);
+            canvas.fillRect(x - 18, y + 7, 36, 15, Color.White());
+        }
+        
+        // 方向指示
+        if wrestler.facingRight {
+            canvas.fillRect(x + 25, y - 50, 8, 25, Color.Yellow());
+        } else {
+            canvas.fillRect(x - 33, y - 50, 8, 25, Color.Yellow());
+        }
+        
+        // 能量条 (在头顶)
+        canvas.fillRect(x - 25, y - 100, 50, 8, COLOR_ENERGY_BG);
+        var energyWidth = (wrestler.energy as int * 50) / MAX_ENERGY;
+        canvas.fillRect(x - 25, y - 100, energyWidth, 8, COLOR_ENERGY);
+    }
+    
+    pub fn drawEffects(canvas: &Canvas) {
+        var i = 0;
+        while i < self.player1.effectCount {
+            var eff = &self.player1.effects[i];
+            if eff.timer > 0 {
+                canvas.fillRect(eff.x - 40, eff.y - 10, 80, 20, Color.ARGB(180, 0, 0, 0));
+                canvas.drawText(eff.x - 35, eff.y - 8, eff.text, eff.color, Font.new("Arial", 14));
+            }
+            i = i + 1;
+        }
+        
+        i = 0;
+        while i < self.player2.effectCount {
+            var eff = &self.player2.effects[i];
+            if eff.timer > 0 {
+                canvas.fillRect(eff.x - 40, eff.y - 10, 80, 20, Color.ARGB(180, 0, 0, 0));
+                canvas.drawText(eff.x - 35, eff.y - 8, eff.text, eff.color, Font.new("Arial", 14));
+            }
+            i = i + 1;
+        }
+    }
+    
+    pub fn drawUI(canvas: &Canvas) {
+        // 玩家1血条
+        canvas.drawText(20, 20, "P1", Color.White(), Font.new("Arial", 16));
+        canvas.fillRect(60, 15, 220, 20, COLOR_HP_BG);
+        var hpWidth1 = (self.player1.hp as int * 220) / MAX_HP;
+        canvas.fillRect(60, 15, hpWidth1, 20, COLOR_HP_P1);
+        
+        // P1 能量条
+        canvas.fillRect(60, 38, 220, 12, COLOR_ENERGY_BG);
+        var energyWidth1 = (self.player1.energy as int * 220) / MAX_ENERGY;
+        canvas.fillRect(60, 38, energyWidth1, 12, COLOR_ENERGY);
+        
+        // P1 胜利标记
+        var i = 0;
+        while i < self.wins1 {
+            canvas.drawCircle(300 + i * 25, 25, 10, Color.Yellow());
+            i = i + 1;
+        }
+        
+        // 压制进度条 P1
+        if self.player1.isPinning {
+            canvas.fillRect(60, 55, 220, 8, COLOR_ENERGY_BG);
+            var pinW = (self.pinProgress1 as int * 220) / 3000;
+            canvas.fillRect(60, 55, pinW, 8, COLOR_PIN);
+            canvas.drawText(60, 65, "PINNING!", COLOR_PIN, Font.new("Arial", 12));
+        }
+        
+        // 玩家2血条
+        canvas.drawText(SCREEN_WIDTH - 280, 20, "CPU", Color.White(), Font.new("Arial", 16));
+        canvas.fillRect(SCREEN_WIDTH - 240, 15, 220, 20, COLOR_HP_BG);
+        var hpWidth2 = (self.player2.hp as int * 220) / MAX_HP;
+        canvas.fillRect(SCREEN_WIDTH - 240 + (220 - hpWidth2), 15, hpWidth2, 20, COLOR_HP_P2);
+        
+        // P2 能量条
+        canvas.fillRect(SCREEN_WIDTH - 240, 38, 220, 12, COLOR_ENERGY_BG);
+        var energyWidth2 = (self.player2.energy as int * 220) / MAX_ENERGY;
+        canvas.fillRect(SCREEN_WIDTH - 240 + (220 - energyWidth2), 38, energyWidth2, 12, COLOR_ENERGY);
+        
+        // P2 胜利标记
+        i = 0;
+        while i < self.wins2 {
+            canvas.drawCircle(SCREEN_WIDTH - 305 - i * 25, 25, 10, Color.Yellow());
+            i = i + 1;
+        }
+        
+        // 压制进度条 P2
+        if self.player2.isPinning {
+            canvas.fillRect(SCREEN_WIDTH - 280, 55, 220, 8, COLOR_ENERGY_BG);
+            var pinW2 = (self.pinProgress2 as int * 220) / 3000;
+            canvas.fillRect(SCREEN_WIDTH - 280 + (220 - pinW2), 55, pinW2, 8, COLOR_PIN);
+            canvas.drawText(SCREEN_WIDTH - 200, 65, "PINNING!", COLOR_PIN, Font.new("Arial", 12));
+        }
+        
+        // 回合
+        var roundStr = "ROUND ";
+        roundStr = roundStr ++ self.round.toString();
+        canvas.drawText(SCREEN_WIDTH / 2 - 40, 15, roundStr, Color.White(), Font.new("Arial", 20));
+        
+        // 时间
+        var seconds = self.roundTimer / 1000;
+        var timeStr = (seconds / 60).toString();
+        timeStr = timeStr ++ ":";
+        var sec = seconds % 60;
+        if sec < 10 {
+            timeStr = timeStr ++ "0";
+        }
+        timeStr = timeStr ++ (seconds % 60).toString();
+        canvas.drawText(SCREEN_WIDTH / 2 - 25, 45, timeStr, Color.White(), Font.new("Arial", 16));
+        
+        // 胜场提示
+        if self.wins1 == 1 {
+            canvas.drawText(SCREEN_WIDTH / 2 - 80, 70, "FIRST TO 2 WINS!", Color.Yellow(), Font.new("Arial", 14));
+        }
+        
+        // 控制提示
+        canvas.drawText(15, SCREEN_HEIGHT - 90, "P1: Arrows move, A:Grapple/Attack, B:Special, C:Dodge", Color.LightGray(), Font.new("Arial", 11));
+        canvas.drawText(15, SCREEN_HEIGHT - 72, "Combos: A+C=Pin, B+C=Taunt, Up+Down+B=Suplex, <-+B=IrishWhip", Color.LightGray(), Font.new("Arial", 11));
+        canvas.drawText(15, SCREEN_HEIGHT - 54, "Jump: Up, Run: hold direction, Get close for Grapple!", Color.LightGray(), Font.new("Arial", 11));
+        
+        // 压制成功提示
+        if self.pinProgress1 >= 2500 && self.pinProgress1 < 3000 {
+            canvas.drawText(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 - 100, "ALMOST THERE!", Color.Magenta(), Font.new("Arial", 24));
+        }
+        if self.pinProgress2 >= 2500 && self.pinProgress2 < 3000 {
+            canvas.drawText(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 - 100, "ALMOST THERE!", Color.Magenta(), Font.new("Arial", 24));
+        }
+    }
+    
+    pub fn drawCountdown(canvas: &Canvas) {
+        if self.countdown > 0 {
+            var text = self.countdown.toString();
+            var centerX = SCREEN_WIDTH / 2 - 50;
+            var centerY = SCREEN_HEIGHT / 2 - 80;
+            canvas.fillRect(centerX - 10, centerY - 10, 120, 80, Color.ARGB(200, 50, 50, 100));
+            canvas.drawRect(centerX - 10, centerY - 10, 120, 80, Color.Yellow());
+            canvas.drawText(centerX + 35, centerY + 15, text, Color.Yellow(), Font.new("Arial", 60));
+        } else {
+            var text2 = "WRESTLE!";
+            var cx2 = SCREEN_WIDTH / 2 - 100;
+            var cy2 = SCREEN_HEIGHT / 2 - 80;
+            canvas.fillRect(cx2, cy2, 200, 70, Color.ARGB(220, 100, 0, 0));
+            canvas.drawText(cx2 + 20, cy2 + 15, text2, Color.Yellow(), Font.new("Arial", 40));
+        }
+    }
+    
+    pub fn onKeyDown(key: VirtualKey) {
+        if key == VirtualKey.Left { self.p1Left = true; }
+        if key == VirtualKey.Right { self.p1Right = true; }
+        if key == VirtualKey.Up { self.p1Up = true; }
+        if key == VirtualKey.Down { self.p1Down = true; }
+        if key == VirtualKey.A { self.p1A = true; }
+        if key == VirtualKey.B { self.p1B = true; }
+        if key == VirtualKey.C { self.p1C = true; }
+        
+        // ESC 退出
+        if key == VirtualKey.Escape {
+            self.stop();
+        }
+        
+        // 重新开始
+        if key == VirtualKey.Enter {
+            if self.getState() == GameState.Won || self.getState() == GameState.Lost {
+                self.wins1 = 0;
+                self.wins2 = 0;
+                self.round = 1;
+                self.startRound();
+                self.setState(GameState.Playing);
+            }
+        }
+    }
+    
+    pub fn onKeyUp(key: VirtualKey) {
+        if key == VirtualKey.Left { self.p1Left = false; }
+        if key == VirtualKey.Right { self.p1Right = false; }
+        if key == VirtualKey.Up { self.p1Up = false; }
+        if key == VirtualKey.Down { self.p1Down = false; }
+        if key == VirtualKey.A { self.p1A = false; }
+        if key == VirtualKey.B { self.p1B = false; }
+        if key == VirtualKey.C { self.p1C = false; }
+    }
+    
+    pub fn onMouseDown(x: int, y: int, button: MouseButton) {
+        (void)x;
+        (void)y;
+        (void)button;
+    }
+    
+    pub fn onMouseUp(x: int, y: int, button: MouseButton) {
+        (void)x;
+        (void)y;
+        (void)button;
+    }
+}
