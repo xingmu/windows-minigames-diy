@@ -1,0 +1,672 @@
+// game_logic.zc - 保龄球游戏逻辑
+// Zen-C 游戏框架
+
+// ==================== 常量定义 ====================
+
+// 球瓶排列 - 10个球瓶的三角形位置 (前排1个，后排2个，以此类推)
+const PIN_ROWS = 4;
+const TOTAL_PINS = 10;
+
+// 球道尺寸
+const LANE_WIDTH = 200;
+const LANE_LENGTH = 500;
+const PIN_SPACING = 25;
+
+// 保龄球半径和速度
+const BALL_RADIUS = 12;
+const PIN_RADIUS = 8;
+const MAX_POWER = 15;
+const MIN_POWER = 5;
+const FRICTION = 0.985;
+
+// 投球区位置
+const THROW_X = 300;
+const THROW_Y = 420;
+
+// ==================== 数据结构 ====================
+
+// 球瓶状态
+pub struct Pin {
+    x: int,
+    y: int,
+    standing: bool,
+    knocked: bool,
+}
+
+impl Pin {
+    pub fn new(x: int, y: int) -> Pin {
+        return Pin.{
+            x: x,
+            y: y,
+            standing: true,
+            knocked: false,
+        };
+    }
+    
+    pub fn reset(&mut self, original_x: int, original_y: int) {
+        self.x = original_x;
+        self.y = original_y;
+        self.standing = true;
+        self.knocked = false;
+    }
+}
+
+// 保龄球
+pub struct Ball {
+    x: float,
+    y: float,
+    vx: float,
+    vy: float,
+    radius: int,
+    active: bool,
+    thrown: bool,
+}
+
+impl Ball {
+    pub fn new(x: int, y: int) -> Ball {
+        return Ball.{
+            x: x as float,
+            y: y as float,
+            vx: 0.0,
+            vy: 0.0,
+            radius: BALL_RADIUS,
+            active: true,
+            thrown: false,
+        };
+    }
+    
+    pub fn reset(&mut self, x: int, y: int) {
+        self.x = x as float;
+        self.y = y as float;
+        self.vx = 0.0;
+        self.vy = 0.0;
+        self.active = true;
+        self.thrown = false;
+    }
+    
+    pub fn throw(&mut self, angle: float, power: float) {
+        // 根据角度和力量设置速度
+        self.vx = angle * power * 0.5;
+        self.vy = -power; // 向上运动
+        self.thrown = true;
+    }
+    
+    pub fn update(&mut self) {
+        if !self.thrown || !self.active {
+            return;
+        }
+        
+        // 应用速度
+        self.x = self.x + self.vx;
+        self.y = self.y + self.vy;
+        
+        // 摩擦力
+        self.vx = self.vx * FRICTION;
+        self.vy = self.vy * FRICTION;
+        
+        // 边界检测 - 球道左右边界
+        if self.x < 200.0 || self.x > 500.0 {
+            self.vx = -self.vx * 0.5;
+            self.x = if self.x < 200.0 { 200.0 } else { 500.0 };
+        }
+    }
+    
+    pub fn isMoving(&self) -> bool {
+        return abs_float(self.vx) > 0.1 || abs_float(self.vy) > 0.1;
+    }
+}
+
+// 计分系统
+pub struct ScoreBoard {
+    rolls: [int; 21],      // 投球记录 (最多21次)
+    currentRoll: int,       // 当前投球索引
+    currentFrame: int,      // 当前回合
+    frameScores: [int; 10], // 每回合得分
+}
+
+impl ScoreBoard {
+    pub fn new() -> ScoreBoard {
+        return ScoreBoard.{
+            rolls: [0; 21],
+            currentRoll: 0,
+            currentFrame: 0,
+            frameScores: [0; 10],
+        };
+    }
+    
+    pub fn reset(&mut self) {
+        for i in 0..21 {
+            self.rolls[i] = 0;
+        }
+        for i in 0..10 {
+            self.frameScores[i] = 0;
+        }
+        self.currentRoll = 0;
+        self.currentFrame = 0;
+    }
+    
+    pub fn recordRoll(&mut self, pins: int) {
+        if self.currentRoll < 21 {
+            self.rolls[self.currentRoll] = pins;
+            self.currentRoll = self.currentRoll + 1;
+        }
+    }
+    
+    pub fn calculateScore(&mut self) -> int {
+        var total = 0;
+        var rollIndex = 0;
+        
+        for frame in 0..10 {
+            if rollIndex >= 21 {
+                break;
+            }
+            
+            if self.isStrike(rollIndex) {
+                // Strike 计分
+                total = total + 10 + self.rolls[rollIndex + 1] + self.rolls[rollIndex + 2];
+                rollIndex = rollIndex + 1;
+            } else if self.isSpare(rollIndex) {
+                // Spare 计分
+                total = total + 10 + self.rolls[rollIndex + 2];
+                rollIndex = rollIndex + 2;
+            } else {
+                // 普通计分
+                total = total + self.rolls[rollIndex] + self.rolls[rollIndex + 1];
+                rollIndex = rollIndex + 2;
+            }
+            
+            self.frameScores[frame] = total;
+        }
+        
+        return total;
+    }
+    
+    pub fn isStrike(&self, index: int) -> bool {
+        return self.rolls[index] == 10;
+    }
+    
+    pub fn isSpare(&self, index: int) -> bool {
+        return index < 20 && self.rolls[index] + self.rolls[index + 1] == 10;
+    }
+    
+    pub fn getScore(&self) -> int {
+        var total = 0;
+        for i in 0..10 {
+            total = total + self.frameScores[i];
+        }
+        return total;
+    }
+    
+    pub fn isFrameComplete(&self, standingPins: int, throwNumber: int) -> bool {
+        // 当前回合是否完成
+        if self.currentFrame >= 10 {
+            // 第10轮特殊处理
+            return throwNumber > 2 || 
+                   (throwNumber == 2 && (self.rolls[18] != 10) && (self.rolls[18] + self.rolls[19] < 10)) ||
+                   (throwNumber == 3 && (self.rolls[18] == 10 || self.rolls[18] + self.rolls[19] == 10));
+        }
+        
+        // 普通回合
+        if throwNumber >= 2 {
+            return true;
+        }
+        if standingPins == 0 {
+            return true; // Strike
+        }
+        return false;
+    }
+}
+
+// 游戏状态
+pub type GamePhase = enum {
+    Aiming,      // 瞄准阶段
+    Throwing,    // 投球阶段
+    Rolling,     // 球滚动阶段
+    Knocking,    // 球瓶倒下阶段
+    Scoring,     // 计分阶段
+    GameOver,    // 游戏结束
+};
+
+// 保龄球游戏主类
+pub class BowlingGame {
+    // 球瓶
+    pins: [Pin; TOTAL_PINS],
+    originalPins: [(int, int); TOTAL_PINS],
+    
+    // 保龄球
+    ball: Ball,
+    
+    // 投球参数
+    angle: float,
+    power: float,
+    
+    // 游戏状态
+    phase: GamePhase,
+    throwNumber: int,      // 当前回合的投球次数 (1或2)
+    currentFrame: int,      // 当前回合 (1-10)
+    standingPins: int,      // 站立球瓶数
+    
+    // 计分
+    scoreBoard: ScoreBoard,
+    
+    // 用于动画的临时变量
+    animTimer: int,
+    
+    // 构造
+    pub fn create() -> BowlingGame {
+        var game = BowlingGame.{};
+        game.initPins();
+        game.reset();
+        return game;
+    }
+    
+    // 初始化球瓶位置
+    fn initPins(&mut self) {
+        // 球瓶三角形排列
+        // 第一排(顶部)1个，后面依次2,3,4个
+        var index = 0;
+        var pinY = 80; // 顶部Y坐标
+        
+        for row in 1..(PIN_ROWS + 1) {
+            var pinsInRow = row;
+            var startX = 350 - (pinsInRow - 1) * PIN_SPACING / 2;
+            
+            for col in 0..pinsInRow {
+                var pinX = startX + col * PIN_SPACING;
+                self.originalPins[index] = (pinX, pinY);
+                index = index + 1;
+            }
+            pinY = pinY + PIN_SPACING;
+        }
+    }
+    
+    // 重置游戏
+    pub fn reset(&mut self) {
+        // 重置球瓶
+        for i in 0..TOTAL_PINS {
+            var pos = self.originalPins[i];
+            self.pins[i].reset(pos[0], pos[1]);
+        }
+        
+        // 重置球
+        self.ball.reset(THROW_X, THROW_Y);
+        
+        // 重置投球参数
+        self.angle = 0.0;
+        self.power = 10.0;
+        
+        // 重置游戏状态
+        self.phase = GamePhase.Aiming;
+        self.throwNumber = 1;
+        self.currentFrame = 1;
+        self.standingPins = TOTAL_PINS;
+        self.animTimer = 0;
+        
+        // 重置计分板
+        self.scoreBoard.reset();
+    }
+    
+    // 设置投球角度
+    pub fn setAngle(&mut self, delta: float) {
+        if self.phase != GamePhase.Aiming {
+            return;
+        }
+        self.angle = self.angle + delta;
+        if self.angle > 30.0 {
+            self.angle = 30.0;
+        }
+        if self.angle < -30.0 {
+            self.angle = -30.0;
+        }
+    }
+    
+    // 设置投球力量
+    pub fn setPower(&mut self, delta: float) {
+        if self.phase != GamePhase.Aiming {
+            return;
+        }
+        self.power = self.power + delta;
+        if self.power > MAX_POWER {
+            self.power = MAX_POWER;
+        }
+        if self.power < MIN_POWER {
+            self.power = MIN_POWER;
+        }
+    }
+    
+    // 投球
+    pub fn throwBall(&mut self) {
+        if self.phase != GamePhase.Aiming {
+            return;
+        }
+        self.phase = GamePhase.Throwing;
+        self.ball.throw(self.angle, self.power);
+    }
+    
+    // 更新游戏逻辑
+    pub fn update(&mut self) {
+        match self.phase {
+            GamePhase.Aiming => {
+                // 等待玩家投球
+            }
+            GamePhase.Throwing => {
+                // 开始滚动
+                self.phase = GamePhase.Rolling;
+            }
+            GamePhase.Rolling => {
+                // 更新球位置
+                self.ball.update();
+                
+                // 检测与球瓶的碰撞
+                this.checkCollisions();
+                
+                // 检查球是否停止或出界
+                if !self.ball.isMoving() || self.ball.y < 30.0 {
+                    self.phase = GamePhase.Knocking;
+                    self.animTimer = 30; // 等待动画
+                }
+            }
+            GamePhase.Knocking => {
+                // 等待球瓶倒下动画
+                self.animTimer = self.animTimer - 1;
+                if self.animTimer <= 0 {
+                    self.phase = GamePhase.Scoring;
+                }
+            }
+            GamePhase.Scoring => {
+                // 计算得分
+                this.calculateKnockedPins();
+                
+                // 记录投球
+                var knocked = TOTAL_PINS - self.standingPins;
+                self.scoreBoard.recordRoll(knocked);
+                self.scoreBoard.calculateScore();
+                
+                // 检查游戏是否结束
+                if self.currentFrame >= 10 && self.isFrameOver() {
+                    self.phase = GamePhase.GameOver;
+                    return;
+                }
+                
+                // 准备下一球
+                this.prepareNextThrow();
+            }
+            GamePhase.GameOver => {
+                // 游戏结束，等待重新开始
+            }
+        }
+    }
+    
+    // 检测球与球瓶的碰撞
+    fn checkCollisions(&mut self) {
+        if !self.ball.thrown {
+            return;
+        }
+        
+        for i in 0..TOTAL_PINS {
+            if !self.pins[i].standing {
+                continue;
+            }
+            
+            var dx = self.ball.x - self.pins[i].x as float;
+            var dy = self.ball.y - self.pins[i].y as float;
+            var dist = sqrt_float(dx * dx + dy * dy);
+            
+            if dist < (BALL_RADIUS + PIN_RADIUS) as float {
+                // 碰撞发生
+                this.knockPin(i);
+                
+                // 改变球的方向
+                var nx = dx / dist;
+                var ny = dy / dist;
+                var speed = sqrt_float(self.ball.vx * self.ball.vx + self.ball.vy * self.ball.vy);
+                self.ball.vx = self.ball.vx + nx * 2.0;
+                self.ball.vy = self.ball.vy + ny * 2.0;
+                
+                // 减少速度
+                var newSpeed = sqrt_float(self.ball.vx * self.ball.vx + self.ball.vy * self.ball.vy);
+                if newSpeed > 0.1 {
+                    var ratio = (newSpeed - 2.0) / newSpeed;
+                    self.ball.vx = self.ball.vx * ratio;
+                    self.ball.vy = self.ball.vy * ratio;
+                }
+            }
+        }
+        
+        // 球瓶之间的碰撞
+        for i in 0..TOTAL_PINS {
+            if !self.pins[i].standing || self.pins[i].knocked {
+                continue;
+            }
+            
+            for j in (i+1)..TOTAL_PINS {
+                if !self.pins[j].standing || self.pins[j].knocked {
+                    continue;
+                }
+                
+                var dx = self.pins[i].x - self.pins[j].x;
+                var dy = self.pins[i].y - self.pins[j].y;
+                var dist = sqrt_int(dx * dx + dy * dy);
+                
+                if dist < PIN_RADIUS * 2 {
+                    // 球瓶碰撞，互相击倒
+                    this.knockPin(i);
+                    this.knockPin(j);
+                }
+            }
+        }
+    }
+    
+    // 击倒球瓶
+    fn knockPin(&mut self, index: int) {
+        if index >= 0 && index < TOTAL_PINS {
+            self.pins[index].standing = false;
+            self.pins[index].knocked = true;
+        }
+    }
+    
+    // 计算击倒的球瓶数
+    fn calculateKnockedPins(&mut self) {
+        var count = 0;
+        for i in 0..TOTAL_PINS {
+            if !self.pins[i].standing {
+                count = count + 1;
+            }
+        }
+        self.standingPins = TOTAL_PINS - count;
+    }
+    
+    // 检查当前回合是否结束
+    fn isFrameOver(&self) -> bool {
+        if self.currentFrame < 10 {
+            // 普通回合
+            if self.throwNumber >= 2 {
+                return true;
+            }
+            if self.standingPins == 0 {
+                return true; // Strike
+            }
+            return false;
+        } else {
+            // 第10回合
+            var roll1 = self.scoreBoard.rolls[18];
+            var roll2 = self.scoreBoard.rolls[19];
+            var roll3 = self.scoreBoard.rolls[20];
+            
+            if roll1 == 10 {
+                // 第一球全中，需要第三球
+                return roll3 > 0;
+            } else if roll1 + roll2 == 10 {
+                // 第二球补中，需要第三球
+                return roll3 > 0;
+            } else {
+                // 没有全中，游戏结束
+                return true;
+            }
+        }
+    }
+    
+    // 准备下一球
+    fn prepareNextThrow(&mut self) {
+        // 记录本球击倒数
+        var knocked = TOTAL_PINS - self.standingPins;
+        
+        if self.currentFrame < 10 {
+            // 普通回合
+            if self.throwNumber == 1 {
+                if self.standingPins == 0 {
+                    // Strike，下一回合
+                    this.resetPinsForNextFrame();
+                    self.currentFrame = self.currentFrame + 1;
+                    self.throwNumber = 1;
+                } else {
+                    // 需要第二球
+                    self.throwNumber = 2;
+                }
+            } else {
+                // 第二球结束
+                this.resetPinsForNextFrame();
+                self.currentFrame = self.currentFrame + 1;
+                self.throwNumber = 1;
+            }
+        } else {
+            // 第10回合
+            if self.throwNumber == 1 {
+                if knocked == TOTAL_PINS {
+                    // 第一球全中，重置所有球瓶
+                    this.resetPinsForNextFrame();
+                }
+                self.throwNumber = 2;
+            } else if self.throwNumber == 2 {
+                if self.scoreBoard.rolls[18] == 10 || 
+                   (self.scoreBoard.rolls[18] + knocked == 10) {
+                    // 需要第三球
+                    if self.scoreBoard.rolls[18] == 10 {
+                        this.resetPinsForNextFrame();
+                    }
+                    self.throwNumber = 3;
+                } else {
+                    // 游戏结束
+                    self.phase = GamePhase.GameOver;
+                    return;
+                }
+            } else {
+                // 第三球结束，游戏结束
+                self.phase = GamePhase.GameOver;
+                return;
+            }
+        }
+        
+        // 重置球位置
+        self.ball.reset(THROW_X, THROW_Y);
+        self.angle = 0.0;
+        self.power = 10.0;
+        self.phase = GamePhase.Aiming;
+    }
+    
+    // 为下一回合重置球瓶
+    fn resetPinsForNextFrame(&mut self) {
+        // 只重置被击倒的球瓶到原位
+        for i in 0..TOTAL_PINS {
+            if !self.pins[i].standing {
+                var pos = self.originalPins[i];
+                self.pins[i].x = pos[0];
+                self.pins[i].y = pos[1];
+                self.pins[i].standing = true;
+                self.pins[i].knocked = false;
+            }
+        }
+        self.standingPins = TOTAL_PINS;
+    }
+    
+    // 获取游戏状态
+    pub fn getPhase(&self) -> GamePhase {
+        return self.phase;
+    }
+    
+    // 获取分数
+    pub fn getScore(&self) -> int {
+        return self.scoreBoard.getScore();
+    }
+    
+    // 获取当前回合
+    pub fn getCurrentFrame(&self) -> int {
+        return self.currentFrame;
+    }
+    
+    // 获取当前投球次数
+    pub fn getThrowNumber(&self) -> int {
+        return self.throwNumber;
+    }
+    
+    // 获取站立球瓶数
+    pub fn getStandingPins(&self) -> int {
+        return self.standingPins;
+    }
+    
+    // 获取球瓶
+    pub fn getPins(&self) -> [Pin; TOTAL_PINS] {
+        return self.pins;
+    }
+    
+    // 获取球
+    pub fn getBall(&self) -> Ball {
+        return self.ball;
+    }
+    
+    // 获取投球参数
+    pub fn getAngle(&self) -> float {
+        return self.angle;
+    }
+    
+    pub fn getPower(&self) -> float {
+        return self.power;
+    }
+    
+    // 获取计分板
+    pub fn getScoreBoard(&self) -> ScoreBoard {
+        return self.scoreBoard;
+    }
+}
+
+// ==================== 数学辅助函数 ====================
+
+fn abs_float(x: float) -> float {
+    return if x < 0.0 { -x } else { x };
+}
+
+fn sqrt_float(n: float) -> float {
+    if n < 0.0 {
+        return 0.0;
+    }
+    
+    var x = n;
+    var y = 1.0;
+    
+    while y < x {
+        x = (x + y) / 2.0;
+        y = n / x;
+    }
+    
+    return x;
+}
+
+fn sqrt_int(n: int) -> int {
+    if n < 0 {
+        return 0;
+    }
+    
+    var x = n;
+    var y = 1;
+    
+    while y < x {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    
+    return x;
+}
+
+fn abs(x: int) -> int {
+    return if x < 0 { -x } else { x };
+}
