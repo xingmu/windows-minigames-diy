@@ -1,0 +1,408 @@
+// platform_api_windows.zc - Windows 平台实现
+// 框架版本: 1.0.0
+
+// Windows API 常量
+private val WS_OVERLAPPEDWINDOW = 0x00CF0000;
+private val WM_DESTROY = 0x0002;
+private val WM_QUIT = 0x0012;
+private val WM_SIZE = 0x0005;
+private val WM_PAINT = 0x000F;
+private val WM_KEYDOWN = 0x0100;
+private val WM_KEYUP = 0x0101;
+private val WM_LBUTTONDOWN = 0x0201;
+private val WM_LBUTTONUP = 0x0202;
+private val WM_RBUTTONDOWN = 0x0204;
+private val WM_RBUTTONUP = 0x0205;
+private val WM_MBUTTONDOWN = 0x0207;
+private val WM_MBUTTONUP = 0x0208;
+private val WM_MOUSEMOVE = 0x0200;
+private val WM_MOUSEWHEEL = 0x020A;
+
+private val VK_ESCAPE = 0x1B;
+private val VK_SPACE = 0x20;
+private val VK_RETURN = 0x0D;
+private val VK_LEFT = 0x25;
+private val VK_UP = 0x26;
+private val VK_RIGHT = 0x27;
+private val VK_DOWN = 0x28;
+
+pub type WindowHandle = rawptr;
+
+pub struct WNDCLASSEX {
+    cbSize: u32,
+    style: u32,
+    lpfnWndProc: rawptr,
+    cbClsExtra: i32,
+    cbWndExtra: i32,
+    hInstance: rawptr,
+    hIcon: rawptr,
+    hCursor: rawptr,
+    hbrBackground: rawptr,
+    lpszMenuName: rawptr,
+    lpszClassName: rawptr,
+    hIconSm: rawptr,
+}
+
+pub struct MSG {
+    hwnd: rawptr,
+    message: u32,
+    wParam: rawptr,
+    lParam: rawptr,
+    time: u32,
+    pt: rawptr,
+}
+
+private struct WinData {
+    hwnd: rawptr,
+    dc: rawptr,
+    memDC: rawptr,
+    bitmap: rawptr,
+    buffer: rawptr,
+    width: int,
+    height: int,
+    running: bool,
+    mouseX: int,
+    mouseY: int,
+    mouseDown: bool,
+    mouseUp: bool,
+    mouseButton: MouseButton,
+    keyDown: bool,
+    keyUp: bool,
+    lastKey: VirtualKey,
+}
+
+private var mut winData: WinData;
+
+fn windowProc(hwnd: rawptr, msg: u32, wParam: rawptr, lParam: rawptr) -> rawptr {
+    match msg {
+        WM_DESTROY => { 
+            winData.running = false;
+            return nil; 
+        }
+        WM_PAINT => { 
+            return nil; 
+        }
+        WM_MOUSEMOVE => {
+            winData.mouseX = (lParam as i32) & 0xFFFF;
+            winData.mouseY = ((lParam as i32) >> 16) & 0xFFFF;
+        }
+        WM_LBUTTONDOWN => {
+            winData.mouseDown = true;
+            winData.mouseButton = MouseButton.Left;
+        }
+        WM_LBUTTONUP => {
+            winData.mouseUp = true;
+            winData.mouseButton = MouseButton.Left;
+        }
+        WM_RBUTTONDOWN => {
+            winData.mouseDown = true;
+            winData.mouseButton = MouseButton.Right;
+        }
+        WM_RBUTTONUP => {
+            winData.mouseUp = true;
+            winData.mouseButton = MouseButton.Right;
+        }
+        WM_KEYDOWN => {
+            winData.keyDown = true;
+            winData.lastKey = wParam as VirtualKey;
+        }
+        WM_KEYUP => {
+            winData.keyUp = true;
+            winData.lastKey = wParam as VirtualKey;
+        }
+        _ => {}
+    }
+    return nil;
+}
+
+fn createWindow(title: str, width: int, height: int) -> WindowHandle {
+    winData.hwnd = nil;
+    winData.width = width;
+    winData.height = height;
+    winData.running = false;
+    winData.mouseX = width / 2;
+    winData.mouseY = height / 2;
+    winData.mouseDown = false;
+    winData.mouseUp = false;
+    winData.keyDown = false;
+    winData.keyUp = false;
+    return &winData as WindowHandle;
+}
+
+fn closeWindow(handle: WindowHandle) {
+}
+
+fn setWindowTitle(handle: WindowHandle, title: str) {
+}
+
+fn getWindowSize(handle: WindowHandle) -> (int, int) {
+    return (winData.width, winData.height);
+}
+
+fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
+    event.msg = MessageType.None;
+    event.mouse.x = winData.mouseX;
+    event.mouse.y = winData.mouseY;
+    
+    if winData.mouseDown {
+        winData.mouseDown = false;
+        event.msg = MessageType.MouseDown;
+        event.mouse.button = winData.mouseButton;
+        return true;
+    }
+    
+    if winData.mouseUp {
+        winData.mouseUp = false;
+        event.msg = MessageType.MouseUp;
+        event.mouse.button = winData.mouseButton;
+        return true;
+    }
+    
+    if winData.keyDown {
+        winData.keyDown = false;
+        event.msg = MessageType.KeyDown;
+        event.key.key = winData.lastKey;
+        event.key.pressed = true;
+        return true;
+    }
+    
+    if winData.keyUp {
+        winData.keyUp = false;
+        event.msg = MessageType.KeyUp;
+        event.key.key = winData.lastKey;
+        event.key.pressed = false;
+        return true;
+    }
+    
+    return false;
+}
+
+fn waitEvent(handle: WindowHandle, event: &Event) {
+    pollEvent(handle, event);
+}
+
+fn isKeyDown(key: VirtualKey) -> bool {
+    return false;
+}
+
+fn getTickCount() -> u32 {
+    return 0 as u32;
+}
+
+fn sleep(ms: u32) {
+}
+
+// Framebuffer data for direct pixel access
+private var mut fbWidth: int = 800;
+private var mut fbHeight: int = 600;
+private var mut fbBuffer: [800 * 600]u32;
+private var mut fbValid: bool = false;
+
+pub fn fb_init(handle: WindowHandle, width: int, height: int) -> bool {
+    fbWidth = width;
+    fbHeight = height;
+    fbValid = true;
+    return true;
+}
+
+pub fn fb_shutdown() {
+    fbValid = false;
+}
+
+pub fn fb_clear(color: Color) {
+    if !fbValid {
+        return;
+    }
+    for i in 0..(fbWidth * fbHeight) {
+        fbBuffer[i] = color;
+    }
+}
+
+pub fn fb_draw_rect(x: int, y: int, w: int, h: int, color: Color) {
+    if !fbValid return;
+    if x < 0 { w = w + x; x = 0; }
+    if y < 0 { h = h + y; y = 0; }
+    if x + w > fbWidth { w = fbWidth - x; }
+    if y + h > fbHeight { h = fbHeight - y; }
+    if w <= 0 || h <= 0 return;
+    
+    for py in y..(y + h) {
+        for px in x..(x + w) {
+            var idx = py * fbWidth + px;
+            if idx >= 0 && idx < fbWidth * fbHeight {
+                fbBuffer[idx] = color;
+            }
+        }
+    }
+}
+
+pub fn fb_draw_pixel(x: int, y: int, color: Color) {
+    if !fbValid return;
+    if x < 0 || x >= fbWidth || y < 0 || y >= fbHeight return;
+    fbBuffer[y * fbWidth + x] = color;
+}
+
+pub fn fb_draw_line(x1: int, y1: int, x2: int, y2: int, color: Color) {
+    if !fbValid return;
+    
+    var dx = x2 - x1;
+    var dy = y2 - y1;
+    var steps = if abs(dx) > abs(dy) { abs(dx) } else { abs(dy) };
+    
+    if steps == 0 {
+        fb_draw_pixel(x1, y1, color);
+        return;
+    }
+    
+    var fx = dx as float / steps as float;
+    var fy = dy as float / steps as float;
+    
+    var cx = x1 as float;
+    var cy = y1 as float;
+    
+    for i in 0..steps {
+        fb_draw_pixel(cx as int, cy as int, color);
+        cx = cx + fx;
+        cy = cy + fy;
+    }
+}
+
+pub fn fb_draw_circle(cx: int, cy: int, radius: int, color: Color) {
+    if !fbValid return;
+    var d = 3 - 2 * radius;
+    var x = 0;
+    var y = radius;
+    
+    loop {
+        fb_draw_pixel(cx + x, cy + y, color);
+        fb_draw_pixel(cx - x, cy + y, color);
+        fb_draw_pixel(cx + x, cy - y, color);
+        fb_draw_pixel(cx - x, cy - y, color);
+        fb_draw_pixel(cx + y, cy + x, color);
+        fb_draw_pixel(cx - y, cy + x, color);
+        fb_draw_pixel(cx + y, cy - x, color);
+        fb_draw_pixel(cx - y, cy - x, color);
+        
+        if d < 0 {
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            y = y - 1;
+        }
+        
+        x = x + 1;
+        if x > y {
+            break;
+        }
+    }
+}
+
+pub fn fb_fill_circle(cx: int, cy: int, radius: int, color: Color) {
+    if !fbValid return;
+    for y in (-radius)..(radius + 1) {
+        for x in (-radius)..(radius + 1) {
+            if x * x + y * y <= radius * radius {
+                fb_draw_pixel(cx + x, cy + y, color);
+            }
+        }
+    }
+}
+
+private fn abs(x: int) -> int {
+    return if x < 0 { -x } else { x };
+}
+
+private fn float absF(x: float) -> float {
+    return if x < 0.0 { -x } else { x };
+}
+
+pub fn fb_draw_text_size(x: int, y: int, text: str, color: Color, size: int) {
+    // Simplified text - draw as colored rectangles for now
+    var px = x;
+    for i in 0..len(text) {
+        var c = text[i];
+        if c == 0 break;
+        // Skip null chars
+        if c > 0 {
+            // Draw char as a small rect placeholder
+            fb_draw_rect(px, y, size / 2, size, color);
+            px = px + size / 2 + 1;
+        }
+    }
+}
+
+pub fn getFrameBuffer(handle: WindowHandle) -> rawptr {
+    return &fbBuffer as rawptr;
+}
+
+pub fn getFrameBufferPitch(handle: WindowHandle) -> int {
+    return fbWidth * 4;
+}
+
+pub fn presentFrame(handle: WindowHandle) {
+    // In real implementation, this would flip the buffer
+}
+
+pub fn showWindow(handle: WindowHandle) {
+    winData.running = true;
+}
+
+pub fn quitApplication() {
+    winData.running = false;
+}
+
+pub fn setClientSize(w: int, h: int) {
+    fbWidth = w;
+    fbHeight = h;
+}
+
+pub fn getMouseX() -> int {
+    return winData.mouseX;
+}
+
+pub fn getMouseY() -> int {
+    return winData.mouseY;
+}
+
+pub fn setMouseHandler(handler: fn(i32, i32)) {
+    // Would be set in real implementation
+}
+
+pub fn setMouseMoveHandler(handler: fn(i32, i32)) {
+    // Would be set in real implementation
+}
+
+pub fn setKeyHandler(handler: fn(VirtualKey) -> bool) {
+    // Would be set in real implementation
+}
+
+pub fn setTimerHandler(handler: fn() -> bool) {
+    // Would be set in real implementation
+}
+
+pub fn setPaintHandler(handler: fn(i32, i32)) {
+    // Would be set in real implementation
+}
+
+pub fn setDestroyHandler(handler: fn()) {
+    // Would be set in real implementation
+}
+
+pub fn setGameTimer(handle: WindowHandle, ms: i32) {
+    // Would set up timer in real implementation
+}
+
+pub fn redrawWindow(handle: WindowHandle) {
+}
+
+pub fn runEventLoop(handle: WindowHandle, data: &mut rawptr) {
+    // Simple event loop - in real impl would use Windows message loop
+}
+
+pub fn initPlatform() {
+}
+
+pub fn shutdownPlatform() {
+}
+
+pub fn KeyCode = VirtualKey;

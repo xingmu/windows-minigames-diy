@@ -1,0 +1,490 @@
+// game_logic.zc - 射箭游戏核心逻辑
+// Archery Game - 鼠标瞄准，蓄力射击
+
+import std.math;
+
+// ==================== 游戏常量 ====================
+
+const GAME_WIDTH: i32 = 800;
+const GAME_HEIGHT: i32 = 600;
+const GRAVITY: float = 0.15;
+const MAX_POWER: float = 18.0;
+const MIN_POWER: float = 5.0;
+const CHARGE_RATE: float = 0.12;
+const ARROW_SPEED_MAX: float = 20.0;
+const MAX_ARROWS: i32 = 10;
+const MAX_TARGETS: i32 = 6;
+const TARGET_SPAWN_INTERVAL: u32 = 2500;
+const ARROW_LIFETIME: u32 = 4000;
+const ROUND_ARROWS: i32 = 10;
+const BULLSEYE_RADIUS: i32 = 10;
+const INNER_RING_RADIUS: i32 = 20;
+const OUTER_RING_RADIUS: i32 = 30;
+
+const POINTS_BULLSEYE: i32 = 50;
+const POINTS_INNER: i32 = 30;
+const POINTS_OUTER: i32 = 10;
+
+// ==================== 数据结构 ====================
+
+enum GameStatus {
+    Ready,
+    Playing,
+    Reloading,
+    GameOver,
+}
+
+struct Vec2 {
+    x: float,
+    y: float,
+}
+
+struct Arrow {
+    x: float,
+    y: float,
+    vx: float,
+    vy: float,
+    active: bool,
+    angle: float,
+    trail: [20]Vec2,
+    trailCount: i32,
+}
+
+struct Target {
+    x: i32,
+    y: i32,
+    alive: bool,
+    ring: i32,  // 0=bullseye, 1=inner, 2=outer
+}
+
+struct Bow {
+    x: i32,
+    y: i32,
+    angle: float,
+    power: float,
+    drawing: bool,
+}
+
+struct ArcheryState {
+    arrows: [MAX_ARROWS]Arrow,
+    targets: [MAX_TARGETS]Target,
+    bow: Bow,
+    score: i32,
+    round: i32,
+    arrowsLeft: i32,
+    wind: float,
+    status: GameStatus,
+    width: i32,
+    height: i32,
+    lastSpawnTime: u32,
+    gameStartTime: u32,
+    lastUpdateTime: u32,
+    mouseX: i32,
+    mouseY: i32,
+    chargeStartTime: u32,
+    combo: i32,
+    lastHitRing: i32,
+}
+
+struct Color {
+    r: u8,
+    g: u8,
+    b: u8,
+}
+
+fn rgb(r: u8, g: u8, b: u8) -> Color {
+    Color { r, g, b }
+}
+
+fn color_to_u32(c: Color) -> u32 {
+    return (0xFF as u32 << 24) | ((c.r as u32) << 16) | ((c.g as u32) << 8) | (c.b as u32);
+}
+
+// ==================== 初始化函数 ====================
+
+fn init_game(game: &mut ArcheryState, width: i32, height: i32) {
+    game.width = width;
+    game.height = height;
+    game.score = 0;
+    game.round = 1;
+    game.arrowsLeft = ROUND_ARROWS;
+    game.wind = 0.0;
+    game.status = GameStatus.Ready;
+    game.lastSpawnTime = 0;
+    game.gameStartTime = 0;
+    game.lastUpdateTime = 0;
+    game.mouseX = width / 2;
+    game.mouseY = height / 2;
+    game.chargeStartTime = 0;
+    game.combo = 0;
+    game.lastHitRing = 0;
+    
+    // Initialize bow at bottom center
+    game.bow.x = width / 2;
+    game.bow.y = height - 80;
+    game.bow.angle = -3.14159 / 2.0;  // Pointing up
+    game.bow.power = MIN_POWER;
+    game.bow.drawing = false;
+    
+    // Initialize arrows
+    for i in 0..MAX_ARROWS {
+        game.arrows[i].active = false;
+        game.arrows[i].trailCount = 0;
+    }
+    
+    // Initialize targets
+    for i in 0..MAX_TARGETS {
+        game.targets[i].alive = false;
+    }
+}
+
+fn reset_round(game: &mut ArcheryState) {
+    game.arrowsLeft = ROUND_ARROWS;
+    game.wind = (rand_float() * 4.0 - 2.0) * 0.5;  // -1.0 to 1.0 wind
+    game.status = GameStatus.Playing;
+    
+    // Clear arrows
+    for i in 0..MAX_ARROWS {
+        game.arrows[i].active = false;
+        game.arrows[i].trailCount = 0;
+    }
+    
+    // Spawn initial targets
+    spawn_target(game);
+    spawn_target(game);
+    spawn_target(game);
+}
+
+fn reset_game(game: &mut ArcheryState) {
+    game.score = 0;
+    game.round = 1;
+    game.combo = 0;
+    reset_round(game);
+}
+
+// ==================== 随机数 ====================
+
+private var mut rng_state: u32 = 12345;
+
+fn srand(seed: u32) {
+    rng_state = seed;
+}
+
+fn rand_float() -> float {
+    rng_state = rng_state * 1103515245 + 12345;
+    var r = (rng_state >> 16) & 0x7FFF;
+    return (r as float) / 32767.0;
+}
+
+fn rand_int(max: i32) -> i32 {
+    return (rand_float() * max as float) as i32;
+}
+
+// ==================== 游戏逻辑 ====================
+
+fn update_bow(game: &mut ArcheryState) {
+    var bowX = game.bow.x as float;
+    var bowY = game.bow.y as float;
+    var mouseX = game.mouseX as float;
+    var mouseY = game.mouseY as float;
+    
+    // Calculate angle to mouse
+    var dx = mouseX - bowX;
+    var dy = mouseY - bowY;
+    
+    if dy != 0.0 || dx != 0.0 {
+        game.bow.angle = atan2(dy, dx);
+    }
+    
+    // Update power while drawing
+    if game.bow.drawing && game.status == GameStatus.Playing {
+        var chargeTime = get_tick_count() - game.chargeStartTime;
+        game.bow.power = MIN_POWER + chargeTime as float * CHARGE_RATE;
+        if game.bow.power > MAX_POWER {
+            game.bow.power = MAX_POWER;
+        }
+    }
+}
+
+fn shoot_arrow(game: &mut ArcheryState) {
+    if game.arrowsLeft <= 0 || game.status != GameStatus.Playing {
+        return;
+    }
+    
+    // Find inactive arrow slot
+    var slot = -1;
+    for i in 0..MAX_ARROWS {
+        if !game.arrows[i].active {
+            slot = i;
+            break;
+        }
+    }
+    
+    if slot < 0 {
+        return;  // No slots available
+    }
+    
+    var arrow = &game.arrows[slot];
+    arrow.x = game.bow.x as float + cos(game.bow.angle) * 30.0;
+    arrow.y = game.bow.y as float + sin(game.bow.angle) * 30.0;
+    
+    var speed = game.bow.power;
+    arrow.vx = cos(game.bow.angle) * speed;
+    arrow.vy = sin(game.bow.angle) * speed;
+    arrow.angle = game.bow.angle;
+    arrow.active = true;
+    arrow.trailCount = 0;
+    
+    game.arrowsLeft = game.arrowsLeft - 1;
+    game.bow.power = MIN_POWER;
+}
+
+fn update_arrows(game: &mut ArcheryState) {
+    for i in 0..MAX_ARROWS {
+        var arrow = &game.arrows[i];
+        if !arrow.active {
+            continue;
+        }
+        
+        // Store trail position
+        if arrow.trailCount < 20 {
+            arrow.trail[arrow.trailCount].x = arrow.x;
+            arrow.trail[arrow.trailCount].y = arrow.y;
+            arrow.trailCount = arrow.trailCount + 1;
+        } else {
+            // Shift trail
+            for t in 0..19 {
+                arrow.trail[t].x = arrow.trail[t + 1].x;
+                arrow.trail[t].y = arrow.trail[t + 1].y;
+            }
+            arrow.trail[19].x = arrow.x;
+            arrow.trail[19].y = arrow.y;
+        }
+        
+        // Apply physics
+        arrow.vy = arrow.vy + GRAVITY;
+        arrow.vx = arrow.vx + game.wind * 0.01;
+        
+        arrow.x = arrow.x + arrow.vx;
+        arrow.y = arrow.y + arrow.vy;
+        
+        // Update angle based on velocity
+        if arrow.vx != 0.0 || arrow.vy != 0.0 {
+            arrow.angle = atan2(arrow.vy, arrow.vx);
+        }
+        
+        // Check target collisions
+        for j in 0..MAX_TARGETS {
+            var target = &game.targets[j];
+            if !target.alive {
+                continue;
+            }
+            
+            var dx = arrow.x - target.x as float;
+            var dy = arrow.y - target.y as float;
+            var dist = sqrt(dx * dx + dy * dy);
+            
+            if dist < OUTER_RING_RADIUS as float + 5.0 {
+                // Hit! Determine ring
+                if dist < BULLSEYE_RADIUS as float {
+                    target.ring = 0;
+                    game.score = game.score + POINTS_BULLSEYE;
+                    game.combo = game.combo + 1;
+                    game.lastHitRing = 0;
+                } else if dist < INNER_RING_RADIUS as float {
+                    target.ring = 1;
+                    game.score = game.score + POINTS_INNER;
+                    game.combo = game.combo + 1;
+                    game.lastHitRing = 1;
+                } else {
+                    target.ring = 2;
+                    game.score = game.score + POINTS_OUTER;
+                    game.combo = 0;
+                    game.lastHitRing = 2;
+                }
+                
+                // Combo bonus
+                if game.combo > 1 {
+                    game.score = game.score + game.combo * 5;
+                }
+                
+                target.alive = false;
+                arrow.active = false;
+                break;
+            }
+        }
+        
+        // Check if arrow is out of bounds
+        if arrow.x < -50.0 || arrow.x > game.width as float + 50.0 ||
+           arrow.y < -50.0 || arrow.y > game.height as float + 50.0 {
+            arrow.active = false;
+            game.combo = 0;
+        }
+    }
+}
+
+fn spawn_target(game: &mut ArcheryState) {
+    // Find inactive target slot
+    var slot = -1;
+    for i in 0..MAX_TARGETS {
+        if !game.targets[i].alive {
+            slot = i;
+            break;
+        }
+    }
+    
+    if slot < 0 {
+        return;
+    }
+    
+    var target = &game.targets[slot];
+    
+    // Random position in upper portion of screen
+    target.x = 100 + rand_int(game.width - 200);
+    target.y = 80 + rand_int(200);
+    target.alive = true;
+    target.ring = -1;  // Not hit yet
+}
+
+fn update_targets(game: &mut ArcheryState) {
+    // Spawn new targets if needed
+    var time = get_tick_count();
+    if time - game.lastSpawnTime > TARGET_SPAWN_INTERVAL {
+        var aliveCount = 0;
+        for i in 0..MAX_TARGETS {
+            if game.targets[i].alive {
+                aliveCount = aliveCount + 1;
+            }
+        }
+        
+        if aliveCount < 3 {
+            spawn_target(game);
+            game.lastSpawnTime = time;
+        }
+    }
+}
+
+fn check_round_end(game: &mut ArcheryState) {
+    if game.arrowsLeft <= 0 && game.status == GameStatus.Playing {
+        // Check if any arrows are still active
+        var anyActive = false;
+        for i in 0..MAX_ARROWS {
+            if game.arrows[i].active {
+                anyActive = true;
+                break;
+            }
+        }
+        
+        if !anyActive {
+            game.round = game.round + 1;
+            if game.round > 5 {
+                game.status = GameStatus.GameOver;
+            } else {
+                game.status = GameStatus.Reloading;
+            }
+        }
+    }
+}
+
+fn update_game(game: &mut ArcheryState) {
+    var time = get_tick_count();
+    
+    if game.gameStartTime == 0 {
+        game.gameStartTime = time;
+    }
+    game.lastUpdateTime = time;
+    
+    match game.status {
+        GameStatus.Ready => {
+            // Waiting for start
+        }
+        GameStatus.Playing => {
+            update_bow(game);
+            update_arrows(game);
+            update_targets(game);
+            check_round_end(game);
+        }
+        GameStatus.Reloading => {
+            // Brief pause then start next round
+            game.status = GameStatus.Playing;
+            reset_round(game);
+        }
+        GameStatus.GameOver => {
+            // Game ended
+        }
+    }
+}
+
+// ==================== 工具函数 ====================
+
+fn get_tick_count() -> u32 {
+    return 0 as u32;
+}
+
+fn sqrt(n: float) -> float {
+    if n <= 0.0 {
+        return 0.0;
+    }
+    var x = n;
+    var y = 1.0;
+    while y < x {
+        x = (x + y) / 2.0;
+        y = n / x;
+    }
+    return x;
+}
+
+fn cos(angle: float) -> float {
+    // Simple cos approximation
+    var x = angle;
+    while x > 3.14159 {
+        x = x - 2.0 * 3.14159;
+    }
+    while x < -3.14159 {
+        x = x + 2.0 * 3.14159;
+    }
+    var x2 = x * x;
+    return 1.0 - x2 / 2.0 + x2 * x2 / 24.0 - x2 * x2 * x2 / 720.0;
+}
+
+fn sin(angle: float) -> float {
+    return cos(angle - 3.14159 / 2.0);
+}
+
+fn atan2(y: float, x: float) -> float {
+    if x > 0.0 {
+        return atan(y / x);
+    } else if x < 0.0 {
+        if y >= 0.0 {
+            return atan(y / x) + 3.14159;
+        } else {
+            return atan(y / x) - 3.14159;
+        }
+    } else {
+        if y > 0.0 {
+            return 3.14159 / 2.0;
+        } else if y < 0.0 {
+            return -3.14159 / 2.0;
+        } else {
+            return 0.0;
+        }
+    }
+}
+
+fn atan(x: float) -> float {
+    // arctan approximation
+    if x > 1.0 {
+        return 3.14159 / 2.0 - atan(1.0 / x);
+    } else if x < -1.0 {
+        return -3.14159 / 2.0 - atan(1.0 / x);
+    }
+    return x - x * x * x / 3.0 + x * x * x * x * x / 5.0;
+}
+
+// ==================== 碰撞检测 ====================
+
+fn point_in_circle(px: float, py: float, cx: i32, cy: i32, r: i32) -> bool {
+    var dx = px - cx as float;
+    var dy = py - cy as float;
+    return dx * dx + dy * dy <= (r * r) as float;
+}

@@ -1,0 +1,444 @@
+// game.zc - Zen-C 游戏框架核心
+// 框架版本: 1.0.0
+// 提供游戏开发的基础设施
+
+// 游戏状态
+pub type GameState = enum {
+    Ready,      // 等待开始
+    Playing,    // 游戏中
+    Paused,     // 暂停
+    Won,        // 胜利
+    Lost,       // 失败
+};
+
+// 游戏基础类 - 所有游戏都继承自此类
+pub abstract class Game {
+    // 窗口句柄
+    protected window: WindowHandle;
+    
+    // 游戏尺寸
+    protected width: int;
+    protected height: int;
+    
+    // 游戏状态
+    protected state: GameState;
+    
+    // 帧率控制
+    protected targetFPS: int;
+    protected frameTime: u32;
+    protected lastFrame: u32;
+    
+    // 是否运行中
+    protected running: bool;
+    
+    // 分数
+    protected score: int;
+    
+    // 构造函数
+    pub fn create(title: str, width: int, height: int, fps: int) {
+        self.width = width;
+        self.height = height;
+        self.targetFPS = fps;
+        self.frameTime = 1000 / fps as u32;
+        self.state = GameState.Ready;
+        self.score = 0;
+        self.running = false;
+        
+        // 创建窗口
+        self.window = createWindow(title, width, height);
+        if self.window == nil {
+            println("错误: 无法创建窗口");
+            return;
+        }
+        
+        println("游戏窗口创建成功: " ++ title);
+    }
+    
+    // 析构函数
+    pub fn destroy() {
+        if self.window != nil {
+            closeWindow(self.window);
+            self.window = nil;
+        }
+    }
+    
+    // 开始游戏主循环
+    pub fn run() {
+        if self.window == nil {
+            return;
+        }
+        
+        self.running = true;
+        self.lastFrame = getTickCount();
+        
+        // 发送初始重绘消息
+        self.onInit();
+        
+        // 主消息循环
+        while self.running {
+            self.processEvents();
+            self.update();
+            self.render();
+            self.frameLimit();
+        }
+        
+        self.onShutdown();
+    }
+    
+    // 停止游戏
+    pub fn stop() {
+        self.running = false;
+    }
+    
+    // 获取分数
+    pub fn getScore() -> int {
+        return self.score;
+    }
+    
+    // 添加分数
+    pub fn addScore(points: int) {
+        self.score = self.score + points;
+    }
+    
+    // 获取游戏状态
+    pub fn getState() -> GameState {
+        return self.state;
+    }
+    
+    // 设置游戏状态
+    pub fn setState(state: GameState) {
+        self.state = state;
+    }
+    
+    // ===== 需要子类实现的抽象方法 =====
+    
+    // 初始化回调
+    pub abstract fn onInit();
+    
+    // 关闭回调
+    pub abstract fn onShutdown();
+    
+    // 更新回调 (每帧调用)
+    pub abstract fn onUpdate(dt: u32);
+    
+    // 渲染回调 (每帧调用)
+    pub abstract fn onRender(canvas: Canvas);
+    
+    // 键盘按下回调
+    pub abstract fn onKeyDown(key: VirtualKey);
+    
+    // 键盘释放回调
+    pub abstract fn onKeyUp(key: VirtualKey);
+    
+    // 鼠标按下回调
+    pub abstract fn onMouseDown(x: int, y: int, button: MouseButton);
+    
+    // 鼠标释放回调
+    pub abstract fn onMouseUp(x: int, y: int, button: MouseButton);
+    
+    // ===== 内部方法 =====
+    
+    // 处理所有待处理事件
+    private fn processEvents() {
+        var event = Event.{};
+        
+        while pollEvent(self.window, &event) {
+            match event.msg {
+                MessageType.Quit => {
+                    self.running = false;
+                }
+                MessageType.KeyDown => {
+                    if event.key.key == VirtualKey.Escape {
+                        self.running = false;
+                    } else {
+                        self.onKeyDown(event.key.key);
+                    }
+                }
+                MessageType.KeyUp => {
+                    self.onKeyUp(event.key.key);
+                }
+                MessageType.MouseDown => {
+                    self.onMouseDown(event.mouse.x, event.mouse.y, event.mouse.button);
+                }
+                MessageType.MouseUp => {
+                    self.onMouseUp(event.mouse.x, event.mouse.y, event.mouse.button);
+                }
+                MessageType.Resize => {
+                    self.width = event.width;
+                    self.height = event.height;
+                }
+                MessageType.Paint => {
+                    // 已在render中处理
+                }
+                _ => {}
+            }
+        }
+    }
+    
+    // 更新游戏逻辑
+    private fn update() {
+        if self.state != GameState.Playing {
+            return;
+        }
+        
+        var current = getTickCount();
+        var dt = current - self.lastFrame;
+        
+        self.onUpdate(dt);
+    }
+    
+    // 渲染画面
+    private fn render() {
+        var fb = getFrameBuffer(self.window);
+        var pitch = getFrameBufferPitch(self.window);
+        
+        // 创建画布实现
+        var canvas = FrameBufferCanvas.{
+            width: self.width,
+            height: self.height,
+            pitch: pitch,
+            buffer: fb,
+        };
+        
+        // 清屏
+        canvas.clear(Color.Black());
+        
+        // 调用游戏渲染
+        self.onRender(&canvas);
+        
+        // 显示画面
+        presentFrame(self.window);
+        
+        self.lastFrame = getTickCount();
+    }
+    
+    // 帧率限制
+    private fn frameLimit() {
+        var elapsed = getTickCount() - self.lastFrame;
+        if elapsed < self.frameTime {
+            sleep(self.frameTime - elapsed);
+        }
+    }
+}
+
+// 帧缓冲画布实现
+// 直接写入显存，高效绘制
+private class FrameBufferCanvas {
+    pub width: int;
+    pub height: int;
+    pub pitch: int;
+    pub buffer: rawptr;
+}
+
+impl Canvas for FrameBufferCanvas {
+    fn clear(color: Color) {
+        var pixels = self.buffer as u32 mut;
+        var count = (self.pitch * self.height) / 4;
+        
+        for i in 0..count {
+            pixels[i] = color;
+        }
+    }
+    
+    fn setPixel(x: int, y: int, color: Color) {
+        if x < 0 || x >= self.width || y < 0 || y >= self.height {
+            return;
+        }
+        
+        var offset = y * (self.pitch / 4) + x;
+        var pixels = self.buffer as u32 mut;
+        pixels[offset] = color;
+    }
+    
+    fn getPixel(x: int, y: int) -> Color {
+        if x < 0 || x >= self.width || y < 0 || y >= self.height {
+            return Color.Black();
+        }
+        
+        var offset = y * (self.pitch / 4) + x;
+        var pixels = self.buffer as u32;
+        return pixels[offset];
+    }
+    
+    fn drawLine(x1: int, y1: int, x2: int, y2: int, color: Color) {
+        // Bresenham 算法
+        var dx = abs(x2 - x1);
+        var dy = abs(y2 - y1);
+        var sx = if x1 < x2 { 1 } else { -1 };
+        var sy = if y1 < y2 { 1 } else { -1 };
+        var err = dx - dy;
+        
+        loop {
+            self.setPixel(x1, y1, color);
+            
+            if x1 == x2 && y1 == y2 {
+                break;
+            }
+            
+            var e2 = 2 * err;
+            if e2 > -dy {
+                err = err - dy;
+                x1 = x1 + sx;
+            }
+            if e2 < dx {
+                err = err + dx;
+                y1 = y1 + sy;
+            }
+        }
+    }
+    
+    fn drawRect(x: int, y: int, w: int, h: int, color: Color) {
+        self.drawLine(x, y, x + w, y, color);
+        self.drawLine(x + w, y, x + w, y + h, color);
+        self.drawLine(x + w, y + h, x, y + h, color);
+        self.drawLine(x, y + h, x, y, color);
+    }
+    
+    fn fillRect(x: int, y: int, w: int, h: int, color: Color) {
+        for py in y..(y + h) {
+            for px in x..(x + w) {
+                self.setPixel(px, py, color);
+            }
+        }
+    }
+    
+    fn drawCircle(cx: int, cy: int, radius: int, color: Color) {
+        var d = 3 - 2 * radius;
+        var x = 0;
+        var y = radius;
+        
+        loop {
+            self.setPixel(cx + x, cy + y, color);
+            self.setPixel(cx - x, cy + y, color);
+            self.setPixel(cx + x, cy - y, color);
+            self.setPixel(cx - x, cy - y, color);
+            self.setPixel(cx + y, cy + x, color);
+            self.setPixel(cx - y, cy + x, color);
+            self.setPixel(cx + y, cy - x, color);
+            self.setPixel(cx - y, cy - x, color);
+            
+            if d < 0 {
+                d = d + 4 * x + 6;
+            } else {
+                d = d + 4 * (x - y) + 10;
+                y = y - 1;
+            }
+            
+            x = x + 1;
+            if x > y {
+                break;
+            }
+        }
+    }
+    
+    fn fillCircle(cx: int, cy: int, radius: int, color: Color) {
+        for y in (-radius)..(radius + 1) {
+            for x in (-radius)..(radius + 1) {
+                if x*x + y*y <= radius * radius {
+                    self.setPixel(cx + x, cy + y, color);
+                }
+            }
+        }
+    }
+    
+    fn drawText(x: int, y: int, text: str, color: Color, font: Font) {
+        // 简化实现：使用内置位图字体
+        self.drawSimpleText(x, y, text, color);
+    }
+    
+    fn getWidth() -> int {
+        return self.width;
+    }
+    
+    fn getHeight() -> int {
+        return self.height;
+    }
+}
+
+// 简化文字绘制 - 8x8 位图字体
+private fn drawSimpleText(canvas: &FrameBufferCanvas, x: int, y: int, text: str, color: Color) {
+    var charWidth = 8;
+    var charHeight = 8;
+    
+    var px = x;
+    var py = y;
+    
+    for i in 0..len(text) {
+        if text[i] == '\n' {
+            py = py + charHeight;
+            px = x;
+            continue;
+        }
+        
+        // 绘制单个字符的占位矩形
+        canvas.fillRect(px, py, charWidth, charHeight, color);
+        
+        px = px + charWidth;
+        if px > canvas.getWidth() - charWidth {
+            py = py + charHeight;
+            px = x;
+        }
+    }
+}
+
+// 数学辅助函数
+fn abs(x: int) -> int {
+    return if x < 0 { -x } else { x };
+}
+
+fn min(a: int, b: int) -> int {
+    return if a < b { a } else { b };
+}
+
+fn max(a: int, b: int) -> int {
+    return if a > b { a } else { b };
+}
+
+// 碰撞检测辅助函数
+fn rectIntersect(r1: Rect, r2: Rect) -> bool {
+    return r1.x < r2.x + r2.width &&
+           r1.x + r1.width > r2.x &&
+           r1.y < r2.y + r2.height &&
+           r1.y + r1.height > r2.y;
+}
+
+// 计算两点距离
+fn distance(x1: int, y1: int, x2: int, y2: int) -> int {
+    var dx = x2 - x1;
+    var dy = y2 - y1;
+    return sqrt(dx*dx + dy*dy);
+}
+
+fn sqrt(n: int) -> int {
+    if n < 0 {
+        return 0;
+    }
+    
+    var x = n;
+    var y = 1;
+    
+    while y < x {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    
+    return x;
+}
+
+// 随机数辅助
+private var rng_seed: u32 = 1;
+
+pub fn setRandomSeed(seed: u32) {
+    rng_seed = seed;
+}
+
+pub fn rand() -> u32 {
+    // 线性同余生成器
+    rng_seed = rng_seed * 1103515245 + 12345;
+    return rng_seed;
+}
+
+pub fn randInt(min: int, max: int) -> int {
+    var r = rand() % (max - min + 1);
+    return min + r;
+}
