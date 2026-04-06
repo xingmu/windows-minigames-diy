@@ -175,7 +175,7 @@ impl FrameBufferCanvas {
 
 // ==================== 绘制函数 ====================
 
-fn draw_court(ctx: FrameBufferCanvas*) {
+fn draw_court(ctx: Canvas) {
     // 球场背景（木地板纹理）
     ctx.fillRect(0, 0, 800, GROUND_Y, COURT_COLOR);
 
@@ -197,7 +197,7 @@ fn draw_court(ctx: FrameBufferCanvas*) {
     ctx.drawLine(0, GROUND_Y, 800, GROUND_Y, COURT_LINES_COLOR);
 }
 
-fn drawArc(ctx: FrameBufferCanvas*, cx: int, cy: int, radius: int, startAngle: int, endAngle: int, _segments: int) {
+fn drawArc(ctx: Canvas, cx: int, cy: int, radius: int, startAngle: int, endAngle: int, _segments: int) {
     // 简化的圆弧绘制
     let x = cx + radius;
     let y = cy;
@@ -217,7 +217,7 @@ fn drawArc(ctx: FrameBufferCanvas*, cx: int, cy: int, radius: int, startAngle: i
     }
 }
 
-fn draw_ball(ctx: FrameBufferCanvas*, ball: Ball*) {
+fn draw_ball(ctx: Canvas, ball: Ball*) {
     let x = ball.x as i32;
     let y = ball.y as i32;
     let r = BALL_RADIUS;
@@ -233,7 +233,7 @@ fn draw_ball(ctx: FrameBufferCanvas*, ball: Ball*) {
     ctx.drawCircle(x, y, r - 2, BALL_LINES_COLOR);
 }
 
-fn draw_hoop(ctx: FrameBufferCanvas*, hoop: Hoop*) {
+fn draw_hoop(ctx: Canvas, hoop: Hoop*) {
     // 篮板
     ctx.fillRect(hoop.backboardX, hoop.backboardTopY, 10, BOARD_HEIGHT, BACKBOARD_COLOR);
     ctx.drawRect(hoop.backboardX, hoop.backboardTopY, 10, BOARD_HEIGHT, Color.Gray());
@@ -267,7 +267,7 @@ fn draw_hoop(ctx: FrameBufferCanvas*, hoop: Hoop*) {
     }
 }
 
-fn draw_trajectory(ctx: FrameBufferCanvas*, startX: int, startY: int, endX: int, endY: int) {
+fn draw_trajectory(ctx: Canvas, startX: int, startY: int, endX: int, endY: int) {
     let points: [(i32, i32); 50];
     let count = calculate_trajectory(&game, startX, startY, endX, endY, &mut points, 50);
 
@@ -281,7 +281,7 @@ fn draw_trajectory(ctx: FrameBufferCanvas*, startX: int, startY: int, endX: int,
     }
 }
 
-fn draw_power_bar(ctx: FrameBufferCanvas*, startX: int, startY: int, endX: int, endY: int) {
+fn draw_power_bar(ctx: Canvas, startX: int, startY: int, endX: int, endY: int) {
     let dx = startX - endX;
     let dy = startY - endY;
     let power = math.sqrt(dx * dx + dy * dy) as f32;
@@ -311,7 +311,7 @@ fn draw_power_bar(ctx: FrameBufferCanvas*, startX: int, startY: int, endX: int, 
     // 简化：显示百分比
 }
 
-fn draw_ui(ctx: FrameBufferCanvas*) {
+fn draw_ui(ctx: Canvas) {
     // 分数
     ctx.drawSimpleText(20, 20, "SCORE:", TEXT_COLOR);
     ctx.drawSimpleText(100, 20, int_to_string(game.score), TEXT_COLOR);
@@ -336,7 +336,7 @@ fn draw_ui(ctx: FrameBufferCanvas*) {
     ctx.drawSimpleText(660, 50, int_to_string(game.bestCombo), TEXT_COLOR);
 }
 
-fn draw_game_over(ctx: FrameBufferCanvas*) {
+fn draw_game_over(ctx: Canvas) {
     // 半透明遮罩
     ctx.fillRect(0, 0, 800, 500, Color.ARGB(180, 0, 0, 0));
 
@@ -351,7 +351,7 @@ fn draw_game_over(ctx: FrameBufferCanvas*) {
     ctx.drawSimpleText(300, 360, "PRESS R TO RESTART", TEXT_COLOR);
 }
 
-fn draw_aim_line(ctx: FrameBufferCanvas*, startX: int, startY: int, endX: int, endY: int) {
+fn draw_aim_line(ctx: Canvas, startX: int, startY: int, endX: int, endY: int) {
     // 瞄准线
     ctx.drawLine(startX, startY, endX, endY, Color.RGB(255, 255, 255, 150));
 

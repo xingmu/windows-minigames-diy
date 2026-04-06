@@ -274,35 +274,35 @@ fn handleMouseClick(x: i32, y: i32) {
 fn handleKeyInput(key: VirtualKey) -> bool {
     // 数字键 1-9
     match key {
-        VirtualKey.Key1 | VirtualKey::Numpad1 => {
+        VirtualKey.Key1 || VirtualKey::Numpad1 => {
             let _ = inputNumber(&mut game, 1);
         },
-        VirtualKey.Key2 | VirtualKey::Numpad2 => {
+        VirtualKey.Key2 || VirtualKey::Numpad2 => {
             let _ = inputNumber(&mut game, 2);
         },
-        VirtualKey.Key3 | VirtualKey::Numpad3 => {
+        VirtualKey.Key3 || VirtualKey::Numpad3 => {
             let _ = inputNumber(&mut game, 3);
         },
-        VirtualKey.Key4 | VirtualKey::Numpad4 => {
+        VirtualKey.Key4 || VirtualKey::Numpad4 => {
             let _ = inputNumber(&mut game, 4);
         },
-        VirtualKey.Key5 | VirtualKey::Numpad5 => {
+        VirtualKey.Key5 || VirtualKey::Numpad5 => {
             let _ = inputNumber(&mut game, 5);
         },
-        VirtualKey.Key6 | VirtualKey::Numpad6 => {
+        VirtualKey.Key6 || VirtualKey::Numpad6 => {
             let _ = inputNumber(&mut game, 6);
         },
-        VirtualKey.Key7 | VirtualKey::Numpad7 => {
+        VirtualKey.Key7 || VirtualKey::Numpad7 => {
             let _ = inputNumber(&mut game, 7);
         },
-        VirtualKey.Key8 | VirtualKey::Numpad8 => {
+        VirtualKey.Key8 || VirtualKey::Numpad8 => {
             let _ = inputNumber(&mut game, 8);
         },
-        VirtualKey.Key9 | VirtualKey::Numpad9 => {
+        VirtualKey.Key9 || VirtualKey::Numpad9 => {
             let _ = inputNumber(&mut game, 9);
         },
         // 0 或 Backspace 清除
-        VirtualKey.Key0 | VirtualKey.Numpad0 | VirtualKey::Backspace => {
+        VirtualKey.Key0 || VirtualKey.Numpad0 || VirtualKey::Backspace => {
             let _ = clearSelectedCell(&mut game);
         },
         // 方向键移动选择

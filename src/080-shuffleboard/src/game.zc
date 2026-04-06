@@ -245,7 +245,7 @@ impl Canvas for FrameBufferCanvas {
     fn getHeight() -> int { return self.height; }
 }
 
-private fn drawSimpleText(canvas: FrameBufferCanvas*, x: int, y: int, text: str, color: Color) {
+private fn drawSimpleText(canvas: Canvas, x: int, y: int, text: str, color: Color) {
     let charWidth = 8;
     let charHeight = 8;
     let px = x;

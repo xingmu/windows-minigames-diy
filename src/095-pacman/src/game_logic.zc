@@ -72,7 +72,7 @@ struct Ghost {
 
 // 游戏状态
 struct GameState {
-    maze: [MAZE_HEIGHT][MAZE_WIDTH]i32,
+    maze: i32[MAZE_HEIGHT][MAZE_WIDTH],
     pacman_pos: Position,
     pacman_dir: Direction,
     next_dir: Direction,
@@ -96,7 +96,7 @@ struct GameState {
 }
 
 // 迷宫定义 (0=路径, 1=墙, 2=豆子, 3=大力丸, 4=空, 5=老家)
-def MAZE_TEMPLATE: [MAZE_HEIGHT][MAZE_WIDTH]i32 = [
+def MAZE_TEMPLATE: i32[MAZE_HEIGHT][MAZE_WIDTH] = [
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
     [1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,1],
     [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
@@ -267,7 +267,7 @@ fn handle_input(game: &mut GameState, key: i32) -> bool {
     return true;
 }
 
-fn can_move(maze: &[MAZE_HEIGHT][MAZE_WIDTH]i32, x: i32, y: i32, dir: Direction) -> bool {
+fn can_move(maze: &i32[MAZE_HEIGHT][MAZE_WIDTH], x: i32, y: i32, dir: Direction) -> bool {
     let nx = x;
     let ny = y;
     
@@ -433,7 +433,7 @@ fn update_ghosts(game: &mut GameState) {
     }
 }
 
-fn move_ghost_home(ghost: &mut Ghost, maze: &[MAZE_HEIGHT][MAZE_WIDTH]i32) {
+fn move_ghost_home(ghost: &mut Ghost, maze: &i32[MAZE_HEIGHT][MAZE_WIDTH]) {
     // 简单地向老家移动
     let dx = ghost.home_x - ghost.pos.x;
     let dy = ghost.home_y - ghost.pos.y;
@@ -502,7 +502,7 @@ fn move_ghost(ghost: &mut Ghost, game: GameState*) {
     ghost.pos.y += get_dir_dy(ghost.dir);
 }
 
-fn can_move_dir(maze: &[MAZE_HEIGHT][MAZE_WIDTH]i32, x: i32, y: i32, dir: Direction) -> bool {
+fn can_move_dir(maze: &i32[MAZE_HEIGHT][MAZE_WIDTH], x: i32, y: i32, dir: Direction) -> bool {
     match dir {
         Direction::DirUp => {
             if y > 0 { return maze[y - 1][x] != 1 && maze[y - 1][x] != 5; }

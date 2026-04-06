@@ -31,11 +31,11 @@ enum SudokuState {
 // 数独网格
 struct SudokuGrid {
     // 固定值（题目）= true，可修改 = false
-    fixed: [GRID_SIZE][GRID_SIZE]bool,
+    fixed: bool[GRID_SIZE][GRID_SIZE],
     // 当前值 (0 = 空)
-    values: [GRID_SIZE][GRID_SIZE]i32,
+    values: i32[GRID_SIZE][GRID_SIZE],
     // 错误标记
-    errors: [GRID_SIZE][GRID_SIZE]bool,
+    errors: bool[GRID_SIZE][GRID_SIZE],
 }
 
 // 游戏数据
@@ -51,13 +51,13 @@ struct SudokuGame {
     window_width: i32,
     window_height: i32,
     // 完整解（用于验证）
-    solution: [GRID_SIZE][GRID_SIZE]i32,
+    solution: i32[GRID_SIZE][GRID_SIZE],
 }
 
 // ==================== 数独算法 ====================
 
 // 检查在指定位置放置数字是否有效
-fn isValid(grid: &[GRID_SIZE][GRID_SIZE]i32, row: i32, col: i32, num: i32) -> bool {
+fn isValid(grid: &i32[GRID_SIZE][GRID_SIZE], row: i32, col: i32, num: i32) -> bool {
     // 检查行
     for c in 0..GRID_SIZE {
         if grid[row][c] == num {
@@ -87,7 +87,7 @@ fn isValid(grid: &[GRID_SIZE][GRID_SIZE]i32, row: i32, col: i32, num: i32) -> bo
 }
 
 // 回溯法求解数独
-fn solveSudoku(grid: &[GRID_SIZE][GRID_SIZE]i32 mut, solution: &[GRID_SIZE][GRID_SIZE]i32 mut) -> bool {
+fn solveSudoku(grid: &i32mut[GRID_SIZE][GRID_SIZE], solution: &i32mut[GRID_SIZE][GRID_SIZE]) -> bool {
     for row in 0..GRID_SIZE {
         for col in 0..GRID_SIZE {
             if grid[row][col] == 0 {
@@ -175,7 +175,7 @@ fn generatePuzzle(game: &mut SudokuGame, difficulty: Difficulty) {
 }
 
 // 填充对角线三个3x3宫格
-fn fillDiagonalBlocks(grid: &mut [GRID_SIZE][GRID_SIZE]i32) {
+fn fillDiagonalBlocks(grid: &mut i32[GRID_SIZE][GRID_SIZE]) {
     for block in 0..3 {
         let start_row = block * 3;
         let start_col = block * 3;

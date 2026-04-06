@@ -48,7 +48,7 @@ pub struct WinInfo {
 
 // 游戏状态
 pub struct GobangState {
-    board: [BOARD_SIZE][BOARD_SIZE]int,
+    board: int[BOARD_SIZE][BOARD_SIZE],
     currentPlayer: int,     // 当前玩家 BLACK=1 / WHITE=2
     gameOver: bool,
     winner: int,           // 0=无, 1=黑胜, 2=白胜

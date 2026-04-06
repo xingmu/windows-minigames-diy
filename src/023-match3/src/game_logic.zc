@@ -248,7 +248,7 @@ fn update_game(game: &mut Match3State) -> bool {
 
 // 查找并移除匹配
 fn find_and_remove_matches(game: &mut Match3State) -> i32 {
-    let matched: [GRID_ROWS][GRID_COLS]bool;
+    let matched: bool[GRID_ROWS][GRID_COLS];
     for row in 0..GRID_ROWS {
         for col in 0..GRID_COLS {
             matched[row][col] = false;

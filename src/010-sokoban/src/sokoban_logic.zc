@@ -33,7 +33,7 @@ struct Level {
     height: int,
     playerStartX: int,
     playerStartY: int,
-    grid: [MAX_GRID_HEIGHT][MAX_GRID_WIDTH]CellType,
+    grid: CellType[MAX_GRID_HEIGHT][MAX_GRID_WIDTH],
     boxCount: int,
     boxes: [Point; 10],
     targetCount: int,
@@ -57,7 +57,7 @@ struct SokobanGameState {
     allWon: bool,
     
     // 当前关卡的网格
-    grid: [MAX_GRID_HEIGHT][MAX_GRID_WIDTH]CellType,
+    grid: CellType[MAX_GRID_HEIGHT][MAX_GRID_WIDTH],
     gridWidth: int,
     gridHeight: int,
     
@@ -109,7 +109,7 @@ def LEVEL_3: str =
 
 // ==================== 关卡解析 ====================
 
-fn parseLevel(levelStr: str, level: &mut Level) {
+fn parseLevel(levelStr: str, level: Level*) {
     // 初始化
     level.width = 0;
     level.height = 0;
@@ -182,16 +182,16 @@ fn parseLevel(levelStr: str, level: &mut Level) {
 // ==================== 游戏逻辑 ====================
 
 // 初始化游戏状态
-fn initGame(state: &mut SokobanGameState, levelIndex: int) {
+fn initGame(state: SokobanGameState*, levelIndex: int) {
     let level: Level;
     
     // 根据关卡加载
     if levelIndex == 0 {
-        parseLevel(LEVEL_1, &mut level);
+        parseLevel(LEVEL_1, level);
     } else if levelIndex == 1 {
-        parseLevel(LEVEL_2, &mut level);
+        parseLevel(LEVEL_2, level);
     } else {
-        parseLevel(LEVEL_3, &mut level);
+        parseLevel(LEVEL_3, level);
     }
     
     // 复制到状态
@@ -225,7 +225,7 @@ fn initGame(state: &mut SokobanGameState, levelIndex: int) {
 }
 
 // 重置当前关卡
-fn resetLevel(state: &mut SokobanGameState) {
+fn resetLevel(state: SokobanGameState*) {
     initGame(state, state.currentLevel);
 }
 
@@ -258,7 +258,7 @@ fn isWall(state: SokobanGameState*, x: int, y: int) -> bool {
 }
 
 // 尝试移动玩家
-fn movePlayer(state: &mut SokobanGameState, dir: Direction) -> bool {
+fn movePlayer(state: SokobanGameState*, dir: Direction) -> bool {
     if state.levelWon {
         return false;
     }
@@ -316,7 +316,7 @@ fn movePlayer(state: &mut SokobanGameState, dir: Direction) -> bool {
 }
 
 // 检查是否获胜
-fn checkWin(state: &mut SokobanGameState) {
+fn checkWin(state: SokobanGameState*) {
     // 所有目标点都必须有箱子
     for i in 0..state.targetCount {
         let tx = state.targets[i].x;
@@ -340,7 +340,7 @@ fn checkWin(state: &mut SokobanGameState) {
 }
 
 // 切换到下一关
-fn nextLevel(state: &mut SokobanGameState) {
+fn nextLevel(state: SokobanGameState*) {
     if state.currentLevel < MAX_LEVELS - 1 {
         initGame(state, state.currentLevel + 1);
     } else {

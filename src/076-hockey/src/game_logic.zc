@@ -569,7 +569,7 @@ pub class HockeyGame extends Game {
         canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(180, 0, 0, 0));
         
         let font = Font("Arial", 42);
-        let text = self."{winner} 获胜!";
+        let text = "[Winner] 获胜!";
         canvas.drawText(WINDOW_WIDTH / 2 - 120, WINDOW_HEIGHT / 2 - 40, text, Color.Yellow(), font);
         
         let smallFont = Font("Arial", 18);

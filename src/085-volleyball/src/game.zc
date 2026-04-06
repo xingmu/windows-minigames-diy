@@ -357,7 +357,7 @@ impl Canvas for FrameBufferCanvas {
 }
 
 // 简化文字绘制 - 8x8 位图字体
-private fn drawSimpleText(canvas: FrameBufferCanvas*, x: int, y: int, text: str, color: Color) {
+private fn drawSimpleText(canvas: Canvas, x: int, y: int, text: str, color: Color) {
     // 8x8 位图字体数据
     // 每个字符用8个字节表示（每行1字节）
     // 这里仅演示，实际应使用完整的ASCII位图

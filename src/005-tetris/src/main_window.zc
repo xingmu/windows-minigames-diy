@@ -129,7 +129,7 @@ struct CurrentPiece {
 // ==================== 俄罗斯方块游戏类 ====================
 class TetrisGame extends Game {
     // 棋盘：存储每个格子的颜色，0表示空
-    board: [BOARD_HEIGHT][BOARD_WIDTH]int;
+    board: int[BOARD_HEIGHT][BOARD_WIDTH];
     
     // 当前下落的方块
     currentPiece: CurrentPiece;

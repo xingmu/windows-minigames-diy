@@ -628,10 +628,10 @@ fn handleKeyDown(key: VirtualKey) {
         VirtualKey::Right => {
             moveRight();
         },
-        VirtualKey.A => {
+        VirtualKey::A => {
             moveLeft();
         },
-        VirtualKey.D => {
+        VirtualKey::D => {
             moveRight();
         },
         VirtualKey::Escape => {
@@ -653,12 +653,12 @@ fn handleKeyUp(key: VirtualKey) {
                 playerVelX = 0.0;
             }
         },
-        VirtualKey.A => {
+        VirtualKey::A => {
             if playerVelX < 0.0 {
                 playerVelX = 0.0;
             }
         },
-        VirtualKey.D => {
+        VirtualKey::D => {
             if playerVelX > 0.0 {
                 playerVelX = 0.0;
             }

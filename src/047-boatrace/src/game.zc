@@ -353,7 +353,7 @@ impl Canvas for FrameBufferCanvas {
 }
 
 // 简化文字绘制 - 8x8 位图字体
-private fn drawSimpleText(canvas: FrameBufferCanvas*, x: int, y: int, text: str, color: Color) {
+private fn drawSimpleText(canvas: Canvas, x: int, y: int, text: str, color: Color) {
     let charWidth = 8;
     let charHeight = 8;
     

@@ -569,7 +569,7 @@ pub class BadmintonGame extends Game {
         canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(180, 0, 0, 0));
 
         let font = Font("Arial", 48);
-        let text = self."{winner} Wins!";
+        let text = "[Winner] 获胜!";
         let textColor = if self.winner == "Player" { Color.Blue() } else { Color.Red() };
         canvas.drawText(WINDOW_WIDTH / 2 - 130, WINDOW_HEIGHT / 2 - 50, text, textColor, font);
 
@@ -584,16 +584,16 @@ pub class BadmintonGame extends Game {
     // onKeyDown - Key pressed
     pub fn onKeyDown(key: VirtualKey) {
         match key {
-            VirtualKey.A => {
+            VirtualKey::A => {
                 self.keyLeft = true;
             }
-            VirtualKey.D => {
+            VirtualKey::D => {
                 self.keyRight = true;
             }
-            VirtualKey.W => {
+            VirtualKey::W => {
                 self.keyUp = true;
             }
-            VirtualKey.S => {
+            VirtualKey::S => {
                 self.keyDown = true;
             }
             VirtualKey::Space => {
@@ -606,7 +606,7 @@ pub class BadmintonGame extends Game {
                     self.rallyCount = 1;
                 }
             }
-            VirtualKey.R => {
+            VirtualKey::R => {
                 if self.gameOver {
                     self.onInit();
                 }
@@ -621,16 +621,16 @@ pub class BadmintonGame extends Game {
     // onKeyUp - Key released
     pub fn onKeyUp(key: VirtualKey) {
         match key {
-            VirtualKey.A => {
+            VirtualKey::A => {
                 self.keyLeft = false;
             }
-            VirtualKey.D => {
+            VirtualKey::D => {
                 self.keyRight = false;
             }
-            VirtualKey.W => {
+            VirtualKey::W => {
                 self.keyUp = false;
             }
-            VirtualKey.S => {
+            VirtualKey::S => {
                 self.keyDown = false;
             }
             VirtualKey::Space => {

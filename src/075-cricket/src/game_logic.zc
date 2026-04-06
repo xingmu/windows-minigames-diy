@@ -724,7 +724,7 @@ pub class CricketGame extends Game {
         if self.winner == "玩家" {
             resultText = "恭喜 {self}"."{winner} 获胜!";
         } else if self.winner == "电脑" {
-            resultText = self."{winner} 获胜!";
+            resultText = "[Winner] 获胜!";
         } else {
             resultText = "平局!";
         }

@@ -124,7 +124,7 @@ struct CurrentPiece {
 
 // ==================== TetrisPlus 游戏类 ====================
 class TetrisPlusGame extends Game {
-    board: [BOARD_HEIGHT][BOARD_WIDTH]int;
+    board: int[BOARD_HEIGHT][BOARD_WIDTH];
     currentPiece: CurrentPiece;
     nextPieceType: TetrominoType;
     dropTimer: u32;

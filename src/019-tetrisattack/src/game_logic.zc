@@ -278,7 +278,7 @@ fn apply_gravity(state: &mut TetrisAttackState) -> bool {
 // 检查并消除相同的方块
 pub fn check_and_clear_matches(state: &mut TetrisAttackState) -> int {
     let cleared = 0;
-    let toClear: [GRID_ROWS][GRID_COLS]bool;
+    let toClear: bool[GRID_ROWS][GRID_COLS];
     
     // 初始化
     for r in 0..GRID_ROWS {
