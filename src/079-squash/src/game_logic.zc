@@ -365,8 +365,8 @@ pub class SquashGame extends Game {
             
             let currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
             if currentSpeed > 0.0 {
-                self.ballVX = self.ballVX / currentSpeed * self.ballSpeed as float;
-                self.ballVY = self.ballVY / currentSpeed * self.ballSpeed as float;
+                self.ballVX = self.ballVX / currentSpeed * (float)(self.ballSpeed);
+                self.ballVY = self.ballVY / currentSpeed * (float)(self.ballSpeed);
             }
             
             if self.ballVY < 3.0 {
@@ -393,8 +393,8 @@ pub class SquashGame extends Game {
             
             let currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
             if currentSpeed > 0.0 {
-                self.ballVX = self.ballVX / currentSpeed * self.ballSpeed as float;
-                self.ballVY = self.ballVY / currentSpeed * self.ballSpeed as float;
+                self.ballVX = self.ballVX / currentSpeed * (float)(self.ballSpeed);
+                self.ballVY = self.ballVY / currentSpeed * (float)(self.ballSpeed);
             }
             
             if self.ballVY > -3.0 {
@@ -416,14 +416,14 @@ pub class SquashGame extends Game {
     
     // 检查球拍碰撞
     private fn checkRacketCollision(rx: int, ry: int, rw: int, rh: int) -> bool {
-        let ballLeft = self.ballX - BALL_RADIUS as float;
-        let ballRight = self.ballX + BALL_RADIUS as float;
-        let ballTop = self.ballY - BALL_RADIUS as float;
-        let ballBottom = self.ballY + BALL_RADIUS as float;
+        let ballLeft = self.ballX - (float)(BALL_RADIUS);
+        let ballRight = self.ballX + (float)(BALL_RADIUS);
+        let ballTop = self.ballY - (float)(BALL_RADIUS);
+        let ballBottom = self.ballY + (float)(BALL_RADIUS);
         
-        let racketLeft = rx as float;
+        let racketLeft = (float)(rx);
         let racketRight = (rx + rw) as float;
-        let racketTop = ry as float;
+        let racketTop = (float)(ry);
         let racketBottom = (ry + rh) as float;
         
         return ballRight >= racketLeft && ballLeft <= racketRight &&
@@ -584,8 +584,8 @@ pub class SquashGame extends Game {
     // 绘制球
     private fn drawBall(canvas: Canvas) {
         let ballColor = Color.Yellow();
-        let bx = self.ballX as int;
-        let by = self.ballY as int;
+        let bx = (int)(self.ballX);
+        let by = (int)(self.ballY);
         
         // 阴影
         canvas.fillCircle(bx + 4, by + 4, BALL_RADIUS + 1, Color.ARGB(80, 0, 0, 0));

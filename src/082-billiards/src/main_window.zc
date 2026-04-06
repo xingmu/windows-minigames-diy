@@ -36,7 +36,7 @@ fn fb_get_pixel(x: i32, y: i32) -> Color {
         return Color.Black();
     }
     let offset = y * (fb_pitch / 4) + x;
-    let pixels = fb_buffer as u32;
+    let pixels = (u32)(fb_buffer);
     return pixels[offset];
 }
 
@@ -292,8 +292,8 @@ fn drawAimLine(state: NineBallState*) {
                 
                 // 虚线
                 for i in 0..12 {
-                    let t1 = i as f32 / 12 as f32;
-                    let t2 = (i + 1) as f32 / 12 as f32;
+                    let t1 = (f32)(i) / (f32)(12);
+                    let t2 = (i + 1) as f32 / (f32)(12);
                     if i % 2 == 0 {
                         fb_draw_line(
                             cue.x + (aimEndX - cue.x) * t1,
@@ -333,7 +333,7 @@ fn drawAimLine(state: NineBallState*) {
             fb_draw_rect(barX - 1, barY - 1, barW + 2, barH + 2, Color.RGB(100, 100, 100));
             fb_fill_rect(barX, barY, barW, barH, Color.RGB(30, 30, 30));
             
-            let fillW = (state.power as f32 / MAX_POWER as f32 * barW as f32) as i32;
+            let fillW = ((f32)(state.power) / (f32)(MAX_POWER) * (f32)(barW)) as i32;
             let powerColor = if state.power < 10 {
                 Color.Green()
             } else if state.power < 20 {

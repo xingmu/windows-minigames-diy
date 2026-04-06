@@ -227,7 +227,7 @@ pub class PingpongGame extends Game {
                 self.ballSpeed = self.ballSpeed + 1;
             }
             
-            let speed = self.ballSpeed as float;
+            let speed = (float)(self.ballSpeed);
             self.ballVX = speed * 0.8;
             self.ballVY = angleFactor * speed * 0.6;
         } else {
@@ -241,7 +241,7 @@ pub class PingpongGame extends Game {
                 self.ballSpeed = self.ballSpeed + 1;
             }
             
-            let speed = self.ballSpeed as float;
+            let speed = (float)(self.ballSpeed);
             self.ballVX = -speed * 0.8;
             self.ballVY = angleFactor * speed * 0.6;
         }
@@ -254,9 +254,9 @@ pub class PingpongGame extends Game {
         let ballTop = self.ballY - (float)BALL_SIZE / 2.0;
         let ballBottom = self.ballY + (float)BALL_SIZE / 2.0;
         
-        let paddleLeft = px as float;
+        let paddleLeft = (float)(px);
         let paddleRight = (px + pw) as float;
-        let paddleTop = py as float;
+        let paddleTop = (float)(py);
         let paddleBottom = (py + ph) as float;
         
         return ballRight >= paddleLeft && ballLeft <= paddleRight &&

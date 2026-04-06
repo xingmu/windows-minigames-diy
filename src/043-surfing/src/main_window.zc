@@ -398,7 +398,7 @@ fn render_game(canvas: Canvas*) {
 
     // 绘制天空渐变
     for y in 0..wave_base_y - 50 {
-        let t = y as f64 / (wave_base_y - 50) as f64;
+        let t = (f64)(y) / (wave_base_y - 50) as f64;
         let r = lerp(135, 30, t) as u8;
         let g = lerp(206, 80, t) as u8;
         let b = lerp(235, 120, t) as u8;

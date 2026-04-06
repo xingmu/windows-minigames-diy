@@ -115,7 +115,7 @@ fn generateInitialHandholds() {
     handholdCount = 1;
     
     // 生成往上的一系列手柄
-    let y = climberY - HANDHOLD_INTERVAL_Y as float;
+    let y = climberY - (float)(HANDHOLD_INTERVAL_Y);
     for i in 1..20 {
         let x = randInt(HANDHOLD_MIN_X, HANDHOLD_MAX_X);
         handholds[handholdCount] = Handhold {
@@ -125,7 +125,7 @@ fn generateInitialHandholds() {
             color: HANDHOLD_COLOR,
         };
         handholdCount = handholdCount + 1;
-        y = y - HANDHOLD_INTERVAL_Y as float;
+        y = y - (float)(HANDHOLD_INTERVAL_Y);
     }
 }
 
@@ -181,7 +181,7 @@ fn releaseHandhold() {
         isGrabbing = false;
         currentHandhold = -1;
         // 释放时给予一点向上的力
-        climberVelY = CLIMBER_JUMP_VELOCITY as float;
+        climberVelY = (float)(CLIMBER_JUMP_VELOCITY);
     }
 }
 
@@ -217,7 +217,7 @@ fn updateGame(dt: u32) {
     // 如果正在抓住手柄
     if isGrabbing && currentHandhold >= 0 {
         // 攀爬者跟随手柄
-        let targetX = handholds[currentHandhold].x as float;
+        let targetX = handholds[currentHandhold].(float)(x);
         climberX = climberX + (targetX - climberX) * 5.0 * dtSec;
         climberY = handholds[currentHandhold].y;
         
@@ -278,7 +278,7 @@ fn generateNewHandholds() {
             color: HANDHOLD_COLOR,
         };
         handholdCount = handholdCount + 1;
-        topY = topY - HANDHOLD_INTERVAL_Y as float;
+        topY = topY - (float)(HANDHOLD_INTERVAL_Y);
     }
 }
 
@@ -299,7 +299,7 @@ fn cleanupHandholds() {
 fn drawBackground(ctx: rawptr, pitch: int, buffer: rawptr) {
     // 渐变天空
     for y in 0..WINDOW_HEIGHT {
-        let t = (float)y / WINDOW_HEIGHT as float;
+        let t = (float)y / (float)(WINDOW_HEIGHT);
         let r = (30.0 + t * 70.0) as u8;
         let g = (30.0 + t * 70.0) as u8;
         let b = (60.0 + t * 80.0) as u8;
@@ -358,7 +358,7 @@ fn drawHandholds(ctx: rawptr, pitch: int, buffer: rawptr) {
 }
 
 fn drawClimber(ctx: rawptr, pitch: int, buffer: rawptr) {
-    let cx = climberX as int;
+    let cx = (int)(climberX);
     let cy = (climberY - cameraY) as int;
     
     // 身体

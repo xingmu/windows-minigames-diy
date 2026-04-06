@@ -16,8 +16,8 @@ static mut game_speed: u32 = 16;  // ~60 FPS
 // ==================== 绘制辅助函数 ====================
 
 fn draw_flipper(flipper: Flipper*) {
-    let end_x = flipper.pivot_x + (math.cos(flipper.angle) * flipper.length as f32) as i32;
-    let end_y = flipper.pivot_y + (math.sin(flipper.angle) * flipper.length as f32) as i32;
+    let end_x = flipper.pivot_x + (math.cos(flipper.angle) * (f32)(flipper.length)) as i32;
+    let end_y = flipper.pivot_y + (math.sin(flipper.angle) * (f32)(flipper.length)) as i32;
     fb_draw_line(flipper.pivot_x, flipper.pivot_y, end_x, end_y, rgb(220, 220, 220), flipper.width);
 }
 
@@ -55,10 +55,10 @@ fn draw_slingshot(sling: Slingshot*) {
 
 fn draw_spinner(spinner: Spinner*) {
     let len = 20;
-    let x1 = spinner.x as f32 - math.cos(spinner.angle) * len as f32;
-    let y1 = spinner.y as f32 - math.sin(spinner.angle) * len as f32;
-    let x2 = spinner.x as f32 + math.cos(spinner.angle) * len as f32;
-    let y2 = spinner.y as f32 + math.sin(spinner.angle) * len as f32;
+    let x1 = (f32)(spinner.x) - math.cos(spinner.angle) * (f32)(len);
+    let y1 = (f32)(spinner.y) - math.sin(spinner.angle) * (f32)(len);
+    let x2 = (f32)(spinner.x) + math.cos(spinner.angle) * (f32)(len);
+    let y2 = (f32)(spinner.y) + math.sin(spinner.angle) * (f32)(len);
 
     fb_draw_circle(spinner.x, spinner.y, 6, rgb(100, 200, 255));
     fb_draw_line((i32)x1, (i32)y1, (i32)x2, (i32)y2, rgb(200, 240, 255), 3);

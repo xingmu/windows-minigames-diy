@@ -61,7 +61,7 @@ fn on_paint(w: i32, h: i32) {
     );
 
     // 绘制分数和生命
-    let info = "分数: {game}"."{score}  生命: {game}".lives.toString();
+    let info = "分数: {game.score} 生命: {game.lives}";
     fb_draw_text_size(10, 10, info, rgb(255, 255, 255), 18);
 
     // 绘制状态文本
@@ -80,8 +80,8 @@ fn on_mouse(x: i32, y: i32) {
     if game.status == GameStatus.Ready {
         game.status = GameStatus.Playing;
         let angle = (math.rand() % 50 - 25) as i32;
-        let rad = angle as f32 * 3.14159 / 180.0;
-        game.ball.vx = (BALL_SPEED as f32 * math.sin(rad)) as i32;
+        let rad = (f32)(angle) * 3.14159 / 180.0;
+        game.ball.vx = ((f32)(BALL_SPEED) * math.sin(rad)) as i32;
         game.ball.vy = -BALL_SPEED;
     }
 }

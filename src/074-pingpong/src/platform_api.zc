@@ -138,11 +138,11 @@ pub impl Color {
     pub static fn LightBlue() -> Color { return 0xFF87CEEB; }
     
     pub static fn RGB(r: u8, g: u8, b: u8) -> Color {
-        return 0xFF000000| (r<< 16) | (g<< 8) | b as Color;
+        return 0xFF000000| (r<< 16) | (g<< 8) | (Color)(b);
     }
     
     pub static fn ARGB(a: u8, r: u8, g: u8, b: u8) -> Color {
-        return (a<< 24) | (r<< 16) | (g<< 8) | b as Color;
+        return (a<< 24) | (r<< 16) | (g<< 8) | (Color)(b);
     }
 }
 

@@ -246,15 +246,15 @@ pub class CricketGame extends Game {
         
         // 设置初始球位置
         self.ballX = (float)WINDOW_WIDTH / 2.0;
-        self.ballY = BOWLER_Y as float;
+        self.ballY = (float)(BOWLER_Y);
         self.ballVX = (randInt(-15, 15)) as float * 0.1;
         
         match self.ballType {
             BallType::Normal => {
-                self.ballVY = BALL_SPEED_INITIAL as float;
+                self.ballVY = (float)(BALL_SPEED_INITIAL);
             }
             BallType::Fast => {
-                self.ballVY = BALL_SPEED_FAST as float;
+                self.ballVY = (float)(BALL_SPEED_FAST);
             }
             BallType::Spin => {
                 self.ballVY = (BALL_SPEED_INITIAL - 1) as float;
@@ -288,7 +288,7 @@ pub class CricketGame extends Game {
         
         // 反弹球
         if self.ballY >= (float)BALL_BOUNCE_Y {
-            self.ballY = BALL_BOUNCE_Y as float;
+            self.ballY = (float)(BALL_BOUNCE_Y);
             self.ballVY = -self.ballVY * 0.6;
             self.ballBounceCount = self.ballBounceCount + 1;
             
@@ -498,7 +498,7 @@ pub class CricketGame extends Game {
     // 重置球
     private fn resetBall() {
         self.ballX = (float)WINDOW_WIDTH / 2.0;
-        self.ballY = BOWLER_Y as float;
+        self.ballY = (float)(BOWLER_Y);
         self.ballVX = 0.0;
         self.ballVY = 0.0;
         self.ballPhase = BallPhase.AtBowler;

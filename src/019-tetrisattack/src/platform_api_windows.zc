@@ -145,7 +145,7 @@ pub fn fb_get_pixel(x: int, y: int) -> u32 {
     if !fb_data.valid { return 0xFF000000; }
     if x < 0 || x >= fb_data.width || y < 0 || y >= fb_data.height { return 0xFF000000; }
     let offset = y * (fb_data.pitch / 4) + x;
-    let pixels = fb_data.buffer as u32;
+    let pixels = (u32)(fb_data.buffer);
     return pixels[offset];
 }
 

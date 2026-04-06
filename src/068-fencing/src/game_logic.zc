@@ -455,7 +455,7 @@ pub class FightingGame extends Game {
 
     private fn drawBackground(canvas: Canvas) {
         for y in 0..GROUND_Y {
-            let t = (float)y / GROUND_Y as float;
+            let t = (float)y / (float)(GROUND_Y);
             let r = (20.0 + 15.0 * t) as int;
             let g = (25.0 + 20.0 * t) as int;
             let b = (50.0 + 30.0 * t) as int;

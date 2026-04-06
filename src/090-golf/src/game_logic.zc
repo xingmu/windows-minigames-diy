@@ -213,10 +213,10 @@ fn getTerrainFriction(state: GolfState*, x: i32, y: i32) -> i32 {
 fn checkObstacleCollision(state: GolfState*, x: f32, y: f32) -> bool {
     for i in 0..state.obstacleCount {
         let obs = state.obstacles[i];
-        let dx = x - obs.x as f32;
-        let dy = y - obs.y as f32;
+        let dx = x - (f32)(obs.x);
+        let dy = y - (f32)(obs.y);
         let dist = sqrt_f(dx * dx + dy * dy);
-        if dist < (obs.radius as f32 + BALL_RADIUS as f32) {
+        if dist < ((f32)(obs.radius) + (f32)(BALL_RADIUS)) {
             return true;
         }
     }
@@ -241,11 +241,11 @@ fn isInWater(state: GolfState*, x: i32, y: i32) -> bool {
 
 fn isInHole(state: GolfState*, x: f32, y: f32) -> bool {
     let hole = state.holes[state.currentHole];
-    let dx = x - hole.x as f32;
-    let dy = y - hole.y as f32;
+    let dx = x - (f32)(hole.x);
+    let dy = y - (f32)(hole.y);
     let dist = sqrt_f(dx * dx + dy * dy);
     // 进洞条件: 距离够近且速度足够低
-    return dist < HOLE_RADIUS as f32;
+    return dist < (f32)(HOLE_RADIUS);
 }
 
 // ==================== 限制球在球场范围内 ====================
@@ -255,8 +255,8 @@ fn clampBallToCourse(state: &GolfState) {
         state.ball.x = 20.0;
         state.ball.vx = -state.ball.vx * 0.5;
     }
-    if state.ball.x > state.courseWidth as f32 - 20.0 {
-        state.ball.x = state.courseWidth as f32 - 20.0;
+    if state.ball.x > (f32)(state.courseWidth) - 20.0 {
+        state.ball.x = (f32)(state.courseWidth) - 20.0;
         state.ball.vx = -state.ball.vx * 0.5;
     }
     if state.ball.y < 20.0 {
@@ -428,8 +428,8 @@ fn init_game(state: &GolfState) {
 
 fn resetBall(state: &GolfState) {
     let tee = state.tees[state.currentHole];
-    state.ball.x = tee.x as f32;
-    state.ball.y = tee.y as f32;
+    state.ball.x = (f32)(tee.x);
+    state.ball.y = (f32)(tee.y);
     state.ball.vx = 0.0;
     state.ball.vy = 0.0;
     state.ball.active = true;
@@ -452,7 +452,7 @@ pub fn setRandomSeed(seed: u32) {
 
 pub fn randInt(min: i32, max: i32) -> i32 {
     rng_seed = rng_seed * 1103515245 + 12345;
-    let r = rng_seed as i32;
+    let r = (i32)(rng_seed);
     let result = r % (max - min + 1);
     if result < 0 {
         result = result + max - min + 1;
@@ -469,11 +469,11 @@ fn shoot(state: &GolfState, power: i32, dx: i32, dy: i32) {
     }
 
     // 标准化方向并应用力度
-    let speed = power as f32 * 0.8;
+    let speed = (f32)(power) * 0.8;
 
     // 击球方向与拖拽方向相反
-    state.ball.vx = -(dx as f32) / dist as f32 * speed;
-    state.ball.vy = -(dy as f32) / dist as f32 * speed;
+    state.ball.vx = -((f32)(dx)) / (f32)(dist) * speed;
+    state.ball.vy = -((f32)(dy)) / (f32)(dist) * speed;
 
     state.status = GameStatus.Moving;
     state.holeStrokes = state.holeStrokes + 1;
@@ -497,21 +497,21 @@ fn updateBall(state: &GolfState) -> bool {
     let stillMoving = false;
 
     // 应用风力
-    ball.vx = ball.vx + state.wind as f32 * 0.01;
+    ball.vx = ball.vx + (f32)(state.wind) * 0.01;
 
     // 移动球
     ball.x = ball.x + ball.vx;
     ball.y = ball.y + ball.vy;
 
     // 获取当前位置的地形摩擦
-    let bx = ball.x as i32;
-    let by = ball.y as i32;
+    let bx = (i32)(ball.x);
+    let by = (i32)(ball.y);
     let friction = getTerrainFriction(state, bx, by);
 
     // 应用摩擦力减速
     if ball.vx != 0.0 || ball.vy != 0.0 {
-        ball.vx = ball.vx * (1.0 - friction as f32 * 0.02);
-        ball.vy = ball.vy * (1.0 - friction as f32 * 0.02);
+        ball.vx = ball.vx * (1.0 - (f32)(friction) * 0.02);
+        ball.vy = ball.vy * (1.0 - (f32)(friction) * 0.02);
 
         // 检查是否停止
         let speed = sqrt_f(ball.vx * ball.vx + ball.vy * ball.vy);
@@ -538,8 +538,8 @@ fn updateBall(state: &GolfState) -> bool {
         ball.vx = 0.0;
         ball.vy = 0.0;
         let tee = state.tees[state.currentHole];
-        ball.x = tee.x as f32;
-        ball.y = tee.y as f32;
+        ball.x = (f32)(tee.x);
+        ball.y = (f32)(tee.y);
         state.totalStrokes = state.totalStrokes + 1;
         state.holeStrokes = state.holeStrokes + 1;
         state.status = GameStatus.Ready;
@@ -553,8 +553,8 @@ fn updateBall(state: &GolfState) -> bool {
         if speed < 5.0 {
             // 成功进洞
             let hole = state.holes[state.currentHole];
-            ball.x = hole.x as f32;
-            ball.y = hole.y as f32;
+            ball.x = (f32)(hole.x);
+            ball.y = (f32)(hole.y);
             ball.vx = 0.0;
             ball.vy = 0.0;
             ball.inHole = true;
@@ -569,8 +569,8 @@ fn updateBall(state: &GolfState) -> bool {
         ball.x = 20.0;
         ball.vx = -ball.vx * 0.5;
     }
-    if ball.x > state.courseWidth as f32 - 20.0 {
-        ball.x = state.courseWidth as f32 - 20.0;
+    if ball.x > (f32)(state.courseWidth) - 20.0 {
+        ball.x = (f32)(state.courseWidth) - 20.0;
         ball.vx = -ball.vx * 0.5;
     }
     if ball.y < 20.0 {
@@ -646,7 +646,7 @@ fn onMouseMove(state: &GolfState, x: i32, y: i32) {
         let dx = state.mouseX - state.dragStartX;
         let dy = state.mouseY - state.dragStartY;
         if dx != 0 || dy != 0 {
-            state.aimAngle = atan2f(dy as f32, dx as f32);
+            state.aimAngle = atan2f((f32)(dy), (f32)(dx));
         }
     }
 }

@@ -416,10 +416,10 @@ pub fn draw_pattern(canvas: Canvas*, cx: int, cy: int, pattern: int) {
             for i in 0..5 {
                 let a1 = (i * 72 - 90) as f32 * 3.14159 / 180.0;
                 let a2 = ((i + 1) * 72 - 90) as f32 * 3.14159 / 180.0;
-                let x1 = cx + (r as f32 * cos_simple(a1)) as int;
-                let y1 = cy + (r as f32 * sin_simple(a1)) as int;
-                let x2 = cx + (r as f32 * cos_simple(a2)) as int;
-                let y2 = cy + (r as f32 * sin_simple(a2)) as int;
+                let x1 = cx + ((f32)(r) * cos_simple(a1)) as int;
+                let y1 = cy + ((f32)(r) * sin_simple(a1)) as int;
+                let x2 = cx + ((f32)(r) * cos_simple(a2)) as int;
+                let y2 = cy + ((f32)(r) * sin_simple(a2)) as int;
                 canvas.drawLine(x1, y1, x2, y2, color);
             }
         },
@@ -428,10 +428,10 @@ pub fn draw_pattern(canvas: Canvas*, cx: int, cy: int, pattern: int) {
             for i in 0..6 {
                 let a1 = (i * 60) as f32 * 3.14159 / 180.0;
                 let a2 = ((i + 1) * 60) as f32 * 3.14159 / 180.0;
-                let x1 = cx + (r as f32 * cos_simple(a1)) as int;
-                let y1 = cy + (r as f32 * sin_simple(a1)) as int;
-                let x2 = cx + (r as f32 * cos_simple(a2)) as int;
-                let y2 = cy + (r as f32 * sin_simple(a2)) as int;
+                let x1 = cx + ((f32)(r) * cos_simple(a1)) as int;
+                let y1 = cy + ((f32)(r) * sin_simple(a1)) as int;
+                let x2 = cx + ((f32)(r) * cos_simple(a2)) as int;
+                let y2 = cy + ((f32)(r) * sin_simple(a2)) as int;
                 canvas.drawLine(x1, y1, x2, y2, color);
             }
         },
@@ -440,10 +440,10 @@ pub fn draw_pattern(canvas: Canvas*, cx: int, cy: int, pattern: int) {
             for i in 0..5 {
                 let a1 = (i * 72 - 90) as f32 * 3.14159 / 180.0;
                 let a2 = ((i * 72 + 36) - 90) as f32 * 3.14159 / 180.0;
-                let x1 = cx + (r as f32 * cos_simple(a1)) as int;
-                let y1 = cy + (r as f32 * sin_simple(a1)) as int;
-                let x2 = cx + (r as f32 * cos_simple(a2)) as int;
-                let y2 = cy + (r as f32 * sin_simple(a2)) as int;
+                let x1 = cx + ((f32)(r) * cos_simple(a1)) as int;
+                let y1 = cy + ((f32)(r) * sin_simple(a1)) as int;
+                let x2 = cx + ((f32)(r) * cos_simple(a2)) as int;
+                let y2 = cy + ((f32)(r) * sin_simple(a2)) as int;
                 canvas.drawLine(x1, y1, x2, y2, color);
             }
         },

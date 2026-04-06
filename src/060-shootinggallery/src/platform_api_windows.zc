@@ -259,7 +259,7 @@ pub fn createWindow(title: str, width: int, height: int) -> WindowHandle {
         style: 0,
         lpfnWndProc: globalWindowProc,
         hInstance: hInstance,
-        hCursor: LoadCursorA(nil, 32512 as rawptr), // IDC_ARROW
+        hCursor: LoadCursorA(nil, (rawptr)(32512)), // IDC_ARROW
         lpszClassName: WINDOW_CLASS_NAME,
     };
     
@@ -304,7 +304,7 @@ pub fn createWindow(title: str, width: int, height: int) -> WindowHandle {
     
     // 获取客户区实际大小
     let rect: [i32; 4];
-    GetClientRect(hwnd, &rect as RECT);
+    GetClientRect(hwnd, &(RECT)(rect));
     wd.width = rect[2];
     wd.height = rect[3];
     
@@ -315,7 +315,7 @@ pub fn createWindow(title: str, width: int, height: int) -> WindowHandle {
     // 创建 DIB
     let bmi: [u32; 9];
     bmi[0] = 40; // biSize
-    bmi[1] = wd.width as u32; // biWidth
+    bmi[1] = (u32)(wd.width); // biWidth
     bmi[2] = (wd.(u32)height) * 2; // biHeight (bottom-up)
     bmi[3] = 1; // biPlanes
     bmi[4] = 32; // biBitCount
@@ -325,7 +325,7 @@ pub fn createWindow(title: str, width: int, height: int) -> WindowHandle {
     bmi[8] = 0; // biYPelsPerMeter
     
     let bits: rawptr;
-    wd.bitmap = CreateDIBSection(wd.dc, &bmi as rawptr, 0, &bits, 0, 0);
+    wd.bitmap = CreateDIBSection(wd.dc, &(rawptr)(bmi), 0, &bits, 0, 0);
     
     if wd.bitmap != nil {
         SelectObject(wd.memDC, wd.bitmap);
@@ -375,15 +375,15 @@ pub fn getWindowSize(handle: WindowHandle) -> (int, int) {
 
 pub fn pollEvent(handle: WindowHandle, event: Event*) -> bool {
     let msg: [u32; 6];
-    let ret = PeekMessageA(&msg as MSG, handle, 0, 0, 1); // PM_REMOVE
+    let ret = PeekMessageA(&(MSG)(msg), handle, 0, 0, 1); // PM_REMOVE
     
     if ret == 0 {
         // 更新鼠标位置
         let pt: [i32; 2];
-        GetCursorPos(&pt as POINT);
+        GetCursorPos(&(POINT)(pt));
         let wd = findWindowData(handle);
         if wd != nil {
-            ScreenToClient(handle, &pt as POINT);
+            ScreenToClient(handle, &(POINT)(pt));
             wd.mouseX = pt[0];
             wd.mouseY = pt[1];
         }
@@ -452,8 +452,8 @@ pub fn pollEvent(handle: WindowHandle, event: Event*) -> bool {
             return true;
         }
         _ => {
-            TranslateMessage(&msg as MSG);
-            DispatchMessageA(&msg as MSG);
+            TranslateMessage(&(MSG)(msg));
+            DispatchMessageA(&(MSG)(msg));
             event.msg = MessageType.None;
             return false;
         }

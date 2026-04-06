@@ -204,11 +204,11 @@ pub fn update_animation(game: &GameState, dt: i32) {
 // 检查是否点击了按钮
 pub fn check_button_click(game: GameState*, x: i32, y: i32) -> Choice {
     // 根据窗口大小计算按钮位置
-    let scale_x = game.window_width as f32 / GAME_WIDTH as f32;
-    let scale_y = game.window_height as f32 / GAME_HEIGHT as f32;
+    let scale_x = (f32)(game.window_width) / (f32)(GAME_WIDTH);
+    let scale_y = (f32)(game.window_height) / (f32)(GAME_HEIGHT);
     
-    let scaled_x = (x as f32 / scale_x) as i32;
-    let scaled_y = (y as f32 / scale_y) as i32;
+    let scaled_x = ((f32)(x) / scale_x) as i32;
+    let scaled_y = ((f32)(y) / scale_y) as i32;
     
     for i in 0..3 {
         let btn = BUTTONS[i];

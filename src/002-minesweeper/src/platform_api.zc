@@ -250,7 +250,7 @@ fn WinMain(hInstance: HINSTANCE, hPrevInstance: HINSTANCE,
 fn GetCommandLineA() -> &i8;
 
 // Parse command line
-fn CommandLineToArgv(lpCmdLine: &i8, pNumArgs: &i32) -> &i8;
+fn CommandLineToArgv(lpCmdLine: &i8, pNumArgs: i32*) -> &i8;
 
 // Free memory
 fn LocalFree(hMem: i32) -> i32;

@@ -150,7 +150,7 @@ def WM_DESTROY: u32 = 0x0002;
 def WM_TIMER: u32 = 0x0113;
 def WM_SIZE: u32 = 0x0005;
 def COLOR_WINDOW: i32 = 5;
-def IDC_ARROW: i8* = 32512 as i8*;
+def IDC_ARROW: i8* = (i8)(32512)*;
 def SRCCOPY: u32 = 0x00CC0020;
 def GWLP_WNDPROC: i32 = -4;
 def CS_HREDRAW: u32 = 0x0002;
@@ -178,7 +178,7 @@ fn create_window(title: string, width: i32, height: i32) -> WindowHandle {
             hInstance: hInstance,
             hIcon: null,
             hCursor: LoadCursorA(null, IDC_ARROW),
-            hbrBackground: 1 as void*,  // COLOR_WINDOW+1
+            hbrBackground: (void)(1)*,  // COLOR_WINDOW+1
             lpszMenuName: null,
             lpszClassName: "BreakoutGame\0".c_str(),
         };
@@ -214,7 +214,7 @@ fn show_window(window: WindowHandle) {
 
 fn run_event_loop(window: WindowHandle) {
     #if IS_WINDOWS
-        let msg: [u8; 28] = [0; 28];  // MSG is 28 bytes on 64-bit Windows
+        let msg: [u8; 28] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];  // MSG is 28 bytes on 64-bit Windows
         while GetMessageA(&msg, window, 0, 0) {
             TranslateMessage(&msg);
             DispatchMessageA(&msg);
@@ -246,7 +246,7 @@ fn redraw_window(window: WindowHandle) {
     #endif
 }
 
-fn get_window_client_size(window: WindowHandle, width: &i32, height: &i32) -> bool {
+fn get_window_client_size(window: WindowHandle, width: i32*, height: i32*) -> bool {
     #if IS_WINDOWS
         let rect: [i32; 4] = [0; 4];
         if GetClientRect(window, &rect) {

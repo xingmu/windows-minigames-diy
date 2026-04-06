@@ -267,7 +267,7 @@ fn handle_input(game: &GameState, key: i32) -> bool {
     return true;
 }
 
-fn can_move(maze: &i32[MAZE_HEIGHT][MAZE_WIDTH], x: i32, y: i32, dir: Direction) -> bool {
+fn can_move(maze: i32*[MAZE_HEIGHT][MAZE_WIDTH], x: i32, y: i32, dir: Direction) -> bool {
     let nx = x;
     let ny = y;
     
@@ -433,7 +433,7 @@ fn update_ghosts(game: &GameState) {
     }
 }
 
-fn move_ghost_home(ghost: &Ghost, maze: &i32[MAZE_HEIGHT][MAZE_WIDTH]) {
+fn move_ghost_home(ghost: &Ghost, maze: i32*[MAZE_HEIGHT][MAZE_WIDTH]) {
     // 简单地向老家移动
     let dx = ghost.home_x - ghost.pos.x;
     let dy = ghost.home_y - ghost.pos.y;
@@ -502,7 +502,7 @@ fn move_ghost(ghost: &Ghost, game: GameState*) {
     ghost.pos.y += get_dir_dy(ghost.dir);
 }
 
-fn can_move_dir(maze: &i32[MAZE_HEIGHT][MAZE_WIDTH], x: i32, y: i32, dir: Direction) -> bool {
+fn can_move_dir(maze: i32*[MAZE_HEIGHT][MAZE_WIDTH], x: i32, y: i32, dir: Direction) -> bool {
     match dir {
         Direction::DirUp => {
             if y > 0 { return maze[y - 1][x] != 1 && maze[y - 1][x] != 5; }

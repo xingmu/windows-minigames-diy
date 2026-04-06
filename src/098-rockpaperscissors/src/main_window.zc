@@ -134,7 +134,7 @@ fn printf(format: str, args: rawptr) {
 }
 
 fn rgb(r: u8, g: u8, b: u8) -> u32 {
-    return (u32)0xFF000000 | ((u32)r << 16) | ((u32)g << 8) | b as u32;
+    return (u32)0xFF000000 | ((u32)r << 16) | ((u32)g << 8) | (u32)(b);
 }
 
 // ==================== 游戏界面绘制 ====================
@@ -328,8 +328,8 @@ fn render_game(ctx: rawptr, width: i32, height: i32) {
     draw_rect(ctx, 0, 0, width, height, COLOR_BACKGROUND);
     
     // 计算缩放
-    let scale = if width < height { width as f32 / GAME_WIDTH as f32 } 
-                else { height as f32 / GAME_HEIGHT as f32 };
+    let scale = if width < height { (f32)(width) / (f32)(GAME_WIDTH) } 
+                else { (f32)(height) / (f32)(GAME_HEIGHT) };
     let offset_x = (width - (i32)GAME_WIDTH * (i32)scale) / 2;
     let offset_y = (height - (i32)GAME_HEIGHT * (i32)scale) / 2;
     
@@ -384,7 +384,7 @@ fn handle_mouse_move(x: i32, y: i32) {
         let btn = BUTTONS[i];
         if x >= btn.x && x <= btn.x + btn.width &&
            y >= btn.y && y <= btn.y + btn.height {
-            hover_button = i as i32;
+            hover_button = (i32)(i);
             break;
         }
     }

@@ -105,15 +105,15 @@ fn clamp_i(val: i32, min_val: i32, max_val: i32) -> i32 {
 }
 
 fn lerp(a: i32, b: i32, t: f64) -> i32 {
-    return (a as f64 + (b as f64 - a as f64) * t) as i32;
+    return ((f64)(a) + ((f64)(b) - (f64)(a)) * t) as i32;
 }
 
 // ==================== 游戏逻辑函数 ====================
 
 // 获取波浪在指定X位置的Y坐标
 fn get_wave_y(wave_offset: i32, x: i32, base_y: i32) -> i32 {
-    let phase = (x as f64 + wave_offset as f64) * WAVE_FREQUENCY * 3.14159;
-    let y_offset = (math.sin(phase) * WAVE_AMPLITUDE as f64) as i32;
+    let phase = ((f64)(x) + (f64)(wave_offset)) * WAVE_FREQUENCY * 3.14159;
+    let y_offset = (math.sin(phase) * (f64)(WAVE_AMPLITUDE)) as i32;
     return base_y + y_offset;
 }
 

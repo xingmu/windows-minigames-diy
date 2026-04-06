@@ -104,8 +104,8 @@ fn init_game(game: &GameState) {
     math.srand(seed);
     
     // 初始化赛车位置 (起点线上方)
-    game.car.x = START_LINE_X as f32;
-    game.car.y = START_LINE_Y as f32 - 50.0;
+    game.car.x = (f32)(START_LINE_X);
+    game.car.y = (f32)(START_LINE_Y) - 50.0;
     game.car.angle = 0.0;  // 面向右
     game.car.speed = 0.0;
     game.car.state = CarState::Normal;
@@ -327,8 +327,8 @@ fn check_checkpoint(game: &GameState) {
         return;
     }
     
-    let cx = game.car.x as i32;
-    let cy = game.car.y as i32;
+    let cx = (i32)(game.car.x);
+    let cy = (i32)(game.car.y);
     
     let cp = game.checkpoints[game.current_checkpoint];
     

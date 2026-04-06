@@ -167,7 +167,7 @@ class RacingGame extends Game {
         
         // 边界约束
         if car.x < (float)CAR_WIDTH {
-            car.x = CAR_WIDTH as float;
+            car.x = (float)(CAR_WIDTH);
             car.speed = car.speed * 0.3;
         }
         if car.x > (float)(WINDOW_WIDTH - CAR_WIDTH) {
@@ -175,7 +175,7 @@ class RacingGame extends Game {
             car.speed = car.speed * 0.3;
         }
         if car.y < (float)CAR_HEIGHT {
-            car.y = CAR_HEIGHT as float;
+            car.y = (float)(CAR_HEIGHT);
             car.speed = car.speed * 0.3;
         }
         if car.y > (float)(WINDOW_HEIGHT - CAR_HEIGHT) {
@@ -286,8 +286,8 @@ class RacingGame extends Game {
     
     fn drawCar(canvas: Canvas) {
         let car = &self.car;
-        let cx = car.x as int;
-        let cy = car.y as int;
+        let cx = (int)(car.x);
+        let cy = (int)(car.y);
         
         // 计算四个角的旋转后位置
         let hw = CAR_WIDTH / 2;

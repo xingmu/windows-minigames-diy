@@ -62,7 +62,7 @@ static mut gameState: GameState = GameState.Ready;
 // 滑雪者状态
 static mut playerY: float = 0.0;
 static mut playerVelX: float = 0.0;
-static mut playerX: float = WINDOW_WIDTH / 2 as float;
+static mut playerX: float = WINDOW_WIDTH / (float)(2);
 static mut playerTilt: int = 0;
 
 // 障碍物
@@ -110,7 +110,7 @@ def SHADOW_COLOR = Color.RGB(160, 190, 210);
 
 fn initGame() {
     playerY = 100.0;
-    playerX = WINDOW_WIDTH / 2 as float;
+    playerX = WINDOW_WIDTH / (float)(2);
     playerVelX = 0.0;
     playerTilt = 0;
     obstacleCount = 0;
@@ -157,7 +157,7 @@ fn moveLeft() {
         gameTime = 0;
     }
     if gameState == GameState.Playing {
-        playerVelX = -SIDE_SPEED as float;
+        playerVelX = -(float)(SIDE_SPEED);
     }
     if gameState == GameState.GameOver {
         initGame();
@@ -171,7 +171,7 @@ fn moveRight() {
         gameTime = 0;
     }
     if gameState == GameState.Playing {
-        playerVelX = SIDE_SPEED as float;
+        playerVelX = (float)(SIDE_SPEED);
     }
     if gameState == GameState.GameOver {
         initGame();
@@ -243,7 +243,7 @@ fn updateGame(dt: u32) {
     // 边界
     let halfW = PLAYER_WIDTH / 2;
     if playerX < (float)COURSE_LEFT + (float)halfW {
-        playerX = (float)COURSE_LEFT + halfW as float;
+        playerX = (float)COURSE_LEFT + (float)(halfW);
         playerVelX = 0.0;
     }
     if playerX > (float)(COURSE_LEFT + COURSE_WIDTH - halfW) {
@@ -307,7 +307,7 @@ fn updateParticles(dt: u32, scroll: int) {
             snowParticles[i].x = randFloat(0.0, (float)WINDOW_WIDTH);
         }
         if snowParticles[i].x < 0.0 {
-            snowParticles[i].x = WINDOW_WIDTH as float;
+            snowParticles[i].x = (float)(WINDOW_WIDTH);
         }
         if snowParticles[i].x > (float)WINDOW_WIDTH {
             snowParticles[i].x = 0.0;
@@ -316,8 +316,8 @@ fn updateParticles(dt: u32, scroll: int) {
 }
 
 fn checkCollisions() {
-    let px = playerX as int;
-    let py = playerY as int;
+    let px = (int)(playerX);
+    let py = (int)(playerY);
     let pw = PLAYER_WIDTH;
     let ph = PLAYER_HEIGHT;
     
@@ -351,7 +351,7 @@ fn checkCollisions() {
 fn drawBackground(ctx: rawptr, pitch: int, buffer: rawptr) {
     // 天空渐变
     for y in 0..WINDOW_HEIGHT {
-        let t = (float)y / WINDOW_HEIGHT as float;
+        let t = (float)y / (float)(WINDOW_HEIGHT);
         let r = (200.0 * (1.0 - t) + 135.0 * t) as u8;
         let g = (220.0 * (1.0 - t) + 175.0 * t) as u8;
         let b = (240.0 * (1.0 - t) + 220.0 * t) as u8;
@@ -403,8 +403,8 @@ fn drawFlag(ctx: rawptr, pitch: int, buffer: rawptr, x: int, y: int) {
 }
 
 fn drawPlayer(ctx: rawptr, pitch: int, buffer: rawptr) {
-    let px = playerX as int;
-    let py = playerY as int;
+    let px = (int)(playerX);
+    let py = (int)(playerY);
     
     // 影子
     fillEllipse(ctx, px, py + PLAYER_HEIGHT + 2, 14, 5, pitch, buffer, SHADOW_COLOR);
@@ -437,8 +437,8 @@ fn drawPlayer(ctx: rawptr, pitch: int, buffer: rawptr) {
 
 fn drawParticles(ctx: rawptr, pitch: int, buffer: rawptr) {
     for i in 0..particleCount {
-        let sx = snowParticles[i].x as int;
-        let sy = snowParticles[i].y as int;
+        let sx = snowParticles[i].(int)(x);
+        let sy = snowParticles[i].(int)(y);
         let sz = snowParticles[i].size;
         
         if sz == 1 {

@@ -18,7 +18,7 @@ def GAME_HEIGHT = 650;
 fn draw_background() {
     // 深海背景渐变
     for y in 0..GAME_HEIGHT {
-        let t = y as f32 / GAME_HEIGHT as f32;
+        let t = (f32)(y) / (f32)(GAME_HEIGHT);
         let r = (15.0 + 20.0 * t) as u8;
         let g = (50.0 + 40.0 * t) as u8;
         let b = (100.0 + 60.0 * t) as u8;
@@ -117,7 +117,7 @@ fn draw_ui(state: FishGameState*) {
     
     // 冷却条
     if state.cannon.cooldown > 0 {
-        let cooldownRatio = state.cannon.cooldown as f32 / 200.0;
+        let cooldownRatio = (f32)(state.cannon.cooldown) / 200.0;
         let barWidth = (cooldownRatio * 60.0) as i32;
         fb_draw_rect(GAME_WIDTH / 2 - 30, 38, 60, 6, Color {r: (u8)50, g: (u8)50, b: (u8)50});
         fb_draw_rect(GAME_WIDTH / 2 - 30, 38, 60 - barWidth, 6, Color {r: (u8)0, g: (u8)200, b: (u8)100});
@@ -224,8 +224,8 @@ fn draw_fish_preview(x: i32, y: i32, fishType: FishType, label: str, color: Colo
     
     // 绘制一个示例鱼
     let tempFish = Fish {
-        x: x as f32,
-        y: y as f32,
+        x: (f32)(x),
+        y: (f32)(y),
         vx: 0.0,
         vy: 0.0,
         fishType: fishType,

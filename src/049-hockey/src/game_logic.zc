@@ -215,7 +215,7 @@ pub class HockeyGame extends Game {
         if gloveOffsetY < -20.0 {
             gloveOffsetY = -20.0;
         }
-        self.blockerY = self.goalieY - 10 + gloveOffsetY as int;
+        self.blockerY = self.goalieY - 10 + (int)(gloveOffsetY);
         
         // 确保在合理范围
         if self.blockerY < GOAL_Y - 30 {
@@ -260,7 +260,7 @@ pub class HockeyGame extends Game {
                     // 从球门上方随机位置发射
                     let goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
                     let spawnX = goalLeft + 30 + (rand() % (GOAL_WIDTH - 60)) as u32;
-                    self.puckX[i] = spawnX as float;
+                    self.puckX[i] = (float)(spawnX);
                     self.puckY[i] = 60.0;
                     
                     // 目标方向（朝向球门）
@@ -276,8 +276,8 @@ pub class HockeyGame extends Game {
                     
                     let dist = self.sqrtFloat(dx * dx + dy * dy) as float;
                     if dist > 0.0 {
-                        self.puckVX[i] = (float)dx / dist * speed as float;
-                        self.puckVY[i] = (float)dy / dist * speed as float;
+                        self.puckVX[i] = (float)dx / dist * (float)(speed);
+                        self.puckVY[i] = (float)dy / dist * (float)(speed);
                     }
                     
                     // 添加一些随机性
@@ -314,17 +314,17 @@ pub class HockeyGame extends Game {
             
             // 左右边界碰撞
             if self.puckX[i] <= (float)PUCK_RADIUS {
-                self.puckX[i] = PUCK_RADIUS as float;
+                self.puckX[i] = (float)(PUCK_RADIUS);
                 self.puckVX[i] = -self.puckVX[i] * 0.8;
             }
             if self.puckX[i] >= (float)WINDOW_WIDTH - (float)PUCK_RADIUS {
-                self.puckX[i] = (float)WINDOW_WIDTH - PUCK_RADIUS as float;
+                self.puckX[i] = (float)WINDOW_WIDTH - (float)(PUCK_RADIUS);
                 self.puckVX[i] = -self.puckVX[i] * 0.8;
             }
             
             // 顶部边界
             if self.puckY[i] <= (float)PUCK_RADIUS {
-                self.puckY[i] = PUCK_RADIUS as float;
+                self.puckY[i] = (float)(PUCK_RADIUS);
                 self.puckVY[i] = -self.puckVY[i] * 0.5;
             }
             
@@ -371,10 +371,10 @@ pub class HockeyGame extends Game {
     
     // 守门员身体扑救
     private fn checkGoalieSave(i: int) -> bool {
-        let puckLeft = self.puckX[i] - PUCK_RADIUS as float;
-        let puckRight = self.puckX[i] + PUCK_RADIUS as float;
-        let puckTop = self.puckY[i] - PUCK_RADIUS as float;
-        let puckBottom = self.puckY[i] + PUCK_RADIUS as float;
+        let puckLeft = self.puckX[i] - (float)(PUCK_RADIUS);
+        let puckRight = self.puckX[i] + (float)(PUCK_RADIUS);
+        let puckTop = self.puckY[i] - (float)(PUCK_RADIUS);
+        let puckBottom = self.puckY[i] + (float)(PUCK_RADIUS);
         
         if puckRight >= (float)(self.goalieX) && puckLeft <= (float)(self.goalieX + self.goalieWidth) &&
            puckBottom >= (float)(self.goalieY) && puckTop <= (float)(self.goalieY + self.goalieHeight) {
@@ -388,10 +388,10 @@ pub class HockeyGame extends Game {
     
     // 手套扑救
     private fn checkBlockerSave(i: int) -> bool {
-        let puckLeft = self.puckX[i] - PUCK_RADIUS as float;
-        let puckRight = self.puckX[i] + PUCK_RADIUS as float;
-        let puckTop = self.puckY[i] - PUCK_RADIUS as float;
-        let puckBottom = self.puckY[i] + PUCK_RADIUS as float;
+        let puckLeft = self.puckX[i] - (float)(PUCK_RADIUS);
+        let puckRight = self.puckX[i] + (float)(PUCK_RADIUS);
+        let puckTop = self.puckY[i] - (float)(PUCK_RADIUS);
+        let puckBottom = self.puckY[i] + (float)(PUCK_RADIUS);
         
         if puckRight >= (float)(self.blockerX) && puckLeft <= (float)(self.blockerX + self.blockerWidth) &&
            puckBottom >= (float)(self.blockerY) && puckTop <= (float)(self.blockerY + self.blockerHeight) {
@@ -405,10 +405,10 @@ pub class HockeyGame extends Game {
     
     // 球杆扑救
     private fn checkStickSave(i: int) -> bool {
-        let puckLeft = self.puckX[i] - PUCK_RADIUS as float;
-        let puckRight = self.puckX[i] + PUCK_RADIUS as float;
-        let puckTop = self.puckY[i] - PUCK_RADIUS as float;
-        let puckBottom = self.puckY[i] + PUCK_RADIUS as float;
+        let puckLeft = self.puckX[i] - (float)(PUCK_RADIUS);
+        let puckRight = self.puckX[i] + (float)(PUCK_RADIUS);
+        let puckTop = self.puckY[i] - (float)(PUCK_RADIUS);
+        let puckBottom = self.puckY[i] + (float)(PUCK_RADIUS);
         
         if puckRight >= (float)(self.stickX) && puckLeft <= (float)(self.stickX + self.stickWidth) &&
            puckBottom >= (float)(self.stickY) && puckTop <= (float)(self.stickY + self.stickHeight) {

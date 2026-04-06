@@ -494,7 +494,7 @@ impl Canvas for SimpleCanvas {
         }
         
         let offset = y * (self.pitch / 4) + x;
-        let pixels = self.buffer as u32;
+        let pixels = (u32)(self.buffer);
         return pixels[offset];
     }
     

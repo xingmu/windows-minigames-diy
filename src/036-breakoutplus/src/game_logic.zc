@@ -240,7 +240,7 @@ fn getLevelConfig(level: i32) -> LevelConfig {
 }
 
 fn getBrickColor(row: i32, maxRows: i32) -> u32 {
-    let ratio = row as f32 / maxRows as f32;
+    let ratio = (f32)(row) / (f32)(maxRows);
     if ratio < 0.2 {
         return rgb(255, 80, 80);   // 红色
     } else if ratio < 0.4 {
@@ -273,7 +273,7 @@ fn activatePowerUp(game: &BreakoutState, ptype: PowerUpType) {
                     if i >= game.ballCount + 1 {
                         game.balls[i].x = baseBall.x;
                         game.balls[i].y = baseBall.y;
-                        game.balls[i].vx = baseBall.vx * (1.0 + i as f32 * 0.3);
+                        game.balls[i].vx = baseBall.vx * (1.0 + (f32)(i) * 0.3);
                         game.balls[i].vy = baseBall.vy;
                         game.balls[i].radius = baseBall.radius;
                         game.balls[i].active = true;
@@ -399,7 +399,7 @@ fn initLevel(game: &BreakoutState, level: i32) {
 
     // 重置球速度
     for i in 0..game.ballCount {
-        let speed = config.ballSpeed as f32;
+        let speed = (f32)(config.ballSpeed);
         let angle = ((math.rand() % 40) as f32 - 20.0) * 3.14159 / 180.0;
         game.balls[i].vx = speed * math.sin(angle);
         game.balls[i].vy = -speed * math.cos(angle);
@@ -409,14 +409,14 @@ fn initLevel(game: &BreakoutState, level: i32) {
 
 fn resetBall(game: &BreakoutState, index: i32) {
     let config = getLevelConfig(game.level);
-    game.balls[index].x = GAME_WIDTH / 2 as f32;
-    game.balls[index].y = GAME_HEIGHT / 2 as f32 + 100.0;
-    game.balls[index].radius = BALL_RADIUS as f32;
+    game.balls[index].x = GAME_WIDTH / (f32)(2);
+    game.balls[index].y = GAME_HEIGHT / (f32)(2) + 100.0;
+    game.balls[index].radius = (f32)(BALL_RADIUS);
     game.balls[index].active = true;
     game.balls[index].stuck = true;
     game.balls[index].stuckOffset = 0.0;
 
-    let speed = config.ballSpeed as f32;
+    let speed = (f32)(config.ballSpeed);
     let angle = ((math.rand() % 30) as f32 - 15.0) * 3.14159 / 180.0;
     game.balls[index].vx = speed * math.sin(angle);
     game.balls[index].vy = -speed * math.cos(angle);
@@ -449,7 +449,7 @@ fn handleInput(game: &BreakoutState, key: KeyCode) -> bool {
             // 移动粘在挡板上的球
             for i in 0..game.ballCount {
                 if game.balls[i].stuck {
-                    game.balls[i].x = game.paddle.x as f32 + game.paddle.width as f32 / 2.0 + game.balls[i].stuckOffset;
+                    game.balls[i].x = (f32)(game.paddle.x) + (f32)(game.paddle.width) / 2.0 + game.balls[i].stuckOffset;
                 }
             }
         },
@@ -460,7 +460,7 @@ fn handleInput(game: &BreakoutState, key: KeyCode) -> bool {
             }
             for i in 0..game.ballCount {
                 if game.balls[i].stuck {
-                    game.balls[i].x = game.paddle.x as f32 + game.paddle.width as f32 / 2.0 + game.balls[i].stuckOffset;
+                    game.balls[i].x = (f32)(game.paddle.x) + (f32)(game.paddle.width) / 2.0 + game.balls[i].stuckOffset;
                 }
             }
         },
@@ -471,7 +471,7 @@ fn handleInput(game: &BreakoutState, key: KeyCode) -> bool {
                     if game.balls[i].stuck {
                         game.balls[i].stuck = false;
                         let config = getLevelConfig(game.level);
-                        let speed = config.ballSpeed as f32;
+                        let speed = (f32)(config.ballSpeed);
                         let angle = ((math.rand() % 40) as f32 - 20.0) * 3.14159 / 180.0;
                         game.balls[i].vx = speed * math.sin(angle);
                         game.balls[i].vy = -speed * math.cos(angle);
@@ -555,13 +555,13 @@ fn update_game(game: &BreakoutState) -> bool {
             // 检查是否碰到挡板
             let px = game.powerUps[i].x;
             let py = game.powerUps[i].y;
-            if py >= game.paddle.y as f32 && py <= (game.paddle.y + game.paddle.height) as f32 &&
-               px >= game.paddle.x as f32 && px <= (game.paddle.x + game.paddle.width) as f32 {
+            if py >= (f32)(game.paddle.y) && py <= (game.paddle.y + game.paddle.height) as f32 &&
+               px >= (f32)(game.paddle.x) && px <= (game.paddle.x + game.paddle.width) as f32 {
                 activatePowerUp(game, game.powerUps[i].ptype);
                 game.powerUps[i].active = false;
             }
             // 出界
-            if py > GAME_HEIGHT as f32 {
+            if py > (f32)(GAME_HEIGHT) {
                 game.powerUps[i].active = false;
             }
         }
@@ -591,8 +591,8 @@ fn update_game(game: &BreakoutState) -> bool {
             ball.x = ball.radius;
             ball.vx = -ball.vx;
         }
-        if ball.x + ball.radius >= GAME_WIDTH as f32 {
-            ball.x = GAME_WIDTH as f32 - ball.radius;
+        if ball.x + ball.radius >= (f32)(GAME_WIDTH) {
+            ball.x = (f32)(GAME_WIDTH) - ball.radius;
             ball.vx = -ball.vx;
         }
         if ball.y - ball.radius <= 0.0 {
@@ -601,7 +601,7 @@ fn update_game(game: &BreakoutState) -> bool {
         }
 
         // 球落底
-        if ball.y + ball.radius >= GAME_HEIGHT as f32 {
+        if ball.y + ball.radius >= (f32)(GAME_HEIGHT) {
             ball.active = false;
             continue;
         }
@@ -612,20 +612,20 @@ fn update_game(game: &BreakoutState) -> bool {
             let ballRight = ball.x + ball.radius;
             let ballBottom = ball.y + ball.radius;
 
-            let paddleLeft = game.paddle.x as f32;
+            let paddleLeft = (f32)(game.paddle.x);
             let paddleRight = (game.paddle.x + game.paddle.width) as f32;
-            let paddleTop = game.paddle.y as f32;
+            let paddleTop = (f32)(game.paddle.y);
             let paddleBottom = (game.paddle.y + game.paddle.height) as f32;
 
             if ballRight >= paddleLeft && ballLeft <= paddleRight &&
                ballBottom >= paddleTop && ballBottom <= paddleBottom + abs(ball.(i32)vy) as f32 {
                 ball.y = paddleTop - ball.radius;
 
-                let hitPos = (ball.x - (game.paddle.x as f32 + game.paddle.width as f32 / 2.0)) / game.paddle.width as f32;
+                let hitPos = (ball.x - ((f32)(game.paddle.x) + (f32)(game.paddle.width) / 2.0)) / (f32)(game.paddle.width);
                 let angle = hitPos * 60.0 * 3.14159 / 180.0;
                 let speed = math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-                if speed < BALL_BASE_SPEED as f32 {
-                    speed = BALL_BASE_SPEED as f32;
+                if speed < (f32)(BALL_BASE_SPEED) {
+                    speed = (f32)(BALL_BASE_SPEED);
                 }
 
                 ball.vx = speed * math.sin(angle);
@@ -637,7 +637,7 @@ fn update_game(game: &BreakoutState) -> bool {
 
                 if game.paddle.sticky {
                     ball.stuck = true;
-                    ball.stuckOffset = ball.x - (game.paddle.x as f32 + game.paddle.width as f32 / 2.0);
+                    ball.stuckOffset = ball.x - ((f32)(game.paddle.x) + (f32)(game.paddle.width) / 2.0);
                 }
             }
         }
@@ -650,10 +650,10 @@ fn update_game(game: &BreakoutState) -> bool {
                     let ly = game.lasers[li].y;
                     for bi in 0..game.brickCount {
                         if game.bricks[bi].alive {
-                            let bx = game.bricks[bi].x as f32;
-                            let by = game.bricks[bi].y as f32;
-                            let bw = game.bricks[bi].width as f32;
-                            let bh = game.bricks[bi].height as f32;
+                            let bx = game.bricks[bi].(f32)(x);
+                            let by = game.bricks[bi].(f32)(y);
+                            let bw = game.bricks[bi].(f32)(width);
+                            let bh = game.bricks[bi].(f32)(height);
                             if lx >= bx && lx <= bx + bw && ly >= by && ly <= by + bh {
                                 game.lasers[li].active = false;
                                 game.bricks[bi].alive = false;
@@ -682,18 +682,18 @@ fn update_game(game: &BreakoutState) -> bool {
             let ballTop = ball.y - ball.radius;
             let ballBottom = ball.y + ball.radius;
 
-            let brickRight = brick.x as f32 + brick.width as f32;
-            let brickBottom = brick.y as f32 + brick.height as f32;
+            let brickRight = (f32)(brick.x) + (f32)(brick.width);
+            let brickBottom = (f32)(brick.y) + (f32)(brick.height);
 
-            if ballRight >= brick.x as f32 && ballLeft <= brickRight &&
-               ballBottom >= brick.y as f32 && ballTop <= brickBottom {
+            if ballRight >= (f32)(brick.x) && ballLeft <= brickRight &&
+               ballBottom >= (f32)(brick.y) && ballTop <= brickBottom {
                 brick.alive = false;
                 bricksRemaining = bricksRemaining - 1;
                 game.score = game.score + brick.points;
 
                 // 产生粒子效果
                 for p in 0..5 {
-                    addParticle(game, brick.x as f32 + brick.width as f32 / 2.0, brick.y as f32 + brick.height as f32 / 2.0, brick.color);
+                    addParticle(game, (f32)(brick.x) + (f32)(brick.width) / 2.0, (f32)(brick.y) + (f32)(brick.height) / 2.0, brick.color);
                 }
 
                 // 检查是否产生道具
@@ -702,8 +702,8 @@ fn update_game(game: &BreakoutState) -> bool {
                         let found = false;
                         for pi in 0..10 {
                             if !game.powerUps[pi].active {
-                                game.powerUps[pi].x = brick.x as f32 + brick.width as f32 / 2.0;
-                                game.powerUps[pi].y = brick.y as f32;
+                                game.powerUps[pi].x = (f32)(brick.x) + (f32)(brick.width) / 2.0;
+                                game.powerUps[pi].y = (f32)(brick.y);
                                 game.powerUps[pi].vy = 2.0;
                                 game.powerUps[pi].active = true;
                                 game.powerUps[pi].ptype = brick.powerUpType;
@@ -715,9 +715,9 @@ fn update_game(game: &BreakoutState) -> bool {
                     }
                 }
 
-                let overlapLeft = ballRight - brick.x as f32;
+                let overlapLeft = ballRight - (f32)(brick.x);
                 let overlapRight = brickRight - ballLeft;
-                let overlapTop = ballBottom - brick.y as f32;
+                let overlapTop = ballBottom - (f32)(brick.y);
                 let overlapBottom = brickBottom - ballTop;
 
                 let minOverlapX = if overlapLeft < overlapRight { overlapLeft } else { overlapRight };

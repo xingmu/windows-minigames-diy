@@ -62,7 +62,7 @@ fn find_empty(board: Board*) -> (i32, i32) {
 }
 
 // 计算逆序数（用于判断是否有解）
-fn count_inversions(cells: &i32[TILE_COUNT]) -> i32 {
+fn count_inversions(cells: i32*[TILE_COUNT]) -> i32 {
     let inversions = 0;
     for i in 0..TILE_COUNT {
         if cells[i] == 0 {
@@ -88,7 +88,7 @@ fn init_game(game: &GameData) {
     
     // 设置为完成状态(1,2,3,4,5,6,7,8,0)
     for i in 0..(TILE_COUNT - 1) {
-        game.board.cells[i] = i + 1 as i32;
+        game.board.cells[i] = i + (i32)(1);
     }
     game.board.cells[TILE_COUNT - 1] = 0;
     
@@ -104,7 +104,7 @@ fn init_game(game: &GameData) {
 fn shuffle_game(game: &GameData) {
     // 首先设置为完成状态
     for i in 0..(TILE_COUNT - 1) {
-        game.board.cells[i] = i + 1 as i32;
+        game.board.cells[i] = i + (i32)(1);
     }
     game.board.cells[TILE_COUNT - 1] = 0;
     

@@ -145,7 +145,7 @@ def IDI_APPLICATION: i16 = 32513;
 def WS_OVERLAPPEDWINDOW: u32 = 0x00CF0000;
 def WS_VISIBLE: u32 = 0x10000000;
 def WS_CHILD: u32 = 0x40000000;
-def CW_USEDEFAULT: i32 = 0x80000000 as i32;
+def CW_USEDEFAULT: i32 = (i32)(0x80000000);
 
 def WM_CLOSE: u32 = 0x0010;
 def WM_DESTROY: u32 = 0x0002;
@@ -236,13 +236,13 @@ fn windowProc(hWnd: WindowHandle, Msg: u32, wParam: u64, lParam: i64) -> i64 {
     match Msg {
         WM_PAINT => {
             let rect: RECT;
-            GetClientRect(hWnd, &rect as void*);
-            BeginPaint(hWnd, &ps as void*);
+            GetClientRect(hWnd, &(void)(rect)*);
+            BeginPaint(hWnd, &(void)(ps)*);
             if paint_handler_fn != null {
                 paint_handler_fn(rect.right - rect.left, rect.bottom - rect.top);
             }
             BitBlt(ps.hDC, 0, 0, fb_width, fb_height, fb_hdc, 0, 0, SRCCOPY);
-            EndPaint(hWnd, &ps as void*);
+            EndPaint(hWnd, &(void)(ps)*);
             return 0;
         },
         WM_TIMER => {
@@ -337,7 +337,7 @@ fn fb_init(hWnd: WindowHandle, w: i32, h: i32) {
     fb_hdc = CreateCompatibleDC(screen32);
     SelectBitmap(fb_hdc, fb_bitmap);
     PatBlt(fb_hdc, 0, 0, w, h, BLACKNESS);
-    DeleteObject(screenDC as void*);
+    DeleteObject((void)(screenDC)*);
     fb_valid = true;
 }
 
@@ -351,7 +351,7 @@ fn fb_clear(color: u32) {
     rect.top = 0;
     rect.right = fb_width;
     rect.bottom = fb_height;
-    FillRect(fb_hdc, &rect as void*, brush);
+    FillRect(fb_hdc, &(void)(rect)*, brush);
     DeleteObject(brush);
 }
 
@@ -365,7 +365,7 @@ fn fb_draw_rect(x: i32, y: i32, w: i32, h: i32, color: u32) {
     rect.top = y;
     rect.right = x + w;
     rect.bottom = y + h;
-    FillRect(fb_hdc, &rect as void*, brush);
+    FillRect(fb_hdc, &(void)(rect)*, brush);
     DeleteObject(brush);
 }
 
@@ -379,7 +379,7 @@ fn fb_draw_circle(cx: i32, cy: i32, r: i32, color: u32) {
     rect.top = cy - r;
     rect.right = cx + r;
     rect.bottom = cy + r;
-    FillRect(fb_hdc, &rect as void*, brush);
+    FillRect(fb_hdc, &(void)(rect)*, brush);
     DeleteObject(brush);
 }
 
@@ -392,7 +392,7 @@ fn fb_draw_line(x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {
     MoveToEx(fb_hdc, x1, y1, null);
     LineTo(fb_hdc, x2, y2);
     SelectPen(fb_hdc, oldPen);
-    DeleteObject(pen as void*);
+    DeleteObject((void)(pen)*);
 }
 
 fn fb_draw_text_size(x: i32, y: i32, text: str, color: u32, size: i32) {
@@ -428,18 +428,18 @@ fn create_window(title: str, width: i32, height: i32) -> WindowHandle {
 
     wc.cbSize = 48;
     wc.style = 0;
-    wc.lpfnWndProc = windowProc as void*;
+    wc.lpfnWndProc = (void)(windowProc)*;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
     wc.hInstance = hInstance;
-    wc.hIcon = LoadIconA(null, cast(IDI_APPLICATION as i8*));
-    wc.hCursor = LoadCursorA(null, cast(IDC_ARROW as i8*));
+    wc.hIcon = LoadIconA(null, cast((i8)(IDI_APPLICATION)*));
+    wc.hCursor = LoadCursorA(null, cast((i8)(IDC_ARROW)*));
     wc.hbrBackground = null;
     wc.lpszMenuName = null;
     wc.lpszClassName = className.asPtr();
     wc.hIconSm = null;
 
-    RegisterClassExA(&wc as i8*);
+    RegisterClassExA(&(i8)(wc)*);
 
     hwnd = CreateWindowExA(
         0,
@@ -463,9 +463,9 @@ fn show_window(hWnd: WindowHandle) {
     UpdateWindow(hWnd);
 }
 
-fn get_window_client_size(hWnd: WindowHandle, w: &i32, h: &i32) {
+fn get_window_client_size(hWnd: WindowHandle, w: i32*, h: i32*) {
     let rect: RECT;
-    GetClientRect(hWnd, &rect as void*);
+    GetClientRect(hWnd, &(void)(rect)*);
     w = rect.right - rect.left;
     h = rect.bottom - rect.top;
 }
@@ -480,11 +480,11 @@ fn redraw_window(hWnd: WindowHandle) {
 
 fn run_event_loop(hWnd: WindowHandle) {
     while true {
-        if !GetMessageA(&msg as void*, hWnd, 0, 0) {
+        if !GetMessageA(&(void)(msg)*, hWnd, 0, 0) {
             break;
         }
-        TranslateMessage(&msg as void*);
-        DispatchMessageA(&msg as void*);
+        TranslateMessage(&(void)(msg)*);
+        DispatchMessageA(&(void)(msg)*);
     }
 }
 
@@ -597,7 +597,7 @@ fn set_destroy_handler(fnptr: *fn() -> void) {}
 fn closeWindow(hWnd: WindowHandle) {}
 fn create_window(title: str, width: i32, height: i32) -> WindowHandle { null }
 fn show_window(hWnd: WindowHandle) {}
-fn get_window_client_size(hWnd: WindowHandle, w: &i32, h: &i32) { w = 800; h = 600; }
+fn get_window_client_size(hWnd: WindowHandle, w: i32*, h: i32*) { w = 800; h = 600; }
 fn set_client_size(w: i32, h: i32) {}
 fn redraw_window(hWnd: WindowHandle) {}
 fn run_event_loop(hWnd: WindowHandle) {}
@@ -623,7 +623,7 @@ fn set_destroy_handler(fnptr: *fn() -> void) {}
 fn closeWindow(hWnd: WindowHandle) {}
 fn create_window(title: str, width: i32, height: i32) -> WindowHandle { null }
 fn show_window(hWnd: WindowHandle) {}
-fn get_window_client_size(hWnd: WindowHandle, w: &i32, h: &i32) { w = 800; h = 600; }
+fn get_window_client_size(hWnd: WindowHandle, w: i32*, h: i32*) { w = 800; h = 600; }
 fn set_client_size(w: i32, h: i32) {}
 fn redraw_window(hWnd: WindowHandle) {}
 fn run_event_loop(hWnd: WindowHandle) {}

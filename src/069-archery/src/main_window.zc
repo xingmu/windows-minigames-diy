@@ -110,7 +110,7 @@ fn draw_target(target: Target*) {
     
     let cx = target.x + target.width / 2;
     let cy = target.y + target.height / 2;
-    let scale = 1.0 - (target.distance as f32 / 800.0);
+    let scale = 1.0 - ((f32)(target.distance) / 800.0);
     
     // 外圈(白色)
     let outer_r = (35 * scale) as i32;
@@ -143,15 +143,15 @@ fn draw_bow() {
     let bow_curve = 15;
     
     // 计算弓的两端
-    let top_x = bx + (bow_length as f32 * math.sin(angle)) as i32;
-    let top_y = by + (bow_length as f32 * -math.cos(angle)) as i32;
-    let bottom_x = bx + (bow_length as f32 * math.sin(angle)) as i32;
-    let bottom_y = by + (bow_length as f32 * math.cos(angle)) as i32;
+    let top_x = bx + ((f32)(bow_length) * math.sin(angle)) as i32;
+    let top_y = by + ((f32)(bow_length) * -math.cos(angle)) as i32;
+    let bottom_x = bx + ((f32)(bow_length) * math.sin(angle)) as i32;
+    let bottom_y = by + ((f32)(bow_length) * math.cos(angle)) as i32;
     
     // 弓背(弧线)
     let perp_angle = angle + 3.14159 / 2.0;
-    let mid_x = bx + (bow_curve as f32 * math.cos(perp_angle)) as i32;
-    let mid_y = by + (bow_curve as f32 * math.sin(perp_angle)) as i32;
+    let mid_x = bx + ((f32)(bow_curve) * math.cos(perp_angle)) as i32;
+    let mid_y = by + ((f32)(bow_curve) * math.sin(perp_angle)) as i32;
     
     // 绘制弓身
     fb_draw_circle(mid_x, mid_y, bow_curve - 2, BOW_BROWN);
@@ -170,30 +170,30 @@ fn draw_arrow(arrow: Arrow*) {
         return;
     }
     
-    let ax = arrow.x as i32;
-    let ay = arrow.y as i32;
+    let ax = (i32)(arrow.x);
+    let ay = (i32)(arrow.y);
     let a_angle = arrow.angle;
     
     // 箭杆长度
     let arrow_length = 30;
     
     // 箭尾
-    let tail_x = ax - (arrow_length as f32 * math.cos(a_angle)) as i32;
-    let tail_y = ay - (arrow_length as f32 * math.sin(a_angle)) as i32;
+    let tail_x = ax - ((f32)(arrow_length) * math.cos(a_angle)) as i32;
+    let tail_y = ay - ((f32)(arrow_length) * math.sin(a_angle)) as i32;
     
     // 绘制箭杆
     fb_draw_line(tail_x, tail_y, ax, ay, ARROW_BROWN);
     
     // 绘制箭头
-    let tip_x = ax + (10 as f32 * math.cos(a_angle)) as i32;
-    let tip_y = ay + (10 as f32 * math.sin(a_angle)) as i32;
+    let tip_x = ax + ((f32)(10) * math.cos(a_angle)) as i32;
+    let tip_y = ay + ((f32)(10) * math.sin(a_angle)) as i32;
     fb_draw_circle(tip_x, tip_y, 3, Color { r: 180, g: 180, b: 180 });
     
     // 绘制箭羽
-    let feather1_x = tail_x + (8 as f32 * math.cos(a_angle + 0.3)) as i32;
-    let feather1_y = tail_y + (8 as f32 * math.sin(a_angle + 0.3)) as i32;
-    let feather2_x = tail_x + (8 as f32 * math.cos(a_angle - 0.3)) as i32;
-    let feather2_y = tail_y + (8 as f32 * math.sin(a_angle - 0.3)) as i32;
+    let feather1_x = tail_x + ((f32)(8) * math.cos(a_angle + 0.3)) as i32;
+    let feather1_y = tail_y + ((f32)(8) * math.sin(a_angle + 0.3)) as i32;
+    let feather2_x = tail_x + ((f32)(8) * math.cos(a_angle - 0.3)) as i32;
+    let feather2_y = tail_y + ((f32)(8) * math.sin(a_angle - 0.3)) as i32;
     
     fb_draw_line(tail_x, tail_y, feather1_x, feather1_y, Color { r: 200, g: 50, b: 50 });
     fb_draw_line(tail_x, tail_y, feather2_x, feather2_y, Color { r: 200, g: 50, b: 50 });
@@ -211,14 +211,14 @@ fn draw_aim_line() {
     
     // 瞄准方向
     let aim_length = 60;
-    let aim_x = bx + (aim_length as f32 * math.cos(angle)) as i32;
-    let aim_y = by + (aim_length as f32 * math.sin(angle)) as i32;
+    let aim_x = bx + ((f32)(aim_length) * math.cos(angle)) as i32;
+    let aim_y = by + ((f32)(aim_length) * math.sin(angle)) as i32;
     
     // 虚线瞄准
     let segments = 6;
     for i in 0..segments {
-        let t1 = i as f32 / segments as f32;
-        let t2 = (i + 0.5) as f32 / segments as f32;
+        let t1 = (f32)(i) / (f32)(segments);
+        let t2 = (i + 0.5) as f32 / (f32)(segments);
         
         let x1 = bx + ((aim_length * t1) as f32 * math.cos(angle)) as i32;
         let y1 = by + ((aim_length * t1) as f32 * math.sin(angle)) as i32;
@@ -244,7 +244,7 @@ fn draw_trajectory_preview() {
             break;
         }
         // 渐隐效果
-        let alpha = 1.0 - (i as f32 / 30.0);
+        let alpha = 1.0 - ((f32)(i) / 30.0);
         if i % 3 == 0 {
             fb_draw_circle(u8)(p.x, p.y, 2, Color { 
                 r: (200 * alpha), 

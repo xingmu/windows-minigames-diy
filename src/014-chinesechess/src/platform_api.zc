@@ -139,7 +139,7 @@ fn show_window(window: WindowHandle) {
 
 fn run_event_loop(window: WindowHandle) {
     #if IS_WINDOWS
-        let msg: [u8; 64] = [0; 64];
+        let msg: [u8; 64] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         while GetMessageA(&msg, window, 0, 0) {
             TranslateMessage(&msg);
             DispatchMessageA(&msg);
@@ -229,7 +229,7 @@ fn redraw_window(window: WindowHandle) {
     #endif
 }
 
-fn get_window_size(window: WindowHandle, width: &i32, height: &i32) -> bool {
+fn get_window_size(window: WindowHandle, width: i32*, height: i32*) -> bool {
     #if IS_WINDOWS
         let rect: [i32; 4] = [0; 4];
         if GetClientRect(window, &rect) {

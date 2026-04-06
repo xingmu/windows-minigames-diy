@@ -473,9 +473,9 @@ pub class PingpongGame extends Game {
         let ballTop = self.balls[idx].y - (float)BALL_SIZE / 2.0;
         let ballBottom = self.balls[idx].y + (float)BALL_SIZE / 2.0;
         
-        let paddleLeft = px as float;
+        let paddleLeft = (float)(px);
         let paddleRight = (px + pw) as float;
-        let paddleTop = py as float;
+        let paddleTop = (float)(py);
         let paddleBottom = (py + ph) as float;
         
         return ballRight >= paddleLeft && ballLeft <= paddleRight &&
@@ -763,7 +763,7 @@ pub class PingpongGame extends Game {
     fn spawnPowerupParticles(x: int, y: int, color: Color) {
         for i in 0..25 {
             let angle = (math.rand() % 360) as float;
-            let speed = 2.0 + math.rand() % 5 as float;
+            let speed = 2.0 + math.rand() % (float)(5);
             self.spawnParticle(
                 (float)x,
                 (float)y,
@@ -984,8 +984,8 @@ pub class PingpongGame extends Game {
     
     // 绘制单个道具
     fn drawSinglePowerup(canvas: Canvas, idx: int) {
-        let x = self.powerups[idx].x as int;
-        let y = self.powerups[idx].y as int;
+        let x = self.powerups[idx].(int)(x);
+        let y = self.powerups[idx].(int)(y);
         let size = POWERUP_SIZE;
         let color: Color;
         let symbol: str;

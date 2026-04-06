@@ -169,21 +169,21 @@ fn draw_dartboard() {
 }
 
 fn draw_wedge(cx: i32, cy: i32, r1: i32, r2: i32, startDeg: i32, endDeg: i32, color: Color) {
-    let cxF = cx as f32;
-    let cyF = cy as f32;
+    let cxF = (f32)(cx);
+    let cyF = (f32)(cy);
     let steps = 20;
-    let degStep = (endDeg - startDeg) as f32 / steps as f32;
+    let degStep = (endDeg - startDeg) as f32 / (f32)(steps);
     let radStep = degStep * 3.14159 / 180.0;
-    let startRad = startDeg as f32 * 3.14159 / 180.0;
+    let startRad = (f32)(startDeg) * 3.14159 / 180.0;
 
     for i in 0..steps {
-        let a1 = startRad + i as f32 * radStep;
+        let a1 = startRad + (f32)(i) * radStep;
         let a2 = startRad + (i + 1) as f32 * radStep;
 
-        let x1_outer = cxF + r1 as f32 * cosF(a1);
-        let y1_outer = cyF + r1 as f32 * sinF(a1);
-        let x2_outer = cxF + r1 as f32 * cosF(a2);
-        let y2_outer = cyF + r1 as f32 * sinF(a2);
+        let x1_outer = cxF + (f32)(r1) * cosF(a1);
+        let y1_outer = cyF + (f32)(r1) * sinF(a1);
+        let x2_outer = cxF + (f32)(r1) * cosF(a2);
+        let y2_outer = cyF + (f32)(r1) * sinF(a2);
 
         fb_draw_line((i32)x1_outer, (i32)y1_outer, (i32)x2_outer, (i32)y2_outer, color);
     }
@@ -232,12 +232,12 @@ fn draw_aim_line() {
             let maxPower = 25.0;
             let actualPower = if power > maxPower { maxPower } else { power };
 
-            let angle = atan2F(dy as f32, dx as f32);
+            let angle = atan2F((f32)(dy), (f32)(dx));
             let vx = actualPower * cosF(angle);
             let vy = actualPower * sinF(angle);
 
-            let px = THROW_X as f32;
-            let py = THROW_Y as f32;
+            let px = (f32)(THROW_X);
+            let py = (f32)(THROW_Y);
             let pvx = vx;
             let pvy = vy;
             let gravity = 0.15;
@@ -251,7 +251,7 @@ fn draw_aim_line() {
                     fb_fill_circle((i32)px, (i32)py, 2, rgb(255, 255, 100));
                 }
 
-                if px < 0.0 || px > GAME_WIDTH as f32 || py < 0.0 || py > GAME_HEIGHT as f32 {
+                if px < 0.0 || px > (f32)(GAME_WIDTH) || py < 0.0 || py > (f32)(GAME_HEIGHT) {
                     break;
                 }
             }

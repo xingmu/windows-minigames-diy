@@ -89,8 +89,8 @@ fn draw_goal(ctx: &RenderContext, goal: Goal*) {
 
 // 绘制球
 fn draw_ball(ctx: &RenderContext, ball: Ball*) {
-    let x = ball.x as i32;
-    let y = ball.y as i32;
+    let x = (i32)(ball.x);
+    let y = (i32)(ball.y);
     let r = ball.radius;
     
     // 阴影
@@ -147,8 +147,8 @@ fn draw_target(ctx: &RenderContext, target: Target*, ball: Ball*) {
         return;
     }
     
-    let ball_x = ball.x as i32;
-    let ball_y = ball.y as i32;
+    let ball_x = (i32)(ball.x);
+    let ball_y = (i32)(ball.y);
     let tx = target.x;
     let ty = target.y;
     
@@ -157,9 +157,9 @@ fn draw_target(ctx: &RenderContext, target: Target*, ball: Ball*) {
     let dy = ty - ball_y;
     let steps = 8;
     for i in 1..steps {
-        let t = i as f64 / steps as f64;
-        let px = ball_x + (dx as f64 * t) as i32;
-        let py = ball_y + (dy as f64 * t) as i32;
+        let t = (f64)(i) / (f64)(steps);
+        let px = ball_x + ((f64)(dx) * t) as i32;
+        let py = ball_y + ((f64)(dy) * t) as i32;
         let r = 4 - (i / 2);
         if r > 0 {
             ctx.fill_circle(px, py, r, 0x60FFFFFF);
@@ -287,7 +287,7 @@ impl RenderContext {
     
     #if IS_WINDOWS
     fn fill_rect_win(self: &RenderContext, x: i32, y: i32, w: i32, h: i32, color: u32) {
-        let brush = CreateSolidBrush(color as COLORREF);
+        let brush = CreateSolidBrush((COLORREF)(color));
         let old = SelectObject(self.hdc, brush);
         Rectangle(self.hdc, x, y, x + w, y + h);
         SelectObject(self.hdc, old);
@@ -296,7 +296,7 @@ impl RenderContext {
     
     fn draw_line_win(self: &RenderContext, x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {
         MoveToEx(self.hdc, x1, y1, nil);
-        let pen = CreatePen(0, 1, color as COLORREF);
+        let pen = CreatePen(0, 1, (COLORREF)(color));
         let old = SelectObject(self.hdc, pen);
         LineTo(self.hdc, x2, y2);
         SelectObject(self.hdc, old);
@@ -304,7 +304,7 @@ impl RenderContext {
     }
     
     fn fill_circle_win(self: &RenderContext, cx: i32, cy: i32, r: i32, color: u32) {
-        let brush = CreateSolidBrush(color as COLORREF);
+        let brush = CreateSolidBrush((COLORREF)(color));
         let old = SelectObject(self.hdc, brush);
         Ellipse(self.hdc, cx - r, cy - r, cx + r, cy + r);
         SelectObject(self.hdc, old);
@@ -506,7 +506,7 @@ fn initPlatform() {
         hInstance: hInstance,
         hIcon: nil,
         hCursor: nil,
-        hbrBackground: CreateSolidBrush(0x1A1A2E as COLORREF),
+        hbrBackground: CreateSolidBrush((COLORREF)(0x1A1A2E)),
         lpszMenuName: nil,
         lpszClassName: "ZenCSoccer",
         hIconSm: nil,
@@ -542,7 +542,7 @@ fn create_window(title: str, width: i32, height: i32) -> WindowHandle {
                                            hWndParent: rawptr, hMenu: rawptr, hInstance: rawptr,
                                            lpParam: rawptr) -> WindowHandle;
     let WS_OVERLAPPEDWINDOW = 0x00CF0000;
-    let CW_USEDEFAULT = 0x80000000 as i32;
+    let CW_USEDEFAULT = (i32)(0x80000000);
     
     CreateWindowExA(0, "ZenCSoccer", title, WS_OVERLAPPEDWINDOW,
                     CW_USEDEFAULT, CW_USEDEFAULT, width, height,

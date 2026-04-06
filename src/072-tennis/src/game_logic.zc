@@ -262,11 +262,11 @@ pub class TennisGame extends Game {
         
         // 上下边界碰撞 (球场边界)
         if self.ballY - (float)BALL_RADIUS <= (float)COURT_MARGIN {
-            self.ballY = (float)COURT_MARGIN + BALL_RADIUS as float;
+            self.ballY = (float)COURT_MARGIN + (float)(BALL_RADIUS);
             self.ballVY = -self.ballVY;
         }
         if self.ballY + (float)BALL_RADIUS >= (float)WINDOW_HEIGHT - 20.0 {
-            self.ballY = (float)WINDOW_HEIGHT - 20.0 - BALL_RADIUS as float;
+            self.ballY = (float)WINDOW_HEIGHT - 20.0 - (float)(BALL_RADIUS);
             self.ballVY = -self.ballVY;
         }
         
@@ -323,11 +323,11 @@ pub class TennisGame extends Game {
         
         if isPlayer {
             racketCenter = (float)(self.playerY) + (float)RACKET_HEIGHT / 2.0;
-            self.ballX = (float)(self.playerX + RACKET_WIDTH) + BALL_RADIUS as float;
+            self.ballX = (float)(self.playerX + RACKET_WIDTH) + (float)(BALL_RADIUS);
             self.ballVX = self.absFloat(self.ballVX);
         } else {
             racketCenter = (float)(self.cpuY) + (float)RACKET_HEIGHT / 2.0;
-            self.ballX = (float)(self.cpuX) - BALL_RADIUS as float;
+            self.ballX = (float)(self.cpuX) - (float)(BALL_RADIUS);
             self.ballVX = -self.absFloat(self.ballVX);
         }
         
@@ -342,7 +342,7 @@ pub class TennisGame extends Game {
         }
         
         // 设置新的速度
-        let speed = self.ballSpeed as float;
+        let speed = (float)(self.ballSpeed);
         let angleRad = angle * 3.14159 / 180.0;
         self.ballVX = speed * self.cos(angleRad) * (if isPlayer { 1.0 } else { -1.0 });
         self.ballVY = speed * self.sin(angleRad);
@@ -392,7 +392,7 @@ pub class TennisGame extends Game {
         } else {
             self.ballX = (self.cpuX - 20) as float;
         }
-        self.ballY = WINDOW_HEIGHT / 2 as float;
+        self.ballY = WINDOW_HEIGHT / (float)(2);
         self.ballVX = 0.0;
         self.ballVY = 0.0;
     }
@@ -568,8 +568,8 @@ pub class TennisGame extends Game {
     // 绘制球
     private fn drawBall(canvas: Canvas) {
         let ballColor = Color.Yellow();
-        let cx = self.ballX as int;
-        let cy = self.ballY as int;
+        let cx = (int)(self.ballX);
+        let cy = (int)(self.ballY);
         
         // 球主体
         canvas.fillCircle(cx, cy, BALL_RADIUS, ballColor);

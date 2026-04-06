@@ -110,11 +110,11 @@ struct Rect {
 // ==================== 颜色工厂 ====================
 
 fn rgb(r: u8, g: u8, b: u8) -> Color {
-    return 0xFF000000| (r<< 16) | (g<< 8) | b as Color;
+    return 0xFF000000| (r<< 16) | (g<< 8) | (Color)(b);
 }
 
 fn argb(a: u8, r: u8, g: u8, b: u8) -> Color {
-    return (a<< 24) | (r<< 16) | (g<< 8) | b as Color;
+    return (a<< 24) | (r<< 16) | (g<< 8) | (Color)(b);
 }
 
 // ==================== 平台特定实现 ====================
@@ -158,7 +158,7 @@ extern "user32.dll" fn FillRect(hDC: GraphicsContext, lpRect: Rect*, hBrush: voi
 extern "user32.dll" fn SetBkMode(hDC: GraphicsContext, mode: i32) -> i32;
 extern "user32.dll" fn SetTextColor(hDC: GraphicsContext, color: Color) -> Color;
 extern "user32.dll" fn TextOutA(hDC: GraphicsContext, x: i32, y: i32, lpString: i8*, c: i32) -> bool;
-extern "user32.dll" fn RegisterClassA(lpWndClass: *WndClassExA*) -> u16;
+extern "user32.dll" fn RegisterClassA(lpWndClass: WndClassExA*) -> u16;
 extern "user32.dll" fn CreateFontA(nHeight: i32, nWidth: i32, fnEscapement: i32, fnOrientation: i32,
     fnWeight: i32, fdwItalic: bool, fdwUnderline: bool, fdwStrikeOut: bool,
     fdwCharSet: u8, fdwOutputPrecision: u8, fdwClipPrecision: u8,
@@ -206,7 +206,7 @@ def SRCCOPY = 0x00CC0020;
 def TRANSPARENT = 1;
 def OPAQUE = 2;
 def IDC_ARROW = 32512;
-def CW_USEDEFAULT = 0x80000000 as i32;
+def CW_USEDEFAULT = (i32)(0x80000000);
 def WS_OVERLAPPEDWINDOW = 0x00CF0000;
 def SW_SHOWNORMAL = 1;
 
@@ -223,7 +223,7 @@ extern "user32.dll" fn CallWindowProcA(lpPrevWndFunc: void*, hWnd: WindowHandle,
 static mut g_wndproc: void* = null;
 
 fn initPlatform() {
-    g_hInst = 0 as void*;
+    g_hInst = (void*)0;
     g_screen_width = 900;
     g_screen_height = 700;
 }
@@ -252,8 +252,8 @@ fn createWindow(title: str, width: i32, height: i32) -> WindowHandle {
         cbWndExtra: 0,
         hInstance: g_hInst,
         hIcon: null,
-        hCursor: LoadCursorA(null as void*, IDC_ARROW as i8*),
-        hbrBackground: null as void*,
+        hCursor: LoadCursorA((void*)null, (i8*)(IDC_ARROW)),
+        hbrBackground: (void*)null,
         lpszMenuName: null,
         lpszClassName: "DoudizhuGame".as_ptr(),
         hIconSm: null,
@@ -268,14 +268,14 @@ fn createWindow(title: str, width: i32, height: i32) -> WindowHandle {
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT,
         width + 16, height + 39,
-        null as WindowHandle,
-        null as void*,
+        (WindowHandle)(null),
+        (void*)null,
         g_hInst,
-        null as void*
+        (void*)null
     );
 
     if hwnd == null {
-        return null as WindowHandle;
+        return (WindowHandle)(null);
     }
 
     g_hwnd = hwnd;
@@ -314,23 +314,23 @@ fn pollEvent(hwnd: WindowHandle, event: Event*) -> bool {
         // Space is down
     }
 
-    if GetMessageA(&msg as void*, g_hwnd, 0, 0) == 0 {
+    if GetMessageA(&msg, g_hwnd, 0, 0) == 0 {
         event.msg = EventType.EventNone;
         return false;
     }
 
-    TranslateMessage(&msg as void*);
-    DispatchMessageA(&msg as void*);
+    TranslateMessage(&msg);
+    DispatchMessageA(&msg);
 
     match msg.message {
         WM_KEYDOWN => {
             event.msg = EventType.EventKeyDown;
-            event.key = msg.wParam as VirtualKey;
+            event.key = (VirtualKey)(msg.wParam);
             return true;
         }
         WM_KEYUP => {
             event.msg = EventType.EventKeyUp;
-            event.key = msg.wParam as VirtualKey;
+            event.key = (VirtualKey)(msg.wParam);
             return true;
         }
         WM_LBUTTONDOWN => {
@@ -371,7 +371,7 @@ fn pollEvent(hwnd: WindowHandle, event: Event*) -> bool {
 }
 
 fn getTickCount() -> u32 {
-    return 0 as u32;
+    return (u32)(0);
 }
 
 fn sleep(ms: u32) {
@@ -386,7 +386,7 @@ fn isKeyDown(key: VirtualKey) -> bool {
 }
 
 fn getFrameBuffer(hwnd: WindowHandle) -> rawptr {
-    return null as rawptr;
+    return (rawptr)(null);
 }
 
 fn getFrameBufferPitch(hwnd: WindowHandle) -> i32 {
@@ -414,7 +414,7 @@ fn clear_screen(ctx: GraphicsContext, color: Color) {
     let rect = Rect { x: 0, y: 0, width: g_screen_width, height: g_screen_height };
     let brush = CreateSolidBrush(color);
     FillRect(ctx, &rect, brush);
-    DeleteObject(brush as void*);
+    DeleteObject((void*)brush);
 }
 
 fn draw_pixel(ctx: GraphicsContext, x: i32, y: i32, color: Color) {
@@ -428,14 +428,14 @@ fn draw_line(ctx: GraphicsContext, x1: i32, y1: i32, x2: i32, y2: i32, color: Co
     let brush = CreateSolidBrush(color);
     let rect = Rect { x: min(x1,x2), y: min(y1,y2), width: abs(x2-x1)+1, height: abs(y2-y1)+1 };
     FillRect(ctx, &rect, brush);
-    DeleteObject(brush as void*);
+    DeleteObject((void*)brush);
 }
 
 fn draw_rect(ctx: GraphicsContext, x: i32, y: i32, w: i32, h: i32, color: Color) {
     let brush = CreateSolidBrush(color);
     let rect = Rect { x: x, y: y, width: w, height: h };
     FillRect(ctx, &rect, brush);
-    DeleteObject(brush as void*);
+    DeleteObject((void*)brush);
 }
 
 fn draw_circle(ctx: GraphicsContext, cx: i32, cy: i32, radius: i32, color: Color) {
@@ -454,7 +454,7 @@ fn draw_text(ctx: GraphicsContext, x: i32, y: i32, text: str, color: Color) {
     let oldColor = SetTextColor(ctx, color);
     SetBkMode(ctx, TRANSPARENT);
     SelectObject(ctx, g_font);
-    TextOutA(ctx, x, y, text.as_ptr(), text.(i32)len);
+    TextOutA(ctx, x, y, text.as_ptr(), (i32)(text.len));
     SetTextColor(ctx, oldColor);
 }
 
@@ -473,7 +473,7 @@ fn initPlatform() {}
 fn shutdownPlatform() {}
 
 fn createWindow(title: str, width: i32, height: i32) -> WindowHandle {
-    return null as WindowHandle;
+    return (WindowHandle)(null);
 }
 
 fn closeWindow(hwnd: WindowHandle) {}
@@ -557,5 +557,5 @@ fn setRandomSeed(seed: u32) {
 fn randInt(min_val: i32, max_val: i32) -> i32 {
     rng_seed = rng_seed * 1103515245 + 12345;
     let r = (rng_seed >> 16) % (u32)((max_val - min_val + 1));
-    return min_val + r as i32;
+    return min_val + (i32)(r);
 }

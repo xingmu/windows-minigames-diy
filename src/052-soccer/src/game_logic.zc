@@ -120,8 +120,8 @@ fn init_game(game: &GameState) {
     
     // 初始化球
     game.ball = Ball {
-        x: BALL_START_X as f64,
-        y: BALL_START_Y as f64,
+        x: (f64)(BALL_START_X),
+        y: (f64)(BALL_START_Y),
         radius: BALL_RADIUS,
         vx: 0.0,
         vy: 0.0,
@@ -188,8 +188,8 @@ fn shoot(game: &GameState) {
     }
     
     // 计算射门方向
-    let dx = game.target.x as f64 - game.ball.x;
-    let dy = game.target.y as f64 - game.ball.y;
+    let dx = (f64)(game.target.x) - game.ball.x;
+    let dy = (f64)(game.target.y) - game.ball.y;
     let dist = math.sqrt(dx * dx + dy * dy);
     
     if dist < 1.0 {
@@ -281,7 +281,7 @@ fn update_ball(game: &GameState) {
     // 检查是否到达球门线
     if game.ball.y <= game.goal.y + game.goal.height {
         // 检查是否进球
-        let ball_center_x = game.ball.x as i32;
+        let ball_center_x = (i32)(game.ball.x);
         let ball_top = game.ball.(i32)y - game.ball.radius;
         
         // 球必须完全越过球门线
@@ -313,7 +313,7 @@ fn update_ball(game: &GameState) {
     }
     
     // 球出界检查
-    if game.ball.y < 0 || game.ball.x < 0 || game.ball.x > FIELD_WIDTH as f64 {
+    if game.ball.y < 0 || game.ball.x < 0 || game.ball.x > (f64)(FIELD_WIDTH) {
         game.ball.active = false;
         game.phase = GamePhase.Result;
     }
@@ -347,8 +347,8 @@ fn next_round(game: &GameState) {
         game.game_over = true;
     } else {
         // 重置球和守门员
-        game.ball.x = BALL_START_X as f64;
-        game.ball.y = BALL_START_Y as f64;
+        game.ball.x = (f64)(BALL_START_X);
+        game.ball.y = (f64)(BALL_START_Y);
         game.ball.vx = 0.0;
         game.ball.vy = 0.0;
         game.ball.active = false;

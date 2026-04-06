@@ -41,7 +41,7 @@ fn fb_get_pixel(x: i32, y: i32) -> Color {
         return Color.Black();
     }
     let offset = y * (fb_pitch / 4) + x;
-    let pixels = fb_buffer as u32;
+    let pixels = (u32)(fb_buffer);
     return pixels[offset];
 }
 
@@ -242,7 +242,7 @@ fn drawBall(state: GolfState*) {
     }
 
     let screenX = state.ball.(i32)x - state.cameraX;
-    let screenY = state.ball.y as i32;
+    let screenY = (i32)(state.ball.y);
 
     if screenX < -20 || screenX > VIEW_WIDTH + 20 {
         return;
@@ -264,7 +264,7 @@ fn drawAimLine(state: GolfState*) {
     }
 
     let ballScreenX = state.ball.(i32)x - state.cameraX;
-    let ballScreenY = state.ball.y as i32;
+    let ballScreenY = (i32)(state.ball.y);
 
     // 瞄准方向线 (从球到鼠标的延长线)
     let aimLen = state.power * 8;
@@ -274,8 +274,8 @@ fn drawAimLine(state: GolfState*) {
     // 虚线
     let steps = 15;
     for s in 0..steps {
-        let t1 = s as f32 / steps as f32;
-        let t2 = (s + 1) as f32 / steps as f32;
+        let t1 = (f32)(s) / (f32)(steps);
+        let t2 = (s + 1) as f32 / (f32)(steps);
         let x1 = ballScreenX + (endX - ballScreenX) * t1;
         let y1 = ballScreenY + (endY - ballScreenY) * t1;
         let x2 = ballScreenX + (endX - ballScreenX) * t2;
@@ -305,7 +305,7 @@ fn drawAimLine(state: GolfState*) {
     let barY = ballScreenY - 30;
 
     fb_draw_rect(barX, barY, barWidth, barHeight, Color.White());
-    let fillW = (state.power as f32 / MAX_POWER as f32 * barWidth as f32) as i32;
+    let fillW = ((f32)(state.power) / (f32)(MAX_POWER) * (f32)(barWidth)) as i32;
     let powerColor = if state.power < 10 {
         Color.Green()
     } else if state.power < 18 {

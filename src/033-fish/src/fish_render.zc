@@ -192,8 +192,8 @@ pub fn draw_bullet(bullet: Bullet*) {
         return;
     }
     
-    let x = bullet.x as i32;
-    let y = bullet.y as i32;
+    let x = (i32)(bullet.x);
+    let y = (i32)(bullet.y);
     
     // 炮弹发光效果
     fb_draw_circle(x, y, 8 + bullet.power, Color {r: (u8)255, g: (u8)200, b: (u8)50});
@@ -202,8 +202,8 @@ pub fn draw_bullet(bullet: Bullet*) {
     
     // 拖尾效果
     for i in 1..bullet.trail {
-        let tx = (bullet.x - bullet.vx * i as f32 * 0.5) as i32;
-        let ty = (bullet.y - bullet.vy * i as f32 * 0.5) as i32;
+        let tx = (bullet.x - bullet.vx * (f32)(i) * 0.5) as i32;
+        let ty = (bullet.y - bullet.vy * (f32)(i) * 0.5) as i32;
         let alpha = 255 - i * 30;
         if alpha < 0 { alpha = 0; }
         fb_draw_circle(tx, ty, 4 - i / 2, Color {r: (u8)255, g: (u8)180, b: (u8)50});

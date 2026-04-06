@@ -69,12 +69,12 @@ fn draw_field(ctx: GraphicsContext) {
     
     // 简化圆 - 用多个点画
     for angle in 0..36 {
-        let a1 = angle as f64 * 3.14159 * 2.0 / 36.0;
+        let a1 = (f64)(angle) * 3.14159 * 2.0 / 36.0;
         let a2 = (angle + 1) as f64 * 3.14159 * 2.0 / 36.0;
-        let x1 = center_x + (math.cos(a1) * circle_radius as f64) as i32;
-        let y1 = center_y + (math.sin(a1) * circle_radius as f64) as i32;
-        let x2 = center_x + (math.cos(a2) * circle_radius as f64) as i32;
-        let y2 = center_y + (math.sin(a2) * circle_radius as f64) as i32;
+        let x1 = center_x + (math.cos(a1) * (f64)(circle_radius)) as i32;
+        let y1 = center_y + (math.sin(a1) * (f64)(circle_radius)) as i32;
+        let x2 = center_x + (math.cos(a2) * (f64)(circle_radius)) as i32;
+        let y2 = center_y + (math.sin(a2) * (f64)(circle_radius)) as i32;
         draw_line(ctx, x1, y1, x2, y2, LINE_COLOR, 2);
     }
     
@@ -140,8 +140,8 @@ fn draw_goal(ctx: GraphicsContext, goal: Goal*) {
 
 // 绘制球
 fn draw_ball(ctx: GraphicsContext, ball: Ball*) {
-    let x = ball.x as i32;
-    let y = ball.y as i32;
+    let x = (i32)(ball.x);
+    let y = (i32)(ball.y);
     let r = ball.radius;
     
     // 阴影
@@ -156,16 +156,16 @@ fn draw_ball(ctx: GraphicsContext, ball: Ball*) {
     let pr = r / 2;
     let angles: [f64; 5] = [0.0, 1.256, 2.512, 3.768, 5.024];
     for i in 0..5 {
-        let px = x + (math.cos(angles[i]) * pr as f64) as i32;
-        let py = y + (math.sin(angles[i]) * pr as f64) as i32;
+        let px = x + (math.cos(angles[i]) * (f64)(pr)) as i32;
+        let py = y + (math.sin(angles[i]) * (f64)(pr)) as i32;
         fill_circle(ctx, px, py, 3, pattern_color);
     }
 }
 
 // 绘制球员
 fn draw_player(ctx: GraphicsContext, player: Player*, color: Color) {
-    let x = player.x as i32;
-    let y = player.y as i32;
+    let x = (i32)(player.x);
+    let y = (i32)(player.y);
     let r = player.radius;
     
     // 阴影
@@ -191,12 +191,12 @@ fn draw_circle(ctx: GraphicsContext, cx: i32, cy: i32, radius: i32, color: Color
     // 简化实现：画多边形近似圆
     let segments = 24;
     for i in 0..segments {
-        let a1 = i as f64 * 3.14159 * 2.0 / segments as f64;
-        let a2 = (i + 1) as f64 * 3.14159 * 2.0 / segments as f64;
-        let x1 = cx + (math.cos(a1) * radius as f64) as i32;
-        let y1 = cy + (math.sin(a1) * radius as f64) as i32;
-        let x2 = cx + (math.cos(a2) * radius as f64) as i32;
-        let y2 = cy + (math.sin(a2) * radius as f64) as i32;
+        let a1 = (f64)(i) * 3.14159 * 2.0 / (f64)(segments);
+        let a2 = (i + 1) as f64 * 3.14159 * 2.0 / (f64)(segments);
+        let x1 = cx + (math.cos(a1) * (f64)(radius)) as i32;
+        let y1 = cy + (math.sin(a1) * (f64)(radius)) as i32;
+        let x2 = cx + (math.cos(a2) * (f64)(radius)) as i32;
+        let y2 = cy + (math.sin(a2) * (f64)(radius)) as i32;
         draw_line(ctx, x1, y1, x2, y2, color, width);
     }
 }
@@ -524,7 +524,7 @@ fn create_window(title: str, width: i32, height: i32) -> WindowHandle {
                                            hWndParent: rawptr, hMenu: rawptr, hInstance: rawptr,
                                            lpParam: rawptr) -> WindowHandle;
     let WS_OVERLAPPEDWINDOW = 0x00CF0000;
-    let CW_USEDEFAULT = 0x80000000 as i32;
+    let CW_USEDEFAULT = (i32)(0x80000000);
     
     CreateWindowExA(0, "ZenCSoccer", title, WS_OVERLAPPEDWINDOW,
                     CW_USEDEFAULT, CW_USEDEFAULT, width, height,

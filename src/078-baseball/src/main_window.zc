@@ -85,8 +85,8 @@ fn draw_batter(ctx: GraphicsContext) {
 // 绘制球
 fn draw_ball(ctx: GraphicsContext) {
     if game.phase == GamePhase.Pitching || game.phase == GamePhase.BallInFlight {
-        let bx = game.ball.x as i32;
-        let by = game.ball.y as i32;
+        let bx = (i32)(game.ball.x);
+        let by = (i32)(game.ball.y);
         
         // 阴影
         if game.ball.z > 0 {
@@ -105,8 +105,8 @@ fn draw_ball(ctx: GraphicsContext) {
 fn draw_hit_trajectory(ctx: GraphicsContext) {
     if game.phase == GamePhase.BallInFlight && game.hit_trajectory_len > 0 {
         for i in 0..game.hit_trajectory_len {
-            let x = game.hit_trajectory[i].x as i32;
-            let y = game.hit_trajectory[i].y as i32;
+            let x = game.hit_trajectory[i].(i32)(x);
+            let y = game.hit_trajectory[i].(i32)(y);
             draw_circle(ctx, x, y, 2, rgb(255, 255, 0));
         }
     }
@@ -252,8 +252,8 @@ fn on_mouse_down(button: i32) {
         if button == 0 {  // 左键
             // 开始挥棒
             // 力量基于鼠标Y位置, 时机基于鼠标X位置
-            let power = max(0.0, min(100.0, 100.0 - (mouse_y as f32 * 100.0 / 600.0)));
-            let timing = ((mouse_x as f32 - 400.0) / 100.0);
+            let power = max(0.0, min(100.0, 100.0 - ((f32)(mouse_y) * 100.0 / 600.0)));
+            let timing = (((f32)(mouse_x) - 400.0) / 100.0);
             
             swing(&game, power, timing);
         }

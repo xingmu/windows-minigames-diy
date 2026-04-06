@@ -94,15 +94,15 @@ pub class VolleyballGame extends Game {
         
         // 初始化玩家1
         self.player1X = COURT_MARGIN + 100.0;
-        self.player1Y = (float)GROUND_Y - PLAYER_HEIGHT as float;
+        self.player1Y = (float)GROUND_Y - (float)(PLAYER_HEIGHT);
         self.player1VX = 0.0;
         self.player1VY = 0.0;
         self.player1Score = 0;
         self.player1OnGround = true;
         
         // 初始化玩家2
-        self.player2X = WINDOW_WIDTH - COURT_MARGIN - 100.0 - PLAYER_WIDTH as float;
-        self.player2Y = (float)GROUND_Y - PLAYER_HEIGHT as float;
+        self.player2X = WINDOW_WIDTH - COURT_MARGIN - 100.0 - (float)(PLAYER_WIDTH);
+        self.player2Y = (float)GROUND_Y - (float)(PLAYER_HEIGHT);
         self.player2VX = 0.0;
         self.player2VY = 0.0;
         self.player2Score = 0;
@@ -156,22 +156,22 @@ pub class VolleyballGame extends Game {
     private fn updatePlayer1() {
         // 水平移动
         if self.keyLeft {
-            self.player1VX = -PLAYER_SPEED as float;
+            self.player1VX = -(float)(PLAYER_SPEED);
         } else if self.keyRight {
-            self.player1VX = PLAYER_SPEED as float;
+            self.player1VX = (float)(PLAYER_SPEED);
         } else {
             self.player1VX = 0.0;
         }
         
         // 跳跃
         if self.keyUp && self.player1OnGround {
-            self.player1VY = PLAYER_JUMP_FORCE as float;
+            self.player1VY = (float)(PLAYER_JUMP_FORCE);
             self.player1OnGround = false;
         }
         
         // 应用重力
         if !self.player1OnGround {
-            self.player1VY = self.player1VY + GRAVITY as float;
+            self.player1VY = self.player1VY + (float)(GRAVITY);
         }
         
         // 更新位置
@@ -180,17 +180,17 @@ pub class VolleyballGame extends Game {
         
         // 地面碰撞
         if self.player1Y >= (float)GROUND_Y - (float)PLAYER_HEIGHT {
-            self.player1Y = (float)GROUND_Y - PLAYER_HEIGHT as float;
+            self.player1Y = (float)GROUND_Y - (float)(PLAYER_HEIGHT);
             self.player1VY = 0.0;
             self.player1OnGround = true;
         }
         
         // 边界检查 (只能在左侧场地)
         if self.player1X < (float)COURT_MARGIN {
-            self.player1X = COURT_MARGIN as float;
+            self.player1X = (float)(COURT_MARGIN);
         }
         if self.player1X > WINDOW_WIDTH / 2 - (int)NET_WIDTH - (int)PLAYER_WIDTH - (int)COURT_MARGIN {
-            self.player1X = WINDOW_WIDTH / 2 - (int)NET_WIDTH - (int)PLAYER_WIDTH - COURT_MARGIN as int;
+            self.player1X = WINDOW_WIDTH / 2 - (int)NET_WIDTH - (int)PLAYER_WIDTH - (int)(COURT_MARGIN);
         }
     }
     
@@ -223,7 +223,7 @@ pub class VolleyballGame extends Game {
         
         // 应用重力
         if !self.player2OnGround {
-            self.player2VY = self.player2VY + GRAVITY as float;
+            self.player2VY = self.player2VY + (float)(GRAVITY);
         }
         
         // 更新位置
@@ -232,17 +232,17 @@ pub class VolleyballGame extends Game {
         
         // 地面碰撞
         if self.player2Y >= (float)GROUND_Y - (float)PLAYER_HEIGHT {
-            self.player2Y = (float)GROUND_Y - PLAYER_HEIGHT as float;
+            self.player2Y = (float)GROUND_Y - (float)(PLAYER_HEIGHT);
             self.player2VY = 0.0;
             self.player2OnGround = true;
         }
         
         // 边界检查 (只能在右侧场地)
         if self.player2X < WINDOW_WIDTH / 2 + (int)NET_WIDTH + (int)COURT_MARGIN {
-            self.player2X = WINDOW_WIDTH / 2 + (int)NET_WIDTH + COURT_MARGIN as int;
+            self.player2X = WINDOW_WIDTH / 2 + (int)NET_WIDTH + (int)(COURT_MARGIN);
         }
         if self.player2X > WINDOW_WIDTH - (int)COURT_MARGIN - (int)PLAYER_WIDTH {
-            self.player2X = WINDOW_WIDTH - (int)COURT_MARGIN - PLAYER_WIDTH as int;
+            self.player2X = WINDOW_WIDTH - (int)COURT_MARGIN - (int)(PLAYER_WIDTH);
         }
         
         // AI目标更新
@@ -261,10 +261,10 @@ pub class VolleyballGame extends Game {
             
             // 限制目标在有效范围内
             if self.aiTargetX < WINDOW_WIDTH / 2 + (int)NET_WIDTH + (int)COURT_MARGIN {
-                self.aiTargetX = WINDOW_WIDTH / 2 + (int)NET_WIDTH + COURT_MARGIN as int;
+                self.aiTargetX = WINDOW_WIDTH / 2 + (int)NET_WIDTH + (int)(COURT_MARGIN);
             }
             if self.aiTargetX > WINDOW_WIDTH - (int)COURT_MARGIN - (int)PLAYER_WIDTH {
-                self.aiTargetX = WINDOW_WIDTH - (int)COURT_MARGIN - PLAYER_WIDTH as int;
+                self.aiTargetX = WINDOW_WIDTH - (int)COURT_MARGIN - (int)(PLAYER_WIDTH);
             }
         }
     }
@@ -280,17 +280,17 @@ pub class VolleyballGame extends Game {
         
         // 顶部边界碰撞
         if self.ballY <= (float)BALL_RADIUS {
-            self.ballY = BALL_RADIUS as float;
+            self.ballY = (float)(BALL_RADIUS);
             self.ballVY = -self.ballVY * 0.8;
         }
         
         // 侧边界碰撞
         if self.ballX <= (float)COURT_MARGIN + (float)BALL_RADIUS {
-            self.ballX = (float)COURT_MARGIN + BALL_RADIUS as float;
+            self.ballX = (float)COURT_MARGIN + (float)(BALL_RADIUS);
             self.ballVX = -self.ballVX * 0.8;
         }
         if self.ballX >= WINDOW_WIDTH - (int)COURT_MARGIN - (int)BALL_RADIUS {
-            self.ballX = WINDOW_WIDTH - (int)COURT_MARGIN - BALL_RADIUS as int;
+            self.ballX = WINDOW_WIDTH - (int)COURT_MARGIN - (int)(BALL_RADIUS);
             self.ballVX = -self.ballVX * 0.8;
         }
         
@@ -303,7 +303,7 @@ pub class VolleyballGame extends Game {
         
         // 地面碰撞 - 计分
         if self.ballY >= (float)GROUND_Y - (float)BALL_RADIUS {
-            self.ballY = (float)GROUND_Y - BALL_RADIUS as float;
+            self.ballY = (float)GROUND_Y - (float)(BALL_RADIUS);
             
             // 判断是哪一方丢分
             if self.ballX < WINDOW_WIDTH / (float)2 {
@@ -328,14 +328,14 @@ pub class VolleyballGame extends Game {
     private fn checkNetCollision() {
         let netLeft = WINDOW_WIDTH / 2 - (int)NET_WIDTH / 2;
         let netRight = WINDOW_WIDTH / 2 + (int)NET_WIDTH / 2;
-        let netTop = NET_Y as float;
-        let netBottom = GROUND_Y as float;
+        let netTop = (float)(NET_Y);
+        let netBottom = (float)(GROUND_Y);
         
         // 球的边界
-        let ballLeft = self.ballX - BALL_RADIUS as float;
-        let ballRight = self.ballX + BALL_RADIUS as float;
-        let ballTop = self.ballY - BALL_RADIUS as float;
-        let ballBottom = self.ballY + BALL_RADIUS as float;
+        let ballLeft = self.ballX - (float)(BALL_RADIUS);
+        let ballRight = self.ballX + (float)(BALL_RADIUS);
+        let ballTop = self.ballY - (float)(BALL_RADIUS);
+        let ballBottom = self.ballY + (float)(BALL_RADIUS);
         
         // 检测与网的碰撞
         if ballRight >= (float)netLeft && ballLeft <= (float)netRight &&
@@ -343,17 +343,17 @@ pub class VolleyballGame extends Game {
             
             // 从左边碰撞
             if self.ballVX > 0.0 && ballLeft <= (float)netLeft {
-                self.ballX = (float)netLeft - BALL_RADIUS as float;
+                self.ballX = (float)netLeft - (float)(BALL_RADIUS);
                 self.ballVX = -self.absFloat(self.ballVX) * 0.8;
             }
             // 从右边碰撞
             else if self.ballVX < 0.0 && ballRight >= (float)netRight {
-                self.ballX = (float)netRight + BALL_RADIUS as float;
+                self.ballX = (float)netRight + (float)(BALL_RADIUS);
                 self.ballVX = self.absFloat(self.ballVX) * 0.8;
             }
             // 从上面碰撞
             else if self.ballVY > 0.0 && ballTop <= netTop {
-                self.ballY = netTop - BALL_RADIUS as float;
+                self.ballY = netTop - (float)(BALL_RADIUS);
                 self.ballVY = -self.absFloat(self.ballVY) * 0.8;
             }
         }
@@ -374,15 +374,15 @@ pub class VolleyballGame extends Game {
         
         // 玩家边界
         let paddleLeft = px;
-        let paddleRight = px + PLAYER_WIDTH as float;
+        let paddleRight = px + (float)(PLAYER_WIDTH);
         let paddleTop = py;
-        let paddleBottom = py + PLAYER_HEIGHT as float;
+        let paddleBottom = py + (float)(PLAYER_HEIGHT);
         
         // 球边界
-        let ballLeft = self.ballX - BALL_RADIUS as float;
-        let ballRight = self.ballX + BALL_RADIUS as float;
-        let ballTop = self.ballY - BALL_RADIUS as float;
-        let ballBottom = self.ballY + BALL_RADIUS as float;
+        let ballLeft = self.ballX - (float)(BALL_RADIUS);
+        let ballRight = self.ballX + (float)(BALL_RADIUS);
+        let ballTop = self.ballY - (float)(BALL_RADIUS);
+        let ballBottom = self.ballY + (float)(BALL_RADIUS);
         
         // 检测碰撞
         if ballRight >= paddleLeft && ballLeft <= paddleRight &&
@@ -407,8 +407,8 @@ pub class VolleyballGame extends Game {
             // 限制速度
             let speed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
             if speed > (float)BALL_MAX_SPEED {
-                self.ballVX = self.ballVX / speed * BALL_MAX_SPEED as float;
-                self.ballVY = self.ballVY / speed * BALL_MAX_SPEED as float;
+                self.ballVX = self.ballVX / speed * (float)(BALL_MAX_SPEED);
+                self.ballVY = self.ballVY / speed * (float)(BALL_MAX_SPEED);
             }
             
             // 增加速度
@@ -421,9 +421,9 @@ pub class VolleyballGame extends Game {
             
             // 确保球离开玩家
             if direction > 0.0 {
-                self.ballX = paddleRight + BALL_RADIUS as float;
+                self.ballX = paddleRight + (float)(BALL_RADIUS);
             } else {
-                self.ballX = paddleLeft - BALL_RADIUS as float;
+                self.ballX = paddleLeft - (float)(BALL_RADIUS);
             }
         }
     }
@@ -534,8 +534,8 @@ pub class VolleyballGame extends Game {
         canvas.fillCircle((int)(self.ballX), (int)(self.ballY), BALL_RADIUS, Color.White());
         
         // 球的条纹
-        let bx = self.ballX as int;
-        let by = self.ballY as int;
+        let bx = (int)(self.ballX);
+        let by = (int)(self.ballY);
         canvas.drawLine(bx - 8, by, bx + 8, by, Color.Brown());
         canvas.drawLine(bx, by - 8, bx, by + 8, Color.Brown());
     }

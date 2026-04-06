@@ -39,7 +39,7 @@ pub abstract class Game {
         self.width = width;
         self.height = height;
         self.targetFPS = fps;
-        self.frameTime = 1000 / fps as u32;
+        self.frameTime = 1000 / (u32)(fps);
         self.state = GameState.Ready;
         self.score = 0;
         self.running = false;
@@ -255,7 +255,7 @@ impl Canvas for FrameBufferCanvas {
         }
         
         let offset = y * (self.pitch / 4) + x;
-        let pixels = self.buffer as u32;
+        let pixels = (u32)(self.buffer);
         return pixels[offset];
     }
     

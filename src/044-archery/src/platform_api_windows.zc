@@ -104,11 +104,11 @@ fn windowProc(hwnd: rawptr, msg: u32, wParam: rawptr, lParam: rawptr) -> rawptr 
         }
         WM_KEYDOWN => {
             winData.keyDown = true;
-            winData.lastKey = wParam as VirtualKey;
+            winData.lastKey = (VirtualKey)(wParam);
         }
         WM_KEYUP => {
             winData.keyUp = true;
-            winData.lastKey = wParam as VirtualKey;
+            winData.lastKey = (VirtualKey)(wParam);
         }
         _ => {}
     }
@@ -126,7 +126,7 @@ fn createWindow(title: str, width: int, height: int) -> WindowHandle {
     winData.mouseUp = false;
     winData.keyDown = false;
     winData.keyUp = false;
-    return &winData as WindowHandle;
+    return &(WindowHandle)(winData);
 }
 
 fn closeWindow(handle: WindowHandle) {
@@ -186,7 +186,7 @@ fn isKeyDown(key: VirtualKey) -> bool {
 }
 
 fn getTickCount() -> u32 {
-    return 0 as u32;
+    return (u32)(0);
 }
 
 fn sleep(ms: u32) {
@@ -254,11 +254,11 @@ pub fn fb_draw_line(x1: int, y1: int, x2: int, y2: int, color: Color) {
         return;
     }
     
-    let fx = (float)dx / steps as float;
-    let fy = (float)dy / steps as float;
+    let fx = (float)dx / (float)(steps);
+    let fy = (float)dy / (float)(steps);
     
-    let cx = x1 as float;
-    let cy = y1 as float;
+    let cx = (float)(x1);
+    let cy = (float)(y1);
     
     for i in 0..steps {
         fb_draw_pixel((int)cx, (int)cy, color);
@@ -317,14 +317,14 @@ private fn float absF(x: float) -> float {
 }
 
 pub fn fb_draw_text_size(x: int, y: int, text: str, color: Color, size: int) {
-    // Simplified text - draw as colored rectangles for now
+    // Simplified text - (colored)(draw) rectangles for now
     let px = x;
     for i in 0..len(text) {
         let c = text[i];
         if c == 0 break;
         // Skip null chars
         if c > 0 {
-            // Draw char as a small rect placeholder
+            // Draw (a)(char) small rect placeholder
             fb_draw_rect(px, y, size / 2, size, color);
             px = px + size / 2 + 1;
         }
@@ -332,7 +332,7 @@ pub fn fb_draw_text_size(x: int, y: int, text: str, color: Color, size: int) {
 }
 
 pub fn getFrameBuffer(handle: WindowHandle) -> rawptr {
-    return &fbBuffer as rawptr;
+    return &(rawptr)(fbBuffer);
 }
 
 pub fn getFrameBufferPitch(handle: WindowHandle) -> int {

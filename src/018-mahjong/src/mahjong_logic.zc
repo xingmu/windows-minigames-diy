@@ -313,11 +313,11 @@ fn newTileCount() -> TileCount {
 }
 
 fn tileToIndex(t: TileType) -> int {
-    return t as int;
+    return (int)(t);
 }
 
 fn indexToTile(idx: int) -> TileType {
-    return idx as TileType;
+    return (TileType)(idx);
 }
 
 // 统计手牌

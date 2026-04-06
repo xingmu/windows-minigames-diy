@@ -184,20 +184,20 @@ pub class HockeyGame extends Game {
     // 更新玩家球杆
     private fn updatePlayerPaddle() {
         if self.keyUp {
-            self.playerY = self.playerY - PADDLE_SPEED as float;
+            self.playerY = self.playerY - (float)(PADDLE_SPEED);
         }
         if self.keyDown {
-            self.playerY = self.playerY + PADDLE_SPEED as float;
+            self.playerY = self.playerY + (float)(PADDLE_SPEED);
         }
         if self.keyLeft {
-            self.playerX = self.playerX - PADDLE_SPEED as float;
+            self.playerX = self.playerX - (float)(PADDLE_SPEED);
         }
         if self.keyRight {
-            self.playerX = self.playerX + PADDLE_SPEED as float;
+            self.playerX = self.playerX + (float)(PADDLE_SPEED);
         }
         
         // 确保球杆在冰场内
-        let halfR = self.playerRadius as float;
+        let halfR = (float)(self.playerRadius);
         if self.playerY - halfR < (float)RINK_TOP {
             self.playerY = (float)RINK_TOP + halfR;
         }
@@ -234,8 +234,8 @@ pub class HockeyGame extends Game {
                 self.aiErrorY = math.rand() % (AI_ERROR_RANGE * 2) - AI_ERROR_RANGE;
             }
             
-            self.aiTargetX = predictedX + self.aiErrorX as float;
-            self.aiTargetY = predictedY + self.aiErrorY as float;
+            self.aiTargetX = predictedX + (float)(self.aiErrorX);
+            self.aiTargetY = predictedY + (float)(self.aiErrorY);
         } else {
             // 冰球远离AI，回到防守位置
             self.aiTargetX = self.aiX;
@@ -265,7 +265,7 @@ pub class HockeyGame extends Game {
         }
         
         // 确保AI球杆在冰场内
-        let halfR = self.aiRadius as float;
+        let halfR = (float)(self.aiRadius);
         if self.aiY - halfR < (float)RINK_TOP {
             self.aiY = (float)RINK_TOP + halfR;
         }
@@ -288,28 +288,28 @@ pub class HockeyGame extends Game {
         
         // 摩擦力
         if self.puckVX > 0.0 {
-            self.puckVX = self.puckVX - PUCK_FRICTION as float;
+            self.puckVX = self.puckVX - (float)(PUCK_FRICTION);
             if self.puckVX < 0.0 { self.puckVX = 0.0; }
         } else if self.puckVX < 0.0 {
-            self.puckVX = self.puckVX + PUCK_FRICTION as float;
+            self.puckVX = self.puckVX + (float)(PUCK_FRICTION);
             if self.puckVX > 0.0 { self.puckVX = 0.0; }
         }
         
         if self.puckVY > 0.0 {
-            self.puckVY = self.puckVY - PUCK_FRICTION as float;
+            self.puckVY = self.puckVY - (float)(PUCK_FRICTION);
             if self.puckVY < 0.0 { self.puckVY = 0.0; }
         } else if self.puckVY < 0.0 {
-            self.puckVY = self.puckVY + PUCK_FRICTION as float;
+            self.puckVY = self.puckVY + (float)(PUCK_FRICTION);
             if self.puckVY > 0.0 { self.puckVY = 0.0; }
         }
         
         // 上下边界碰撞
         if self.puckY - (float)(self.puckRadius) <= (float)RINK_TOP {
-            self.puckY = (float)RINK_TOP + self.puckRadius as float;
+            self.puckY = (float)RINK_TOP + (float)(self.puckRadius);
             self.puckVY = -self.puckVY * 0.9;
         }
         if self.puckY + (float)(self.puckRadius) >= (float)RINK_BOTTOM {
-            self.puckY = (float)RINK_BOTTOM - self.puckRadius as float;
+            self.puckY = (float)RINK_BOTTOM - (float)(self.puckRadius);
             self.puckVY = -self.puckVY * 0.9;
         }
         
@@ -318,7 +318,7 @@ pub class HockeyGame extends Game {
         if self.puckX - (float)(self.puckRadius) <= (float)RINK_LEFT {
             // 检查是否在球门区域
             if self.puckY < (float)(self.goalY) || self.puckY > (float)(self.goalY + self.goalHeight) {
-                self.puckX = (float)RINK_LEFT + self.puckRadius as float;
+                self.puckX = (float)RINK_LEFT + (float)(self.puckRadius);
                 self.puckVX = -self.puckVX * 0.9;
             }
         }
@@ -327,7 +327,7 @@ pub class HockeyGame extends Game {
         if self.puckX + (float)(self.puckRadius) >= (float)RINK_RIGHT {
             // 检查是否在球门区域
             if self.puckY < (float)(self.goalY) || self.puckY > (float)(self.goalY + self.goalHeight) {
-                self.puckX = (float)RINK_RIGHT - self.puckRadius as float;
+                self.puckX = (float)RINK_RIGHT - (float)(self.puckRadius);
                 self.puckVX = -self.puckVX * 0.9;
             }
         }
@@ -372,7 +372,7 @@ pub class HockeyGame extends Game {
         let currentSpeed = self.sqrtFloat(self.puckVX * self.puckVX + self.puckVY * self.puckVY);
         let newSpeed = currentSpeed + 2.0;
         if newSpeed > (float)PUCK_MAX_SPEED {
-            newSpeed = PUCK_MAX_SPEED as float;
+            newSpeed = (float)(PUCK_MAX_SPEED);
         }
         
         self.puckVX = nx * newSpeed;
@@ -419,7 +419,7 @@ pub class HockeyGame extends Game {
     // 发球
     private fn servePuck() {
         let angle = (math.rand() % 30 - 15) as float;
-        let speed = PUCK_SPEED as float;
+        let speed = (float)(PUCK_SPEED);
         
         if self.serveTo == 0 {
             // 给玩家发球，向右
@@ -631,8 +631,8 @@ pub class HockeyGame extends Game {
             self.servePuck();
         } else {
             // 鼠标控制球杆
-            self.playerX = x as float;
-            self.playerY = y as float;
+            self.playerX = (float)(x);
+            self.playerY = (float)(y);
         }
     }
     

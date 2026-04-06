@@ -123,20 +123,20 @@ impl Player {
         }
         
         // 边界检测
-        if self.x < self.radius as f64 {
-            self.x = self.radius as f64;
+        if self.x < (f64)(self.radius) {
+            self.x = (f64)(self.radius);
             self.vx = 0.0;
         }
-        if self.x > FIELD_WIDTH as f64 - self.radius as f64 {
-            self.x = FIELD_WIDTH as f64 - self.radius as f64;
+        if self.x > (f64)(FIELD_WIDTH) - (f64)(self.radius) {
+            self.x = (f64)(FIELD_WIDTH) - (f64)(self.radius);
             self.vx = 0.0;
         }
-        if self.y < self.radius as f64 {
-            self.y = self.radius as f64;
+        if self.y < (f64)(self.radius) {
+            self.y = (f64)(self.radius);
             self.vy = 0.0;
         }
-        if self.y > FIELD_HEIGHT as f64 - self.radius as f64 {
-            self.y = FIELD_HEIGHT as f64 - self.radius as f64;
+        if self.y > (f64)(FIELD_HEIGHT) - (f64)(self.radius) {
+            self.y = (f64)(FIELD_HEIGHT) - (f64)(self.radius);
             self.vy = 0.0;
         }
     }
@@ -155,8 +155,8 @@ struct Ball {
 impl Ball {
     pub fn new() -> Ball {
         return Ball {
-            x: FIELD_WIDTH as f64 / 2.0,
-            y: FIELD_HEIGHT as f64 / 2.0,
+            x: (f64)(FIELD_WIDTH) / 2.0,
+            y: (f64)(FIELD_HEIGHT) / 2.0,
             vx: 0.0,
             vy: 0.0,
             radius: BALL_RADIUS,
@@ -202,30 +202,30 @@ impl Ball {
         
         // 边界碰撞
         // 左右边界
-        if self.x < self.radius as f64 {
-            self.x = self.radius as f64;
+        if self.x < (f64)(self.radius) {
+            self.x = (f64)(self.radius);
             self.vx = -self.vx * 0.8;
         }
-        if self.x > FIELD_WIDTH as f64 - self.radius as f64 {
-            self.x = FIELD_WIDTH as f64 - self.radius as f64;
+        if self.x > (f64)(FIELD_WIDTH) - (f64)(self.radius) {
+            self.x = (f64)(FIELD_WIDTH) - (f64)(self.radius);
             self.vx = -self.vx * 0.8;
         }
         
         // 上下边界（考虑球门）
-        let in_left_goal = self.y < GOAL_WIDTH as f64 / 2.0 && 
-                          self.x > (FIELD_WIDTH as f64 - GOAL_WIDTH as f64) / 2.0 &&
-                          self.x < (FIELD_WIDTH as f64 + GOAL_WIDTH as f64) / 2.0;
-        let in_right_goal = self.y > FIELD_HEIGHT as f64 - GOAL_HEIGHT as f64 - GOAL_WIDTH as f64 / 2.0 && 
-                           self.x > (FIELD_WIDTH as f64 - GOAL_WIDTH as f64) / 2.0 &&
-                           self.x < (FIELD_WIDTH as f64 + GOAL_WIDTH as f64) / 2.0;
+        let in_left_goal = self.y < (f64)(GOAL_WIDTH) / 2.0 && 
+                          self.x > ((f64)(FIELD_WIDTH) - (f64)(GOAL_WIDTH)) / 2.0 &&
+                          self.x < ((f64)(FIELD_WIDTH) + (f64)(GOAL_WIDTH)) / 2.0;
+        let in_right_goal = self.y > (f64)(FIELD_HEIGHT) - (f64)(GOAL_HEIGHT) - (f64)(GOAL_WIDTH) / 2.0 && 
+                           self.x > ((f64)(FIELD_WIDTH) - (f64)(GOAL_WIDTH)) / 2.0 &&
+                           self.x < ((f64)(FIELD_WIDTH) + (f64)(GOAL_WIDTH)) / 2.0;
         
         if !in_left_goal && !in_right_goal {
-            if self.y < self.radius as f64 {
-                self.y = self.radius as f64;
+            if self.y < (f64)(self.radius) {
+                self.y = (f64)(self.radius);
                 self.vy = -self.vy * 0.8;
             }
-            if self.y > FIELD_HEIGHT as f64 - self.radius as f64 {
-                self.y = FIELD_HEIGHT as f64 - self.radius as f64;
+            if self.y > (f64)(FIELD_HEIGHT) - (f64)(self.radius) {
+                self.y = (f64)(FIELD_HEIGHT) - (f64)(self.radius);
                 self.vy = -self.vy * 0.8;
             }
         }
@@ -239,21 +239,21 @@ impl Ball {
         let left_goal_x = (FIELD_WIDTH - GOAL_WIDTH) / 2;
         let left_goal_y = 0;
         
-        if self.y < left_goal_y + GOAL_HEIGHT as f64 + self.radius as f64 &&
-           self.x > left_goal_x as f64 - self.radius as f64 &&
-           self.x < (left_goal_x + GOAL_WIDTH) as f64 + self.radius as f64 {
+        if self.y < left_goal_y + (f64)(GOAL_HEIGHT) + (f64)(self.radius) &&
+           self.x > (f64)(left_goal_x) - (f64)(self.radius) &&
+           self.x < (left_goal_x + GOAL_WIDTH) as f64 + (f64)(self.radius) {
             
             // 在球门区域内
-            if self.x < left_goal_x as f64 {
-                self.x = left_goal_x as f64 - self.radius as f64;
+            if self.x < (f64)(left_goal_x) {
+                self.x = (f64)(left_goal_x) - (f64)(self.radius);
                 self.vx = -self.vx * 0.8;
             }
             if self.x > (left_goal_x + GOAL_WIDTH) as f64 {
-                self.x = (left_goal_x + GOAL_WIDTH) as f64 + self.radius as f64;
+                self.x = (left_goal_x + GOAL_WIDTH) as f64 + (f64)(self.radius);
                 self.vx = -self.vx * 0.8;
             }
-            if self.y < left_goal_y as f64 {
-                self.y = left_goal_y as f64 + self.radius as f64;
+            if self.y < (f64)(left_goal_y) {
+                self.y = (f64)(left_goal_y) + (f64)(self.radius);
                 self.vy = -self.vy * 0.8;
             }
         }
@@ -262,20 +262,20 @@ impl Ball {
         let right_goal_x = (FIELD_WIDTH - GOAL_WIDTH) / 2;
         let right_goal_y = FIELD_HEIGHT - GOAL_HEIGHT;
         
-        if self.y > right_goal_y as f64 - self.radius as f64 &&
-           self.x > right_goal_x as f64 - self.radius as f64 &&
-           self.x < (right_goal_x + GOAL_WIDTH) as f64 + self.radius as f64 {
+        if self.y > (f64)(right_goal_y) - (f64)(self.radius) &&
+           self.x > (f64)(right_goal_x) - (f64)(self.radius) &&
+           self.x < (right_goal_x + GOAL_WIDTH) as f64 + (f64)(self.radius) {
             
-            if self.x < right_goal_x as f64 {
-                self.x = right_goal_x as f64 - self.radius as f64;
+            if self.x < (f64)(right_goal_x) {
+                self.x = (f64)(right_goal_x) - (f64)(self.radius);
                 self.vx = -self.vx * 0.8;
             }
             if self.x > (right_goal_x + GOAL_WIDTH) as f64 {
-                self.x = (right_goal_x + GOAL_WIDTH) as f64 + self.radius as f64;
+                self.x = (right_goal_x + GOAL_WIDTH) as f64 + (f64)(self.radius);
                 self.vx = -self.vx * 0.8;
             }
-            if self.y > right_goal_y as f64 {
-                self.y = right_goal_y as f64 - self.radius as f64;
+            if self.y > (f64)(right_goal_y) {
+                self.y = (f64)(right_goal_y) - (f64)(self.radius);
                 self.vy = -self.vy * 0.8;
             }
         }
@@ -345,11 +345,11 @@ fn init_game(game: &GameState) {
     game.ball = Ball();
     
     // 初始化玩家（底部）
-    game.player = Player(FIELD_WIDTH as f64 / 2.0, FIELD_HEIGHT as f64 * 0.75, 0);
+    game.player = Player((f64)(FIELD_WIDTH) / 2.0, (f64)(FIELD_HEIGHT) * 0.75, 0);
     
     // 初始化AI球员（顶部）
-    game.ai_players[0] = Player(FIELD_WIDTH as f64 / 2.0, FIELD_HEIGHT as f64 * 0.25, 1);
-    game.ai_players[1] = Player(FIELD_WIDTH as f64 * 0.3, FIELD_HEIGHT as f64 * 0.15, 1);
+    game.ai_players[0] = Player((f64)(FIELD_WIDTH) / 2.0, (f64)(FIELD_HEIGHT) * 0.25, 1);
+    game.ai_players[1] = Player((f64)(FIELD_WIDTH) * 0.3, (f64)(FIELD_HEIGHT) * 0.15, 1);
     
     // 初始化分数和时间
     game.player_score = 0;
@@ -365,26 +365,26 @@ fn init_game(game: &GameState) {
 
 // 重置位置到开球
 fn reset_positions(game: &GameState) {
-    game.ball.x = FIELD_WIDTH as f64 / 2.0;
-    game.ball.y = FIELD_HEIGHT as f64 / 2.0;
+    game.ball.x = (f64)(FIELD_WIDTH) / 2.0;
+    game.ball.y = (f64)(FIELD_HEIGHT) / 2.0;
     game.ball.vx = 0.0;
     game.ball.vy = 0.0;
     game.ball.owner = nil;
     
-    game.player.x = FIELD_WIDTH as f64 / 2.0;
-    game.player.y = FIELD_HEIGHT as f64 * 0.75;
+    game.player.x = (f64)(FIELD_WIDTH) / 2.0;
+    game.player.y = (f64)(FIELD_HEIGHT) * 0.75;
     game.player.vx = 0.0;
     game.player.vy = 0.0;
     game.player.has_ball = false;
     
-    game.ai_players[0].x = FIELD_WIDTH as f64 / 2.0;
-    game.ai_players[0].y = FIELD_HEIGHT as f64 * 0.25;
+    game.ai_players[0].x = (f64)(FIELD_WIDTH) / 2.0;
+    game.ai_players[0].y = (f64)(FIELD_HEIGHT) * 0.25;
     game.ai_players[0].vx = 0.0;
     game.ai_players[0].vy = 0.0;
     game.ai_players[0].has_ball = false;
     
-    game.ai_players[1].x = FIELD_WIDTH as f64 * 0.3;
-    game.ai_players[1].y = FIELD_HEIGHT as f64 * 0.15;
+    game.ai_players[1].x = (f64)(FIELD_WIDTH) * 0.3;
+    game.ai_players[1].y = (f64)(FIELD_HEIGHT) * 0.15;
     game.ai_players[1].vx = 0.0;
     game.ai_players[1].vy = 0.0;
     game.ai_players[1].has_ball = false;
@@ -433,8 +433,8 @@ fn update_player_input(game: &GameState, up: bool, down: bool, left: bool, right
 // 踢球
 fn kick_ball(game: &GameState, player: &Player) {
     // 计算球到球门的方向
-    let target_y = if player.team == 0 { 0.0 } else { FIELD_HEIGHT as f64 };
-    let target_x = FIELD_WIDTH as f64 / 2.0;
+    let target_y = if player.team == 0 { 0.0 } else { (f64)(FIELD_HEIGHT) };
+    let target_x = (f64)(FIELD_WIDTH) / 2.0;
     
     let dx = target_x - game.ball.x;
     let dy = target_y - game.ball.y;
@@ -482,8 +482,8 @@ fn update_ai(game: &GameState) {
             } else if game.ball.owner == ai {
                 // 带球时射门
                 // 向玩家球门（底部）射门
-                let goal_y = FIELD_HEIGHT as f64 - 50.0;
-                let goal_x = FIELD_WIDTH as f64 / 2.0 + (math.rand() % 60 - 30) as f64;
+                let goal_y = (f64)(FIELD_HEIGHT) - 50.0;
+                let goal_x = (f64)(FIELD_WIDTH) / 2.0 + (math.rand() % 60 - 30) as f64;
                 
                 let kdx = goal_x - game.ball.x;
                 let kdy = goal_y - game.ball.y;
@@ -558,15 +558,15 @@ fn check_ball_collision(game: &GameState) {
 // 检查进球
 fn check_goals(game: &GameState) -> bool {
     // 玩家进球（球进入右球门）
-    if game.ball.y > FIELD_HEIGHT as f64 - GOAL_HEIGHT as f64 - BALL_RADIUS as f64 &&
-       game.ball.x > game.right_goal.x as f64 &&
+    if game.ball.y > (f64)(FIELD_HEIGHT) - (f64)(GOAL_HEIGHT) - (f64)(BALL_RADIUS) &&
+       game.ball.x > (f64)(game.right_goal.x) &&
        game.ball.x < (game.right_goal.x + GOAL_WIDTH) as f64 {
         return true;
     }
     
     // AI进球（球进入左球门）
-    if game.ball.y < GOAL_HEIGHT as f64 + BALL_RADIUS as f64 &&
-       game.ball.x > game.left_goal.x as f64 &&
+    if game.ball.y < (f64)(GOAL_HEIGHT) + (f64)(BALL_RADIUS) &&
+       game.ball.x > (f64)(game.left_goal.x) &&
        game.ball.x < (game.left_goal.x + GOAL_WIDTH) as f64 {
         return true;
     }
@@ -577,7 +577,7 @@ fn check_goals(game: &GameState) -> bool {
 // 判断是谁进的（球进入哪个球门）
 fn which_goal(game: GameState*) -> i32 {
     // 球进入右球门 = 玩家得分
-    if game.ball.y > FIELD_HEIGHT as f64 - GOAL_HEIGHT as f64 {
+    if game.ball.y > (f64)(FIELD_HEIGHT) - (f64)(GOAL_HEIGHT) {
         return 0;
     }
     // 球进入左球门 = AI得分

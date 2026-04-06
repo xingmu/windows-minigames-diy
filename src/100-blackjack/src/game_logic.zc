@@ -210,8 +210,8 @@ fn init_deck(game: &GameState) {
         for suit_val in 0..4 {
             for rank_val in 0..13 {
                 game.deck[card_index] = Card {
-                    suit: suit_val as Suit,
-                    rank: rank_val as Rank,
+                    suit: (Suit)(suit_val),
+                    rank: (Rank)(rank_val),
                     face_up: false
                 };
                 card_index = card_index + 1;

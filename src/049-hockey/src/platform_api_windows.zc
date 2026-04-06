@@ -163,7 +163,7 @@ pub fn shutdownPlatform() {
 pub fn createWindow(title: str, width: int, height: int) -> WindowHandle {
     // 简单实现：返回一个假的窗口句柄
     // 实际 Windows 实现需要完整的窗口注册和创建
-    let hwnd = 0x10001 as WindowHandle; // 模拟句柄
+    let hwnd = (WindowHandle)(0x10001); // 模拟句柄
     windowData.handle = hwnd;
     windowData.quit = false;
     return hwnd;

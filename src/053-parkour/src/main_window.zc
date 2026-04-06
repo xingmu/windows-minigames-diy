@@ -295,7 +295,7 @@ fn spawnDust(x: float, y: float, vx: float, vy: float) {
 // ==================== 游戏初始化 ====================
 
 fn initGame() {
-    playerY = (float)GROUND_Y - PLAYER_HEIGHT as float;
+    playerY = (float)GROUND_Y - (float)(PLAYER_HEIGHT);
     playerVY = 0.0;
     playerOnGround = true;
     playerOnPlatform = false;
@@ -415,7 +415,7 @@ fn updateGame(dt: u32) {
     // 跳跃处理
     if keyJump {
         if playerOnGround || playerOnPlatform {
-            playerVY = JUMP_VELOCITY as float;
+            playerVY = (float)(JUMP_VELOCITY);
             playerOnGround = false;
             playerOnPlatform = false;
             playerCanDoubleJump = true;
@@ -431,7 +431,7 @@ fn updateGame(dt: u32) {
                 );
             }
         } else if playerCanDoubleJump {
-            playerVY = DOUBLE_JUMP_VELOCITY as float;
+            playerVY = (float)(DOUBLE_JUMP_VELOCITY);
             playerCanDoubleJump = false;
             // 二段跳粒子
             for i in 0..6 {
@@ -455,7 +455,7 @@ fn updateGame(dt: u32) {
     playerOnGround = false;
     playerOnPlatform = false;
     if playerY + (float)PLAYER_HEIGHT >= (float)GROUND_Y {
-        playerY = (float)GROUND_Y - PLAYER_HEIGHT as float;
+        playerY = (float)GROUND_Y - (float)(PLAYER_HEIGHT);
         playerVY = 0.0;
         playerOnGround = true;
         playerCanDoubleJump = false;
@@ -633,7 +633,7 @@ fn loseLife() {
 fn drawBackground(ctx: rawptr, pitch: int, buffer: rawptr) {
     // 渐变天空
     for y in 0..GROUND_Y {
-        let t = (float)y / GROUND_Y as float;
+        let t = (float)y / (float)(GROUND_Y);
         let r = lerp(20, 60, t);
         let g = lerp(30, 100, t);
         let b = lerp(80, 180, t);

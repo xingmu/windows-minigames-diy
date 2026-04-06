@@ -204,9 +204,9 @@ fn drawStones() {
         let handleY = stone.y;
 
         // 旋转指示: 手柄方向
-        let handleRad = stone.rotation as f32 * 3.14159 / 180.0;
-        let handleDx = (3 as f32 * math.sin(handleRad)) as i32;
-        let handleDy = -(3 as f32 * math.cos(handleRad)) as i32;
+        let handleRad = (f32)(stone.rotation) * 3.14159 / 180.0;
+        let handleDx = ((f32)(3) * math.sin(handleRad)) as i32;
+        let handleDy = -((f32)(3) * math.cos(handleRad)) as i32;
 
         fb_draw_circle(handleX + handleDx, handleY + handleDy, STONE_HANDLE_RADIUS, rgb(60, 60, 60));
 
@@ -242,7 +242,7 @@ fn drawAimIndicator() {
         let barY = throwY + 30;
 
         fb_draw_rect(barX, barY, barWidth, barHeight, rgb(80, 80, 80));
-        let fillW = (game.power as f32 / MAX_VELOCITY as f32 * barWidth as f32) as i32;
+        let fillW = ((f32)(game.power) / (f32)(MAX_VELOCITY) * (f32)(barWidth)) as i32;
         let powerColor = if game.power < 8 {
             rgb(100, 200, 100)
         } else if game.power < 15 {
@@ -256,16 +256,16 @@ fn drawAimIndicator() {
     // 瞄准方向线
     if game.status == GameStatus.Charging || game.status == GameStatus.Ready {
         let aimLen = 50 + game.power * 15;
-        let rad = game.aimAngle as f32 * 3.14159 / 180.0;
+        let rad = (f32)(game.aimAngle) * 3.14159 / 180.0;
 
-        let aimEndX = throwX + (aimLen as f32 * math.sin(rad)) as i32;
-        let aimEndY = throwY - (aimLen as f32 * math.cos(rad)) as i32;
+        let aimEndX = throwX + ((f32)(aimLen) * math.sin(rad)) as i32;
+        let aimEndY = throwY - ((f32)(aimLen) * math.cos(rad)) as i32;
 
         // 绘制虚线
         let steps = 8;
         for s in 0..steps {
-            let t1 = s as f32 / steps as f32;
-            let t2 = (s + 1) as f32 / steps as f32;
+            let t1 = (f32)(s) / (f32)(steps);
+            let t2 = (s + 1) as f32 / (f32)(steps);
             let x1 = throwX + (aimEndX - throwX) * t1;
             let y1 = throwY + (aimEndY - throwY) * t1;
             let x2 = throwX + (aimEndX - throwX) * t2;

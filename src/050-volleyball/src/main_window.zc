@@ -112,17 +112,17 @@ fn initGame() {
 
 fn resetBall(server: Side) {
     if server == Side.Player {
-        ballX = playerX + PADDLE_WIDTH / 2 as float;
-        ballY = SERVE_ZONE_Y_PLAYER as float;
+        ballX = playerX + PADDLE_WIDTH / (float)(2);
+        ballY = (float)(SERVE_ZONE_Y_PLAYER);
         ballVX = 0.0;
         ballVY = 0.0;
     } else {
-        ballX = cpuX + PADDLE_WIDTH / 2 as float;
-        ballY = SERVE_ZONE_Y_CPU as float;
+        ballX = cpuX + PADDLE_WIDTH / (float)(2);
+        ballY = (float)(SERVE_ZONE_Y_CPU);
         ballVX = 0.0;
         ballVY = 0.0;
     }
-    ballSpeed = BALL_SPEED_INIT as float;
+    ballSpeed = (float)(BALL_SPEED_INIT);
     ballInPlay = false;
 }
 
@@ -210,8 +210,8 @@ fn randInt(minVal: int, maxVal: int) -> int {
 // ==================== 碰撞检测 ====================
 
 fn checkPaddleCollision(paddleX: int, paddleY: int, bx: float, by: float) -> bool {
-    let bxi = bx as int;
-    let byi = by as int;
+    let bxi = (int)(bx);
+    let byi = (int)(by);
     
     return bxi + BALL_RADIUS > paddleX &&
            bxi - BALL_RADIUS < paddleX + PADDLE_WIDTH &&
@@ -223,7 +223,7 @@ fn checkPaddleCollision(paddleX: int, paddleY: int, bx: float, by: float) -> boo
 
 fn updateCPU(dt: u32) {
     // 简单 AI：根据球的位置移动
-    let ballCenterX = ballX as int;
+    let ballCenterX = (int)(ballX);
     let cpuCenterX = cpuX + PADDLE_WIDTH / 2;
     
     // 预测球的位置（简化版）
@@ -287,11 +287,11 @@ fn updateGame(dt: u32) {
     // 发球状态：球跟随发球者
     if gameState == GameState.Serving {
         if servingSide == Side.Player {
-            ballX = playerX + PADDLE_WIDTH / 2 as float;
-            ballY = SERVE_ZONE_Y_PLAYER as float;
+            ballX = playerX + PADDLE_WIDTH / (float)(2);
+            ballY = (float)(SERVE_ZONE_Y_PLAYER);
         } else {
-            ballX = cpuX + PADDLE_WIDTH / 2 as float;
-            ballY = SERVE_ZONE_Y_CPU as float;
+            ballX = cpuX + PADDLE_WIDTH / (float)(2);
+            ballY = (float)(SERVE_ZONE_Y_CPU);
         }
         return;
     }
@@ -306,11 +306,11 @@ fn updateGame(dt: u32) {
     
     // 左右边界反弹
     if ballX - (float)BALL_RADIUS < (float)COURT_MARGIN {
-        ballX = COURT_MARGIN + BALL_RADIUS as float;
+        ballX = COURT_MARGIN + (float)(BALL_RADIUS);
         ballVX = -ballVX * 0.95;
     }
     if ballX + (float)BALL_RADIUS > (float)(WINDOW_WIDTH - COURT_MARGIN) {
-        ballX = WINDOW_WIDTH - COURT_MARGIN - BALL_RADIUS as float;
+        ballX = WINDOW_WIDTH - COURT_MARGIN - (float)(BALL_RADIUS);
         ballVX = -ballVX * 0.95;
     }
     
@@ -327,7 +327,7 @@ fn updateGame(dt: u32) {
         // 增加速度
         ballSpeed = ballSpeed + BALL_SPEED_INCREMENT;
         if ballSpeed > (float)BALL_SPEED_MAX {
-            ballSpeed = BALL_SPEED_MAX as float;
+            ballSpeed = (float)(BALL_SPEED_MAX);
         }
         
         // 确保球向上飞
@@ -335,7 +335,7 @@ fn updateGame(dt: u32) {
             ballVY = -3.0;
         }
         
-        ballY = PLAYER_PADDLE_Y - BALL_RADIUS as float;
+        ballY = PLAYER_PADDLE_Y - (float)(BALL_RADIUS);
     }
     
     // CPU 球拍碰撞
@@ -348,14 +348,14 @@ fn updateGame(dt: u32) {
         
         ballSpeed = ballSpeed + BALL_SPEED_INCREMENT;
         if ballSpeed > (float)BALL_SPEED_MAX {
-            ballSpeed = BALL_SPEED_MAX as float;
+            ballSpeed = (float)(BALL_SPEED_MAX);
         }
         
         if ballVY < 3.0 {
             ballVY = 3.0;
         }
         
-        ballY = CPU_PADDLE_Y + PADDLE_HEIGHT + BALL_RADIUS as float;
+        ballY = CPU_PADDLE_Y + PADDLE_HEIGHT + (float)(BALL_RADIUS);
     }
     
     // 更新 CPU AI
@@ -464,16 +464,16 @@ fn drawBall(ctx: rawptr, pitch: int, buffer: rawptr) {
     fillCircle(ctx, (int)ballX, (int)ballY, BALL_RADIUS, pitch, buffer, BALL_COLOR);
     
     // 球上的线条（排球纹理）
-    let bx = ballX as int;
-    let by = ballY as int;
+    let bx = (int)(ballX);
+    let by = (int)(ballY);
     drawLine(ctx, bx - 6, by, bx + 6, by, pitch, buffer, Color.RGB(200, 200, 200));
     drawLine(ctx, bx, by - 6, bx, by + 6, pitch, buffer, Color.RGB(200, 200, 200));
 }
 
 fn drawBallShadow(ctx: rawptr, pitch: int, buffer: rawptr) {
     // 画一个半透明的球影表示发球位置
-    let bx = ballX as int;
-    let by = ballY as int;
+    let bx = (int)(ballX);
+    let by = (int)(ballY);
     for y in (-BALL_RADIUS)..(BALL_RADIUS + 1) {
         for x in (-BALL_RADIUS)..(BALL_RADIUS + 1) {
             if x*x + y*y <= BALL_RADIUS * BALL_RADIUS {
@@ -488,7 +488,7 @@ fn drawBallShadow(ctx: rawptr, pitch: int, buffer: rawptr) {
                 r = (r * 2 + 255) / 3;
                 g = (g * 2 + 255) / 3;
                 b = (b * 2 + 255) / 3;
-                let newColor = 0xFF000000| (r<< 16) | (g<< 8) | b as Color;
+                let newColor = 0xFF000000| (r<< 16) | (g<< 8) | (Color)(b);
                 setPixel(ctx, px, py, pitch, buffer, newColor);
             }
         }
@@ -550,7 +550,7 @@ fn getPixel(ctx: rawptr, x: int, y: int, pitch: int, buffer: rawptr) -> Color {
         return Color.Black();
     }
     let offset = y * (pitch / 4) + x;
-    let pixels = buffer as u32;
+    let pixels = (u32)(buffer);
     return pixels[offset];
 }
 

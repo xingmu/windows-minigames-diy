@@ -274,10 +274,10 @@ fn draw_pattern_local(cx: int, cy: int, pattern: int) {
             for i in 0..5 {
                 let angle1 = (i * 72 - 90) as f32 * 3.14159 / 180.0;
                 let angle2 = ((i * 72 + 36) - 90) as f32 * 3.14159 / 180.0;
-                let x1 = cx + (r as f32 * cos_val(angle1)) as int;
-                let y1 = cy + (r as f32 * sin_val(angle1)) as int;
-                let x2 = cx + (r as f32 * cos_val(angle2)) as int;
-                let y2 = cy + (r as f32 * sin_val(angle2)) as int;
+                let x1 = cx + ((f32)(r) * cos_val(angle1)) as int;
+                let y1 = cy + ((f32)(r) * sin_val(angle1)) as int;
+                let x2 = cx + ((f32)(r) * cos_val(angle2)) as int;
+                let y2 = cy + ((f32)(r) * sin_val(angle2)) as int;
                 fb_draw_line(x1, y1, x2, y2, color);
             }
         },

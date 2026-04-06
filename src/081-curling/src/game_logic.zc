@@ -247,12 +247,12 @@ fn throwStone(state: &CurlingState, power: i32, angle: i32, curlDir: i32) {
 
     // 标准化角度 (-45 到 45 度)
     let clampedAngle = clamp(angle, -45, 45);
-    let rad = clampedAngle as f32 * 3.14159 / 180.0;
+    let rad = (f32)(clampedAngle) * 3.14159 / 180.0;
 
     // 计算速度分量 (负Y向上滑行)
     let speed = power;
-    state.stones[idx].vx = (speed as f32 * math.sin(rad)) as i32;
-    state.stones[idx].vy = -(speed as f32 * math.cos(rad)) as i32;
+    state.stones[idx].vx = ((f32)(speed) * math.sin(rad)) as i32;
+    state.stones[idx].vy = -((f32)(speed) * math.cos(rad)) as i32;
     state.stones[idx].active = true;
     state.stones[idx].curling = curlDir;
     state.stones[idx].rotation = curlDir * 5;

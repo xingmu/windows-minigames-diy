@@ -6239,11 +6239,7 @@ void create(str title, int32_t width, int32_t height, int32_t fps)
 (self->targetFPS = fps);
 
 #line 163 "src/main_window.zc"
-(self->frameTime = (1000 / fps));
-
-#line 163 "src/main_window.zc"
-as;
-u32;
+(self->frameTime = (1000 / ((uint32_t)(fps))));
 
 #line 164 "src/main_window.zc"
 (self->state = GameState__Ready);
@@ -6893,11 +6889,7 @@ void create(str title, int32_t width, int32_t height, int32_t fps)
 (self->targetFPS = fps);
 
 #line 42 "/home/yq/github/xingmu/windows-minigames-diy/src/005-tetris/src/game.zc"
-(self->frameTime = (1000 / fps));
-
-#line 42 "/home/yq/github/xingmu/windows-minigames-diy/src/005-tetris/src/game.zc"
-as;
-u32;
+(self->frameTime = (1000 / ((uint32_t)(fps))));
 
 #line 43 "/home/yq/github/xingmu/windows-minigames-diy/src/005-tetris/src/game.zc"
 (self->state = GameState__Ready);
@@ -7526,11 +7518,7 @@ Color.Black();
     int32_t offset = ((y * (self->pitch / 4)) + x);
 
 #line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/005-tetris/src/game.zc"
-    ZC_AUTO pixels = self->buffer;
-
-#line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/005-tetris/src/game.zc"
-as;
-u32;
+    uint32_t pixels = ((uint32_t)(self->buffer));
 
 #line 260 "/home/yq/github/xingmu/windows-minigames-diy/src/005-tetris/src/game.zc"
     return pixels[offset];
@@ -7985,11 +7973,7 @@ uint32_t uint32_t__RGB(uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/005-tetris/src/platform_api.zc"
-    return (((4278190080 | (r << 16)) | (g << 8)) | b);
-
-#line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/005-tetris/src/platform_api.zc"
-as;
-Color;
+    return (((4278190080 | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 
@@ -8000,11 +7984,7 @@ uint32_t uint32_t__ARGB(uint8_t a, uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/005-tetris/src/platform_api.zc"
-    return ((((a << 24) | (r << 16)) | (g << 8)) | b);
-
-#line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/005-tetris/src/platform_api.zc"
-as;
-Color;
+    return ((((a << 24) | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 

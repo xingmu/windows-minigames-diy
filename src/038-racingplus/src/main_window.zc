@@ -482,9 +482,9 @@ impl RacingGamePlus {
         car.y = car.y + sin(car.angle) * car.speed;
         
         // 边界约束
-        if car.x < (float)CAR_WIDTH { car.x = CAR_WIDTH as float; car.speed = car.speed * 0.3; }
+        if car.x < (float)CAR_WIDTH { car.x = (float)(CAR_WIDTH); car.speed = car.speed * 0.3; }
         if car.x > (float)(WINDOW_WIDTH - CAR_WIDTH) { car.x = (WINDOW_WIDTH - CAR_WIDTH) as float; car.speed = car.speed * 0.3; }
-        if car.y < (float)CAR_HEIGHT { car.y = CAR_HEIGHT as float; car.speed = car.speed * 0.3; }
+        if car.y < (float)CAR_HEIGHT { car.y = (float)(CAR_HEIGHT); car.speed = car.speed * 0.3; }
         if car.y > (float)(WINDOW_HEIGHT - CAR_HEIGHT) { car.y = (WINDOW_HEIGHT - CAR_HEIGHT) as float; car.speed = car.speed * 0.3; }
         
         // 检查点检测
@@ -600,8 +600,8 @@ impl RacingGamePlus {
     
     fn detectNearObstacle() -> bool {
         let car = &self.car;
-        let carCX = car.x as int;
-        let carCY = car.y as int;
+        let carCX = (int)(car.x);
+        let carCY = (int)(car.y);
         
         for i in 0..self.obstacleCount {
             let obs = &self.obstacles[i];
@@ -617,8 +617,8 @@ impl RacingGamePlus {
     
     fn checkObstacleCollision(oldX: &float, oldY: &float) {
         let car = &self.car;
-        let carCX = car.x as int;
-        let carCY = car.y as int;
+        let carCX = (int)(car.x);
+        let carCY = (int)(car.y);
         
         for i in 0..self.obstacleCount {
             let obs = &self.obstacles[i];
@@ -896,8 +896,8 @@ impl RacingGamePlus {
     
     fn drawCar(canvas: Canvas) {
         let car = &self.car;
-        let cx = car.x as int;
-        let cy = car.y as int;
+        let cx = (int)(car.x);
+        let cy = (int)(car.y);
         
         let hw = CAR_WIDTH / 2;
         let hh = CAR_HEIGHT / 2;

@@ -431,7 +431,7 @@ fn updateGame(game: &BoxingState, dt: i32) {
     }
 }
 
-fn checkPunchHit(attacker: &Boxer, defender: &Boxer, punchTimer: &i32, hitTimer: &i32) {
+fn checkPunchHit(attacker: &Boxer, defender: &Boxer, punchTimer: i32*, hitTimer: i32*) {
     // Jab检测 - 在动作开始时检测
     if attacker.action == BoxerAction.Jab && attacker.actionTimer > 100 {
         if boxerInRange(attacker, defender) {

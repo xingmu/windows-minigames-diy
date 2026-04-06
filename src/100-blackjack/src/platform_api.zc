@@ -204,7 +204,7 @@ fn show_window(window: WindowHandle) {
 // 运行主事件循环
 fn run_event_loop(window: WindowHandle) {
     #if IS_WINDOWS
-        let msg: [u8; 64] = [0; 64];
+        let msg: [u8; 64] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         while GetMessageA(&msg, null, 0, 0) {
             TranslateMessage(&msg);
             DispatchMessageA(&msg);
@@ -306,7 +306,7 @@ fn redraw_window(window: WindowHandle) {
 }
 
 // 获取窗口客户端区域
-fn get_window_size(window: WindowHandle, width: &i32, height: &i32) -> bool {
+fn get_window_size(window: WindowHandle, width: i32*, height: i32*) -> bool {
     #if IS_WINDOWS
         let rect: [i32; 4] = [0; 4];
         if GetClientRect(window, &rect) {

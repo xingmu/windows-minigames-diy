@@ -578,7 +578,7 @@ impl GolfGame {
         game.width = width;
         game.height = height;
         game.targetFPS = fps;
-        game.frameTime = 1000 / fps as u32;
+        game.frameTime = 1000 / (u32)(fps);
         game.state = GameState.Ready;
         game.score = 0;
         game.running = false;
@@ -724,7 +724,7 @@ impl Canvas for FrameBufferCanvas {
         }
         
         let offset = y * (self.pitch / 4) + x;
-        let pixels = self.buffer as u32;
+        let pixels = (u32)(self.buffer);
         return pixels[offset];
     }
     

@@ -223,7 +223,7 @@ fn on_mouse_up(game: &DartsState, x: i32, y: i32) {
     let actualPower = if power > maxPower { maxPower } else { power };
 
     // 计算方向
-    let angle = atan2F(dy as f32, dx as f32);
+    let angle = atan2F((f32)(dy), (f32)(dx));
     let vx = actualPower * cosF(angle);
     let vy = actualPower * sinF(angle);
 
@@ -284,7 +284,7 @@ fn update_game(game: &DartsState) -> bool {
     let dy = game.darts[idx].y - BOARD_CY;
     let dist = sqrtF((dx * dx + dy * dy) as f32);
 
-    if dist <= BOARD_RADIUS as f32 {
+    if dist <= (f32)(BOARD_RADIUS) {
         // 添加随机偏差
         let wobble = (rand_float() - 0.5) * 4.0;
         game.darts[idx].x = game.darts[idx].x + ((i32)wobble);
@@ -294,7 +294,7 @@ fn update_game(game: &DartsState) -> bool {
         let dy2 = game.darts[idx].y - BOARD_CY;
         let dist2 = sqrtF((dx2 * dx2 + dy2 * dy2) as f32);
 
-        if dist2 <= BOARD_RADIUS as f32 {
+        if dist2 <= (f32)(BOARD_RADIUS) {
             game.darts[idx].stuck = true;
             game.darts[idx].score = calculate_score(game.darts[idx].x, game.darts[idx].y);
             game.totalScore = game.totalScore + game.darts[idx].score;
@@ -355,7 +355,7 @@ fn calculate_score(x: i32, y: i32) -> i32 {
         return 0;
     }
 
-    let angle = atan2F(dy as f32, dx as f32);
+    let angle = atan2F((f32)(dy), (f32)(dx));
     let deg = (angle * 180.0 / 3.14159) as f32;
     deg = deg + 90.0;
     if deg < 0.0 {

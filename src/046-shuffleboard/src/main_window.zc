@@ -43,7 +43,7 @@ fn fb_get_pixel(x: i32, y: i32) -> Color {
         return Color.Black();
     }
     let offset = y * (fb_pitch / 4) + x;
-    let pixels = fb_buffer as u32;
+    let pixels = (u32)(fb_buffer);
     return pixels[offset];
 }
 
@@ -281,7 +281,7 @@ fn render_game() {
         let barY = SHOOT_ZONE_Y + 15;
 
         fb_draw_rect(barX, barY, barWidth, barHeight, Color.White());
-        let fillW = (game.power as f32 / MAX_POWER as f32 * barWidth as f32) as i32;
+        let fillW = ((f32)(game.power) / (f32)(MAX_POWER) * (f32)(barWidth)) as i32;
         let powerColor = if game.power < 8 {
             Color.Green()
         } else if game.power < 16 {

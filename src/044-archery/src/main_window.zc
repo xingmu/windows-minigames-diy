@@ -56,7 +56,7 @@ fn draw_bow(game: ArcheryState*) {
     for i in -60..61 {
         let a = (float)i * 3.14159 / 180.0;
         let px = (float)bx + cos(a) * (float)bowLength * 0.3;
-        let py = (float)by + sin(a) * bowLength as float;
+        let py = (float)by + sin(a) * (float)(bowLength);
         fb_draw_pixel((i32)px, (i32)py, rgb((u8)139, (u8)90, (u8)43));
     }
     
@@ -101,17 +101,17 @@ fn draw_bow(game: ArcheryState*) {
         }
         
         // Fletching
-        let fletchX = arrowTailX as i32;
-        let fletchY = arrowTailY as i32;
+        let fletchX = (i32)(arrowTailX);
+        let fletchY = (i32)(arrowTailY);
         fb_draw_pixel(fletchX - 2, fletchY - 2, rgb((u8)200, (u8)50, (u8)50));
         fb_draw_pixel(fletchX - 2, fletchY + 2, rgb((u8)200, (u8)50, (u8)50));
         fb_draw_pixel(fletchX - 3, fletchY, rgb((u8)200, (u8)50, (u8)50));
     } else {
         // Resting bowstring
         let stringEnd1X = (float)bx + cos(-60.0 * 3.14159 / 180.0) * (float)bowLength * 0.5;
-        let stringEnd1Y = (float)by + sin(-60.0 * 3.14159 / 180.0) * bowLength as float;
+        let stringEnd1Y = (float)by + sin(-60.0 * 3.14159 / 180.0) * (float)(bowLength);
         let stringEnd2X = (float)bx + cos(60.0 * 3.14159 / 180.0) * (float)bowLength * 0.5;
-        let stringEnd2Y = (float)by + sin(60.0 * 3.14159 / 180.0) * bowLength as float;
+        let stringEnd2Y = (float)by + sin(60.0 * 3.14159 / 180.0) * (float)(bowLength);
         
         fb_draw_line((i32)stringEnd1X, (i32)stringEnd1Y, (i32)bx, (i32)by, rgb((u8)200, (u8)200, (u8)200));
         fb_draw_line((i32)bx, (i32)by, (i32)stringEnd2X, (i32)stringEnd2Y, rgb((u8)200, (u8)200, (u8)200));
@@ -151,8 +151,8 @@ fn draw_arrow(arrow: Arrow*) {
     }
     
     // Fletching
-    let fletchX = tailX as i32;
-    let fletchY = tailY as i32;
+    let fletchX = (i32)(tailX);
+    let fletchY = (i32)(tailY);
     let perpAngle = arrow.angle + 3.14159 / 2.0;
     fb_draw_pixel((i32)fletchX, (i32)fletchY, rgb((u8)200, (u8)50, (u8)50));
     fb_draw_pixel((i32)fletchX + (cos(perpAngle) * 3.0) as i32, (i32)fletchY + (sin(perpAngle) * 3.0) as i32, rgb((u8)200, (u8)50, (u8)50));
@@ -238,7 +238,7 @@ fn draw_wind_indicator(game: ArcheryState*) {
     
     // Wind arrow
     let windStrength = game.wind * 20.0;
-    let arrowLen = windStrength as i32;
+    let arrowLen = (i32)(windStrength);
     if arrowLen > 0 {
         fb_draw_line(x, y, x + arrowLen, y, rgb((u8)100, (u8)200, (u8)255));
         fb_draw_pixel(x + arrowLen, y, rgb((u8)100, (u8)200, (u8)255));

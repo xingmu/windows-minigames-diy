@@ -135,7 +135,7 @@ fn aim_ball(game: &GameState, startX: int, startY: int, endX: int, endY: int) {
         return;
     }
 
-    let angle = math.atan2(dy as f32, dx as f32);
+    let angle = math.atan2((f32)(dy), (f32)(dx));
 
     // 标准化力度
     let normalizedPower = power / 200.0;
@@ -171,8 +171,8 @@ fn update_ball(game: &GameState) {
     game.ball.rotationSpeed = game.ball.rotationSpeed * 0.99;
 
     // 地面碰撞
-    if game.ball.y > GROUND_Y - BALL_RADIUS as f32 {
-        game.ball.y = GROUND_Y - BALL_RADIUS as f32;
+    if game.ball.y > GROUND_Y - (f32)(BALL_RADIUS) {
+        game.ball.y = GROUND_Y - (f32)(BALL_RADIUS);
         game.ball.vy = -game.ball.vy * 0.6;
         game.ball.vx = game.ball.vx * 0.8;
         game.ball.rotationSpeed = game.ball.vx * 0.1;
@@ -192,27 +192,27 @@ fn update_ball(game: &GameState) {
     }
 
     // 左右边界
-    if game.ball.x < BALL_RADIUS as f32 {
-        game.ball.x = BALL_RADIUS as f32;
+    if game.ball.x < (f32)(BALL_RADIUS) {
+        game.ball.x = (f32)(BALL_RADIUS);
         game.ball.vx = -game.ball.vx * 0.7;
     }
-    if game.ball.x > 780 - BALL_RADIUS as f32 {
-        game.ball.x = 780 - BALL_RADIUS as f32;
+    if game.ball.x > 780 - (f32)(BALL_RADIUS) {
+        game.ball.x = 780 - (f32)(BALL_RADIUS);
         game.ball.vx = -game.ball.vx * 0.7;
     }
 
     // 天花板
-    if game.ball.y < BALL_RADIUS as f32 {
-        game.ball.y = BALL_RADIUS as f32;
+    if game.ball.y < (f32)(BALL_RADIUS) {
+        game.ball.y = (f32)(BALL_RADIUS);
         game.ball.vy = -game.ball.vy * 0.5;
     }
 
     // 篮板碰撞
-    if game.ball.x > game.hoop.backboardX as f32 - BALL_RADIUS as f32 &&
-       game.ball.x < game.hoop.backboardX as f32 + 10 &&
-       game.ball.y > game.hoop.backboardTopY as f32 &&
-       game.ball.y < game.hoop.backboardBottomY as f32 {
-        game.ball.x = game.hoop.backboardX as f32 - BALL_RADIUS as f32;
+    if game.ball.x > (f32)(game.hoop.backboardX) - (f32)(BALL_RADIUS) &&
+       game.ball.x < (f32)(game.hoop.backboardX) + 10 &&
+       game.ball.y > (f32)(game.hoop.backboardTopY) &&
+       game.ball.y < (f32)(game.hoop.backboardBottomY) {
+        game.ball.x = (f32)(game.hoop.backboardX) - (f32)(BALL_RADIUS);
         game.ball.vx = -game.ball.vx * 0.7;
     }
 
@@ -228,8 +228,8 @@ fn update_ball(game: &GameState) {
 }
 
 fn check_hoop_collision(game: &GameState) {
-    let ballCx = game.ball.x as i32;
-    let ballCy = game.ball.y as i32;
+    let ballCx = (i32)(game.ball.x);
+    let ballCy = (i32)(game.ball.y);
 
     // 检测球是否通过篮筐（进球）
     // 篮筐入口检测：球从上方落入篮筐区域
@@ -317,14 +317,14 @@ fn calculate_trajectory(game: GameState*, startX: int, startY: int, endX: int, e
         return 0;
     }
 
-    let angle = math.atan2(dy as f32, dx as f32);
+    let angle = math.atan2((f32)(dy), (f32)(dx));
     let normalizedPower = power / 200.0;
 
     let vx = math.cos(angle) * normalizedPower * 15.0;
     let vy = math.sin(angle) * normalizedPower * 15.0;
 
-    let x = startX as f32;
-    let y = startY as f32;
+    let x = (f32)(startX);
+    let y = (f32)(startY);
 
     let count = 0;
     for i in 0..maxPoints {

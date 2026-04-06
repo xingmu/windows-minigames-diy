@@ -6246,32 +6246,16 @@ bool checkStickSave(int32_t i)
     {
 
 #line 408 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-    int32_t puckLeft = (self->puckX[i] - 12);
-
-#line 408 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+    int32_t puckLeft = (self->puckX[i] - ((float)(12)));
 
 #line 409 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-    int32_t puckRight = (self->puckX[i] + 12);
-
-#line 409 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+    int32_t puckRight = (self->puckX[i] + ((float)(12)));
 
 #line 410 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-    int32_t puckTop = (self->puckY[i] - 12);
-
-#line 410 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+    int32_t puckTop = (self->puckY[i] - ((float)(12)));
 
 #line 411 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-    int32_t puckBottom = (self->puckY[i] + 12);
-
-#line 411 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+    int32_t puckBottom = (self->puckY[i] + ((float)(12)));
 
 #line 413 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
 if (((((puckRight >= ((float)(self->stickX))) && (puckLeft <= ((float)((self->stickX + self->stickWidth))))) && (puckBottom >= ((float)(self->stickY)))) && (puckTop <= ((float)((self->stickY + self->stickHeight))))))     {
@@ -6298,32 +6282,16 @@ bool checkBlockerSave(int32_t i)
     {
 
 #line 391 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-    int32_t puckLeft = (self->puckX[i] - 12);
-
-#line 391 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+    int32_t puckLeft = (self->puckX[i] - ((float)(12)));
 
 #line 392 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-    int32_t puckRight = (self->puckX[i] + 12);
-
-#line 392 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+    int32_t puckRight = (self->puckX[i] + ((float)(12)));
 
 #line 393 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-    int32_t puckTop = (self->puckY[i] - 12);
-
-#line 393 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+    int32_t puckTop = (self->puckY[i] - ((float)(12)));
 
 #line 394 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-    int32_t puckBottom = (self->puckY[i] + 12);
-
-#line 394 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+    int32_t puckBottom = (self->puckY[i] + ((float)(12)));
 
 #line 396 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
 if (((((puckRight >= ((float)(self->blockerX))) && (puckLeft <= ((float)((self->blockerX + self->blockerWidth))))) && (puckBottom >= ((float)(self->blockerY)))) && (puckTop <= ((float)((self->blockerY + self->blockerHeight))))))     {
@@ -6350,32 +6318,16 @@ bool checkGoalieSave(int32_t i)
     {
 
 #line 374 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-    int32_t puckLeft = (self->puckX[i] - 12);
-
-#line 374 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+    int32_t puckLeft = (self->puckX[i] - ((float)(12)));
 
 #line 375 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-    int32_t puckRight = (self->puckX[i] + 12);
-
-#line 375 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+    int32_t puckRight = (self->puckX[i] + ((float)(12)));
 
 #line 376 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-    int32_t puckTop = (self->puckY[i] - 12);
-
-#line 376 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+    int32_t puckTop = (self->puckY[i] - ((float)(12)));
 
 #line 377 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-    int32_t puckBottom = (self->puckY[i] + 12);
-
-#line 377 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+    int32_t puckBottom = (self->puckY[i] + ((float)(12)));
 
 #line 379 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
 if (((((puckRight >= ((float)(self->goalieX))) && (puckLeft <= ((float)((self->goalieX + self->goalieWidth))))) && (puckBottom >= ((float)(self->goalieY)))) && (puckTop <= ((float)((self->goalieY + self->goalieHeight))))))     {
@@ -6433,11 +6385,7 @@ continue;
 if ((self->puckX[i] <= ((float)(12))))     {
 
 #line 317 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-(self->puckX[i] = 12);
-
-#line 317 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+(self->puckX[i] = ((float)(12)));
 
 #line 318 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
 (self->puckVX[i] = ((-self->puckVX[i]) * 0.80000000000000004));
@@ -6447,11 +6395,7 @@ float;
 if ((self->puckX[i] >= (((float)(600)) - ((float)(12)))))     {
 
 #line 321 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-(self->puckX[i] = (((float)(600)) - 12));
-
-#line 321 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+(self->puckX[i] = (((float)(600)) - ((float)(12))));
 
 #line 322 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
 (self->puckVX[i] = ((-self->puckVX[i]) * 0.80000000000000004));
@@ -6461,11 +6405,7 @@ float;
 if ((self->puckY[i] <= ((float)(12))))     {
 
 #line 327 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-(self->puckY[i] = 12);
-
-#line 327 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+(self->puckY[i] = ((float)(12)));
 
 #line 328 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
 (self->puckVY[i] = ((-self->puckVY[i]) * 0.5));
@@ -6618,11 +6558,7 @@ as;
 u32;
 
 #line 263 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-(self->puckX[i] = spawnX);
-
-#line 263 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+(self->puckX[i] = ((float)(spawnX)));
 
 #line 264 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
 (self->puckY[i] = 60.0);
@@ -6665,18 +6601,10 @@ float;
 if ((dist > 0.0))     {
 
 #line 279 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-(self->puckVX[i] = ((((float)(dx)) / dist) * speed));
-
-#line 279 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+(self->puckVX[i] = ((((float)(dx)) / dist) * ((float)(speed))));
 
 #line 280 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-(self->puckVY[i] = ((((float)(dy)) / dist) * speed));
-
-#line 280 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-float;
+(self->puckVY[i] = ((((float)(dy)) / dist) * ((float)(speed))));
     }
 
 #line 284 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
@@ -6733,11 +6661,7 @@ if ((gloveOffsetY < (-20.0)))     {
     }
 
 #line 218 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-(self->blockerY = ((self->goalieY - 10) + gloveOffsetY));
-
-#line 218 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
-as;
-int;
+(self->blockerY = ((self->goalieY - 10) + ((int32_t)(gloveOffsetY))));
 
 #line 221 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game_logic.zc"
 if ((self->blockerY < (680 - 30)))     {
@@ -7424,11 +7348,7 @@ void create(str title, int32_t width, int32_t height, int32_t fps)
 (self->targetFPS = fps);
 
 #line 42 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game.zc"
-(self->frameTime = (1000 / fps));
-
-#line 42 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game.zc"
-as;
-u32;
+(self->frameTime = (1000 / ((uint32_t)(fps))));
 
 #line 43 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game.zc"
 (self->state = GameState__Ready);
@@ -8326,11 +8246,7 @@ Color.Black();
     int32_t offset = ((y * (self->pitch / 4)) + x);
 
 #line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game.zc"
-    ZC_AUTO pixels = self->buffer;
-
-#line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game.zc"
-as;
-u32;
+    uint32_t pixels = ((uint32_t)(self->buffer));
 
 #line 260 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/game.zc"
     return pixels[offset];
@@ -8842,11 +8758,7 @@ uint32_t uint32_t__RGB(uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/platform_api.zc"
-    return (((4278190080 | (r << 16)) | (g << 8)) | b);
-
-#line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/platform_api.zc"
-as;
-Color;
+    return (((4278190080 | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 
@@ -8857,11 +8769,7 @@ uint32_t uint32_t__ARGB(uint8_t a, uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/platform_api.zc"
-    return ((((a << 24) | (r << 16)) | (g << 8)) | b);
-
-#line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/049-hockey/src/platform_api.zc"
-as;
-Color;
+    return ((((a << 24) | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 

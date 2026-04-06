@@ -600,7 +600,7 @@ fn getPlayer(gs: GameState*, idx: i32) -> Player* {
 
 // ==================== 发牌与洗牌 ====================
 
-fn shuffleDeck(deck: &[i32] mut, deckCount: i32) {
+fn shuffleDeck(deck: [i32]*, deckCount: i32) {
     // Fisher-Yates 洗牌
     setRandomSeed(u32)(getTickCount());
     
@@ -662,7 +662,7 @@ fn sortPlayerCards(gs: GameState*) {
     sortCardsInPlace(&gs.cpu2.cards, gs.cpu2.cardCount);
 }
 
-fn sortCardsInPlace(cards: &[i32] mut, count: i32) {
+fn sortCardsInPlace(cards: [i32]*, count: i32) {
     // 冒泡排序
     for i in 0..count {
         for j in (i+1)..count {
@@ -679,7 +679,7 @@ fn sortCardsInPlace(cards: &[i32] mut, count: i32) {
 
 // ==================== 叫分逻辑 ====================
 
-fn doBid(gs: &GameState, playerIdx: i32, bid: i32) {
+fn doBid(gs: GameState*, playerIdx: i32, bid: i32) {
     if bid > gs.highestBid && bid <= 3 {
         gs.highestBid = bid;
         gs.highestBidder = playerIdx;
@@ -912,7 +912,7 @@ fn findBestPlayGroup(gs: GameState*, playerIdx: i32) -> CardGroup {
 
 // ==================== 出牌逻辑 ====================
 
-fn playCards(gs: &GameState, playerIdx: i32, group: CardGroup) {
+fn playCards(gs: GameState*, playerIdx: i32, group: CardGroup) {
     let player = getPlayer(gs, playerIdx);
     
     if group.cardType == CT_INVALID {

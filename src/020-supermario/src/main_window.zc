@@ -327,10 +327,10 @@ fn updateGame(dt: u32) {
     
     // 移动输入
     if keyLeft {
-        marioVX = -MARIO_SPEED as float;
+        marioVX = -(float)(MARIO_SPEED);
         marioFacingRight = false;
     } else if keyRight {
-        marioVX = MARIO_SPEED as float;
+        marioVX = (float)(MARIO_SPEED);
         marioFacingRight = true;
     } else {
         marioVX = 0.0;
@@ -338,7 +338,7 @@ fn updateGame(dt: u32) {
     
     // 跳跃
     if keyJump && marioOnGround {
-        marioVY = JUMP_VELOCITY as float;
+        marioVY = (float)(JUMP_VELOCITY);
         marioOnGround = false;
         keyJump = false;
     }
@@ -358,7 +358,7 @@ fn updateGame(dt: u32) {
         if rectIntersect(marioX, marioY, MARIO_WIDTH, MARIO_HEIGHT,
                         plat.(float)x, plat.(float)y, plat.w, plat.h) {
             if marioVY > 0.0 && (marioY + (float)MARIO_HEIGHT - marioVY * dtSec) <= plat.(float)y + 5.0 {
-                marioY = plat.(float)y - MARIO_HEIGHT as float;
+                marioY = plat.(float)y - (float)(MARIO_HEIGHT);
                 marioVY = 0.0;
                 marioOnGround = true;
             }
@@ -367,7 +367,7 @@ fn updateGame(dt: u32) {
     
     // 地面边界
     if marioY > (float)GROUND_Y - (float)MARIO_HEIGHT {
-        marioY = (float)GROUND_Y - MARIO_HEIGHT as float;
+        marioY = (float)GROUND_Y - (float)(MARIO_HEIGHT);
         marioVY = 0.0;
         marioOnGround = true;
     }
@@ -509,7 +509,7 @@ fn abs(x: int) -> int {
 
 fn drawBackground(ctx: rawptr, pitch: int, buffer: rawptr) {
     for y in 0..GROUND_Y {
-        let t = (float)y / GROUND_Y as float;
+        let t = (float)y / (float)(GROUND_Y);
         let r = 107 + (float)((135 - 107) * t) as u8;
         let g = 140 + (float)((206 - 140) * t) as u8;
         let b = 255;
@@ -535,8 +535,8 @@ fn drawCloud(ctx: rawptr, pitch: int, buffer: rawptr, x: int, y: int) {
 }
 
 fn sin(x: float) -> float {
-    let result = x as float;
-    let term = x as float;
+    let result = (float)(x);
+    let term = (float)(x);
     for i in 1..6 {
         term = -term * x * x / (float)((2 * i) * (float)(2 * i + 1));
         result = result + term;

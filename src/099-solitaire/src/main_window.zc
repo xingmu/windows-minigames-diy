@@ -636,7 +636,7 @@ extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) ->
         },
         
         WM_KEYDOWN => {
-            on_key_down(wParam as VirtualKey);
+            on_key_down((VirtualKey)(wParam));
             return 0;
         },
         

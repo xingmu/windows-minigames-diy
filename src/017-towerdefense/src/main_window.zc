@@ -170,7 +170,7 @@ fn canPlaceTower(gridX: int, gridY: int) -> bool {
 }
 
 fn placeTower(gridX: int, gridY: int, towerType: TowerType) -> bool {
-    let info = TOWER_INFO[towerType as int];
+    let info = TOWER_INFO[(int)(towerType)];
     if gold < info.cost { io.println("金币不足! 需要 {info}"."{cost} 金币"); return false; }
     if !canPlaceTower(gridX, gridY) { return false; }
     if towerCount >= 20 { return false; }
@@ -207,7 +207,7 @@ fn spawnEnemy() {
     else if currentWave >= 2 && roll < 50 { enemyType = EnemyType.Fast; }
     else { enemyType = EnemyType.Basic; }
     
-    let info = ENEMY_INFO[enemyType as int];
+    let info = ENEMY_INFO[(int)(enemyType)];
     let hpMult = 1.0 + (currentWave - 1) * 0.2;
     enemies[enemyCount] = Enemy { x: (float)(PATH[0].x * GRID_SIZE + GRID_SIZE / 2),
         y: (float)(PATH[0].y * GRID_SIZE + GRID_SIZE / 2), enemyType: enemyType,
@@ -381,7 +381,7 @@ fn drawPath(pitch: int, buffer: rawptr) {
 
 fn drawTower(tower: Tower*, pitch: int, buffer: rawptr) {
     let cx = tower.x * GRID_SIZE + GRID_SIZE / 2; let cy = tower.y * GRID_SIZE + GRID_SIZE / 2;
-    let color = TOWER_COLORS[tower.towerType as int];
+    let color = TOWER_COLORS[(int)(tower.towerType)];
     fillCircle(nil, cx, cy, 15, pitch, buffer, Color.DarkGray());
     match tower.towerType {
         TowerType::Arrow => { fillCircle(nil, cx, cy, 12, pitch, buffer, color); drawRect(nil, cx - 3, cy - 15, 6, 12, pitch, buffer, color); },
@@ -394,13 +394,13 @@ fn drawTower(tower: Tower*, pitch: int, buffer: rawptr) {
 fn drawTowers(pitch: int, buffer: rawptr) { for i in 0..towerCount { drawTower(towers[i], pitch, buffer); } }
 
 fn drawEnemy(enemy: Enemy*, pitch: int, buffer: rawptr) {
-    let cx = enemy.x as int; let cy = enemy.y as int; let radius = 12;
+    let cx = (int)(enemy.x); let cy = (int)(enemy.y); let radius = 12;
     if enemy.enemyType == EnemyType.Tank { radius = 16; } else if enemy.enemyType == EnemyType.Fast { radius = 10; } else if enemy.enemyType == EnemyType.Boss { radius = 20; }
-    let color = ENEMY_COLORS[enemy.enemyType as int]; if enemy.slowed { color = Color.RGB(150, 200, 255); }
+    let color = ENEMY_COLORS[(int)(enemy.enemyType)]; if enemy.slowed { color = Color.RGB(150, 200, 255); }
     fillCircle(nil, cx, cy, radius, pitch, buffer, color);
     let barWidth = radius * 2 + 4; let barX = cx - radius - 2; let barY = cy - radius - 8;
     drawRect(nil, barX, barY, barWidth, 4, pitch, buffer, HP_BAR_BG);
-    let hpRatio = enemy.(float)hp / enemy.maxHp as float;
+    let hpRatio = enemy.(float)hp / (float)(enemy.maxHp);
     let hpWidth = (barWidth - 2) * hpRatio;
     let hpColor = if hpRatio > 0.5 { HP_BAR_GREEN } else if hpRatio > 0.25 { GOLD_COLOR } else { HP_BAR_RED };
     drawRect(nil, barX + 1, barY + 1, (int)hpWidth, 2, pitch, buffer, hpColor);
@@ -411,7 +411,7 @@ fn drawEnemies(pitch: int, buffer: rawptr) { for i in 0..enemyCount { drawEnemy(
 fn drawProjectiles(pitch: int, buffer: rawptr) {
     for i in 0..projectileCount {
         if !projectiles[i].active { continue; }
-        let proj = projectiles[i]; let cx = proj.x as int; let cy = proj.y as int;
+        let proj = projectiles[i]; let cx = (int)(proj.x); let cy = (int)(proj.y);
         match proj.towerType {
             TowerType::Arrow => { drawLine(nil, cx - 5, cy - 5, cx + 5, cy + 5, pitch, buffer, Color.Brown()); drawLine(nil, cx + 5, cy - 5, cx - 5, cy + 5, pitch, buffer, Color.Brown()); },
             TowerType::Cannon => { fillCircle(nil, cx, cy, 5, pitch, buffer, Color.Black()); },
@@ -439,7 +439,7 @@ fn drawUIPanel(pitch: int, buffer: rawptr) {
     drawTextSimple(nil, 20, panelY + 40, "Towers:", pitch, buffer, Color.White());
     for i in 0..3 {
         let bx = 100 + i * 80; let info = TOWER_INFO[i];
-        let selected = (i as TowerType) == selectedTowerType;
+        let selected = ((TowerType)(i)) == selectedTowerType;
         let btnColor = if selected { BTN_SEL } else { BTN_BG };
         drawRect(nil, bx, panelY + 35, 70, 40, pitch, buffer, btnColor);
         drawRect(nil, bx, panelY + 35, 70, 2, pitch, buffer, TOWER_COLORS[i]);
@@ -454,7 +454,7 @@ fn drawHoverIndicator(pitch: int, buffer: rawptr) {
     let gridX = mouseX / GRID_SIZE; let gridY = mouseY / GRID_SIZE;
     if canPlaceTower(gridX, gridY) {
         drawRect(nil, gridX * GRID_SIZE, gridY * GRID_SIZE, GRID_SIZE, GRID_SIZE, pitch, buffer, Color.RGB(255, 255, 255, 100));
-        let info = TOWER_INFO[selectedTowerType as int];
+        let info = TOWER_INFO[(int)(selectedTowerType)];
         let cx = gridX * GRID_SIZE + GRID_SIZE / 2; let cy = gridY * GRID_SIZE + GRID_SIZE / 2;
         for r in 0..info.range {
             for angle in 0..360..15 {
@@ -522,7 +522,7 @@ fn handleMouseDown(x: int, y: int, button: MouseButton) {
             let panelY = WINDOW_HEIGHT - 80;
             for i in 0..3 {
                 let bx = 100 + i * 80;
-                if x >= bx && x < bx + 70 && y >= panelY + 35 && y < panelY + 75 { selectedTowerType = i as TowerType; return; }
+                if x >= bx && x < bx + 70 && y >= panelY + 35 && y < panelY + 75 { selectedTowerType = (TowerType)(i); return; }
             }
         } else {
             let gridX = x / GRID_SIZE; let gridY = y / GRID_SIZE;

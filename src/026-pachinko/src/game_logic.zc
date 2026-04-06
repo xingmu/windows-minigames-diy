@@ -140,10 +140,10 @@ fn init_game(game: &PachinkoState) {
     // 初始化弹珠（全部未激活）
     for i in 0..MAX_BALLS {
         game.balls[i] = Ball {
-            x: 0 as f32,
-            y: 0 as f32,
-            vx: 0 as f32,
-            vy: 0 as f32,
+            x: (f32)(0),
+            y: (f32)(0),
+            vx: (f32)(0),
+            vy: (f32)(0),
             radius: BALL_RADIUS,
             active: false,
             trail: 0,
@@ -246,9 +246,9 @@ fn launch_ball(game: &PachinkoState) -> bool {
         let ball_idx = get_free_ball(game);
         if ball_idx >= 0 {
             game.balls[ball_idx].x = (game.launcher.x + game.launcher.width / 2) as f32;
-            game.balls[ball_idx].y = game.launcher.y as f32;
-            game.balls[ball_idx].vx = 0 as f32;
-            game.balls[ball_idx].vy = -(game.launcher.power as f32);
+            game.balls[ball_idx].y = (f32)(game.launcher.y);
+            game.balls[ball_idx].vx = (f32)(0);
+            game.balls[ball_idx].vy = -((f32)(game.launcher.power));
             game.balls[ball_idx].active = true;
             game.balls[ball_idx].trail = 0;
             game.balls[ball_idx].radius = BALL_RADIUS;
@@ -318,8 +318,8 @@ fn handle_key_up(game: &PachinkoState, key: KeyCode) {
 
 // 球与钉子碰撞
 fn ball_peg_collision(ball: &Ball, peg: Peg*) {
-    let dx = ball.x - peg.x as f32;
-    let dy = ball.y - peg.y as f32;
+    let dx = ball.x - (f32)(peg.x);
+    let dy = ball.y - (f32)(peg.y);
     let dist_sq = dx * dx + dy * dy;
     let min_dist = (ball.radius + peg.radius) as f32;
     let min_dist_sq = min_dist * min_dist;
@@ -351,14 +351,14 @@ fn ball_peg_collision(ball: &Ball, peg: Peg*) {
 
 // 球与翻转器碰撞
 fn ball_flipper_collision(ball: &Ball, flipper: Flipper*) {
-    let end_x = flipper.x as f32 + math.cos(flipper.angle) * flipper.length as f32;
-    let end_y = flipper.y as f32 + math.sin(flipper.angle) * flipper.length as f32;
+    let end_x = (f32)(flipper.x) + math.cos(flipper.angle) * (f32)(flipper.length);
+    let end_y = (f32)(flipper.y) + math.sin(flipper.angle) * (f32)(flipper.length);
 
     // 点到线段的最近点
-    let ax = ball.x - flipper.x as f32;
-    let ay = ball.y - flipper.y as f32;
-    let bx = end_x - flipper.x as f32;
-    let by = end_y - flipper.y as f32;
+    let ax = ball.x - (f32)(flipper.x);
+    let ay = ball.y - (f32)(flipper.y);
+    let bx = end_x - (f32)(flipper.x);
+    let by = end_y - (f32)(flipper.y);
 
     let t_num = ax * bx + ay * by;
     let t_den = bx * bx + by * by;
@@ -367,8 +367,8 @@ fn ball_flipper_collision(ball: &Ball, flipper: Flipper*) {
     if t < 0.0 { t = 0.0; }
     if t > 1.0 { t = 1.0; }
 
-    let closest_x = flipper.x as f32 + t * bx;
-    let closest_y = flipper.y as f32 + t * by;
+    let closest_x = (f32)(flipper.x) + t * bx;
+    let closest_y = (f32)(flipper.y) + t * by;
 
     let dx = ball.x - closest_x;
     let dy = ball.y - closest_y;
@@ -408,27 +408,27 @@ fn ball_flipper_collision(ball: &Ball, flipper: Flipper*) {
 // 球与墙壁碰撞
 fn ball_wall_collision(ball: &Ball) {
     // 左右墙
-    if ball.x - ball.radius as f32 < 0.0 {
-        ball.x = ball.radius as f32;
+    if ball.x - (f32)(ball.radius) < 0.0 {
+        ball.x = (f32)(ball.radius);
         ball.vx = -ball.vx * BOUNCE;
     }
-    if ball.x + ball.radius as f32 > GAME_WIDTH as f32 {
+    if ball.x + (f32)(ball.radius) > (f32)(GAME_WIDTH) {
         ball.x = (GAME_WIDTH - ball.radius) as f32;
         ball.vx = -ball.vx * BOUNCE;
     }
     // 顶部
-    if ball.y - ball.radius as f32 < 0.0 {
-        ball.y = ball.radius as f32;
+    if ball.y - (f32)(ball.radius) < 0.0 {
+        ball.y = (f32)(ball.radius);
         ball.vy = -ball.vy * BOUNCE;
     }
 }
 
 // 检查得分
 fn check_score_zone(game: &PachinkoState, ball: &Ball) -> bool {
-    if ball.y + ball.radius as f32 >= SCORE_ZONE_Y as f32 {
+    if ball.y + (f32)(ball.radius) >= (f32)(SCORE_ZONE_Y) {
         for i in 0..5 {
             let zone = game.zones[i];
-            if ball.x >= zone.x as f32 && ball.x < (zone.x + zone.width) as f32 {
+            if ball.x >= (f32)(zone.x) && ball.x < (zone.x + zone.width) as f32 {
                 game.score = game.score + zone.value;
                 return true;
             }
@@ -467,7 +467,7 @@ fn update_game(game: &PachinkoState) -> bool {
         let ball = &game.balls[i];
 
         // 重力
-        ball.vy = ball.vy + GRAVITY as f32;
+        ball.vy = ball.vy + (f32)(GRAVITY);
 
         // 速度限制
         let speed = math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
@@ -505,7 +505,7 @@ fn update_game(game: &PachinkoState) -> bool {
         }
 
         // 球掉出底部
-        if ball.y > GAME_HEIGHT as f32 + 50.0 {
+        if ball.y > (f32)(GAME_HEIGHT) + 50.0 {
             ball.active = false;
         }
     }

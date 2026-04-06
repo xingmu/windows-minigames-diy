@@ -106,7 +106,7 @@ fn jump() {
     }
     
     if gameState == GameState.Playing {
-        birdVelocity = JUMP_VELOCITY as float;
+        birdVelocity = (float)(JUMP_VELOCITY);
     }
     
     if gameState == GameState.GameOver {
@@ -146,7 +146,7 @@ fn updateGame(dt: u32) {
     
     // 边界检查
     if birdY < (float)BIRD_RADIUS {
-        birdY = BIRD_RADIUS as float;
+        birdY = (float)(BIRD_RADIUS);
         birdVelocity = 0.0;
     }
     
@@ -236,7 +236,7 @@ fn drawPipe(ctx: rawptr, pitch: int, buffer: rawptr, pipe: Pipe) {
 }
 
 fn drawBird(ctx: rawptr, pitch: int, buffer: rawptr) {
-    let birdScreenY = birdY as int;
+    let birdScreenY = (int)(birdY);
     
     // 身体
     fillCircle(ctx, BIRD_X, birdScreenY, BIRD_RADIUS, pitch, buffer, BIRD_COLOR);

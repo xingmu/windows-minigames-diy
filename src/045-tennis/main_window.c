@@ -5991,29 +5991,17 @@ if ((self->servingSide == ServeSide__Player))     {
 (self->ballX = (((float)(self->playerRacketX)) + (((float)(80)) / 2.0)));
 
 #line 427 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-(self->ballY = (((float)(self->playerRacketY)) - 8));
-
-#line 427 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+(self->ballY = (((float)(self->playerRacketY)) - ((float)(8))));
 
 #line 428 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
 (self->ballVX = (
 #line 428 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-void__sin(self, angle) * self->ballSpeed));
-
-#line 428 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+void__sin(self, angle) * ((float)(self->ballSpeed))));
 
 #line 429 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
 (self->ballVY = ((-
 #line 429 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-void__cos(self, angle)) * self->ballSpeed));
-
-#line 429 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+void__cos(self, angle)) * ((float)(self->ballSpeed))));
     }
  else     {
 
@@ -6021,29 +6009,17 @@ float;
 (self->ballX = (((float)(self->cpuRacketX)) + (((float)(80)) / 2.0)));
 
 #line 433 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-(self->ballY = ((((float)(self->cpuRacketY)) + ((float)(self->cpuRacketHeight))) + 8));
-
-#line 433 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+(self->ballY = ((((float)(self->cpuRacketY)) + ((float)(self->cpuRacketHeight))) + ((float)(8))));
 
 #line 434 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
 (self->ballVX = (
 #line 434 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-void__sin(self, angle) * self->ballSpeed));
-
-#line 434 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+void__sin(self, angle) * ((float)(self->ballSpeed))));
 
 #line 435 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
 (self->ballVY = (
 #line 435 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-void__cos(self, angle) * self->ballSpeed));
-
-#line 435 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+void__cos(self, angle) * ((float)(self->ballSpeed))));
     }
     }
 }
@@ -6058,11 +6034,7 @@ void resetBall(void)
 (self->ballX = (((float)(600)) / 2.0));
 
 #line 409 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-(self->ballY = 400);
-
-#line 409 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+(self->ballY = ((float)(400)));
 
 #line 410 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
 (self->ballVX = 0.0);
@@ -6174,39 +6146,19 @@ bool checkRacketCollision(int32_t rx, int32_t ry, int32_t rw, int32_t rh)
     {
 
 #line 359 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-    int32_t ballLeft = (self->ballX - 8);
-
-#line 359 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+    float ballLeft = (self->ballX - ((float)(8)));
 
 #line 360 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-    int32_t ballRight = (self->ballX + 8);
-
-#line 360 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+    float ballRight = (self->ballX + ((float)(8)));
 
 #line 361 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-    int32_t ballTop = (self->ballY - 8);
-
-#line 361 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+    float ballTop = (self->ballY - ((float)(8)));
 
 #line 362 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-    int32_t ballBottom = (self->ballY + 8);
-
-#line 362 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+    float ballBottom = (self->ballY + ((float)(8)));
 
 #line 364 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-    int32_t racketLeft = rx;
-
-#line 364 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+    float racketLeft = ((float)(rx));
 
 #line 365 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
     int32_t racketRight = (rx + rw);
@@ -6216,11 +6168,7 @@ as;
 float;
 
 #line 366 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-    int32_t racketTop = ry;
-
-#line 366 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+    float racketTop = ((float)(ry));
 
 #line 367 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
     int32_t racketBottom = (ry + rh);
@@ -6253,11 +6201,7 @@ void updateBall(void)
 if ((self->ballX <= (((float)(40)) + ((float)(8)))))     {
 
 #line 256 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-(self->ballX = (((float)(40)) + 8));
-
-#line 256 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+(self->ballX = (((float)(40)) + ((float)(8))));
 
 #line 257 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
 (self->ballVX = ((-self->ballVX) * 0.80000000000000004));
@@ -6267,11 +6211,7 @@ float;
 if ((self->ballX >= ((((float)(600)) - ((float)(40))) - ((float)(8)))))     {
 
 #line 260 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-(self->ballX = ((((float)(600)) - ((float)(40))) - 8));
-
-#line 260 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+(self->ballX = ((((float)(600)) - ((float)(40))) - ((float)(8))));
 
 #line 261 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
 (self->ballVX = ((-self->ballVX) * 0.80000000000000004));
@@ -6365,18 +6305,10 @@ void__sqrtFloat(self, ((self->ballVX * self->ballVX) + (self->ballVY * self->bal
 if ((currentSpeed > 0.0))     {
 
 #line 310 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-(self->ballVX = ((self->ballVX / currentSpeed) * self->ballSpeed));
-
-#line 310 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+(self->ballVX = ((self->ballVX / currentSpeed) * ((float)(self->ballSpeed))));
 
 #line 311 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-(self->ballVY = ((self->ballVY / currentSpeed) * self->ballSpeed));
-
-#line 311 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game_logic.zc"
-as;
-float;
+(self->ballVY = ((self->ballVY / currentSpeed) * ((float)(self->ballSpeed))));
     }
     }
 
@@ -7181,11 +7113,7 @@ void create(str title, int32_t width, int32_t height, int32_t fps)
 (self->targetFPS = fps);
 
 #line 42 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game.zc"
-(self->frameTime = (1000 / fps));
-
-#line 42 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game.zc"
-as;
-u32;
+(self->frameTime = (1000 / ((uint32_t)(fps))));
 
 #line 43 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game.zc"
 (self->state = GameState__Ready);
@@ -8083,11 +8011,7 @@ Color.Black();
     int32_t offset = ((y * (self->pitch / 4)) + x);
 
 #line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game.zc"
-    ZC_AUTO pixels = self->buffer;
-
-#line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game.zc"
-as;
-u32;
+    uint32_t pixels = ((uint32_t)(self->buffer));
 
 #line 260 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/game.zc"
     return pixels[offset];
@@ -8599,11 +8523,7 @@ uint32_t uint32_t__RGB(uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/platform_api.zc"
-    return (((4278190080 | (r << 16)) | (g << 8)) | b);
-
-#line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/platform_api.zc"
-as;
-Color;
+    return (((4278190080 | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 
@@ -8614,11 +8534,7 @@ uint32_t uint32_t__ARGB(uint8_t a, uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/platform_api.zc"
-    return ((((a << 24) | (r << 16)) | (g << 8)) | b);
-
-#line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/045-tennis/src/platform_api.zc"
-as;
-Color;
+    return ((((a << 24) | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 

@@ -65,7 +65,7 @@ impl Canvas for FrameBufferCanvas {
             return Color.Black();
         }
         let offset = y * (self.pitch / 4) + x;
-        let pixels = self.buffer as u32;
+        let pixels = (u32)(self.buffer);
         return pixels[offset];
     }
 
@@ -206,8 +206,8 @@ fn drawArc(ctx: Canvas, cx: int, cy: int, radius: int, startAngle: int, endAngle
 
     loop {
         let rad = angle * 3.14159 / 180;
-        let px = cx + (radius as f32 * math.cos(rad)) as i32;
-        let py = cy + (radius as f32 * math.sin(rad)) as i32;
+        let px = cx + ((f32)(radius) * math.cos(rad)) as i32;
+        let py = cy + ((f32)(radius) * math.sin(rad)) as i32;
         ctx.setPixel(px, py, COURT_LINES_COLOR);
 
         angle = angle + step;
@@ -218,8 +218,8 @@ fn drawArc(ctx: Canvas, cx: int, cy: int, radius: int, startAngle: int, endAngle
 }
 
 fn draw_ball(ctx: Canvas, ball: Ball*) {
-    let x = ball.x as i32;
-    let y = ball.y as i32;
+    let x = (i32)(ball.x);
+    let y = (i32)(ball.y);
     let r = BALL_RADIUS;
 
     // 球体

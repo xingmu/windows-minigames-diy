@@ -226,9 +226,9 @@ pub class BadmintonGame extends Game {
         // AI tracks shuttlecock when it's on the right side or coming towards AI
         if self.shuttleActive && self.shuttleX > WINDOW_WIDTH / 2 {
             // Predict where shuttlecock will be
-            let timeToReach = (self.aiX - self.shuttleX) / self.shuttleVX as float;
+            let timeToReach = (self.aiX - self.shuttleX) / (float)(self.shuttleVX);
             if timeToReach > 0.0 && timeToReach < 30.0 {
-                self.aiTargetY = self.shuttleY + self.shuttleVY * timeToReach as float;
+                self.aiTargetY = self.shuttleY + self.shuttleVY * (float)(timeToReach);
             } else {
                 self.aiTargetY = self.shuttleY;
             }
@@ -512,8 +512,8 @@ pub class BadmintonGame extends Game {
             return;
         }
 
-        let sx = self.shuttleX as int;
-        let sy = self.shuttleY as int;
+        let sx = (int)(self.shuttleX);
+        let sy = (int)(self.shuttleY);
 
         // Shuttlecock cork (white)
         canvas.fillCircle(sx, sy, SHUTTLECOCK_SIZE / 2, Color.White());

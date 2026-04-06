@@ -91,8 +91,8 @@ fn drawPins(ctx: GraphicsContext) {
 // 绘制保龄球
 fn drawBall(ctx: GraphicsContext) {
     let ball = bowling.getBall();
-    let x = ball.x as int;
-    let y = ball.y as int;
+    let x = (int)(ball.x);
+    let y = (int)(ball.y);
     
     // 绘制球体
     draw_circle(ctx, x, y, BALL_RADIUS, BALL_COLOR);
@@ -129,7 +129,7 @@ fn drawAimArrow(ctx: GraphicsContext) {
     // 绘制虚线箭头
     let steps = 5;
     for i in 0..steps {
-        let t = (float)i / steps as float;
+        let t = (float)i / (float)(steps);
         let px = startX + (float)((endX - startX) * t) as int;
         let py = startY + (float)((endY - startY) * t) as int;
         draw_circle(ctx, px, py, 2, HIGHLIGHT_COLOR);

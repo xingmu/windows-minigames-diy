@@ -352,7 +352,7 @@ class FishingGame extends Game {
             let t = (float)y / 350.0;
             let r = 135 + (80 * t) as u8;
             let g = 206 + (50 * t) as u8;
-            let b = 235 as u8;
+            let b = (u8)(235);
             canvas.drawLine(0, y, self.width, y, Color.RGB(r, g, b));
         }
         
@@ -420,13 +420,13 @@ class FishingGame extends Game {
             self.hookY = self.targetY;
             // 轻微晃动
             let wobble = sin(self.waveOffset * 3.0) * 2.0;
-            self.hookX = self.hookX + wobble as int;
+            self.hookX = self.hookX + (int)(wobble);
         } else if self.lineState == LineState.Biting {
             self.hookX = self.targetX;
             self.hookY = self.targetY;
             // 剧烈晃动
             let shake = sin(self.waveOffset * 10.0) * 5.0;
-            self.hookX = self.hookX + shake as int;
+            self.hookX = self.hookX + (int)(shake);
         } else if self.lineState == LineState.Reeling {
             // 收线动画
             let progress = self.reelingProgress;

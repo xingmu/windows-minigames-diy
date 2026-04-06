@@ -111,7 +111,7 @@ fn calculate_score(dx: i32, dy: i32) -> (i32, i32) {
     let cy = BOARD_CENTER_Y;
     
     // 归一化角度 (0-360度，12点钟方向为0度)
-    let angle = math.atan2(dy as f32, dx as f32) * 180.0 / 3.14159;
+    let angle = math.atan2((f32)(dy), (f32)(dx)) * 180.0 / 3.14159;
     angle = angle + 90.0;  // 旋转使12点钟方向为0度
     if angle < 0 {
         angle = angle + 360.0;
@@ -169,9 +169,9 @@ fn throw_dart(game: &DartsState, target_x: i32, target_y: i32) {
     
     // 添加随机散布（模拟真实投掷）
     let spread = math.rand() % 15 - 7;
-    let angle = math.atan2(dy as f32, dx as f32);
-    let spread_x = (spread as f32 * math.cos(angle)) as i32;
-    let spread_y = (spread as f32 * math.sin(angle)) as i32;
+    let angle = math.atan2((f32)(dy), (f32)(dx));
+    let spread_x = ((f32)(spread) * math.cos(angle)) as i32;
+    let spread_y = ((f32)(spread) * math.sin(angle)) as i32;
     
     let dart_index = game.darts_thrown;
     game.darts[dart_index].x = target_x + spread_x;

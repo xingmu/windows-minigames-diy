@@ -145,7 +145,7 @@ class TetrisPlusGame extends Game {
         self.width = width;
         self.height = height;
         self.targetFPS = fps;
-        self.frameTime = 1000 / fps as u32;
+        self.frameTime = 1000 / (u32)(fps);
         self.state = GameState.Ready;
         self.score = 0;
         self.running = false;
@@ -187,7 +187,7 @@ class TetrisPlusGame extends Game {
     fn calcDropInterval() -> u32 {
         let interval = 600 - (self.speedLevel * 40);
         if interval < 50 { interval = 50; }
-        return interval as u32;
+        return (u32)(interval);
     }
     
     fn randomPieceType() -> TetrominoType {

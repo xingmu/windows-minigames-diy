@@ -5829,18 +5829,10 @@ void drawBall(Canvas canvas)
 Color.Yellow();
 
 #line 587 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-    ZC_AUTO bx = self->ballX;
-
-#line 587 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-as;
-int;
+    int32_t bx = ((int32_t)(self->ballX));
 
 #line 588 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-    ZC_AUTO by = self->ballY;
-
-#line 588 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-as;
-int;
+    int32_t by = ((int32_t)(self->ballY));
 
 #line 591 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
 Canvas__fillCircle(&canvas, (bx + 4), (by + 4), (7 + 1), Color.ARGB(80, 0, 0, 0));
@@ -6173,39 +6165,19 @@ bool checkRacketCollision(int32_t rx, int32_t ry, int32_t rw, int32_t rh)
     {
 
 #line 419 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-    int32_t ballLeft = (self->ballX - 7);
-
-#line 419 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-as;
-float;
+    float ballLeft = (self->ballX - ((float)(7)));
 
 #line 420 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-    int32_t ballRight = (self->ballX + 7);
-
-#line 420 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-as;
-float;
+    float ballRight = (self->ballX + ((float)(7)));
 
 #line 421 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-    int32_t ballTop = (self->ballY - 7);
-
-#line 421 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-as;
-float;
+    float ballTop = (self->ballY - ((float)(7)));
 
 #line 422 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-    int32_t ballBottom = (self->ballY + 7);
-
-#line 422 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-as;
-float;
+    float ballBottom = (self->ballY + ((float)(7)));
 
 #line 424 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-    int32_t racketLeft = rx;
-
-#line 424 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-as;
-float;
+    float racketLeft = ((float)(rx));
 
 #line 425 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
     int32_t racketRight = (rx + rw);
@@ -6215,11 +6187,7 @@ as;
 float;
 
 #line 426 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-    int32_t racketTop = ry;
-
-#line 426 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-as;
-float;
+    float racketTop = ((float)(ry));
 
 #line 427 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
     int32_t racketBottom = (ry + rh);
@@ -6383,18 +6351,10 @@ void__sqrtFloat(self, ((self->ballVX * self->ballVX) + (self->ballVY * self->bal
 if ((currentSpeed > 0.0))     {
 
 #line 368 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-(self->ballVX = ((self->ballVX / currentSpeed) * self->ballSpeed));
-
-#line 368 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-as;
-float;
+(self->ballVX = ((self->ballVX / currentSpeed) * ((float)(self->ballSpeed))));
 
 #line 369 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-(self->ballVY = ((self->ballVY / currentSpeed) * self->ballSpeed));
-
-#line 369 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-as;
-float;
+(self->ballVY = ((self->ballVY / currentSpeed) * ((float)(self->ballSpeed))));
     }
 
 #line 372 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
@@ -6446,18 +6406,10 @@ void__sqrtFloat(self, ((self->ballVX * self->ballVX) + (self->ballVY * self->bal
 if ((currentSpeed > 0.0))     {
 
 #line 396 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-(self->ballVX = ((self->ballVX / currentSpeed) * self->ballSpeed));
-
-#line 396 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-as;
-float;
+(self->ballVX = ((self->ballVX / currentSpeed) * ((float)(self->ballSpeed))));
 
 #line 397 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-(self->ballVY = ((self->ballVY / currentSpeed) * self->ballSpeed));
-
-#line 397 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
-as;
-float;
+(self->ballVY = ((self->ballVY / currentSpeed) * ((float)(self->ballSpeed))));
     }
 
 #line 400 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game_logic.zc"
@@ -7358,11 +7310,7 @@ void create(str title, int32_t width, int32_t height, int32_t fps)
 (self->targetFPS = fps);
 
 #line 42 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game.zc"
-(self->frameTime = (1000 / fps));
-
-#line 42 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game.zc"
-as;
-u32;
+(self->frameTime = (1000 / ((uint32_t)(fps))));
 
 #line 43 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game.zc"
 (self->state = GameState__Ready);
@@ -8260,11 +8208,7 @@ Color.Black();
     int32_t offset = ((y * (self->pitch / 4)) + x);
 
 #line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game.zc"
-    ZC_AUTO pixels = self->buffer;
-
-#line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game.zc"
-as;
-u32;
+    uint32_t pixels = ((uint32_t)(self->buffer));
 
 #line 260 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/game.zc"
     return pixels[offset];
@@ -8719,11 +8663,7 @@ uint32_t uint32_t__RGB(uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/platform_api.zc"
-    return (((4278190080 | (r << 16)) | (g << 8)) | b);
-
-#line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/platform_api.zc"
-as;
-Color;
+    return (((4278190080 | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 
@@ -8734,11 +8674,7 @@ uint32_t uint32_t__ARGB(uint8_t a, uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/platform_api.zc"
-    return ((((a << 24) | (r << 16)) | (g << 8)) | b);
-
-#line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/079-squash/src/platform_api.zc"
-as;
-Color;
+    return ((((a << 24) | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 

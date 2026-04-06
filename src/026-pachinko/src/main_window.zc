@@ -64,8 +64,8 @@ fn on_paint(w: i32, h: i32) {
     // 绘制翻转器
     for i in 0..2 {
         let f = game.flippers[i];
-        let end_x = f.x + (math.cos(f.angle) * f.length as f32) as i32;
-        let end_y = f.y + (math.sin(f.angle) * f.length as f32) as i32;
+        let end_x = f.x + (math.cos(f.angle) * (f32)(f.length)) as i32;
+        let end_y = f.y + (math.sin(f.angle) * (f32)(f.length)) as i32;
         fb_draw_line(f.x, f.y, end_x, end_y, rgb(200, 200, 200), f.width);
     }
 
@@ -128,9 +128,9 @@ fn on_mouse(x: i32, y: i32) {
             let ball_idx = get_free_ball(&game);
             if ball_idx >= 0 {
                 game.balls[ball_idx].x = (game.launcher.x + game.launcher.width / 2) as f32;
-                game.balls[ball_idx].y = game.launcher.y as f32;
-                game.balls[ball_idx].vx = 0 as f32;
-                game.balls[ball_idx].vy = -(game.launcher.power as f32);
+                game.balls[ball_idx].y = (f32)(game.launcher.y);
+                game.balls[ball_idx].vx = (f32)(0);
+                game.balls[ball_idx].vy = -((f32)(game.launcher.power));
                 game.balls[ball_idx].active = true;
                 game.balls[ball_idx].trail = 0;
                 game.balls[ball_idx].radius = BALL_RADIUS;

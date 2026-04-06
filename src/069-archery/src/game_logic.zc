@@ -136,7 +136,7 @@ fn init_targets(game: &ArcheryState) {
     for i in 0..TARGET_COUNT {
         let dist = distances[i];
         // 目标大小随距离缩小
-        let scale = 1.0 - (dist as f32 / 800.0);
+        let scale = 1.0 - ((f32)(dist) / 800.0);
         let width = (80 * scale) as i32;
         let height = (100 * scale) as i32;
         
@@ -154,7 +154,7 @@ fn init_targets(game: &ArcheryState) {
     }
     
     // 设置分数区域(基于最近的目标)
-    let scale = 1.0 - (200 as f32 / 800.0);
+    let scale = 1.0 - ((f32)(200) / 800.0);
     game.score_zones.bullseye = (8 * scale) as i32;
     game.score_zones.middle = (20 * scale) as i32;
     game.score_zones.outer = (35 * scale) as i32;
@@ -168,8 +168,8 @@ fn handle_mouse_move(game: &ArcheryState, mouse_x: i32, mouse_y: i32) {
     game.mouse_y = mouse_y;
     
     // 计算弓的角度
-    let dx = mouse_x as f32 - game.bow.x as f32;
-    let dy = mouse_y as f32 - game.bow.y as f32;
+    let dx = (f32)(mouse_x) - (f32)(game.bow.x);
+    let dy = (f32)(mouse_y) - (f32)(game.bow.y);
     
     if dx != 0.0 || dy != 0.0 {
         game.bow.angle = math.atan2(dy, dx);
@@ -201,12 +201,12 @@ fn handle_shoot(game: &ArcheryState) -> bool {
     // 找到空闲的弓箭
     for i in 0..MAX_ARROWS {
         if !game.arrows[i].active {
-            game.arrows[i].x = game.bow.x as f32;
-            game.arrows[i].y = game.bow.y as f32;
+            game.arrows[i].x = (f32)(game.bow.x);
+            game.arrows[i].y = (f32)(game.bow.y);
             
             // 根据角度计算速度
             let angle = game.bow.angle;
-            let speed = game.bow.power as f32;
+            let speed = (f32)(game.bow.power);
             game.arrows[i].vx = speed * math.cos(angle);
             game.arrows[i].vy = speed * math.sin(angle);
             game.arrows[i].active = true;
@@ -231,10 +231,10 @@ fn update_game(game: &ArcheryState) -> bool {
     for i in 0..MAX_ARROWS {
         if game.arrows[i].active {
             // 应用重力
-            game.arrows[i].vy = game.arrows[i].vy + (GRAVITY as f32);
+            game.arrows[i].vy = game.arrows[i].vy + ((f32)(GRAVITY));
             
             // 应用风力
-            game.arrows[i].vx = game.arrows[i].vx + (game.wind as f32 * 0.02);
+            game.arrows[i].vx = game.arrows[i].vx + ((f32)(game.wind) * 0.02);
             
             // 移动弓箭
             game.arrows[i].x = game.arrows[i].x + game.arrows[i].vx;
@@ -254,9 +254,9 @@ fn update_game(game: &ArcheryState) -> bool {
             }
             
             // 检查是否出界或落地
-            if game.arrows[i].y > GAME_HEIGHT as f32 - 20 ||
-               game.arrows[i].x < 0 as f32 ||
-               game.arrows[i].x > GAME_WIDTH as f32 {
+            if game.arrows[i].y > (f32)(GAME_HEIGHT) - 20 ||
+               game.arrows[i].x < (f32)(0) ||
+               game.arrows[i].x > (f32)(GAME_WIDTH) {
                 game.arrows[i].active = false;
                 needs_redraw = true;
             }
@@ -307,27 +307,27 @@ fn check_arrow_target_hit(game: &ArcheryState, arrow_idx: i32, target_idx: i32) 
             
             // 计算分数(基于距离)
             let dist = target.distance;
-            let dist_factor = 1.0 + (dist as f32 / 500.0);
+            let dist_factor = 1.0 + ((f32)(dist) / 500.0);
             
             // 检查击中哪个区域(基于中心点距离)
-            let dx = arrow_tip_x - target_center_x as f32;
-            let dy = arrow_tip_y - target_center_y as f32;
+            let dx = arrow_tip_x - (f32)(target_center_x);
+            let dy = arrow_tip_y - (f32)(target_center_y);
             let hit_dist = math.sqrt(dx*dx + dy*dy);
             
-            let scale = 1.0 - (dist as f32 / 800.0);
+            let scale = 1.0 - ((f32)(dist) / 800.0);
             let bullseye_r = (8 * scale) as f32;
             let middle_r = (20 * scale) as f32;
             
             let points: i32;
             if hit_dist <= bullseye_r {
                 game.targets[target_idx].bullseye_hit = true;
-                points = (BULLSEYE_SCORE as f32 * dist_factor) as i32;
+                points = ((f32)(BULLSEYE_SCORE) * dist_factor) as i32;
             } else if hit_dist <= middle_r {
                 game.targets[target_idx].middle_hit = true;
-                points = (MIDDLE_SCORE as f32 * dist_factor) as i32;
+                points = ((f32)(MIDDLE_SCORE) * dist_factor) as i32;
             } else {
                 game.targets[target_idx].outer_hit = true;
-                points = (OUTER_SCORE as f32 * dist_factor) as i32;
+                points = ((f32)(OUTER_SCORE) * dist_factor) as i32;
             }
             
             game.score = game.score + points;
@@ -422,20 +422,20 @@ fn get_wind_text(game: ArcheryState*) -> string {
 fn get_trajectory_points(game: ArcheryState*, count: i32) -> [count]Point {
     let points: [count]Point;
     
-    let x = game.bow.x as f32;
-    let y = game.bow.y as f32;
-    let vx = game.bow.power as f32 * math.cos(game.bow.angle);
-    let vy = game.bow.power as f32 * math.sin(game.bow.angle);
+    let x = (f32)(game.bow.x);
+    let y = (f32)(game.bow.y);
+    let vx = (f32)(game.bow.power) * math.cos(game.bow.angle);
+    let vy = (f32)(game.bow.power) * math.sin(game.bow.angle);
     
     for i in 0..count {
         points[i] = Point { x: (i32)x, y: (i32)y };
         
-        vy = vy + (GRAVITY as f32);
-        vx = vx + (game.wind as f32 * 0.02);
+        vy = vy + ((f32)(GRAVITY));
+        vx = vx + ((f32)(game.wind) * 0.02);
         x = x + vx;
         y = y + vy;
         
-        if y > GAME_HEIGHT as f32 {
+        if y > (f32)(GAME_HEIGHT) {
             break;
         }
     }

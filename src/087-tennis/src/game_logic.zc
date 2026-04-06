@@ -288,11 +288,11 @@ pub class TennisGame extends Game {
         
         // 左右边界
         if self.ballX <= (float)COURT_MARGIN + (float)BALL_RADIUS {
-            self.ballX = (float)COURT_MARGIN + BALL_RADIUS as float;
+            self.ballX = (float)COURT_MARGIN + (float)(BALL_RADIUS);
             self.ballVX = -self.ballVX * 0.85;
         }
         if self.ballX >= (float)WINDOW_WIDTH - (float)COURT_MARGIN - (float)BALL_RADIUS {
-            self.ballX = (float)WINDOW_WIDTH - (float)COURT_MARGIN - BALL_RADIUS as float;
+            self.ballX = (float)WINDOW_WIDTH - (float)COURT_MARGIN - (float)(BALL_RADIUS);
             self.ballVX = -self.ballVX * 0.85;
         }
         
@@ -336,25 +336,25 @@ pub class TennisGame extends Game {
     // 检查球网碰撞
     private fn checkNetCollision() -> bool {
         let netTop = (float)NET_Y - 3.0;
-        let ballBottom = self.ballY + BALL_RADIUS as float;
-        let ballTop = self.ballY - BALL_RADIUS as float;
+        let ballBottom = self.ballY + (float)(BALL_RADIUS);
+        let ballTop = self.ballY - (float)(BALL_RADIUS);
         
         return ballBottom >= netTop && 
                ballTop <= netTop + 6.0 &&
                self.ballX > (float)COURT_MARGIN && 
-               self.ballX < (float)WINDOW_WIDTH - COURT_MARGIN as float;
+               self.ballX < (float)WINDOW_WIDTH - (float)(COURT_MARGIN);
     }
     
     // 检查球拍碰撞
     private fn checkRacketCollision(rx: int, ry: int, rw: int, rh: int) -> bool {
-        let ballLeft = self.ballX - BALL_RADIUS as float;
-        let ballRight = self.ballX + BALL_RADIUS as float;
-        let ballTop = self.ballY - BALL_RADIUS as float;
-        let ballBottom = self.ballY + BALL_RADIUS as float;
+        let ballLeft = self.ballX - (float)(BALL_RADIUS);
+        let ballRight = self.ballX + (float)(BALL_RADIUS);
+        let ballTop = self.ballY - (float)(BALL_RADIUS);
+        let ballBottom = self.ballY + (float)(BALL_RADIUS);
         
-        let racketLeft = rx as float;
+        let racketLeft = (float)(rx);
         let racketRight = (rx + rw) as float;
-        let racketTop = ry as float;
+        let racketTop = (float)(ry);
         let racketBottom = (ry + rh) as float;
         
         return ballRight >= racketLeft && ballLeft <= racketRight &&
@@ -518,7 +518,7 @@ pub class TennisGame extends Game {
     // 重置球
     private fn resetBall() {
         self.ballX = (float)WINDOW_WIDTH / 2.0;
-        self.ballY = NET_Y as float;
+        self.ballY = (float)(NET_Y);
         self.ballVX = 0.0;
         self.ballVY = 0.0;
         self.ballSpeed = BALL_INITIAL_SPEED;
@@ -540,7 +540,7 @@ pub class TennisGame extends Game {
         
         // 随机发球角度
         let angle = (math.rand() % 25 - 12) as float;
-        let power = self.ballSpeed as float;
+        let power = (float)(self.ballSpeed);
         
         if self.servingSide == ServeSide.Player {
             // 玩家发球：向上发

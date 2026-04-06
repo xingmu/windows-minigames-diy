@@ -96,7 +96,7 @@ class ShootingGalleryGame {
         self.width = width;
         self.height = height;
         self.targetFPS = fps;
-        self.frameTime = 1000 / fps as u32;
+        self.frameTime = 1000 / (u32)(fps);
         self.state = GameStatus.Ready;
         self.score = 0;
         self.running = false;
@@ -246,7 +246,7 @@ class ShootingGalleryGame {
         let dt = currentTime - self.lastFrame;
         
         // 更新计时
-        self.gallery.totalTime = self.gallery.totalTime + dt as u32;
+        self.gallery.totalTime = self.gallery.totalTime + (u32)(dt);
         self.gallery.lastUpdateTime = currentTime;
         self.gallery.timeLeft = GAME_DURATION - (self.gallery.totalTime / 1000) as int;
         

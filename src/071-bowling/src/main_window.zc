@@ -42,7 +42,7 @@ fn fb_get_pixel(x: i32, y: i32) -> Color {
         return Color.Black();
     }
     let offset = y * (fb_pitch / 4) + x;
-    let pixels = fb_buffer as u32;
+    let pixels = (u32)(fb_buffer);
     return pixels[offset];
 }
 
@@ -144,8 +144,8 @@ fn fb_draw_ellipse(cx: i32, cy: i32, rx: i32, ry: i32, color: Color) {
     // 简化的椭圆绘制
     for py in (cy - ry)..(cy + ry + 1) {
         for px in (cx - rx)..(cx + rx + 1) {
-            let dx = (px - cx) as f32 / rx as f32;
-            let dy = (py - cy) as f32 / ry as f32;
+            let dx = (px - cx) as f32 / (f32)(rx);
+            let dy = (py - cy) as f32 / (f32)(ry);
             if dx * dx + dy * dy <= 1.0 {
                 fb_set_pixel(px, py, color);
             }
@@ -340,8 +340,8 @@ fn render_aim_and_power() {
             // 虚线
             let steps = 8;
             for s in 0..steps {
-                let t1 = s as f32 / steps as f32;
-                let t2 = (s + 1) as f32 / steps as f32;
+                let t1 = (f32)(s) / (f32)(steps);
+                let t2 = (s + 1) as f32 / (f32)(steps);
                 let x1 = ball.x + (aimEndX - ball.x) * t1;
                 let y1 = ball.y + (aimEndY - ball.y) * t1;
                 let x2 = ball.x + (aimEndX - ball.x) * t2;
@@ -360,7 +360,7 @@ fn render_aim_and_power() {
 
         fb_draw_rect(barX, barY, barWidth, barHeight, Color.White());
 
-        let fillW = (game.power as f32 / MAX_POWER as f32 * barWidth as f32) as i32;
+        let fillW = ((f32)(game.power) / (f32)(MAX_POWER) * (f32)(barWidth)) as i32;
         let powerColor = if game.power < 10 {
             Color.Green()
         } else if game.power < 20 {

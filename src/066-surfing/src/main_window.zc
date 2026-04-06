@@ -83,7 +83,7 @@ fn on_paint(w: i32, h: i32) {
 
     // 清屏 - 绘制天空渐变
     for y in 0..screen_h {
-        let ratio = y as f32 / screen_h as f32;
+        let ratio = (f32)(y) / (f32)(screen_h);
         let sky_r: u8 = (u8)135 - (ratio * 30.0) as u8;
         let sky_g: u8 = (u8)206 - (ratio * 40.0) as u8;
         let sky_b: u8 = (u8)235 - (ratio * 30.0) as u8;
@@ -95,7 +95,7 @@ fn on_paint(w: i32, h: i32) {
     }
 
     // 绘制海洋 - 渐变蓝色
-    let ocean_top = (screen_h as f32 * 0.25) as i32;
+    let ocean_top = ((f32)(screen_h) * 0.25) as i32;
     for y in ocean_top..screen_h {
         let depth_ratio = (y - ocean_top) as f32 / (screen_h - ocean_top) as f32;
         let water_r: u8 = (u8)0 + (depth_ratio * 20.0) as u8;
@@ -287,9 +287,9 @@ fn on_paint(w: i32, h: i32) {
                         for px in 0..obs_w {
                             let dx = px - obs_w/2;
                             let dy = py - obs_h/2;
-                            let angle = atan2(dy as f32, dx as f32);
+                            let angle = atan2((f32)(dy), (f32)(dx));
                             let dist = sqrt(dx*dx + dy*dy) as i32;
-                            let star_radius = (r as f32 * (0.5 + 0.3 * cos(angle * 5.0))) as i32;
+                            let star_radius = ((f32)(r) * (0.5 + 0.3 * cos(angle * 5.0))) as i32;
                             if dist < star_radius {
                                 let ax = obs_x + px;
                                 let ay = obs_y + py;
@@ -330,7 +330,7 @@ fn on_paint(w: i32, h: i32) {
     presentFrame(window);
 }
 
-fn draw_ui(pixels: &u32 mut, pitch: &i32, w: i32, h: i32) {
+fn draw_ui(pixels: u32* mut, pitch: i32*, w: i32, h: i32) {
     // 分数背景
     for py in 10..45 {
         for px in 10..180 {
@@ -404,7 +404,7 @@ fn draw_ui(pixels: &u32 mut, pitch: &i32, w: i32, h: i32) {
     }
 }
 
-fn draw_text_str(pixels: &u32 mut, pitch: &i32, x: i32, y: i32, text: str, color: Color, w: i32, h: i32) {
+fn draw_text_str(pixels: u32* mut, pitch: i32*, x: i32, y: i32, text: str, color: Color, w: i32, h: i32) {
     // 简化文字绘制 - 用小方块代替像素字体
     let char_w = 8;
     let char_h = 12;
@@ -436,7 +436,7 @@ fn draw_text_str(pixels: &u32 mut, pitch: &i32, x: i32, y: i32, text: str, color
     }
 }
 
-fn draw_number(pixels: &u32 mut, pitch: &i32, x: i32, y: i32, num: i32, color: Color, w: i32, h: i32) {
+fn draw_number(pixels: u32* mut, pitch: i32*, x: i32, y: i32, num: i32, color: Color, w: i32, h: i32) {
     // 数字显示
     if num < 0 {
         return;
@@ -486,7 +486,7 @@ fn draw_number(pixels: &u32 mut, pitch: &i32, x: i32, y: i32, num: i32, color: C
     }
 }
 
-fn draw_heart(pixels: &u32 mut, pitch: &i32, x: i32, y: i32, color: Color, w: i32, h: i32) {
+fn draw_heart(pixels: u32* mut, pitch: i32*, x: i32, y: i32, color: Color, w: i32, h: i32) {
     // 绘制心形
     let heart_w = 24;
     let heart_h = 20;
@@ -494,27 +494,27 @@ fn draw_heart(pixels: &u32 mut, pitch: &i32, x: i32, y: i32, color: Color, w: i3
     for py in 0..heart_h {
         for px in 0..heart_w {
             // 心形公式
-            let dx = px as f32 - heart_w as f32 / 2.0;
-            let dy = py as f32 - heart_h as f32 / 2.0;
+            let dx = (f32)(px) - (f32)(heart_w) / 2.0;
+            let dy = (f32)(py) - (f32)(heart_h) / 2.0;
             let dist = sqrt(dx*dx + dy*dy) as f32;
             
             // 上半部分两个圆
             let in_heart = false;
-            let cx1 = heart_w as f32 * 0.25;
-            let cx2 = heart_w as f32 * 0.75;
-            let cy = heart_h as f32 * 0.35;
-            let cr = heart_h as f32 * 0.3;
+            let cx1 = (f32)(heart_w) * 0.25;
+            let cx2 = (f32)(heart_w) * 0.75;
+            let cy = (f32)(heart_h) * 0.35;
+            let cr = (f32)(heart_h) * 0.3;
             
-            let d1 = sqrt((px as f32 - cx1)*(px as f32 - cx1) + (py as f32 - cy)*(py as f32 - cy));
-            let d2 = sqrt((px as f32 - cx2)*(px as f32 - cx2) + (py as f32 - cy)*(py as f32 - cy));
+            let d1 = sqrt(((f32)(px) - cx1)*((f32)(px) - cx1) + ((f32)(py) - cy)*((f32)(py) - cy));
+            let d2 = sqrt(((f32)(px) - cx2)*((f32)(px) - cx2) + ((f32)(py) - cy)*((f32)(py) - cy));
             
             if d1 < cr || d2 < cr {
                 in_heart = true;
             }
             // 下半部分三角形
             if py > heart_h / 2 {
-                let expected_width = (heart_w as f32 * (1.0 - (py as f32 - heart_h as f32 / 2.0) / (heart_h as f32 / 2.0))) / 2.0;
-                if (px as f32 - heart_w as f32 / 2.0).abs() < expected_width {
+                let expected_width = ((f32)(heart_w) * (1.0 - ((f32)(py) - (f32)(heart_h) / 2.0) / ((f32)(heart_h) / 2.0))) / 2.0;
+                if ((f32)(px) - (f32)(heart_w) / 2.0).abs() < expected_width {
                     in_heart = true;
                 }
             }

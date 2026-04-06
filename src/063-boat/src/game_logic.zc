@@ -171,7 +171,7 @@ pub class BoatGame extends Game {
         
         for i in 0..3 {
             self.aiBoats[i].x = (TRACK_LEFT + lanes[i] * LANE_WIDTH + LANE_WIDTH / 2) as float;
-            self.aiBoats[i].y = WATER_BOTTOM - 30.0 - i * 25 as float;
+            self.aiBoats[i].y = WATER_BOTTOM - 30.0 - i * (float)(25);
             self.aiBoats[i].vx = 0.0;
             self.aiBoats[i].vy = -((float)ROWING_SPEED + ((float)i) * 0.3);
             self.aiBoats[i].lane = lanes[i];
@@ -258,9 +258,9 @@ pub class BoatGame extends Game {
         
         // 左右移动
         if self.keyLeft {
-            self.playerBoat.vx = -BOAT_SPEED as float;
+            self.playerBoat.vx = -(float)(BOAT_SPEED);
         } else if self.keyRight {
-            self.playerBoat.vx = BOAT_SPEED as float;
+            self.playerBoat.vx = (float)(BOAT_SPEED);
         } else {
             self.playerBoat.vx = self.playerBoat.vx * 0.85;
         }
@@ -287,16 +287,16 @@ pub class BoatGame extends Game {
         
         // 垂直边界
         if self.playerBoat.y < (float)FINISH_LINE_Y {
-            self.playerBoat.y = FINISH_LINE_Y as float;
+            self.playerBoat.y = (float)(FINISH_LINE_Y);
             self.playerBoat.vy = 0.0;
         }
         if self.playerBoat.y > (float)WATER_BOTTOM - (float)BOAT_HEIGHT {
-            self.playerBoat.y = (float)WATER_BOTTOM - BOAT_HEIGHT as float;
+            self.playerBoat.y = (float)WATER_BOTTOM - (float)(BOAT_HEIGHT);
             self.playerBoat.vy = 0.0;
         }
         
         // 更新进度
-        self.playerProgress = WATER_BOTTOM - self.playerBoat.y as int;
+        self.playerProgress = WATER_BOTTOM - (int)(self.playerBoat.y);
     }
     
     fn updateAIBoats(dt: u32) {
@@ -337,7 +337,7 @@ pub class BoatGame extends Game {
                 self.aiBoats[i].x = (float)TRACK_RIGHT - 20.0;
             }
             if self.aiBoats[i].y < (float)FINISH_LINE_Y {
-                self.aiBoats[i].y = FINISH_LINE_Y as float;
+                self.aiBoats[i].y = (float)(FINISH_LINE_Y);
                 self.aiBoats[i].finished = true;
                 self.aiBoats[i].finishTime = getTickCount() - self.aiBoats[i].startTime;
             }
@@ -467,7 +467,7 @@ pub class BoatGame extends Game {
     fn drawWater(canvas: Canvas) {
         // 背景 - 天空渐变
         for y in 0..WATER_TOP {
-            let t = (float)y / WATER_TOP as float;
+            let t = (float)y / (float)(WATER_TOP);
             let r = 135 + (float)(200 - 135) * t;
             let g = 206 + (float)(235 - 206) * t;
             let b = 235 + (float)(255 - 235) * t;
@@ -482,8 +482,8 @@ pub class BoatGame extends Game {
             if colorIdx < 0 { colorIdx = 0; }
             if colorIdx > 4 { colorIdx = 4; }
             
-            let yWave = y + wave as int;
-            canvas.drawLine(0, y, WINDOW_WIDTH, y, self.waterColors[colorIdx as int]);
+            let yWave = y + (int)(wave);
+            canvas.drawLine(0, y, WINDOW_WIDTH, y, self.waterColors[(int)(colorIdx)]);
         }
         
         // 水底区域
@@ -510,7 +510,7 @@ pub class BoatGame extends Game {
             
             for px in x..(x + LANE_WIDTH) {
                 let waveIdx = (px / 25) % 32;
-                let y = WATER_TOP + 5 + self.wavePoints[waveIdx].y as int;
+                let y = WATER_TOP + 5 + self.wavePoints[waveIdx].(int)(y);
                 if px > x && px < x + LANE_WIDTH - 1 {
                     canvas.setPixel(px, y, Color.RGB(150, 200, 240));
                 }
@@ -567,8 +567,8 @@ pub class BoatGame extends Game {
     }
     
     fn drawBoat(canvas: Canvas, boat: Boat, isPlayer: bool) {
-        let cx = boat.x as int;
-        let cy = boat.y as int;
+        let cx = (int)(boat.x);
+        let cy = (int)(boat.y);
         let w = BOAT_WIDTH;
         let h = BOAT_HEIGHT;
         
@@ -690,7 +690,7 @@ pub class BoatGame extends Game {
         
         // AI成绩
         for i in 0..3 {
-            let name = "对手" ++ (i as str);
+            let name = "对手" ++ ((str)(i));
             let time = self.formatTime(self.aiBoats[i].finishTime);
             let color = if self.aiBoats[i].finished { Color.LightGray() } else { Color.Gray() };
             canvas.drawText(WINDOW_WIDTH/2 - 80, WINDOW_HEIGHT/2 + 20 + i * 25, "{name}: {time}", color, font);

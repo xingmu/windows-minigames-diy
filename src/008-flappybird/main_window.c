@@ -5783,11 +5783,7 @@ void drawBird(rawptr ctx, int32_t pitch, rawptr buffer)
     {
 
 #line 239 "src/main_window.zc"
-    ZC_AUTO birdScreenY = birdY;
-
-#line 239 "src/main_window.zc"
-as;
-int;
+    int32_t birdScreenY = ((int32_t)(birdY));
 
 #line 242 "src/main_window.zc"
 fillCircle(ctx, 80, birdScreenY, 15, pitch, buffer, BIRD_COLOR);
@@ -5939,11 +5935,7 @@ if ((gameState != GameState__Playing))     {
 if ((birdY < ((float)(15))))     {
 
 #line 149 "src/main_window.zc"
-(birdY = 15);
-
-#line 149 "src/main_window.zc"
-as;
-float;
+(birdY = ((float)(15)));
 
 #line 150 "src/main_window.zc"
 (birdVelocity = 0.0);
@@ -6081,11 +6073,7 @@ if ((gameState == GameState__Ready))     {
 if ((gameState == GameState__Playing))     {
 
 #line 109 "src/main_window.zc"
-(birdVelocity = 18446744073709551266ULL);
-
-#line 109 "src/main_window.zc"
-as;
-float;
+(birdVelocity = ((float)(18446744073709551266ULL)));
     }
 
 #line 112 "src/main_window.zc"
@@ -6910,11 +6898,7 @@ uint32_t uint32_t__RGB(uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/008-flappybird/src/platform_api.zc"
-    return (((4278190080 | (r << 16)) | (g << 8)) | b);
-
-#line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/008-flappybird/src/platform_api.zc"
-as;
-Color;
+    return (((4278190080 | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 
@@ -6925,11 +6909,7 @@ uint32_t uint32_t__ARGB(uint8_t a, uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/008-flappybird/src/platform_api.zc"
-    return ((((a << 24) | (r << 16)) | (g << 8)) | b);
-
-#line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/008-flappybird/src/platform_api.zc"
-as;
-Color;
+    return ((((a << 24) | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 

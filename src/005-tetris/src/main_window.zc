@@ -160,7 +160,7 @@ class TetrisGame extends Game {
         self.width = width;
         self.height = height;
         self.targetFPS = fps;
-        self.frameTime = 1000 / fps as u32;
+        self.frameTime = 1000 / (u32)(fps);
         self.state = GameState.Ready;
         self.score = 0;
         self.running = false;

@@ -350,8 +350,8 @@ pub class BoatRaceGame extends Game {
     
     // 检查碰撞
     fn checkCollisions() {
-        let boatX = self.playerBoat.x as int;
-        let boatY = self.playerBoat.y as int;
+        let boatX = (int)(self.playerBoat.x);
+        let boatY = (int)(self.playerBoat.y);
         
         for i in 0..BUOY_COUNT {
             let dx = boatX - self.buoys[i].x;
@@ -524,8 +524,8 @@ pub class BoatRaceGame extends Game {
     
     // 绘制船只
     fn drawBoat(canvas: Canvas) {
-        let x = self.playerBoat.x as int;
-        let y = self.playerBoat.y as int;
+        let x = (int)(self.playerBoat.x);
+        let y = (int)(self.playerBoat.y);
         let angle = self.playerBoat.angle;
         
         // 保存画布状态（简化版本直接绘制）

@@ -505,12 +505,12 @@ fn throwBall(state: &BowlingState, power: i32, angle: i32) {
 
     // 标准化角度 (-30 到 30 度)
     let clampedAngle = clamp(angle, -30, 30);
-    let rad = clampedAngle as f32 * 3.14159 / 180.0;
+    let rad = (f32)(clampedAngle) * 3.14159 / 180.0;
 
     // 计算速度分量
     let speed = power;
-    state.ball.vx = (speed as f32 * math.sin(rad)) as i32;
-    state.ball.vy = -(speed as f32 * math.cos(rad)) as i32;  // 向上
+    state.ball.vx = ((f32)(speed) * math.sin(rad)) as i32;
+    state.ball.vy = -((f32)(speed) * math.cos(rad)) as i32;  // 向上
     state.ball.rolling = true;
     state.ball.inGutter = false;
     state.gutterTriggered = false;

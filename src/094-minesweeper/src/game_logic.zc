@@ -326,7 +326,7 @@ fn get_timer_text(game: MineState*) -> string {
 // 获取显示数字的颜色
 fn get_number_color(n: i32) -> Color {
     if n >= 1 && n <= 8 {
-        return NUMBER_COLORS[n as usize];
+        return NUMBER_COLORS[(usize)(n)];
     }
     return Color { r: 0, g: 0, b: 0 };
 }
@@ -342,7 +342,7 @@ pub fn set_random_seed(seed: u32) {
 fn rand_int(min: i32, max: i32) -> i32 {
     rng_seed = rng_seed * 1103515245 + 12345;
     let r = rng_seed % (u32)((max - min + 1));
-    return min + r as i32;
+    return min + (i32)(r);
 }
 
 // ==================== 计时器辅助 ====================

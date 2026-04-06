@@ -54,7 +54,7 @@ pub struct FallingPair {
 
 // 游戏状态
 pub struct TetrisAttackState {
-    grid: [GRID_ROWS][GRID_COLS]Block,    // 游戏网格
+    grid: Block[GRID_ROWS][GRID_COLS],    // 游戏网格
     falling: FallingPair,                  // 正在下落的方块对
     cursorCol: int,                         // 光标列位置
     score: int,                            // 当前分数

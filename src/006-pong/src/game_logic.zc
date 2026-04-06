@@ -227,14 +227,14 @@ pub class PongGame extends Game {
             
             let paddleCenter = (float)(self.playerPaddleY) + (float)PADDLE_HEIGHT / 2.0;
             let hitPos = self.ballY - paddleCenter;
-            self.ballVY = hitPos / ((float)PADDLE_HEIGHT / 2.0) * self.ballSpeed as float;
+            self.ballVY = hitPos / ((float)PADDLE_HEIGHT / 2.0) * (float)(self.ballSpeed);
             
             // 增加速度
             if self.ballSpeed < BALL_MAX_SPEED {
                 self.ballSpeed = self.ballSpeed + 1;
                 let currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
-                self.ballVX = self.ballVX / currentSpeed * self.ballSpeed as float;
-                self.ballVY = self.ballVY / currentSpeed * self.ballSpeed as float;
+                self.ballVX = self.ballVX / currentSpeed * (float)(self.ballSpeed);
+                self.ballVY = self.ballVY / currentSpeed * (float)(self.ballSpeed);
             }
         }
         
@@ -244,14 +244,14 @@ pub class PongGame extends Game {
             
             let paddleCenter = (float)(self.cpuPaddleY) + (float)PADDLE_HEIGHT / 2.0;
             let hitPos = self.ballY - paddleCenter;
-            self.ballVY = hitPos / ((float)PADDLE_HEIGHT / 2.0) * self.ballSpeed as float;
+            self.ballVY = hitPos / ((float)PADDLE_HEIGHT / 2.0) * (float)(self.ballSpeed);
             
             // 增加速度
             if self.ballSpeed < BALL_MAX_SPEED {
                 self.ballSpeed = self.ballSpeed + 1;
                 let currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
-                self.ballVX = self.ballVX / currentSpeed * self.ballSpeed as float;
-                self.ballVY = self.ballVY / currentSpeed * self.ballSpeed as float;
+                self.ballVX = self.ballVX / currentSpeed * (float)(self.ballSpeed);
+                self.ballVY = self.ballVY / currentSpeed * (float)(self.ballSpeed);
             }
         }
         
@@ -274,9 +274,9 @@ pub class PongGame extends Game {
         let ballTop = self.ballY - (float)BALL_SIZE / 2.0;
         let ballBottom = self.ballY + (float)BALL_SIZE / 2.0;
         
-        let paddleLeft = px as float;
+        let paddleLeft = (float)(px);
         let paddleRight = (px + pw) as float;
-        let paddleTop = py as float;
+        let paddleTop = (float)(py);
         let paddleBottom = (py + ph) as float;
         
         return ballRight >= paddleLeft && ballLeft <= paddleRight &&

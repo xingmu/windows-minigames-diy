@@ -76,8 +76,8 @@ impl Ball {
     }
     
     pub fn reset(&self, x: int, y: int) {
-        self.x = x as float;
-        self.y = y as float;
+        self.x = (float)(x);
+        self.y = (float)(y);
         self.vx = 0.0;
         self.vy = 0.0;
         self.active = true;
@@ -408,8 +408,8 @@ pub class BowlingGame {
                 continue;
             }
             
-            let dx = self.ball.x - self.pins[i].x as float;
-            let dy = self.ball.y - self.pins[i].y as float;
+            let dx = self.ball.x - self.pins[i].(float)(x);
+            let dy = self.ball.y - self.pins[i].(float)(y);
             let dist = sqrt_float(dx * dx + dy * dy);
             
             if dist < (float)(BALL_RADIUS + PIN_RADIUS) {

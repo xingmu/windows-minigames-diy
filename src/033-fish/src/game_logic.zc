@@ -151,7 +151,7 @@ fn update_cannon_angle(state: &FishGameState) {
     let dy = state.mouseY - state.cannon.y;
     
     // 计算角度 (朝向鼠标)
-    state.cannon.angle = atan2f(dy as f32, dx as f32);
+    state.cannon.angle = atan2f((f32)(dy), (f32)(dx));
     
     // 限制角度范围 (只能向上半圆射击)
     if state.cannon.angle > 0.0 {
@@ -218,7 +218,7 @@ fn spawn_fish(state: &FishGameState) {
     
     if side == 0 {
         // 从左边出生
-        fish.x = -fish.size as f32;
+        fish.x = -(f32)(fish.size);
         fish.y = (50 + (state.gameTime % (state.height - 150))) as f32;
         fish.vx = speed;
         fish.vy = (state.gameTime % 20 - 10) as f32 * 0.1;
@@ -249,8 +249,8 @@ fn update_fishes(state: &FishGameState, dt: i32) {
         if !fish.alive { continue; }
         
         // 更新位置
-        fish.x = fish.x + fish.vx * dt as f32 * 0.05;
-        fish.y = fish.y + fish.vy * dt as f32 * 0.05;
+        fish.x = fish.x + fish.vx * (f32)(dt) * 0.05;
+        fish.y = fish.y + fish.vy * (f32)(dt) * 0.05;
         
         // 轻微摇摆
         fish.wobble = fish.wobble + 0.1;
@@ -278,16 +278,16 @@ fn update_bullets(state: &FishGameState, dt: i32) {
         if !bullet.active { continue; }
         
         // 更新位置
-        bullet.x = bullet.x + bullet.vx * dt as f32 * 0.3;
-        bullet.y = bullet.y + bullet.vy * dt as f32 * 0.3;
+        bullet.x = bullet.x + bullet.vx * (f32)(dt) * 0.3;
+        bullet.y = bullet.y + bullet.vy * (f32)(dt) * 0.3;
         
         // 拖尾
         bullet.trail = bullet.trail + 1;
         if bullet.trail > 10 { bullet.trail = 10; }
         
         // 检查是否离开屏幕
-        if bullet.x < 0 || bullet.x > state.width as f32 ||
-           bullet.y < 0 || bullet.y > state.height as f32 {
+        if bullet.x < 0 || bullet.x > (f32)(state.width) ||
+           bullet.y < 0 || bullet.y > (f32)(state.height) {
             bullet.active = false;
         }
     }
@@ -387,11 +387,11 @@ pub fn shoot(state: &FishGameState) {
     
     let bullet = &state.bullets[slot];
     bullet.active = true;
-    bullet.x = state.cannon.x as f32;
-    bullet.y = state.cannon.y as f32;
+    bullet.x = (f32)(state.cannon.x);
+    bullet.y = (f32)(state.cannon.y);
     
     // 根据炮台等级调整速度和威力
-    let speed = 12.0 + state.cannon.level as f32 * 2.0;
+    let speed = 12.0 + (f32)(state.cannon.level) * 2.0;
     bullet.vx = cosi(state.cannon.angle) * speed;
     bullet.vy = sini(state.cannon.angle) * speed;
     bullet.power = state.cannon.level;

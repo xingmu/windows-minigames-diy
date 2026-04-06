@@ -149,6 +149,7 @@ void _z_restore_stdout() {
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include "math.h"
 typedef char* string;
 typedef struct { void **data; int len; int cap; } Vec;
 #define Vec_new() (Vec){.data=0, .len=0, .cap=0}
@@ -178,71 +179,63 @@ typedef struct VecIterRef__char VecIterRef__char;
 typedef struct Option__char Option__char;
 typedef struct VecIter__char VecIter__char;
 typedef struct Vec__char Vec__char;
-typedef struct PathPoint PathPoint;
-typedef struct Tile Tile;
-typedef struct Rect Rect;
-typedef struct Font Font;
+typedef struct Ball Ball;
+typedef struct Paddle Paddle;
+typedef struct Math Math;
+typedef struct FBData FBData;
+typedef struct Color Color;
+typedef struct WNDCLASSA WNDCLASSA;
 typedef struct StringCharsIter StringCharsIter;
 typedef struct Sort Sort;
-typedef struct VirtualKey VirtualKey;
-typedef struct MouseButton MouseButton;
-typedef struct MessageType MessageType;
-typedef struct Path Path;
-typedef struct LinkLinkState LinkLinkState;
-typedef struct KeyEvent KeyEvent;
-typedef struct MouseEvent MouseEvent;
+typedef struct GameStatus GameStatus;
+typedef struct KeyCode KeyCode;
+typedef struct EventType EventType;
+typedef struct Brick Brick;
+typedef struct Event Event;
 typedef struct String String;
 typedef struct Option__String Option__String;
-typedef struct Event Event;
-VirtualKey VirtualKey__None();
-VirtualKey VirtualKey__Escape();
-VirtualKey VirtualKey__Space();
-VirtualKey VirtualKey__Enter();
-VirtualKey VirtualKey__Tab();
-VirtualKey VirtualKey__Backspace();
-VirtualKey VirtualKey__Left();
-VirtualKey VirtualKey__Up();
-VirtualKey VirtualKey__Right();
-VirtualKey VirtualKey__Down();
-VirtualKey VirtualKey__Key0();
-VirtualKey VirtualKey__Key1();
-VirtualKey VirtualKey__Key2();
-VirtualKey VirtualKey__Key3();
-VirtualKey VirtualKey__Key4();
-VirtualKey VirtualKey__Key5();
-VirtualKey VirtualKey__Key6();
-VirtualKey VirtualKey__Key7();
-VirtualKey VirtualKey__Key8();
-VirtualKey VirtualKey__Key9();
-VirtualKey VirtualKey__F1();
-VirtualKey VirtualKey__F2();
-VirtualKey VirtualKey__F3();
-VirtualKey VirtualKey__F4();
-VirtualKey VirtualKey__F5();
-VirtualKey VirtualKey__F6();
-VirtualKey VirtualKey__F7();
-VirtualKey VirtualKey__F8();
-VirtualKey VirtualKey__F9();
-VirtualKey VirtualKey__F10();
-VirtualKey VirtualKey__F11();
-VirtualKey VirtualKey__F12();
-MouseButton MouseButton__None();
-MouseButton MouseButton__Left();
-MouseButton MouseButton__Right();
-MouseButton MouseButton__Middle();
-MessageType MessageType__None();
-MessageType MessageType__Quit();
-MessageType MessageType__MouseMove();
-MessageType MessageType__MouseDown();
-MessageType MessageType__MouseUp();
-MessageType MessageType__KeyDown();
-MessageType MessageType__KeyUp();
-MessageType MessageType__Resize();
-MessageType MessageType__Paint();
-typedef uint32_t Color;
-typedef rawptr WindowHandle;
-typedef rawptr WindowHandle;
-typedef uint32_t Color;
+typedef struct BrickGrid BrickGrid;
+typedef struct BreakoutState BreakoutState;
+GameStatus GameStatus__Ready();
+GameStatus GameStatus__Playing();
+GameStatus GameStatus__Lost();
+GameStatus GameStatus__Won();
+KeyCode KeyCode__KeyUnknown();
+KeyCode KeyCode__KeyUp();
+KeyCode KeyCode__KeyDown();
+KeyCode KeyCode__KeyLeft();
+KeyCode KeyCode__KeyRight();
+KeyCode KeyCode__KeySpace();
+KeyCode KeyCode__KeyEscape();
+KeyCode KeyCode__KeyR();
+KeyCode KeyCode__KeyW();
+KeyCode KeyCode__KeyA();
+KeyCode KeyCode__KeyS();
+KeyCode KeyCode__KeyD();
+KeyCode KeyCode__KeyP();
+EventType EventType__EventNone();
+EventType EventType__EventKeyDown();
+EventType EventType__EventKeyUp();
+EventType EventType__EventMouseMove();
+EventType EventType__EventMouseDown();
+EventType EventType__EventMouseUp();
+EventType EventType__EventWindowClose();
+EventType EventType__EventWindowResize();
+EventType EventType__EventTimer();
+typedef z_closure_T MouseHandler;
+typedef z_closure_T PaintHandler;
+typedef z_closure_T TimerHandler;
+typedef z_closure_T KeyHandler;
+typedef z_closure_T TimerCallback;
+typedef void* GraphicsContext;
+typedef void* WindowHandle;
+typedef void* WindowHandle;
+typedef void* GraphicsContext;
+typedef z_closure_T TimerCallback;
+typedef z_closure_T KeyHandler;
+typedef z_closure_T TimerHandler;
+typedef z_closure_T PaintHandler;
+typedef z_closure_T MouseHandler;
 typedef struct Clone_VTable {
     void* (*clone)(void* self);
 } Clone_VTable;
@@ -293,6 +286,32 @@ typedef struct Drop { void *self; Drop_VTable *vtable; } Drop;
     ZC_IMPL_SORT(long)
     ZC_IMPL_SORT(float)
     ZC_IMPL_SORT(double)
+
+#if defined(_WIN32) || defined(WIN32) || defined(__WIN32__) || defined(__NT__)
+
+#define IS_WINDOWS 1
+
+#define IS_LINUX 0
+
+#define IS_MACOS 0
+
+#elif defined(__linux__)
+
+#define IS_WINDOWS 0
+
+#define IS_LINUX 1
+
+#elif defined(__APPLE__) && defined(__MACH__)
+
+#define IS_MACOS 1
+
+#else
+
+#error "Unsupported platform"
+
+#endif
+
+#if IS_WINDOWS
 
 struct VecIterResult__String {
     String* ptr;
@@ -397,29 +416,52 @@ struct Vec__char {
     size_t cap;
 };
 
-struct PathPoint {
-    int32_t row;
-    int32_t col;
+struct Ball {
+    int32_t x;
+    int32_t y;
+    int32_t vx;
+    int32_t vy;
+    int32_t radius;
 };
 
-struct Tile {
-    int32_t tileType;
-    int32_t row;
-    int32_t col;
-    bool visible;
-};
-
-struct Rect {
+struct Paddle {
     int32_t x;
     int32_t y;
     int32_t width;
     int32_t height;
+    int32_t speed;
 };
 
-struct Font {
-    str name;
-    int32_t size;
-    bool bold;
+struct Math {
+    char _placeholder;
+};
+
+struct FBData {
+    void* window;
+    int32_t width;
+    int32_t height;
+    void* hdc;
+    void* memDC;
+    void* bitmap;
+    void* buffer;
+    bool valid;
+};
+
+struct Color {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+};
+
+struct WNDCLASSA {
+    uint32_t style;
+    void* lpfnWndProc;
+    void* hInstance;
+    void* hIcon;
+    void* hCursor;
+    void* hbrBackground;
+    int8_t* lpszMenuName;
+    int8_t* lpszClassName;
 };
 
 struct StringCharsIter {
@@ -432,88 +474,57 @@ struct Sort {
     char _placeholder;
 };
 
-typedef enum { VirtualKey__None_Tag, VirtualKey__Escape_Tag, VirtualKey__Space_Tag, VirtualKey__Enter_Tag, VirtualKey__Tab_Tag, VirtualKey__Backspace_Tag, VirtualKey__Left_Tag, VirtualKey__Up_Tag, VirtualKey__Right_Tag, VirtualKey__Down_Tag, VirtualKey__Key0_Tag, VirtualKey__Key1_Tag, VirtualKey__Key2_Tag, VirtualKey__Key3_Tag, VirtualKey__Key4_Tag, VirtualKey__Key5_Tag, VirtualKey__Key6_Tag, VirtualKey__Key7_Tag, VirtualKey__Key8_Tag, VirtualKey__Key9_Tag, VirtualKey__F1_Tag, VirtualKey__F2_Tag, VirtualKey__F3_Tag, VirtualKey__F4_Tag, VirtualKey__F5_Tag, VirtualKey__F6_Tag, VirtualKey__F7_Tag, VirtualKey__F8_Tag, VirtualKey__F9_Tag, VirtualKey__F10_Tag, VirtualKey__F11_Tag, VirtualKey__F12_Tag, } VirtualKey_Tag;
-struct VirtualKey { VirtualKey_Tag tag; union { } data; };
+typedef enum { GameStatus__Ready_Tag, GameStatus__Playing_Tag, GameStatus__Lost_Tag, GameStatus__Won_Tag, } GameStatus_Tag;
+struct GameStatus { GameStatus_Tag tag; union { } data; };
 
-VirtualKey VirtualKey__None() { return (VirtualKey){.tag=VirtualKey__None_Tag}; }
-VirtualKey VirtualKey__Escape() { return (VirtualKey){.tag=VirtualKey__Escape_Tag}; }
-VirtualKey VirtualKey__Space() { return (VirtualKey){.tag=VirtualKey__Space_Tag}; }
-VirtualKey VirtualKey__Enter() { return (VirtualKey){.tag=VirtualKey__Enter_Tag}; }
-VirtualKey VirtualKey__Tab() { return (VirtualKey){.tag=VirtualKey__Tab_Tag}; }
-VirtualKey VirtualKey__Backspace() { return (VirtualKey){.tag=VirtualKey__Backspace_Tag}; }
-VirtualKey VirtualKey__Left() { return (VirtualKey){.tag=VirtualKey__Left_Tag}; }
-VirtualKey VirtualKey__Up() { return (VirtualKey){.tag=VirtualKey__Up_Tag}; }
-VirtualKey VirtualKey__Right() { return (VirtualKey){.tag=VirtualKey__Right_Tag}; }
-VirtualKey VirtualKey__Down() { return (VirtualKey){.tag=VirtualKey__Down_Tag}; }
-VirtualKey VirtualKey__Key0() { return (VirtualKey){.tag=VirtualKey__Key0_Tag}; }
-VirtualKey VirtualKey__Key1() { return (VirtualKey){.tag=VirtualKey__Key1_Tag}; }
-VirtualKey VirtualKey__Key2() { return (VirtualKey){.tag=VirtualKey__Key2_Tag}; }
-VirtualKey VirtualKey__Key3() { return (VirtualKey){.tag=VirtualKey__Key3_Tag}; }
-VirtualKey VirtualKey__Key4() { return (VirtualKey){.tag=VirtualKey__Key4_Tag}; }
-VirtualKey VirtualKey__Key5() { return (VirtualKey){.tag=VirtualKey__Key5_Tag}; }
-VirtualKey VirtualKey__Key6() { return (VirtualKey){.tag=VirtualKey__Key6_Tag}; }
-VirtualKey VirtualKey__Key7() { return (VirtualKey){.tag=VirtualKey__Key7_Tag}; }
-VirtualKey VirtualKey__Key8() { return (VirtualKey){.tag=VirtualKey__Key8_Tag}; }
-VirtualKey VirtualKey__Key9() { return (VirtualKey){.tag=VirtualKey__Key9_Tag}; }
-VirtualKey VirtualKey__F1() { return (VirtualKey){.tag=VirtualKey__F1_Tag}; }
-VirtualKey VirtualKey__F2() { return (VirtualKey){.tag=VirtualKey__F2_Tag}; }
-VirtualKey VirtualKey__F3() { return (VirtualKey){.tag=VirtualKey__F3_Tag}; }
-VirtualKey VirtualKey__F4() { return (VirtualKey){.tag=VirtualKey__F4_Tag}; }
-VirtualKey VirtualKey__F5() { return (VirtualKey){.tag=VirtualKey__F5_Tag}; }
-VirtualKey VirtualKey__F6() { return (VirtualKey){.tag=VirtualKey__F6_Tag}; }
-VirtualKey VirtualKey__F7() { return (VirtualKey){.tag=VirtualKey__F7_Tag}; }
-VirtualKey VirtualKey__F8() { return (VirtualKey){.tag=VirtualKey__F8_Tag}; }
-VirtualKey VirtualKey__F9() { return (VirtualKey){.tag=VirtualKey__F9_Tag}; }
-VirtualKey VirtualKey__F10() { return (VirtualKey){.tag=VirtualKey__F10_Tag}; }
-VirtualKey VirtualKey__F11() { return (VirtualKey){.tag=VirtualKey__F11_Tag}; }
-VirtualKey VirtualKey__F12() { return (VirtualKey){.tag=VirtualKey__F12_Tag}; }
-typedef enum { MouseButton__None_Tag, MouseButton__Left_Tag, MouseButton__Right_Tag, MouseButton__Middle_Tag, } MouseButton_Tag;
-struct MouseButton { MouseButton_Tag tag; union { } data; };
+GameStatus GameStatus__Ready() { return (GameStatus){.tag=GameStatus__Ready_Tag}; }
+GameStatus GameStatus__Playing() { return (GameStatus){.tag=GameStatus__Playing_Tag}; }
+GameStatus GameStatus__Lost() { return (GameStatus){.tag=GameStatus__Lost_Tag}; }
+GameStatus GameStatus__Won() { return (GameStatus){.tag=GameStatus__Won_Tag}; }
+typedef enum { KeyCode__KeyUnknown_Tag, KeyCode__KeyUp_Tag, KeyCode__KeyDown_Tag, KeyCode__KeyLeft_Tag, KeyCode__KeyRight_Tag, KeyCode__KeySpace_Tag, KeyCode__KeyEscape_Tag, KeyCode__KeyR_Tag, KeyCode__KeyW_Tag, KeyCode__KeyA_Tag, KeyCode__KeyS_Tag, KeyCode__KeyD_Tag, KeyCode__KeyP_Tag, } KeyCode_Tag;
+struct KeyCode { KeyCode_Tag tag; union { } data; };
 
-MouseButton MouseButton__None() { return (MouseButton){.tag=MouseButton__None_Tag}; }
-MouseButton MouseButton__Left() { return (MouseButton){.tag=MouseButton__Left_Tag}; }
-MouseButton MouseButton__Right() { return (MouseButton){.tag=MouseButton__Right_Tag}; }
-MouseButton MouseButton__Middle() { return (MouseButton){.tag=MouseButton__Middle_Tag}; }
-typedef enum { MessageType__None_Tag, MessageType__Quit_Tag, MessageType__MouseMove_Tag, MessageType__MouseDown_Tag, MessageType__MouseUp_Tag, MessageType__KeyDown_Tag, MessageType__KeyUp_Tag, MessageType__Resize_Tag, MessageType__Paint_Tag, } MessageType_Tag;
-struct MessageType { MessageType_Tag tag; union { } data; };
+KeyCode KeyCode__KeyUnknown() { return (KeyCode){.tag=KeyCode__KeyUnknown_Tag}; }
+KeyCode KeyCode__KeyUp() { return (KeyCode){.tag=KeyCode__KeyUp_Tag}; }
+KeyCode KeyCode__KeyDown() { return (KeyCode){.tag=KeyCode__KeyDown_Tag}; }
+KeyCode KeyCode__KeyLeft() { return (KeyCode){.tag=KeyCode__KeyLeft_Tag}; }
+KeyCode KeyCode__KeyRight() { return (KeyCode){.tag=KeyCode__KeyRight_Tag}; }
+KeyCode KeyCode__KeySpace() { return (KeyCode){.tag=KeyCode__KeySpace_Tag}; }
+KeyCode KeyCode__KeyEscape() { return (KeyCode){.tag=KeyCode__KeyEscape_Tag}; }
+KeyCode KeyCode__KeyR() { return (KeyCode){.tag=KeyCode__KeyR_Tag}; }
+KeyCode KeyCode__KeyW() { return (KeyCode){.tag=KeyCode__KeyW_Tag}; }
+KeyCode KeyCode__KeyA() { return (KeyCode){.tag=KeyCode__KeyA_Tag}; }
+KeyCode KeyCode__KeyS() { return (KeyCode){.tag=KeyCode__KeyS_Tag}; }
+KeyCode KeyCode__KeyD() { return (KeyCode){.tag=KeyCode__KeyD_Tag}; }
+KeyCode KeyCode__KeyP() { return (KeyCode){.tag=KeyCode__KeyP_Tag}; }
+typedef enum { EventType__EventNone_Tag, EventType__EventKeyDown_Tag, EventType__EventKeyUp_Tag, EventType__EventMouseMove_Tag, EventType__EventMouseDown_Tag, EventType__EventMouseUp_Tag, EventType__EventWindowClose_Tag, EventType__EventWindowResize_Tag, EventType__EventTimer_Tag, } EventType_Tag;
+struct EventType { EventType_Tag tag; union { } data; };
 
-MessageType MessageType__None() { return (MessageType){.tag=MessageType__None_Tag}; }
-MessageType MessageType__Quit() { return (MessageType){.tag=MessageType__Quit_Tag}; }
-MessageType MessageType__MouseMove() { return (MessageType){.tag=MessageType__MouseMove_Tag}; }
-MessageType MessageType__MouseDown() { return (MessageType){.tag=MessageType__MouseDown_Tag}; }
-MessageType MessageType__MouseUp() { return (MessageType){.tag=MessageType__MouseUp_Tag}; }
-MessageType MessageType__KeyDown() { return (MessageType){.tag=MessageType__KeyDown_Tag}; }
-MessageType MessageType__KeyUp() { return (MessageType){.tag=MessageType__KeyUp_Tag}; }
-MessageType MessageType__Resize() { return (MessageType){.tag=MessageType__Resize_Tag}; }
-MessageType MessageType__Paint() { return (MessageType){.tag=MessageType__Paint_Tag}; }
-struct Path {
-    int32_t length;
-    PathPoint points[4];
-};
-
-struct LinkLinkState {
-    Tile tiles[8][8];
-    int32_t selectedRow;
-    int32_t selectedCol;
-    int32_t score;
-    int32_t timeLeft;
-    bool gameOver;
-    bool gameWon;
-    int32_t tilesRemaining;
-    bool lastMatch;
-    PathPoint connectionPath[4];
-    int32_t pathLength;
-};
-
-struct KeyEvent {
-    VirtualKey key;
-    bool pressed;
-};
-
-struct MouseEvent {
+EventType EventType__EventNone() { return (EventType){.tag=EventType__EventNone_Tag}; }
+EventType EventType__EventKeyDown() { return (EventType){.tag=EventType__EventKeyDown_Tag}; }
+EventType EventType__EventKeyUp() { return (EventType){.tag=EventType__EventKeyUp_Tag}; }
+EventType EventType__EventMouseMove() { return (EventType){.tag=EventType__EventMouseMove_Tag}; }
+EventType EventType__EventMouseDown() { return (EventType){.tag=EventType__EventMouseDown_Tag}; }
+EventType EventType__EventMouseUp() { return (EventType){.tag=EventType__EventMouseUp_Tag}; }
+EventType EventType__EventWindowClose() { return (EventType){.tag=EventType__EventWindowClose_Tag}; }
+EventType EventType__EventWindowResize() { return (EventType){.tag=EventType__EventWindowResize_Tag}; }
+EventType EventType__EventTimer() { return (EventType){.tag=EventType__EventTimer_Tag}; }
+struct Brick {
     int32_t x;
     int32_t y;
-    MouseButton button;
+    int32_t width;
+    int32_t height;
+    bool alive;
+    Color color;
+};
+
+struct Event {
+    EventType type;
+    KeyCode key;
+    int32_t x;
+    int32_t y;
+    int32_t width;
+    int32_t height;
 };
 
 struct String {
@@ -525,65 +536,68 @@ struct Option__String {
     String val;
 };
 
-struct Event {
-    MessageType msg;
-    MouseEvent mouse;
-    KeyEvent key;
+struct BrickGrid {
+    Brick bricks[50];
+    int32_t rows;
+    int32_t cols;
+};
+
+struct BreakoutState {
+    Paddle paddle;
+    Ball ball;
+    BrickGrid bricks;
+    int32_t score;
+    int32_t lives;
+    GameStatus status;
     int32_t width;
     int32_t height;
 };
 
-const int32_t GRID_ROWS = 8;
-const int32_t GRID_COLS = 8;
-const int32_t TILE_TYPES = 18;
-const int32_t TILE_SIZE = 48;
-const int32_t TILE_GAP = 4;
-const int32_t GRID_OFFSET_X = 50;
-const int32_t GRID_OFFSET_Y = 60;
-const int32_t GAME_TIME = 300;
-const uint32_t BG_COLOR = 
-#line 21 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(30, 30, 40);
-const uint32_t TILE_BG_COLOR = 
-#line 22 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(60, 60, 80);
-const uint32_t SELECTED_COLOR = 
-#line 23 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(255, 255, 100);
-const uint32_t LINE_COLOR = 
-#line 24 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(0, 255, 100);
-const uint32_t TEXT_COLOR = 
-#line 25 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(255, 255, 255);
-const uint32_t TILE_COLORS[12] = {
-#line 29 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(231, 76, 60), 
-#line 30 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(52, 152, 219), 
-#line 31 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(46, 204, 113), 
-#line 32 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(155, 89, 182), 
-#line 33 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(241, 196, 15), 
-#line 34 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(230, 126, 34), 
-#line 35 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(26, 188, 156), 
-#line 36 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(255, 99, 132), 
-#line 37 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(123, 237, 159), 
-#line 38 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(162, 155, 254), 
-#line 39 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(255, 218, 121), 
-#line 40 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rgb(84, 160, 255)};
-const int32_t WINDOW_WIDTH = 520;
-const int32_t WINDOW_HEIGHT = 520;
-const int32_t TIMER_INTERVAL = 1000;
+const uint32_t WS_OVERLAPPEDWINDOW = 13565952;
+const int32_t CW_USEDEFAULT = 2147483648;
+const uint32_t WM_CREATE = 1;
+const uint32_t WM_PAINT = 15;
+const uint32_t WM_KEYDOWN = 256;
+const uint32_t WM_KEYUP = 257;
+const uint32_t WM_LBUTTONDOWN = 513;
+const uint32_t WM_LBUTTONUP = 514;
+const uint32_t WM_DESTROY = 2;
+const uint32_t WM_TIMER = 275;
+const uint32_t WM_SIZE = 5;
+const int32_t COLOR_WINDOW = 5;
+const int8_t* IDC_ARROW = ((int8_t*)(32512));
+const uint32_t SRCCOPY = 13369376;
+const int32_t GWLP_WNDPROC = (-4);
+const uint32_t CS_HREDRAW = 2;
+const uint32_t CS_VREDRAW = 1;
+const uint32_t WS_SYSMENU = 524288;
+const uint32_t WS_MINIMIZEBOX = 131072;
+const uint32_t WS_MAXIMIZEBOX = 65536;
+const uint32_t WS_CAPTION = 12582912;
+const uint32_t WM_USER = 1024;
+const int32_t TRANSPARENT = 1;
+const int8_t OUT_DEFAULT_PRECIS = 0;
+const int8_t CLIP_DEFAULT_PRECIS = 0;
+const int8_t DEFAULT_QUALITY = 0;
+const uint8_t DEFAULT_PITCH = 0;
+fn*() -> void destroy_handler = null;
+const int32_t GAME_WIDTH = 800;
+const int32_t GAME_HEIGHT = 600;
+const int32_t PADDLE_WIDTH = 100;
+const int32_t PADDLE_HEIGHT = 15;
+const int32_t PADDLE_Y = (600 - 40);
+const int32_t BALL_RADIUS = 8;
+const int32_t BALL_SPEED = 5;
+const int32_t BRICK_ROWS = 5;
+const int32_t BRICK_COLS = 10;
+const int32_t BRICK_WIDTH = 70;
+const int32_t BRICK_HEIGHT = 25;
+const int32_t BRICK_PADDING = 5;
+const int32_t BRICK_TOP_OFFSET = 60;
+const int32_t BRICK_LEFT_OFFSET = 30;
+const int32_t POINTS_PER_BRICK = 10;
+const int32_t INITIAL_LIVES = 3;
+const Color BRICK_COLORS[5] = {(struct Color){.r = 255, .g = 107, .b = 107}, (struct Color){.r = 255, .g = 224, .b = 102}, (struct Color){.r = 107, .g = 203, .b = 119}, (struct Color){.r = 77, .g = 150, .b = 255}, (struct Color){.r = 199, .g = 125, .b = 255}};
 Clone Clone__clone(Clone* self) {
     void* res = self->vtable->clone(self->self);
     return (Clone){.self = res, .vtable = self->vtable};
@@ -802,61 +816,90 @@ Option__char Option__char__or_else(Option__char* self, Option__char other);
 void Vec__char__Drop__drop(Vec__char* self);
 int32_t main(void);
 void on_destroy(void);
-void on_mouse(int32_t x, int32_t y, MouseButton button);
+void on_mouse(int32_t x, int32_t y);
+void on_paint(int32_t w, int32_t h);
 bool on_timer(void);
 bool on_key(KeyCode key);
-void on_paint(int32_t w, int32_t h);
-float sin(float v);
-float cos(float v);
-void draw_tile_pattern(GraphicsContext ctx, int32_t x, int32_t y, int32_t size, int32_t tileType);
-void draw_rounded_rect(GraphicsContext ctx, int32_t x, int32_t y, int32_t w, int32_t h, int32_t radius, uint32_t color);
-uint32_t get_tile_color(int32_t tileType);
-str get_controls_text(void);
-str get_status_text(LinkLinkState* state);
-str get_time_text(LinkLinkState* state);
-str get_score_text(LinkLinkState* state);
-void restart_game(LinkLinkState* state);
-bool has_possible_moves(LinkLinkState* state);
-bool update_time(LinkLinkState* state);
-bool can_connect_through_col(LinkLinkState* state, int32_t col, int32_t r1, int32_t r2);
-bool can_connect_through_row(LinkLinkState* state, int32_t row, int32_t c1, int32_t c2);
-bool can_connect_to_edge_vertical(LinkLinkState* state, int32_t c, int32_t r, int32_t edgeCol);
-bool can_connect_to_edge_horizontal(LinkLinkState* state, int32_t r, int32_t c, int32_t edgeRow);
-Path find_two_corner_path(LinkLinkState* state, int32_t r1, int32_t c1, int32_t r2, int32_t c2);
-Path find_one_corner_path(LinkLinkState* state, int32_t r1, int32_t c1, int32_t r2, int32_t c2);
-bool can_connect_direct(LinkLinkState* state, int32_t r1, int32_t c1, int32_t r2, int32_t c2);
-Path find_path(LinkLinkState* state, int32_t r1, int32_t c1, int32_t r2, int32_t c2);
-bool click_tile(LinkLinkState* state, int32_t row, int32_t col);
-Tuple__int32_t__int32_t get_tile_position(LinkLinkState* state, int32_t row, int32_t col);
-void init_game(LinkLinkState* state);
-int32_t abs(int32_t x);
-uint32_t rgb(uint8_t r, uint8_t g, uint8_t b);
-void presentFrame(rawptr handle);
-int32_t getFrameBufferPitch(rawptr handle);
-rawptr getFrameBuffer(rawptr handle);
-bool isKeyDown(VirtualKey key);
-void sleep(uint32_t ms);
-uint32_t getTickCount(void);
-void postQuitMessage(rawptr handle);
-void waitEvent(rawptr handle, Event* event);
-bool pollEvent(rawptr handle, Event* event);
-Tuple__int32_t__int32_t getWindowSize(rawptr handle);
-void setWindowTitle(rawptr handle, str title);
-void closeWindow(rawptr handle);
-rawptr createWindow(str title, int32_t width, int32_t height);
-int32_t getHeight(void);
-int32_t getWidth(void);
-void drawText(int32_t x, int32_t y, str text, uint32_t color, Font font);
-void fillCircle(int32_t cx, int32_t cy, int32_t radius, uint32_t color);
-void drawCircle(int32_t cx, int32_t cy, int32_t radius, uint32_t color);
-void fillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color);
-void drawRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color);
-void drawLine(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t color);
-uint32_t getPixel(int32_t x, int32_t y);
-void setPixel(int32_t x, int32_t y, uint32_t color);
-void clear(uint32_t color);
-void onResize(int32_t width, int32_t height);
-void onDraw(Canvas canvas);
+int32_t abs(int32_t n);
+string get_controls_text(void);
+string get_status_text(BreakoutState* game);
+int32_t get_score(BreakoutState* game);
+bool update_game(BreakoutState* game);
+bool handle_input(BreakoutState* game, KeyCode key);
+void init_bricks(BreakoutState* game);
+void reset_ball(BreakoutState* game);
+void init_game(BreakoutState* game);
+uint32_t window_proc(void* hwnd, uint32_t msg, uint32_t wParam, uint32_t lParam);
+KeyCode map_vkey(int32_t vk);
+uint32_t window_proc(void* hwnd, uint32_t msg, uint32_t wParam, uint32_t lParam);
+Tuple__int32_t__int32_t get_client_size(void);
+void set_client_size(int32_t w, int32_t h);
+void set_destroy_handler(z_closure_T h);
+void set_mouse_handler(z_closure_T h);
+void set_paint_handler(z_closure_T h);
+void set_timer_handler(z_closure_T h);
+void set_key_handler(z_closure_T h);
+void fb_draw_text_size(int32_t x, int32_t y, string text, Color color, int32_t size);
+void fb_draw_text(int32_t x, int32_t y, string text, Color color);
+bool DeleteObject_3(void* hObject);
+void* SelectObject_3(void* hDC, void* hObject);
+void* CreateFontA(int32_t height, int32_t width, int32_t escapement, int32_t orientation, int32_t weight, uint8_t italic, uint8_t underline, uint8_t strikeout, uint8_t charset, uint8_t outPrecision, uint8_t clipPrecision, uint8_t quality, uint8_t pitchAndFamily, int8_t* lpszFace);
+uint32_t SetTextColor(void* hDC, uint32_t color);
+int32_t SetBkMode(void* hDC, int32_t mode);
+bool TextOutA(void* hDC, int32_t x, int32_t y, int8_t* lpString, int32_t cBytes);
+void fb_shutdown(void);
+void fb_present(void);
+void fb_draw_circle(int32_t x, int32_t y, int32_t radius, Color color);
+void fb_draw_rect(int32_t x, int32_t y, int32_t width, int32_t height, Color color);
+void fb_clear(Color color);
+void fb_init(void* window, int32_t width, int32_t height);
+void draw_circle(void* ctx, int32_t x, int32_t y, int32_t radius, Color color);
+void draw_rect(void* ctx, int32_t x, int32_t y, int32_t width, int32_t height, Color color);
+uint32_t color_to_u32(Color c);
+Color rgb(uint8_t r, uint8_t g, uint8_t b);
+bool get_window_client_size(void* window, int32_t* width, int32_t* height);
+void redraw_window(void* window);
+void kill_game_timer(void* window);
+void set_game_timer(void* window, uint32_t interval_ms);
+void quit_application(void);
+void run_event_loop(void* window);
+void show_window(void* window);
+void* create_window(string title, int32_t width, int32_t height);
+void* CreateWindowExA_2(uint32_t dwExStyle, int8_t* lpClassName, int8_t* lpWindowName, uint32_t dwStyle, int32_t x, int32_t y, int32_t nWidth, int32_t nHeight, void* hWndParent, void* hMenu, void* hInstance, void* lpParam);
+uint64_t GetWindowLongPtrA(void* hWnd, int32_t nIndex);
+uint64_t SetWindowLongPtrA(void* hWnd, int32_t nIndex, uint64_t dwNewLong);
+uint32_t DefWindowProcA(void* hWnd, uint32_t msg, uint32_t wParam, uint32_t lParam);
+uint16_t RegisterClassA(WNDCLASSA* lpWndClass);
+bool DeleteObject_2(void* hObject);
+bool DeleteDC(void* hDC);
+bool BitBlt(void* hDC, int32_t x, int32_t y, int32_t w, int32_t h, void* hSrcDC, int32_t xSrc, int32_t ySrc, uint32_t rop);
+void* SelectObject_2(void* hDC, void* hObject);
+void* CreateCompatibleBitmap(void* hDC, int32_t width, int32_t height);
+void* CreateCompatibleDC(void* hDC);
+int32_t ReleaseDC(void* hWnd, void* hDC);
+void* GetDC(void* hWnd);
+void SetCursor(void* hCursor);
+void* LoadCursorA(void* hInstance, int8_t* lpCursorName);
+void* GetModuleHandleA(int8_t* lpModuleName);
+void PostQuitMessage(int32_t nExitCode);
+bool KillTimer(void* hWnd, uint32_t uIDEvent);
+uint32_t SetTimer(void* hWnd, uint32_t nIDEvent, uint32_t uElapse, void* lpTimerFunc);
+bool DeleteObject(void* hObject);
+void* SelectObject(void* hDC, void* hObject);
+void* CreateSolidBrush(uint32_t color);
+bool Ellipse(void* hDC, int32_t left, int32_t top, int32_t right, int32_t bottom);
+bool Rectangle(void* hDC, int32_t left, int32_t top, int32_t right, int32_t bottom);
+int32_t FillRect(void* hDC, void* lprc, void* hbr);
+bool GetClientRect(void* hWnd, void* lpRect);
+void EndPaint(void* hWnd, void* lpPaint);
+void* BeginPaint(void* hWnd, void* lpPaint);
+bool InvalidateRect(void* hWnd, void* lpRect, bool bErase);
+int32_t DispatchMessageA(void* lpMsg);
+bool TranslateMessage(void* lpMsg);
+bool GetMessageA(void* lpMsg, void* hWnd, uint32_t wMsgFilterMin, uint32_t wMsgFilterMax);
+bool UpdateWindow(void* hWnd);
+bool ShowWindow(void* hWnd, int32_t nCmdShow);
+void* CreateWindowExA(uint32_t dwExStyle, int8_t* lpClassName, int8_t* lpWindowName, uint32_t dwStyle, int32_t x, int32_t y, int32_t nWidth, int32_t nHeight, void* hWndParent, void* hMenu, void* hInstance, void* lpParam);
 char* _z_str_rune(int32_t r);
 char* utos(uint32_t n);
 char* itos_new(int32_t n);
@@ -876,27 +919,27 @@ void sort_long(long* arr, size_t len);
 void sort_int(int32_t* arr, size_t len);
 void __zenc_todo_impl(const char* file, int32_t line, const char* func, const char* msg);
 void __zenc_panic_impl(const char* file, int32_t line, const char* func, const char* msg);
-Rect Rect__new(int32_t x, int32_t y, int32_t w, int32_t h);
-bool Rect__contains(Rect* self, int32_t px, int32_t py);
-Font Font__new(str name, int32_t size);
-Font Font__withBold(Font* self, bool bold);
-uint32_t uint32_t__Black(void);
-uint32_t uint32_t__White(void);
-uint32_t uint32_t__Red(void);
-uint32_t uint32_t__Green(void);
-uint32_t uint32_t__Blue(void);
-uint32_t uint32_t__Yellow(void);
-uint32_t uint32_t__Cyan(void);
-uint32_t uint32_t__Magenta(void);
-uint32_t uint32_t__Gray(void);
-uint32_t uint32_t__LightGray(void);
-uint32_t uint32_t__DarkGray(void);
-uint32_t uint32_t__Orange(void);
-uint32_t uint32_t__Purple(void);
-uint32_t uint32_t__Brown(void);
-uint32_t uint32_t__Pink(void);
-uint32_t uint32_t__RGB(uint8_t r, uint8_t g, uint8_t b);
-uint32_t uint32_t__ARGB(uint8_t a, uint8_t r, uint8_t g, uint8_t b);
+double Math__PI(void);
+double Math__E(void);
+double Math__abs(double x);
+double Math__sin(double x);
+double Math__cos(double x);
+double Math__tan(double x);
+double Math__asin(double x);
+double Math__acos(double x);
+double Math__atan(double x);
+double Math__atan2(double y, double x);
+double Math__sqrt(double x);
+double Math__pow(double base, double exp);
+double Math__exp(double x);
+double Math__log(double x);
+double Math__log10(double x);
+double Math__ceil(double x);
+double Math__floor(double x);
+double Math__round(double x);
+double Math__mod(double x, double y);
+double Math__max(double a, double b);
+double Math__min(double a, double b);
 String String__new(char* s);
 String String__from(char* s);
 String String__from_rune(int32_t r);
@@ -5305,1803 +5348,1808 @@ Vec__char__free(self);
     }
 }
 
-#line 238 "src/011-linklink/src/main_window.zc"
+#line 95 "src/004-breakout/src/main_window.zc"
 
 int32_t main(void)
 {
     {
 
-#line 239 "src/011-linklink/src/main_window.zc"
+#line 96 "src/004-breakout/src/main_window.zc"
 io.println
-#line 239 "src/011-linklink/src/main_window.zc"
+#line 96 "src/004-breakout/src/main_window.zc"
     ({ fprintf(stdout, "%s", "========================================"); fprintf(stdout, "\n"); 0; });
 
-#line 240 "src/011-linklink/src/main_window.zc"
+#line 97 "src/004-breakout/src/main_window.zc"
 io.println
-#line 240 "src/011-linklink/src/main_window.zc"
-    ({ fprintf(stdout, "%s", "Zen-C LinkLink 连连看游戏"); fprintf(stdout, "\n"); 0; });
+#line 97 "src/004-breakout/src/main_window.zc"
+    ({ fprintf(stdout, "%s", "Zen-C Breakout 打砖块游戏"); fprintf(stdout, "\n"); 0; });
 
-#line 241 "src/011-linklink/src/main_window.zc"
+#line 98 "src/004-breakout/src/main_window.zc"
 io.println
-#line 241 "src/011-linklink/src/main_window.zc"
+#line 98 "src/004-breakout/src/main_window.zc"
     ({ fprintf(stdout, "%s", "========================================"); fprintf(stdout, "\n"); 0; });
 
-#line 244 "src/011-linklink/src/main_window.zc"
+#line 101 "src/004-breakout/src/main_window.zc"
 init_game((&game));
 
-#line 247 "src/011-linklink/src/main_window.zc"
-    string title = "LinkLink 连连看";
+#line 104 "src/004-breakout/src/main_window.zc"
+    string title = "Breakout - 打砖块游戏";
 
-#line 248 "src/011-linklink/src/main_window.zc"
+#line 105 "src/004-breakout/src/main_window.zc"
 (window = 
-#line 248 "src/011-linklink/src/main_window.zc"
-create_window(title, 520, 520));
+#line 105 "src/004-breakout/src/main_window.zc"
+create_window(title, 800, 600));
 
-#line 250 "src/011-linklink/src/main_window.zc"
+#line 107 "src/004-breakout/src/main_window.zc"
 if ((window == null))     {
 
-#line 251 "src/011-linklink/src/main_window.zc"
+#line 108 "src/004-breakout/src/main_window.zc"
 io.println
-#line 251 "src/011-linklink/src/main_window.zc"
+#line 108 "src/004-breakout/src/main_window.zc"
     ({ fprintf(stdout, "%s", "错误: 无法创建窗口"); fprintf(stdout, "\n"); 0; });
 
-#line 252 "src/011-linklink/src/main_window.zc"
+#line 109 "src/004-breakout/src/main_window.zc"
     return 1;
     }
 
-#line 256 "src/011-linklink/src/main_window.zc"
+#line 113 "src/004-breakout/src/main_window.zc"
     int32_t cw = 0;
 
-#line 257 "src/011-linklink/src/main_window.zc"
+#line 114 "src/004-breakout/src/main_window.zc"
     int32_t ch = 0;
 
-#line 258 "src/011-linklink/src/main_window.zc"
+#line 115 "src/004-breakout/src/main_window.zc"
 get_window_client_size(window, (&cw), (&ch));
 
-#line 259 "src/011-linklink/src/main_window.zc"
+#line 116 "src/004-breakout/src/main_window.zc"
 if (((cw > 0) && (ch > 0)))     {
 
-#line 260 "src/011-linklink/src/main_window.zc"
+#line 117 "src/004-breakout/src/main_window.zc"
+(game.width = cw);
+
+#line 118 "src/004-breakout/src/main_window.zc"
+(game.height = ch);
+
+#line 119 "src/004-breakout/src/main_window.zc"
 set_client_size(cw, ch);
     }
 
-#line 264 "src/011-linklink/src/main_window.zc"
+#line 123 "src/004-breakout/src/main_window.zc"
 set_key_handler(on_key);
 
-#line 265 "src/011-linklink/src/main_window.zc"
+#line 124 "src/004-breakout/src/main_window.zc"
 set_timer_handler(on_timer);
 
-#line 266 "src/011-linklink/src/main_window.zc"
+#line 125 "src/004-breakout/src/main_window.zc"
 set_paint_handler(on_paint);
 
-#line 267 "src/011-linklink/src/main_window.zc"
+#line 126 "src/004-breakout/src/main_window.zc"
 set_mouse_handler(on_mouse);
 
-#line 268 "src/011-linklink/src/main_window.zc"
+#line 127 "src/004-breakout/src/main_window.zc"
 set_destroy_handler(on_destroy);
 
-#line 271 "src/011-linklink/src/main_window.zc"
+#line 130 "src/004-breakout/src/main_window.zc"
 show_window(window);
 
-#line 274 "src/011-linklink/src/main_window.zc"
-set_game_timer(window, 1000);
+#line 133 "src/004-breakout/src/main_window.zc"
+set_game_timer(window, game_speed);
 
-#line 276 "src/011-linklink/src/main_window.zc"
+#line 135 "src/004-breakout/src/main_window.zc"
 io.println
-#line 276 "src/011-linklink/src/main_window.zc"
+#line 135 "src/004-breakout/src/main_window.zc"
     ({ fprintf(stdout, "%s", "窗口创建成功!"); fprintf(stdout, "\n"); 0; });
 
-#line 277 "src/011-linklink/src/main_window.zc"
+#line 136 "src/004-breakout/src/main_window.zc"
 io.println
-#line 277 "src/011-linklink/src/main_window.zc"
-    ({ fprintf(stdout, "%s", "游戏规则:"); fprintf(stdout, "\n"); 0; });
+#line 136 "src/004-breakout/src/main_window.zc"
+    ({ fprintf(stdout, "%s", "按空格键开始游戏"); fprintf(stdout, "\n"); 0; });
 
-#line 278 "src/011-linklink/src/main_window.zc"
+#line 137 "src/004-breakout/src/main_window.zc"
 io.println
-#line 278 "src/011-linklink/src/main_window.zc"
-    ({ fprintf(stdout, "%s", "  - 点击两个相同的方块可以消除"); fprintf(stdout, "\n"); 0; });
+#line 137 "src/004-breakout/src/main_window.zc"
+    ({ fprintf(stdout, "%s", "使用 ← → 方向键控制挡板"); fprintf(stdout, "\n"); 0; });
 
-#line 279 "src/011-linklink/src/main_window.zc"
+#line 138 "src/004-breakout/src/main_window.zc"
 io.println
-#line 279 "src/011-linklink/src/main_window.zc"
-    ({ fprintf(stdout, "%s", "  - 方块必须能在最多两个拐角内连通"); fprintf(stdout, "\n"); 0; });
-
-#line 280 "src/011-linklink/src/main_window.zc"
-io.println
-#line 280 "src/011-linklink/src/main_window.zc"
-    ({ fprintf(stdout, "%s", "  - 限时 5 分钟，尽量消除所有方块!"); fprintf(stdout, "\n"); 0; });
-
-#line 281 "src/011-linklink/src/main_window.zc"
-io.println
-#line 281 "src/011-linklink/src/main_window.zc"
+#line 138 "src/004-breakout/src/main_window.zc"
     ({ fprintf(stdout, "%s", "========================================"); fprintf(stdout, "\n"); 0; });
 
-#line 284 "src/011-linklink/src/main_window.zc"
+#line 141 "src/004-breakout/src/main_window.zc"
 redraw_window(window);
 
-#line 287 "src/011-linklink/src/main_window.zc"
+#line 144 "src/004-breakout/src/main_window.zc"
 run_event_loop(window);
 
-#line 289 "src/011-linklink/src/main_window.zc"
+#line 146 "src/004-breakout/src/main_window.zc"
 io.println
-#line 289 "src/011-linklink/src/main_window.zc"
+#line 146 "src/004-breakout/src/main_window.zc"
     ({ fprintf(stdout, "%s", "游戏结束!"); fprintf(stdout, "\n"); 0; });
 
-#line 290 "src/011-linklink/src/main_window.zc"
+#line 147 "src/004-breakout/src/main_window.zc"
 io.println(({ 
-#line 290 "src/011-linklink/src/main_window.zc"
+#line 147 "src/004-breakout/src/main_window.zc"
     static char _b[4096]; _b[0]=0;
     char _t[128];
     strcat(_b, "最终得分: ");
 
-#line 290 "src/011-linklink/src/main_window.zc"
+#line 147 "src/004-breakout/src/main_window.zc"
 sprintf(_t, _z_str(game), game);
 
-#line 290 "src/011-linklink/src/main_window.zc"
+#line 147 "src/004-breakout/src/main_window.zc"
     strcat(_b, _t);
     _b;
  }).score.toString());
 
-#line 291 "src/011-linklink/src/main_window.zc"
+#line 148 "src/004-breakout/src/main_window.zc"
 io.println
-#line 291 "src/011-linklink/src/main_window.zc"
+#line 148 "src/004-breakout/src/main_window.zc"
     ({ fprintf(stdout, "%s", "========================================"); fprintf(stdout, "\n"); 0; });
 
-#line 293 "src/011-linklink/src/main_window.zc"
+#line 150 "src/004-breakout/src/main_window.zc"
 0;
     }
 }
 
-#line 232 "src/011-linklink/src/main_window.zc"
+#line 89 "src/004-breakout/src/main_window.zc"
 
 void on_destroy(void)
 {
     {
 
-#line 233 "src/011-linklink/src/main_window.zc"
+#line 90 "src/004-breakout/src/main_window.zc"
 fb_shutdown();
     }
 }
 
-#line 212 "src/011-linklink/src/main_window.zc"
+#line 78 "src/004-breakout/src/main_window.zc"
 
-void on_mouse(int32_t x, int32_t y, MouseButton button)
+void on_mouse(int32_t x, int32_t y)
 {
     {
 
-#line 213 "src/011-linklink/src/main_window.zc"
-if (game.gameOver)     {
+#line 80 "src/004-breakout/src/main_window.zc"
+if ((game.status == GameStatus__Ready))     {
 
-#line 214 "src/011-linklink/src/main_window.zc"
-    return ;
-    }
+#line 81 "src/004-breakout/src/main_window.zc"
+(game.status = GameStatus__Playing);
 
-#line 218 "src/011-linklink/src/main_window.zc"
-    int32_t col = ((x - 50) / (48 + 4));
+#line 82 "src/004-breakout/src/main_window.zc"
+    int32_t angle = ((
+#line 82 "src/004-breakout/src/main_window.zc"
+math.rand() % 50) - 25);
 
-#line 219 "src/011-linklink/src/main_window.zc"
-    int32_t row = ((y - 60) / (48 + 4));
+#line 82 "src/004-breakout/src/main_window.zc"
+as;
+i32;
 
-#line 221 "src/011-linklink/src/main_window.zc"
-if (((((row >= 0) && (row < 8)) && (col >= 0)) && (col < 8)))     {
+#line 83 "src/004-breakout/src/main_window.zc"
+    float rad = (((float)(((angle)((*3.1415899999999999))))) / 180.0);
 
-#line 222 "src/011-linklink/src/main_window.zc"
-if (
-#line 222 "src/011-linklink/src/main_window.zc"
-click_tile((&game), row, col))     {
+#line 84 "src/004-breakout/src/main_window.zc"
+(game.ball.vx = ((float)(((BALL_SPEED)((*
+#line 84 "src/004-breakout/src/main_window.zc"
+math.sin(rad)))))));
 
-#line 224 "src/011-linklink/src/main_window.zc"
-if ((((!game.gameOver) && (!game.gameWon)) && (!
-#line 224 "src/011-linklink/src/main_window.zc"
-has_possible_moves((&game)))))     {
+#line 84 "src/004-breakout/src/main_window.zc"
+as;
+i32;
 
-#line 226 "src/011-linklink/src/main_window.zc"
-io.println
-#line 226 "src/011-linklink/src/main_window.zc"
-    ({ fprintf(stdout, "%s", "无可用移动，正在重新排列..."); fprintf(stdout, "\n"); 0; });
-    }
-    }
+#line 85 "src/004-breakout/src/main_window.zc"
+(game.ball.vy = (-5));
     }
     }
 }
 
-#line 204 "src/011-linklink/src/main_window.zc"
-
-bool on_timer(void)
-{
-    {
-
-#line 205 "src/011-linklink/src/main_window.zc"
-if ((!game.gameOver))     {
-
-#line 206 "src/011-linklink/src/main_window.zc"
-    bool updated = 
-#line 206 "src/011-linklink/src/main_window.zc"
-update_time((&game));
-
-#line 207 "src/011-linklink/src/main_window.zc"
-    return updated;
-    }
-
-#line 209 "src/011-linklink/src/main_window.zc"
-    return false;
-    }
-}
-
-#line 189 "src/011-linklink/src/main_window.zc"
-
-bool on_key(KeyCode key)
-{
-    {
-
-#line 190 "src/011-linklink/src/main_window.zc"
-{ KeyCode _m_0 = key; 
-#line 191 "src/011-linklink/src/main_window.zc"
-if (_m_0 == KeyCode__Escape) {     {
-
-#line 192 "src/011-linklink/src/main_window.zc"
-(running = false);
-
-#line 193 "src/011-linklink/src/main_window.zc"
-    return false;
-    }
- } else 
-#line 195 "src/011-linklink/src/main_window.zc"
-if (_m_0 == KeyCode__KeyR) {     {
-
-#line 196 "src/011-linklink/src/main_window.zc"
-restart_game((&game));
-
-#line 197 "src/011-linklink/src/main_window.zc"
-    return true;
-    }
- } else 
-#line 199 "src/011-linklink/src/main_window.zc"
-if (1) {     {
-    }
- } };
-
-#line 201 "src/011-linklink/src/main_window.zc"
-    return true;
-    }
-}
-
-#line 96 "src/011-linklink/src/main_window.zc"
+#line 29 "src/004-breakout/src/main_window.zc"
 
 void on_paint(int32_t w, int32_t h)
 {
     {
 
-#line 98 "src/011-linklink/src/main_window.zc"
+#line 31 "src/004-breakout/src/main_window.zc"
 if ((!fb_data.valid))     {
 
-#line 99 "src/011-linklink/src/main_window.zc"
+#line 32 "src/004-breakout/src/main_window.zc"
 fb_init(window, w, h);
     }
 
-#line 103 "src/011-linklink/src/main_window.zc"
-fb_clear(rgb(30, 30, 40));
+#line 36 "src/004-breakout/src/main_window.zc"
+fb_clear(rgb(0, 0, 0));
 
-#line 106 "src/011-linklink/src/main_window.zc"
-fb_draw_rect(0, 0, 520, 50, rgb(41, 128, 185));
+#line 39 "src/004-breakout/src/main_window.zc"
+for (ZC_AUTO i = 0; i < (5 * 10); i++)     {
 
-#line 109 "src/011-linklink/src/main_window.zc"
-    str scoreText = 
-#line 109 "src/011-linklink/src/main_window.zc"
-get_score_text((&game));
+#line 40 "src/004-breakout/src/main_window.zc"
+    int32_t brick = game.bricks.bricks[i];
 
-#line 110 "src/011-linklink/src/main_window.zc"
-fb_draw_text_size(15, 15, scoreText, rgb(255, 255, 255), 20);
+#line 41 "src/004-breakout/src/main_window.zc"
+if (brick.alive)     {
 
-#line 113 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO timeText = 
-#line 113 "src/011-linklink/src/main_window.zc"
-({ 
-#line 113 "src/011-linklink/src/main_window.zc"
+#line 42 "src/004-breakout/src/main_window.zc"
+fb_draw_rect(brick.x, brick.y, brick.width, brick.height, brick.color);
+    }
+    }
+
+#line 47 "src/004-breakout/src/main_window.zc"
+fb_draw_rect(game.paddle.x, game.paddle.y, game.paddle.width, game.paddle.height, 
+#line 52 "src/004-breakout/src/main_window.zc"
+rgb(255, 255, 255));
+
+#line 56 "src/004-breakout/src/main_window.zc"
+fb_draw_circle(game.ball.x, game.ball.y, game.ball.radius, 
+#line 60 "src/004-breakout/src/main_window.zc"
+rgb(255, 255, 255));
+
+#line 64 "src/004-breakout/src/main_window.zc"
+    string info = ({ 
+#line 64 "src/004-breakout/src/main_window.zc"
     static char _b[4096]; _b[0]=0;
     char _t[128];
-    strcat(_b, "时间: ");
+    strcat(_b, "分数: ");
 
-#line 113 "src/011-linklink/src/main_window.zc"
-sprintf(_t, _z_str(get_time_text), get_time_text);
+#line 64 "src/004-breakout/src/main_window.zc"
+sprintf(_t, _z_str(game.score), game.score);
 
-#line 113 "src/011-linklink/src/main_window.zc"
+#line 64 "src/004-breakout/src/main_window.zc"
+    strcat(_b, _t);
+    strcat(_b, " 生命: ");
+
+#line 64 "src/004-breakout/src/main_window.zc"
+sprintf(_t, _z_str(game.lives), game.lives);
+
+#line 64 "src/004-breakout/src/main_window.zc"
     strcat(_b, _t);
     _b;
- })((&game));
+ });
 
-#line 114 "src/011-linklink/src/main_window.zc"
-fb_draw_text_size((520 - 130), 15, timeText, rgb(255, 255, 255), 20);
+#line 65 "src/004-breakout/src/main_window.zc"
+fb_draw_text_size(10, 10, info, rgb(255, 255, 255), 18);
 
-#line 117 "src/011-linklink/src/main_window.zc"
-for (ZC_AUTO r = 0; r < 8; r++)     {
-
-#line 118 "src/011-linklink/src/main_window.zc"
-for (ZC_AUTO c = 0; c < 8; c++)     {
-
-#line 119 "src/011-linklink/src/main_window.zc"
-if (game.tiles[r][c].visible)     {
-
-#line 120 "src/011-linklink/src/main_window.zc"
-    Tuple__int32_t__int32_t _tmp_1 = 
-#line 120 "src/011-linklink/src/main_window.zc"
-get_tile_position((&game), r, c);
-
-#line 120 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO tx = _tmp_1.v0;
-
-#line 120 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO ty = _tmp_1.v1;
-
-#line 123 "src/011-linklink/src/main_window.zc"
-    bool isSelected = ((r == game.selectedRow) && (c == game.selectedCol));
-
-#line 126 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO bgColor = ({ __typeof__(
-#line 126 "src/011-linklink/src/main_window.zc"
-rgb(255, 255, 100)) _ifval; if (isSelected) { _ifval = rgb(255, 255, 100); } else { _ifval = rgb(80, 80, 100); } _ifval; });
-
-#line 127 "src/011-linklink/src/main_window.zc"
-fb_draw_rounded_rect(tx, ty, 48, 48, 6, bgColor);
-
-#line 130 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO borderColor = ({ __typeof__(
-#line 130 "src/011-linklink/src/main_window.zc"
-rgb(255, 200, 0)) _ifval; if (isSelected) { _ifval = rgb(255, 200, 0); } else { _ifval = rgb(120, 120, 140); } _ifval; });
-
-#line 131 "src/011-linklink/src/main_window.zc"
-fb_draw_rect(tx, ty, 48, 2, borderColor);
-
-#line 132 "src/011-linklink/src/main_window.zc"
-fb_draw_rect(tx, ((ty + 48) - 2), 48, 2, borderColor);
-
-#line 133 "src/011-linklink/src/main_window.zc"
-fb_draw_rect(tx, ty, 2, 48, borderColor);
-
-#line 134 "src/011-linklink/src/main_window.zc"
-fb_draw_rect(((tx + 48) - 2), ty, 2, 48, borderColor);
-
-#line 137 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO tileType = game.tiles[r][c].tileType;
-
-#line 138 "src/011-linklink/src/main_window.zc"
-draw_tile_pattern(ctx, tx, ty, 48, tileType);
-    }
- else     {
-
-#line 141 "src/011-linklink/src/main_window.zc"
-    Tuple__int32_t__int32_t _tmp_2 = 
-#line 141 "src/011-linklink/src/main_window.zc"
-get_tile_position((&game), r, c);
-
-#line 141 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO tx = _tmp_2.v0;
-
-#line 141 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO ty = _tmp_2.v1;
-
-#line 142 "src/011-linklink/src/main_window.zc"
-fb_draw_rect(tx, ty, 48, 48, rgb(30, 30, 40));
-    }
-    }
-    }
-
-#line 148 "src/011-linklink/src/main_window.zc"
-if ((game.pathLength > 1))     {
-
-#line 149 "src/011-linklink/src/main_window.zc"
-    uint32_t lineColor = 
-#line 149 "src/011-linklink/src/main_window.zc"
-rgb(0, 255, 100);
-
-#line 150 "src/011-linklink/src/main_window.zc"
-for (ZC_AUTO i = 0; i < (game.pathLength - 1); i++)     {
-
-#line 151 "src/011-linklink/src/main_window.zc"
-    int32_t p1 = game.connectionPath[i];
-
-#line 152 "src/011-linklink/src/main_window.zc"
-    int32_t p2 = game.connectionPath[(i + 1)];
-
-#line 153 "src/011-linklink/src/main_window.zc"
-    Tuple__int32_t__int32_t _tmp_3 = 
-#line 153 "src/011-linklink/src/main_window.zc"
-get_tile_position((&game), p1.row, p1.col);
-
-#line 153 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO x1 = _tmp_3.v0;
-
-#line 153 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO y1 = _tmp_3.v1;
-
-#line 154 "src/011-linklink/src/main_window.zc"
-    Tuple__int32_t__int32_t _tmp_4 = 
-#line 154 "src/011-linklink/src/main_window.zc"
-get_tile_position((&game), p2.row, p2.col);
-
-#line 154 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO x2 = _tmp_4.v0;
-
-#line 154 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO y2 = _tmp_4.v1;
-
-#line 155 "src/011-linklink/src/main_window.zc"
-    int32_t cx1 = (x1 + (48 / 2));
-
-#line 156 "src/011-linklink/src/main_window.zc"
-    int32_t cy1 = (y1 + (48 / 2));
-
-#line 157 "src/011-linklink/src/main_window.zc"
-    int32_t cx2 = (x2 + (48 / 2));
-
-#line 158 "src/011-linklink/src/main_window.zc"
-    int32_t cy2 = (y2 + (48 / 2));
-
-#line 160 "src/011-linklink/src/main_window.zc"
-fb_draw_line(cx1, cy1, cx2, cy2, lineColor);
-    }
-    }
-
-#line 165 "src/011-linklink/src/main_window.zc"
-    str statusText = 
-#line 165 "src/011-linklink/src/main_window.zc"
+#line 68 "src/004-breakout/src/main_window.zc"
+    string status = 
+#line 68 "src/004-breakout/src/main_window.zc"
 get_status_text((&game));
 
-#line 166 "src/011-linklink/src/main_window.zc"
-fb_draw_text_size(15, (520 - 35), statusText, rgb(255, 255, 0), 18);
+#line 69 "src/004-breakout/src/main_window.zc"
+fb_draw_text_size(250, 280, status, rgb(255, 255, 0), 24);
 
-#line 169 "src/011-linklink/src/main_window.zc"
-    str controlsText = 
-#line 169 "src/011-linklink/src/main_window.zc"
-get_controls_text();
+#line 72 "src/004-breakout/src/main_window.zc"
+fb_draw_text_size(10, (600 - 30), get_controls_text(), rgb(180, 180, 180), 14);
 
-#line 170 "src/011-linklink/src/main_window.zc"
-fb_draw_text_size(15, (520 - 18), controlsText, rgb(180, 180, 180), 14);
-
-#line 173 "src/011-linklink/src/main_window.zc"
-if (game.gameOver)     {
-
-#line 174 "src/011-linklink/src/main_window.zc"
-fb_draw_rect(((520 / 2) - 150), ((520 / 2) - 60), 300, 100, rgb(0, 0, 0));
-
-#line 175 "src/011-linklink/src/main_window.zc"
-fb_draw_rect(((520 / 2) - 152), ((520 / 2) - 62), 304, 104, rgb(255, 255, 0));
-
-#line 177 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO msg = ({ __typeof__(({ fprintf(stdout, "%s", "恭喜通关！"); fprintf(stdout, "\n"); 0; });) _ifval; if (game.gameWon) { _ifval = ({ fprintf(stdout, "%s", "恭喜通关！"); fprintf(stdout, "\n"); 0; });; } else { _ifval = ({ fprintf(stdout, "%s", "时间到！"); fprintf(stdout, "\n"); 0; });; } _ifval; });
-
-#line 178 "src/011-linklink/src/main_window.zc"
-fb_draw_text_size(((520 / 2) - 60), ((520 / 2) - 35), msg, rgb(255, 255, 0), 24);
-
-#line 180 "src/011-linklink/src/main_window.zc"
-    ZC_AUTO finalScore = 
-#line 180 "src/011-linklink/src/main_window.zc"
-({ 
-#line 180 "src/011-linklink/src/main_window.zc"
-    static char _b[4096]; _b[0]=0;
-    char _t[128];
-    strcat(_b, "得分: ");
-
-#line 180 "src/011-linklink/src/main_window.zc"
-sprintf(_t, _z_str(game), game);
-
-#line 180 "src/011-linklink/src/main_window.zc"
-    strcat(_b, _t);
-    _b;
- }).score.toString();
-
-#line 181 "src/011-linklink/src/main_window.zc"
-fb_draw_text_size(((520 / 2) - 55), (520 / 2), finalScore, rgb(255, 255, 255), 20);
-
-#line 182 "src/011-linklink/src/main_window.zc"
-fb_draw_text_size(((520 / 2) - 70), ((520 / 2) + 25), "按 R 重新开始", rgb(200, 200, 200), 16);
-    }
-
-#line 186 "src/011-linklink/src/main_window.zc"
+#line 75 "src/004-breakout/src/main_window.zc"
 fb_present();
     }
 }
 
-#line 94 "src/011-linklink/src/main_window.zc"
+#line 22 "src/004-breakout/src/main_window.zc"
 
-float sin(float v)
+bool on_timer(void)
 {
     {
 
-#line 94 "src/011-linklink/src/main_window.zc"
-    return 0.0;
+#line 23 "src/004-breakout/src/main_window.zc"
+if ((game.status == GameStatus__Playing))     {
+
+#line 24 "src/004-breakout/src/main_window.zc"
+    return 
+#line 24 "src/004-breakout/src/main_window.zc"
+update_game((&game));
+    }
+
+#line 26 "src/004-breakout/src/main_window.zc"
+    return false;
     }
 }
 
-#line 93 "src/011-linklink/src/main_window.zc"
+#line 18 "src/004-breakout/src/main_window.zc"
 
-float cos(float v)
+bool on_key(KeyCode key)
 {
     {
 
-#line 93 "src/011-linklink/src/main_window.zc"
-    return 0.0;
+#line 19 "src/004-breakout/src/main_window.zc"
+    return 
+#line 19 "src/004-breakout/src/main_window.zc"
+handle_input((&game), key);
     }
 }
 
-#line 38 "src/011-linklink/src/main_window.zc"
+#line 326 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
 
-void draw_tile_pattern(GraphicsContext ctx, int32_t x, int32_t y, int32_t size, int32_t tileType)
+int32_t abs(int32_t n)
 {
     {
 
-#line 39 "src/011-linklink/src/main_window.zc"
-    int32_t cx = (x + (size / 2));
-
-#line 40 "src/011-linklink/src/main_window.zc"
-    int32_t cy = (y + (size / 2));
-
-#line 41 "src/011-linklink/src/main_window.zc"
-    int32_t margin = 8;
-
-#line 42 "src/011-linklink/src/main_window.zc"
-    int32_t innerSize = (size - (2 * margin));
-
-#line 45 "src/011-linklink/src/main_window.zc"
-{ int32_t _m_5 = (tileType % 6); 
-#line 46 "src/011-linklink/src/main_window.zc"
-if (_m_5 == 0) {     {
-
-#line 48 "src/011-linklink/src/main_window.zc"
-draw_circle(ctx, cx, cy, ((innerSize / 2) - 2), TILE_COLORS[_z_check_bounds(((tileType + 1) % 12), 12)]);
-
-#line 49 "src/011-linklink/src/main_window.zc"
-draw_circle(ctx, cx, cy, ((innerSize / 3) - 2), rgb(255, 255, 255));
+#line 327 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if ((n < 0))     {
+(-n);
     }
- } else 
-#line 51 "src/011-linklink/src/main_window.zc"
-if (_m_5 == 1) {     {
+ else     {
 
-#line 53 "src/011-linklink/src/main_window.zc"
-draw_rect(ctx, (cx - (innerSize / 3)), (cy - (innerSize / 3)), ((innerSize * 2) / 3), ((innerSize * 2) / 3), TILE_COLORS[_z_check_bounds(((tileType + 2) % 12), 12)]);
-
-#line 54 "src/011-linklink/src/main_window.zc"
-draw_rect(ctx, (cx - (innerSize / 4)), (cy - (innerSize / 4)), (innerSize / 2), (innerSize / 2), rgb(255, 255, 255));
+#line 327 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+n;
     }
- } else 
-#line 56 "src/011-linklink/src/main_window.zc"
-if (_m_5 == 2) {     {
-
-#line 58 "src/011-linklink/src/main_window.zc"
-    int32_t r = ((innerSize / 2) - 2);
-
-#line 59 "src/011-linklink/src/main_window.zc"
-draw_line(ctx, cx, (cy - r), (cx - r), (cy + (r / 2)), TILE_COLORS[_z_check_bounds(((tileType + 3) % 12), 12)]);
-
-#line 60 "src/011-linklink/src/main_window.zc"
-draw_line(ctx, (cx - r), (cy + (r / 2)), (cx + r), (cy + (r / 2)), TILE_COLORS[_z_check_bounds(((tileType + 3) % 12), 12)]);
-
-#line 61 "src/011-linklink/src/main_window.zc"
-draw_line(ctx, (cx + r), (cy + (r / 2)), cx, (cy - r), TILE_COLORS[_z_check_bounds(((tileType + 3) % 12), 12)]);
     }
- } else 
-#line 63 "src/011-linklink/src/main_window.zc"
-if (_m_5 == 3) {     {
+}
 
-#line 65 "src/011-linklink/src/main_window.zc"
-    int32_t r = ((innerSize / 2) - 2);
+#line 321 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
 
-#line 66 "src/011-linklink/src/main_window.zc"
-draw_line(ctx, cx, (cy - r), (cx + r), cy, TILE_COLORS[_z_check_bounds(((tileType + 4) % 12), 12)]);
+string get_controls_text(void)
+{
+    {
 
-#line 67 "src/011-linklink/src/main_window.zc"
-draw_line(ctx, (cx + r), cy, cx, (cy + r), TILE_COLORS[_z_check_bounds(((tileType + 4) % 12), 12)]);
-
-#line 68 "src/011-linklink/src/main_window.zc"
-draw_line(ctx, cx, (cy + r), (cx - r), cy, TILE_COLORS[_z_check_bounds(((tileType + 4) % 12), 12)]);
-
-#line 69 "src/011-linklink/src/main_window.zc"
-draw_line(ctx, (cx - r), cy, cx, (cy - r), TILE_COLORS[_z_check_bounds(((tileType + 4) % 12), 12)]);
+#line 322 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    ({ fprintf(stdout, "%s", "控制: ← → 移动挡板 | 空格 开始 | ESC 退出"); fprintf(stdout, "\n"); 0; });
     }
+}
+
+#line 311 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+
+string get_status_text(BreakoutState* game)
+{
+    {
+
+#line 312 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+{ GameStatus _m_0 = game->status; 
+#line 313 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (_m_0.tag == 0) {     return "按空格键开始游戏";
  } else 
-#line 71 "src/011-linklink/src/main_window.zc"
-if (_m_5 == 4) {     {
+#line 314 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (_m_0.tag == 1) {     return "游戏中...";
+ } else 
+#line 315 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (_m_0.tag == 2) {     return "游戏结束! 按 R 重新开始";
+ } else 
+#line 316 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (_m_0.tag == 3) {     return "恭喜通关! 按 R 重新开始";
+ } };
+    }
+}
 
-#line 73 "src/011-linklink/src/main_window.zc"
-    int32_t r = ((innerSize / 2) - 2);
+#line 306 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
 
-#line 74 "src/011-linklink/src/main_window.zc"
-for (ZC_AUTO i = 0; i < 5; i++)     {
+int32_t get_score(BreakoutState* game)
+{
+    {
 
-#line 75 "src/011-linklink/src/main_window.zc"
-    int32_t angle1 = ((i * 72) - 90);
+#line 307 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+game->score    }
+}
 
-#line 75 "src/011-linklink/src/main_window.zc"
+#line 188 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+
+bool update_game(BreakoutState* game)
+{
+    {
+
+#line 189 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if ((!GameStatus__Eq__eq(&game->status, &GameStatus__Playing)))     {
+
+#line 190 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    return false;
+    }
+
+#line 194 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.x = (game->ball.x + game->ball.vx));
+
+#line 195 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.y = (game->ball.y + game->ball.vy));
+
+#line 198 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (((game->ball.x - game->ball.radius) <= 0))     {
+
+#line 199 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.x = game->ball.radius);
+
+#line 200 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.vx = (-game->ball.vx));
+    }
+
+#line 202 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (((game->ball.x + game->ball.radius) >= 800))     {
+
+#line 203 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.x = (800 - game->ball.radius));
+
+#line 204 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.vx = (-game->ball.vx));
+    }
+
+#line 207 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (((game->ball.y - game->ball.radius) <= 0))     {
+
+#line 208 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.y = game->ball.radius);
+
+#line 209 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.vy = (-game->ball.vy));
+    }
+
+#line 213 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (((game->ball.y + game->ball.radius) >= 600))     {
+
+#line 214 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->lives = (game->lives - 1));
+
+#line 215 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if ((game->lives <= 0))     {
+
+#line 216 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->status = GameStatus__Lost);
+    }
+ else     {
+
+#line 218 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+reset_ball(game);
+
+#line 219 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->status = GameStatus__Ready);
+    }
+
+#line 221 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    return true;
+    }
+
+#line 225 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if ((game->ball.vy > 0))     {
+
+#line 226 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t ball_left = (game->ball.x - game->ball.radius);
+
+#line 227 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t ball_right = (game->ball.x + game->ball.radius);
+
+#line 228 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t ball_bottom = (game->ball.y + game->ball.radius);
+
+#line 230 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t paddle_left = game->paddle.x;
+
+#line 231 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t paddle_right = (game->paddle.x + game->paddle.width);
+
+#line 232 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t paddle_top = game->paddle.y;
+
+#line 234 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (((((ball_right >= paddle_left) && (ball_left <= paddle_right)) && (ball_bottom >= paddle_top)) && (ball_bottom <= ((paddle_top + game->paddle.height) + 
+#line 235 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+abs(game->ball.vy)))))     {
+
+#line 236 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.y = (paddle_top - game->ball.radius));
+
+#line 239 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t hit_pos = (game->ball.x - game->paddle.x);
+
+#line 239 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
 as;
 
-#line 75 "src/011-linklink/src/main_window.zc"
-((f32 * 3.1415899999999999) / 180.0);
+#line 239 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(f32 / ((float)(game->paddle.width)));
 
-#line 76 "src/011-linklink/src/main_window.zc"
-    int32_t angle2 = (((i * 72) + 36) - 90);
+#line 240 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t angle = (((hit_pos - 0.5) * 2.0) * 60.0);
 
-#line 76 "src/011-linklink/src/main_window.zc"
-as;
+#line 241 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t rad = ((angle * 3.1415899999999999) / 180.0);
 
-#line 76 "src/011-linklink/src/main_window.zc"
-((f32 * 3.1415899999999999) / 180.0);
+#line 242 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    ZC_AUTO speed = 
+#line 242 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+math.sqrt(((game->ball.vx * game->ball.vx) + (game->ball.vy * game->ball.vy)));
 
-#line 77 "src/011-linklink/src/main_window.zc"
-    int32_t x1 = (cx + ((float)(((r)((*
-#line 77 "src/011-linklink/src/main_window.zc"
-cos(angle1)))))));
+#line 243 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if ((speed < 5))     {
 
-#line 77 "src/011-linklink/src/main_window.zc"
+#line 244 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(speed = 5);
+    }
+
+#line 247 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.vx = ((float)(((speed)((*
+#line 247 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+Math__sin(rad)))))));
+
+#line 248 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.vy = (-((float)(((speed)((*
+#line 248 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+Math__cos(rad))))))));
+
+#line 250 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if ((game->ball.vy > (-3)))     {
+
+#line 251 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.vy = (-3));
+    }
+    }
+    }
+
+#line 257 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t bricks_remaining = 0;
+
+#line 258 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+for (ZC_AUTO i = 0; i < (5 * 10); i++)     {
+
+#line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (game->bricks.bricks[_z_check_bounds(i, 50)].alive)     {
+
+#line 260 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(bricks_remaining = (bricks_remaining + 1));
+
+#line 262 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    Brick brick = game->bricks.bricks[_z_check_bounds(i, 50)];
+
+#line 263 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t ball_left = (game->ball.x - game->ball.radius);
+
+#line 264 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t ball_right = (game->ball.x + game->ball.radius);
+
+#line 265 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t ball_top = (game->ball.y - game->ball.radius);
+
+#line 266 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t ball_bottom = (game->ball.y + game->ball.radius);
+
+#line 268 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t brick_right = (brick.x + brick.width);
+
+#line 269 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t brick_bottom = (brick.y + brick.height);
+
+#line 271 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (((((ball_right >= brick.x) && (ball_left <= brick_right)) && (ball_bottom >= brick.y)) && (ball_top <= brick_bottom)))     {
+
+#line 273 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->bricks.bricks[_z_check_bounds(i, 50)].alive = false);
+
+#line 274 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->score = (game->score + 10));
+
+#line 275 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(bricks_remaining = (bricks_remaining - 1));
+
+#line 277 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t overlap_left = (ball_right - brick.x);
+
+#line 278 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t overlap_right = (brick_right - ball_left);
+
+#line 279 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t overlap_top = (ball_bottom - brick.y);
+
+#line 280 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t overlap_bottom = (brick_bottom - ball_top);
+
+#line 282 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    ZC_AUTO min_overlap_x = ({ __typeof__(overlap_left) _ifval; if ((overlap_left < overlap_right)) { _ifval = overlap_left; } else { _ifval = overlap_right; } _ifval; });
+
+#line 283 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    ZC_AUTO min_overlap_y = ({ __typeof__(overlap_top) _ifval; if ((overlap_top < overlap_bottom)) { _ifval = overlap_top; } else { _ifval = overlap_bottom; } _ifval; });
+
+#line 285 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if ((min_overlap_x < min_overlap_y))     {
+
+#line 286 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.vx = (-game->ball.vx));
+    }
+ else     {
+
+#line 288 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.vy = (-game->ball.vy));
+    }
+
+#line 291 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+break;
+    }
+    }
+    }
+
+#line 297 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if ((bricks_remaining == 0))     {
+
+#line 298 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->status = GameStatus__Won);
+
+#line 299 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    return true;
+    }
+
+#line 302 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    return true;
+    }
+}
+
+#line 147 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+
+bool handle_input(BreakoutState* game, KeyCode key)
+{
+    {
+
+#line 148 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+{ KeyCode _m_1 = key; 
+#line 149 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (_m_1.tag == 3) {     {
+
+#line 150 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->paddle.x = (game->paddle.x - game->paddle.speed));
+
+#line 151 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if ((game->paddle.x < 0))     {
+
+#line 152 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->paddle.x = 0);
+    }
+    }
+ } else 
+#line 155 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (_m_1.tag == 4) {     {
+
+#line 156 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->paddle.x = (game->paddle.x + game->paddle.speed));
+
+#line 157 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if ((game->paddle.x > (800 - game->paddle.width)))     {
+
+#line 158 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->paddle.x = (800 - game->paddle.width));
+    }
+    }
+ } else 
+#line 161 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (_m_1.tag == 5) {     {
+
+#line 162 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (((GameStatus__Eq__eq(&game->status, &GameStatus__Ready) || GameStatus__Eq__eq(&game->status, &GameStatus__Lost)) || GameStatus__Eq__eq(&game->status, &GameStatus__Won)))     {
+
+#line 165 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->status = GameStatus__Playing);
+
+#line 166 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+reset_ball(game);
+
+#line 168 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t angle = ((
+#line 168 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+Random__new().next_int_range(0, 100) % 50) - 25);
+
+#line 169 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    float rad = (((float)(((angle)((*3.1415899999999999))))) / 180.0);
+
+#line 170 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.vx = ((float)(((BALL_SPEED)((*
+#line 170 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+Math__sin(rad)))))));
+
+#line 171 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.vy = (-5));
+    }
+    }
+ } else 
+#line 174 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (_m_1.tag == 7) {     {
+
+#line 175 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if ((GameStatus__Eq__eq(&game->status, &GameStatus__Lost) || GameStatus__Eq__eq(&game->status, &GameStatus__Won)))     {
+
+#line 176 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+init_game(game);
+    }
+    }
+ } else 
+#line 179 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (_m_1.tag == 6) {     {
+
+#line 180 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    return false;
+    }
+ } else 
+#line 182 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+if (1) {     {
+    }
+ } };
+
+#line 184 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    return true;
+    }
+}
+
+#line 124 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+
+void init_bricks(BreakoutState* game)
+{
+    {
+
+#line 125 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->bricks.rows = 5);
+
+#line 126 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->bricks.cols = 10);
+
+#line 128 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+for (ZC_AUTO row = 0; row < 5; row++)     {
+
+#line 129 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+for (ZC_AUTO col = 0; col < 10; col++)     {
+
+#line 130 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t index = ((row * 10) + col);
+
+#line 131 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t brick_x = (30 + (col * (70 + 5)));
+
+#line 132 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+    int32_t brick_y = (60 + (row * (25 + 5)));
+
+#line 134 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->bricks.bricks[_z_check_bounds(index, 50)] = (struct Brick){.x = brick_x, .y = brick_y, .width = 70, .height = 25, .alive = true, .color = BRICK_COLORS[_z_check_bounds(row, 5)]});
+    }
+    }
+    }
+}
+
+#line 115 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+
+void reset_ball(BreakoutState* game)
+{
+    {
+
+#line 116 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.x = (800 / 2));
+
+#line 117 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.y = ((600 / 2) + 100));
+
+#line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.vx = 5);
+
+#line 119 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.vy = (-5));
+
+#line 120 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->ball.radius = 8);
+    }
+}
+
+#line 91 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+
+void init_game(BreakoutState* game)
+{
+    {
+
+#line 92 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->width = 800);
+
+#line 93 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->height = 600);
+
+#line 94 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->score = 0);
+
+#line 95 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->lives = 3);
+
+#line 96 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->status = GameStatus__Ready);
+
+#line 99 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+(game->paddle = (struct Paddle){.x = ((800 - 100) / 2), .y = 560, .width = 100, .height = 15, .speed = 8});
+
+#line 108 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+reset_ball(game);
+
+#line 111 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/game_logic.zc"
+init_bricks(game);
+    }
+}
+
+#line 536 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+
+KeyCode map_vkey(int32_t vk)
+{
+    {
+
+#line 537 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+{ int32_t _m_2 = vk; 
+#line 538 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_2 == 0x25) { KeyCode.KeyLeft } else 
+#line 539 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_2 == 0x26) { KeyCode.KeyUp } else 
+#line 540 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_2 == 0x27) { KeyCode.KeyRight } else 
+#line 541 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_2 == 0x28) { KeyCode.KeyDown } else 
+#line 542 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_2 == 0x20) { KeyCode.KeySpace } else 
+#line 543 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_2 == 0x1B) { KeyCode.KeyEscape } else 
+#line 544 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_2 == 0x52) { KeyCode.KeyR } else 
+#line 545 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_2 == 0x57) { KeyCode.KeyW } else 
+#line 546 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_2 == 0x41) { KeyCode.KeyA } else 
+#line 547 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_2 == 0x53) { KeyCode.KeyS } else 
+#line 548 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_2 == 0x44) { KeyCode.KeyD } else 
+#line 549 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_2 == 0x50) { KeyCode.KeyP } else 
+#line 550 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (1) { KeyCode.KeyUnknown } };
+    }
+}
+
+#line 480 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+
+uint32_t window_proc(void* hwnd, uint32_t msg, uint32_t wParam, uint32_t lParam)
+{
+    {
+
+#line 481 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+{ uint32_t _m_3 = msg; 
+#line 482 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_3 == WM_PAINT) {     {
+
+#line 483 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((paint_handler != null))     {
+
+#line 484 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+paint_handler(client_width, client_height);
+    }
+
+#line 486 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return 0;
+    }
+ } else 
+#line 488 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_3 == WM_KEYDOWN) {     {
+
+#line 489 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    KeyCode key = 
+#line 489 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+map_vkey(((int32_t)(wParam)));
+
+#line 490 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((key_handler != null))     {
+
+#line 491 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+key_handler(key);
+    }
+
+#line 493 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+redraw_window(hwnd);
+
+#line 494 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return 0;
+    }
+ } else 
+#line 496 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_3 == WM_KEYUP) {     {
+
+#line 497 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return 0;
+    }
+ } else 
+#line 499 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_3 == WM_LBUTTONDOWN) {     {
+
+#line 500 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((mouse_handler != null))     {
+
+#line 501 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    uint32_t x = (lParam & 65535);
+
+#line 501 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 as;
 i32;
 
-#line 78 "src/011-linklink/src/main_window.zc"
-    int32_t y1 = (cy + ((float)(((r)((*
-#line 78 "src/011-linklink/src/main_window.zc"
-sin(angle1)))))));
+#line 502 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    uint32_t y = ((lParam >> 16) & 65535);
 
-#line 78 "src/011-linklink/src/main_window.zc"
+#line 502 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 as;
 i32;
 
-#line 79 "src/011-linklink/src/main_window.zc"
-    int32_t x2 = (cx + ((float)(((r)((*
-#line 79 "src/011-linklink/src/main_window.zc"
-cos(angle2)))))));
-
-#line 79 "src/011-linklink/src/main_window.zc"
-as;
-i32;
-
-#line 80 "src/011-linklink/src/main_window.zc"
-    int32_t y2 = (cy + ((float)(((r)((*
-#line 80 "src/011-linklink/src/main_window.zc"
-sin(angle2)))))));
-
-#line 80 "src/011-linklink/src/main_window.zc"
-as;
-i32;
-
-#line 81 "src/011-linklink/src/main_window.zc"
-draw_line(ctx, x1, y1, x2, y2, TILE_COLORS[_z_check_bounds(((tileType + 5) % 12), 12)]);
+#line 503 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+mouse_handler(x, y);
     }
+
+#line 505 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+redraw_window(hwnd);
+
+#line 506 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return 0;
     }
  } else 
-#line 84 "src/011-linklink/src/main_window.zc"
+#line 508 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_3 == WM_TIMER) {     {
+
+#line 509 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((timer_handler != null))     {
+
+#line 510 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    ZC_AUTO needs_redraw = 
+#line 510 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+timer_handler();
+
+#line 511 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (needs_redraw)     {
+
+#line 512 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+redraw_window(hwnd);
+    }
+    }
+
+#line 515 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return 0;
+    }
+ } else 
+#line 517 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_3 == WM_SIZE) {     {
+
+#line 518 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(client_width = (lParam & 65535));
+
+#line 518 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+as;
+i32;
+
+#line 519 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(client_height = ((lParam >> 16) & 65535));
+
+#line 519 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+as;
+i32;
+
+#line 520 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+redraw_window(hwnd);
+
+#line 521 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return 0;
+    }
+ } else 
+#line 523 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if (_m_3 == WM_DESTROY) {     {
+
+#line 524 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((destroy_handler != null))     {
+
+#line 525 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+destroy_handler();
+    }
+
+#line 527 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+PostQuitMessage(0);
+
+#line 528 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return 0;
+    }
+ } else 
+#line 530 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 if (1) {     {
 
-#line 86 "src/011-linklink/src/main_window.zc"
-    int32_t arm = (innerSize / 3);
-
-#line 87 "src/011-linklink/src/main_window.zc"
-draw_rect(ctx, (cx - (arm / 2)), (cy - arm), arm, (arm * 2), TILE_COLORS[_z_check_bounds(((tileType + 6) % 12), 12)]);
-
-#line 88 "src/011-linklink/src/main_window.zc"
-draw_rect(ctx, (cx - arm), (cy - (arm / 2)), (arm * 2), arm, TILE_COLORS[_z_check_bounds(((tileType + 6) % 12), 12)]);
+#line 531 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return 
+#line 531 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+DefWindowProcA(hwnd, msg, wParam, lParam);
     }
  } };
     }
 }
 
-#line 25 "src/011-linklink/src/main_window.zc"
+#line 478 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-void draw_rounded_rect(GraphicsContext ctx, int32_t x, int32_t y, int32_t w, int32_t h, int32_t radius, uint32_t color)
+Tuple__int32_t__int32_t get_client_size(void)
 {
     {
 
-#line 27 "src/011-linklink/src/main_window.zc"
-draw_rect(ctx, (x + radius), y, (w - (2 * radius)), h, color);
-
-#line 28 "src/011-linklink/src/main_window.zc"
-draw_rect(ctx, x, (y + radius), w, (h - (2 * radius)), color);
-
-#line 31 "src/011-linklink/src/main_window.zc"
-draw_circle(ctx, (x + radius), (y + radius), radius, color);
-
-#line 32 "src/011-linklink/src/main_window.zc"
-draw_circle(ctx, ((x + w) - radius), (y + radius), radius, color);
-
-#line 33 "src/011-linklink/src/main_window.zc"
-draw_circle(ctx, (x + radius), ((y + h) - radius), radius, color);
-
-#line 34 "src/011-linklink/src/main_window.zc"
-draw_circle(ctx, ((x + w) - radius), ((y + h) - radius), radius, color);
+#line 478 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return (Tuple__int32_t__int32_t){client_width, client_height};
     }
 }
 
-#line 569 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 477 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-uint32_t get_tile_color(int32_t tileType)
+void set_client_size(int32_t w, int32_t h)
 {
     {
 
-#line 570 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return TILE_COLORS[_z_check_bounds((tileType % 12), 12)];
+#line 477 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(client_width = w);
+(client_height = h);
     }
 }
 
-#line 564 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 476 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-str get_controls_text(void)
+void set_destroy_handler(z_closure_T h)
+{
+
+#line 476 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    int __z_drop_flag_h = 1;
+    {
+
+#line 476 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(destroy_handler = ({ __z_drop_flag_h = 0; h; }));
+    }
+
+#line 476 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    if (__z_drop_flag_h && h.drop) h.drop(h.ctx);
+}
+
+#line 475 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+
+void set_mouse_handler(z_closure_T h)
+{
+
+#line 475 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    int __z_drop_flag_h = 1;
+    {
+
+#line 475 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(mouse_handler = ({ __z_drop_flag_h = 0; h; }));
+    }
+
+#line 475 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    if (__z_drop_flag_h && h.drop) h.drop(h.ctx);
+}
+
+#line 474 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+
+void set_paint_handler(z_closure_T h)
+{
+
+#line 474 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    int __z_drop_flag_h = 1;
+    {
+
+#line 474 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(paint_handler = ({ __z_drop_flag_h = 0; h; }));
+    }
+
+#line 474 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    if (__z_drop_flag_h && h.drop) h.drop(h.ctx);
+}
+
+#line 473 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+
+void set_timer_handler(z_closure_T h)
+{
+
+#line 473 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    int __z_drop_flag_h = 1;
+    {
+
+#line 473 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(timer_handler = ({ __z_drop_flag_h = 0; h; }));
+    }
+
+#line 473 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    if (__z_drop_flag_h && h.drop) h.drop(h.ctx);
+}
+
+#line 472 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+
+void set_key_handler(z_closure_T h)
+{
+
+#line 472 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    int __z_drop_flag_h = 1;
+    {
+
+#line 472 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(key_handler = ({ __z_drop_flag_h = 0; h; }));
+    }
+
+#line 472 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    if (__z_drop_flag_h && h.drop) h.drop(h.ctx);
+}
+
+#line 434 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+
+void fb_draw_text_size(int32_t x, int32_t y, string text, Color color, int32_t size)
 {
     {
 
-#line 565 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return "鼠标点击选择方块 | R 重新开始 | ESC 退出";
+#line 435 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
+
+
+#line 436 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((!fb_data.valid))     {
+
+#line 436 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return ;
+    }
+
+#line 437 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    uint32_t prev_color = 
+#line 437 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SetTextColor(fb_data.memDC, color_to_u32(color));
+
+#line 438 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    int32_t prev_mode = 
+#line 438 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SetBkMode(fb_data.memDC, 1);
+
+#line 440 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* font = 
+#line 440 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+CreateFontA(size, 0, 0, 0, 400, 0, 0, 0, 0, 0, 0, 0, 0, 
+#line 442 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+char*__c_str((char*[]){"Arial\0"}));
+
+#line 443 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* old_font = 
+#line 443 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject_3(fb_data.memDC, font);
+
+#line 445 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+TextOutA(fb_data.memDC, x, y, char*__c_str(&text), ((int32_t)(text.len)));
+
+#line 447 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject_3(fb_data.memDC, old_font);
+
+#line 448 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+DeleteObject_3(font);
+
+#line 449 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SetBkMode(fb_data.memDC, prev_mode);
+
+#line 450 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SetTextColor(fb_data.memDC, prev_color);
+
+#line 451 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
+
     }
 }
 
-#line 554 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 414 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-str get_status_text(LinkLinkState* state)
+void fb_draw_text(int32_t x, int32_t y, string text, Color color)
 {
     {
 
-#line 555 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (state->gameWon)     {
+#line 415 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
 
-#line 556 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return 
-#line 556 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-({ 
-#line 556 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    static char _b[4096]; _b[0]=0;
-    char _t[128];
-    strcat(_b, "恭喜通关！最终得分: ");
 
-#line 556 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-sprintf(_t, _z_str(state), state);
+#line 416 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((!fb_data.valid))     {
 
-#line 556 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    strcat(_b, _t);
-    _b;
- }).score.toString();
+#line 416 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return ;
     }
 
-#line 557 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
- else if (state->gameOver)     {
+#line 417 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    uint32_t prev_color = 
+#line 417 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SetTextColor(fb_data.memDC, color_to_u32(color));
 
-#line 558 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return 
-#line 558 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-({ 
-#line 558 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    static char _b[4096]; _b[0]=0;
-    char _t[128];
-    strcat(_b, "时间到！游戏结束！得分: ");
+#line 418 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    int32_t prev_mode = 
+#line 418 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SetBkMode(fb_data.memDC, 1);
 
-#line 558 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-sprintf(_t, _z_str(state), state);
+#line 420 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* font = 
+#line 420 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+CreateFontA(16, 0, 0, 0, 400, 0, 0, 0, 0, 0, 0, 0, 0, 
+#line 422 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+char*__c_str((char*[]){"Arial\0"}));
 
-#line 558 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    strcat(_b, _t);
-    _b;
- }).score.toString();
-    }
+#line 423 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* old_font = 
+#line 423 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject_3(fb_data.memDC, font);
 
-#line 560 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return 
-#line 560 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-({ 
-#line 560 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    static char _b[4096]; _b[0]=0;
-    char _t[128];
-    strcat(_b, "剩余方块: ");
+#line 425 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+TextOutA(fb_data.memDC, x, y, char*__c_str(&text), ((int32_t)(text.len)));
 
-#line 560 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-sprintf(_t, _z_str(state), state);
+#line 427 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject_3(fb_data.memDC, old_font);
 
-#line 560 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    strcat(_b, _t);
-    _b;
- }).tilesRemaining.toString();
+#line 428 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+DeleteObject_3(font);
+
+#line 429 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SetBkMode(fb_data.memDC, prev_mode);
+
+#line 430 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SetTextColor(fb_data.memDC, prev_color);
+
+#line 431 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
+
     }
 }
 
-#line 543 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 380 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-str get_time_text(LinkLinkState* state)
+void fb_shutdown(void)
 {
     {
 
-#line 544 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t minutes = (state->timeLeft / 60);
+#line 381 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
 
-#line 545 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t seconds = (state->timeLeft % 60);
 
-#line 546 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return ({ __typeof__(
-#line 547 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-int32_t__toString(&seconds)) _ifval; if ((minutes < 10)) { (({ 
-#line 547 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    static char _b[4096]; _b[0]=0;
-    char _t[128];
-    strcat(_b, "0");
+#line 382 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((fb_data.memDC != null))     {
 
-#line 547 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-sprintf(_t, _z_str(minutes), minutes);
+#line 383 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+DeleteDC(fb_data.memDC);
+    }
 
-#line 547 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    strcat(_b, _t);
-    _b;
- })++);
-(
-#line 547 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(":"++)(({ __typeof__(({ fprintf(stdout, "%s", "0"); fprintf(stdout, "\n"); 0; });) _ifval; if ((seconds < 10)) { _ifval = ({ fprintf(stdout, "%s", "0"); fprintf(stdout, "\n"); 0; });; } else { _ifval = ({ fprintf(stdout, "\n"); 0; });; } _ifval; }))++);
-_ifval = int32_t__toString(&seconds); } else { (
-#line 549 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(({ 
-#line 549 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    static char _b[4096]; _b[0]=0;
-    char _t[128];
+#line 385 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((fb_data.bitmap != null))     {
 
-#line 549 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-sprintf(_t, _z_str(minutes), minutes);
+#line 386 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+DeleteObject_2(fb_data.bitmap);
+    }
 
-#line 549 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    strcat(_b, _t);
-    strcat(_b, ":");
-    _b;
- })++)(({ __typeof__(({ fprintf(stdout, "%s", "0"); fprintf(stdout, "\n"); 0; });) _ifval; if ((seconds < 10)) { _ifval = ({ fprintf(stdout, "%s", "0"); fprintf(stdout, "\n"); 0; });; } else { _ifval = ({ fprintf(stdout, "\n"); 0; });; } _ifval; }))++);
-_ifval = 
-#line 549 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-int32_t__toString(&seconds); } _ifval; });
+#line 388 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((fb_data.hdc != null))     {
+
+#line 389 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+ReleaseDC(fb_data.window, fb_data.hdc);
+    }
+
+#line 391 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(fb_data.valid = false);
+
+#line 392 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
+
     }
 }
 
-#line 538 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 373 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-str get_score_text(LinkLinkState* state)
+void fb_present(void)
 {
     {
 
-#line 539 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return 
-#line 539 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-({ 
-#line 539 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    static char _b[4096]; _b[0]=0;
-    char _t[128];
-    strcat(_b, "分数: ");
+#line 374 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
 
-#line 539 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-sprintf(_t, _z_str(state), state);
 
-#line 539 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    strcat(_b, _t);
-    _b;
- }).score.toString();
+#line 375 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((!fb_data.valid))     {
+
+#line 375 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return ;
+    }
+
+#line 376 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+BitBlt(fb_data.hdc, 0, 0, fb_data.width, fb_data.height, fb_data.memDC, 0, 0, 13369376);
+
+#line 377 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
+
     }
 }
 
-#line 533 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 362 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-void restart_game(LinkLinkState* state)
+void fb_draw_circle(int32_t x, int32_t y, int32_t radius, Color color)
 {
     {
 
-#line 534 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-init_game(state);
+#line 363 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
+
+
+#line 364 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((!fb_data.valid))     {
+
+#line 364 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return ;
+    }
+
+#line 365 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* brush = 
+#line 365 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+CreateSolidBrush(color_to_u32(color));
+
+#line 366 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* old_brush = 
+#line 366 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject(fb_data.memDC, brush);
+
+#line 367 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+Ellipse(fb_data.memDC, (x - radius), (y - radius), (x + radius), (y + radius));
+
+#line 368 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject(fb_data.memDC, old_brush);
+
+#line 369 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+DeleteObject(brush);
+
+#line 370 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
+
     }
 }
 
-#line 499 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 350 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-bool has_possible_moves(LinkLinkState* state)
+void fb_draw_rect(int32_t x, int32_t y, int32_t width, int32_t height, Color color)
 {
     {
 
-#line 500 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    PathPoint visibleTiles[64] = {0};
+#line 351 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
 
-#line 501 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t count = 0;
 
-#line 504 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO r = 0; r < 8; r++)     {
+#line 352 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((!fb_data.valid))     {
 
-#line 505 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO c = 0; c < 8; c++)     {
-
-#line 506 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (state->tiles[_z_check_bounds(r, 8)][_z_check_bounds(c, 8)].visible)     {
-
-#line 507 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(visibleTiles[_z_check_bounds(count, 64)] = (struct PathPoint){.row = r, .col = c});
-
-#line 508 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(count = (count + 1));
-    }
-    }
+#line 352 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return ;
     }
 
-#line 514 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO i = 0; i < count; i++)     {
+#line 353 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* brush = 
+#line 353 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+CreateSolidBrush(color_to_u32(color));
 
-#line 515 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO j = (i + 1); j < count; j++)     {
+#line 354 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* old_brush = 
+#line 354 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject(fb_data.memDC, brush);
 
-#line 516 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    PathPoint p1 = visibleTiles[_z_check_bounds(i, 64)];
+#line 355 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    int32_t rect[4] = {x, y, (x + width), (y + height)};
 
-#line 517 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    PathPoint p2 = visibleTiles[_z_check_bounds(j, 64)];
+#line 356 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+FillRect(fb_data.memDC, (&rect), brush);
 
-#line 519 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((state->tiles[_z_check_bounds(p1.row, 8)][_z_check_bounds(p1.col, 8)].tileType == state->tiles[_z_check_bounds(p2.row, 8)][_z_check_bounds(p2.col, 8)].tileType))     {
+#line 357 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject(fb_data.memDC, old_brush);
 
-#line 521 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    Path path = 
-#line 521 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-find_path(state, p1.row, p1.col, p2.row, p2.col);
+#line 358 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+DeleteObject(brush);
 
-#line 522 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((path.length > 0) && (path.length <= 3)))     {
+#line 359 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
 
-#line 523 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return true;
-    }
-    }
-    }
-    }
-
-#line 529 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
     }
 }
 
-#line 482 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 339 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-bool update_time(LinkLinkState* state)
+void fb_clear(Color color)
 {
     {
 
-#line 483 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (state->gameOver)     {
+#line 340 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
 
-#line 484 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
+
+#line 341 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+if ((!fb_data.valid))     {
+
+#line 341 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return ;
     }
 
-#line 487 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->timeLeft = (state->timeLeft - 1));
+#line 342 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* brush = 
+#line 342 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+CreateSolidBrush(color_to_u32(color));
 
-#line 489 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((state->timeLeft <= 0))     {
+#line 343 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* old_brush = 
+#line 343 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject(fb_data.memDC, brush);
 
-#line 490 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->timeLeft = 0);
+#line 344 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+Rectangle(fb_data.memDC, 0, 0, fb_data.width, fb_data.height);
 
-#line 491 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->gameOver = true);
+#line 345 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject(fb_data.memDC, old_brush);
 
-#line 492 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return true;
-    }
+#line 346 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+DeleteObject(brush);
 
-#line 495 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
+#line 347 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
+
     }
 }
 
-#line 461 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 319 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-bool can_connect_through_col(LinkLinkState* state, int32_t col, int32_t r1, int32_t r2)
+void fb_init(void* window, int32_t width, int32_t height)
 {
     {
 
-#line 462 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((col < 0) || (col >= 8)))     {
+#line 320 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
 
-#line 463 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
-    }
 
-#line 466 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    ZC_AUTO minR = ({ __typeof__(r1) _ifval; if ((r1 < r2)) { _ifval = r1; } else { _ifval = r2; } _ifval; });
+#line 321 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(fb_data.window = window);
 
-#line 467 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    ZC_AUTO maxR = ({ __typeof__(r1) _ifval; if ((r1 > r2)) { _ifval = r1; } else { _ifval = r2; } _ifval; });
+#line 322 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(fb_data.width = width);
 
-#line 469 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO r = minR; r <= maxR; r++)     {
+#line 323 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(fb_data.height = height);
 
-#line 470 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((r == r1) || (r == r2)))     {
+#line 324 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(fb_data.hdc = 
+#line 324 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+GetDC(window));
 
-#line 471 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-continue;
-    }
+#line 325 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(fb_data.memDC = 
+#line 325 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+CreateCompatibleDC(fb_data.hdc));
 
-#line 473 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((((r >= 0) && (r < 8)) && state->tiles[_z_check_bounds(r, 8)][_z_check_bounds(col, 8)].visible))     {
+#line 326 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(fb_data.bitmap = 
+#line 326 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+CreateCompatibleBitmap(fb_data.hdc, width, height));
 
-#line 474 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
-    }
-    }
+#line 327 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject_2(fb_data.memDC, fb_data.bitmap);
 
-#line 478 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return true;
+#line 328 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(fb_data.valid = true);
+
+#line 331 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* brush = 
+#line 331 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+CreateSolidBrush(16777215);
+
+#line 332 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* old_brush = 
+#line 332 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject(fb_data.memDC, brush);
+
+#line 333 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+Rectangle(fb_data.memDC, 0, 0, width, height);
+
+#line 334 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject(fb_data.memDC, old_brush);
+
+#line 335 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+DeleteObject(brush);
+
+#line 336 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
+
     }
 }
 
-#line 440 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 291 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-bool can_connect_through_row(LinkLinkState* state, int32_t row, int32_t c1, int32_t c2)
+void draw_circle(void* ctx, int32_t x, int32_t y, int32_t radius, Color color)
 {
     {
 
-#line 441 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((row < 0) || (row >= 8)))     {
+#line 292 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
 
-#line 442 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
-    }
 
-#line 445 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    ZC_AUTO minC = ({ __typeof__(c1) _ifval; if ((c1 < c2)) { _ifval = c1; } else { _ifval = c2; } _ifval; });
+#line 293 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* brush = 
+#line 293 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+CreateSolidBrush(color_to_u32(color));
 
-#line 446 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    ZC_AUTO maxC = ({ __typeof__(c1) _ifval; if ((c1 > c2)) { _ifval = c1; } else { _ifval = c2; } _ifval; });
+#line 294 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* old_brush = 
+#line 294 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject(ctx, brush);
 
-#line 448 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO c = minC; c <= maxC; c++)     {
+#line 296 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+Ellipse(ctx, (x - radius), (y - radius), (x + radius), (y + radius));
 
-#line 449 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((c == c1) || (c == c2)))     {
+#line 298 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject(ctx, old_brush);
 
-#line 450 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-continue;
-    }
+#line 299 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+DeleteObject(brush);
 
-#line 452 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((((c >= 0) && (c < 8)) && state->tiles[_z_check_bounds(row, 8)][_z_check_bounds(c, 8)].visible))     {
+#line 300 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
 
-#line 453 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
-    }
-    }
-
-#line 457 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return true;
     }
 }
 
-#line 418 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 278 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-bool can_connect_to_edge_vertical(LinkLinkState* state, int32_t c, int32_t r, int32_t edgeCol)
+void draw_rect(void* ctx, int32_t x, int32_t y, int32_t width, int32_t height, Color color)
 {
     {
 
-#line 420 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((r < 0) || (r >= 8)))     {
+#line 279 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
 
-#line 421 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
-    }
 
-#line 424 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    ZC_AUTO minC = ({ __typeof__(c) _ifval; if ((c < edgeCol)) { _ifval = c; } else { _ifval = edgeCol; } _ifval; });
+#line 280 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* brush = 
+#line 280 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+CreateSolidBrush(color_to_u32(color));
 
-#line 425 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    ZC_AUTO maxC = ({ __typeof__(c) _ifval; if ((c > edgeCol)) { _ifval = c; } else { _ifval = edgeCol; } _ifval; });
+#line 281 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* old_brush = 
+#line 281 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject(ctx, brush);
 
-#line 427 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO cc = minC; cc <= maxC; cc++)     {
+#line 283 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    int32_t rect[4] = {x, y, (x + width), (y + height)};
 
-#line 428 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((cc == c))     {
+#line 284 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+FillRect(ctx, (&rect), brush);
 
-#line 429 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-continue;
-    }
+#line 286 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SelectObject(ctx, old_brush);
 
-#line 431 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((((cc >= 0) && (cc < 8)) && state->tiles[_z_check_bounds(r, 8)][_z_check_bounds(cc, 8)].visible))     {
+#line 287 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+DeleteObject(brush);
 
-#line 432 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
-    }
-    }
+#line 288 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
 
-#line 436 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return true;
     }
 }
 
-#line 396 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 274 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-bool can_connect_to_edge_horizontal(LinkLinkState* state, int32_t r, int32_t c, int32_t edgeRow)
+uint32_t color_to_u32(Color c)
 {
     {
 
-#line 398 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((c < 0) || (c >= 8)))     {
-
-#line 399 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
-    }
-
-#line 402 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    ZC_AUTO minR = ({ __typeof__(r) _ifval; if ((r < edgeRow)) { _ifval = r; } else { _ifval = edgeRow; } _ifval; });
-
-#line 403 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    ZC_AUTO maxR = ({ __typeof__(r) _ifval; if ((r > edgeRow)) { _ifval = r; } else { _ifval = edgeRow; } _ifval; });
-
-#line 405 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO rr = minR; rr <= maxR; rr++)     {
-
-#line 406 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((rr == r))     {
-
-#line 407 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-continue;
-    }
-
-#line 409 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((((rr >= 0) && (rr < 8)) && state->tiles[_z_check_bounds(rr, 8)][_z_check_bounds(c, 8)].visible))     {
-
-#line 410 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
-    }
-    }
-
-#line 414 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return true;
+#line 275 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+((((uint32_t)(c.r)) | (((uint32_t)(c.g)) << 8)) | (((uint32_t)(c.b)) << 16));
     }
 }
 
-#line 335 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 270 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-Path find_two_corner_path(LinkLinkState* state, int32_t r1, int32_t c1, int32_t r2, int32_t c2)
+Color rgb(uint8_t r, uint8_t g, uint8_t b)
 {
     {
 
-#line 336 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    Path result = (struct Path){.points = {(struct PathPoint){}, (struct PathPoint){}, (struct PathPoint){}, (struct PathPoint){}}};
+#line 271 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+(struct Color){.r = r, .g = g, .b = b};
+    }
+}
 
-#line 340 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((
-#line 340 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_to_edge_horizontal(state, r1, c1, (r1 - 1)) && 
-#line 341 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_to_edge_horizontal(state, r2, c2, (r1 - 1))))     {
+#line 248 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-#line 343 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+bool get_window_client_size(void* window, int32_t* width, int32_t* height)
+{
+    {
+
+#line 249 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
+
+
+#line 250 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    int32_t rect[4] = {0, 0, 0, 0};
+
+#line 251 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 if (
-#line 343 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_through_row(state, (r1 - 1), c1, c2))     {
+#line 251 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+GetClientRect(window, (&rect)))     {
 
-#line 344 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.length = 4);
+#line 252 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+((*width) = (rect[_z_check_bounds(2, 4)] - rect[_z_check_bounds(0, 4)]));
 
-#line 345 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(0, 4)] = (struct PathPoint){.row = r1, .col = c1});
+#line 253 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+((*height) = (rect[_z_check_bounds(3, 4)] - rect[_z_check_bounds(1, 4)]));
 
-#line 346 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(1, 4)] = (struct PathPoint){.row = (r1 - 1), .col = c1});
-
-#line 347 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(2, 4)] = (struct PathPoint){.row = (r1 - 1), .col = c2});
-
-#line 348 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(3, 4)] = (struct PathPoint){.row = r2, .col = c2});
-
-#line 349 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return result;
-    }
-    }
-
-#line 354 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((
-#line 354 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_to_edge_horizontal(state, r1, c1, (r1 + 1)) && 
-#line 355 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_to_edge_horizontal(state, r2, c2, (r1 + 1))))     {
-
-#line 356 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (
-#line 356 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_through_row(state, (r1 + 1), c1, c2))     {
-
-#line 357 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.length = 4);
-
-#line 358 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(0, 4)] = (struct PathPoint){.row = r1, .col = c1});
-
-#line 359 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(1, 4)] = (struct PathPoint){.row = (r1 + 1), .col = c1});
-
-#line 360 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(2, 4)] = (struct PathPoint){.row = (r1 + 1), .col = c2});
-
-#line 361 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(3, 4)] = (struct PathPoint){.row = r2, .col = c2});
-
-#line 362 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return result;
-    }
-    }
-
-#line 367 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((
-#line 367 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_to_edge_vertical(state, c1, r1, (c1 - 1)) && 
-#line 368 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_to_edge_vertical(state, c2, r2, (c1 - 1))))     {
-
-#line 369 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (
-#line 369 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_through_col(state, (c1 - 1), r1, r2))     {
-
-#line 370 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.length = 4);
-
-#line 371 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(0, 4)] = (struct PathPoint){.row = r1, .col = c1});
-
-#line 372 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(1, 4)] = (struct PathPoint){.row = r1, .col = (c1 - 1)});
-
-#line 373 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(2, 4)] = (struct PathPoint){.row = r2, .col = (c1 - 1)});
-
-#line 374 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(3, 4)] = (struct PathPoint){.row = r2, .col = c2});
-
-#line 375 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return result;
-    }
-    }
-
-#line 380 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((
-#line 380 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_to_edge_vertical(state, c1, r1, (c1 + 1)) && 
-#line 381 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_to_edge_vertical(state, c2, r2, (c1 + 1))))     {
-
-#line 382 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (
-#line 382 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_through_col(state, (c1 + 1), r1, r2))     {
-
-#line 383 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.length = 4);
-
-#line 384 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(0, 4)] = (struct PathPoint){.row = r1, .col = c1});
-
-#line 385 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(1, 4)] = (struct PathPoint){.row = r1, .col = (c1 + 1)});
-
-#line 386 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(2, 4)] = (struct PathPoint){.row = r2, .col = (c1 + 1)});
-
-#line 387 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(3, 4)] = (struct PathPoint){.row = r2, .col = c2});
-
-#line 388 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return result;
-    }
-    }
-
-#line 392 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return result;
-    }
-}
-
-#line 303 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-
-Path find_one_corner_path(LinkLinkState* state, int32_t r1, int32_t c1, int32_t r2, int32_t c2)
-{
-    {
-
-#line 304 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    Path result = (struct Path){.points = {(struct PathPoint){}, (struct PathPoint){}, (struct PathPoint){}, (struct PathPoint){}}};
-
-#line 307 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((
-#line 307 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_direct(state, r1, c1, r1, c2) && can_connect_direct(state, r1, c2, r2, c2)))     {
-
-#line 308 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((!state->tiles[_z_check_bounds(r1, 8)][_z_check_bounds(c2, 8)].visible) || ((r1 == r2) && (c2 == c2))))     {
-
-#line 310 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((!state->tiles[_z_check_bounds(r1, 8)][_z_check_bounds(c2, 8)].visible))     {
-
-#line 311 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.length = 3);
-
-#line 312 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(0, 4)] = (struct PathPoint){.row = r1, .col = c1});
-
-#line 313 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(1, 4)] = (struct PathPoint){.row = r1, .col = c2});
-
-#line 314 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(2, 4)] = (struct PathPoint){.row = r2, .col = c2});
-
-#line 315 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return result;
-    }
-    }
-    }
-
-#line 321 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((
-#line 321 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_direct(state, r1, c1, r2, c1) && can_connect_direct(state, r2, c1, r2, c2)))     {
-
-#line 322 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((!state->tiles[_z_check_bounds(r2, 8)][_z_check_bounds(c1, 8)].visible))     {
-
-#line 323 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.length = 3);
-
-#line 324 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(0, 4)] = (struct PathPoint){.row = r1, .col = c1});
-
-#line 325 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(1, 4)] = (struct PathPoint){.row = r2, .col = c1});
-
-#line 326 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(2, 4)] = (struct PathPoint){.row = r2, .col = c2});
-
-#line 327 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return result;
-    }
-    }
-
-#line 331 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return result;
-    }
-}
-
-#line 265 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-
-bool can_connect_direct(LinkLinkState* state, int32_t r1, int32_t c1, int32_t r2, int32_t c2)
-{
-    {
-
-#line 267 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((r1 != r2) && (c1 != c2)))     {
-
-#line 268 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
-    }
-
-#line 271 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((r1 == r2))     {
-
-#line 273 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    ZC_AUTO minC = ({ __typeof__(c1) _ifval; if ((c1 < c2)) { _ifval = c1; } else { _ifval = c2; } _ifval; });
-
-#line 274 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    ZC_AUTO maxC = ({ __typeof__(c1) _ifval; if ((c1 > c2)) { _ifval = c1; } else { _ifval = c2; } _ifval; });
-
-#line 276 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO c = (minC + 1); c < maxC; c++)     {
-
-#line 277 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((c == c1) || (c == c2)))     {
-
-#line 278 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-continue;
-    }
-
-#line 280 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (state->tiles[_z_check_bounds(r1, 8)][_z_check_bounds(c, 8)].visible)     {
-
-#line 281 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
-    }
-    }
-
-#line 284 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return true;
-    }
- else     {
-
-#line 287 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    ZC_AUTO minR = ({ __typeof__(r1) _ifval; if ((r1 < r2)) { _ifval = r1; } else { _ifval = r2; } _ifval; });
-
-#line 288 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    ZC_AUTO maxR = ({ __typeof__(r1) _ifval; if ((r1 > r2)) { _ifval = r1; } else { _ifval = r2; } _ifval; });
-
-#line 290 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO r = (minR + 1); r < maxR; r++)     {
-
-#line 291 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((r == r1) || (r == r2)))     {
-
-#line 292 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-continue;
-    }
-
-#line 294 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (state->tiles[_z_check_bounds(r, 8)][_z_check_bounds(c1, 8)].visible)     {
-
-#line 295 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
-    }
-    }
-
-#line 298 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return true;
-    }
-    }
-}
-
-#line 238 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-
-Path find_path(LinkLinkState* state, int32_t r1, int32_t c1, int32_t r2, int32_t c2)
-{
-    {
-
-#line 239 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    Path result = (struct Path){.points = {(struct PathPoint){}, (struct PathPoint){}, (struct PathPoint){}, (struct PathPoint){}}};
-
-#line 242 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (
-#line 242 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-can_connect_direct(state, r1, c1, r2, c2))     {
-
-#line 243 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.length = 2);
-
-#line 244 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(0, 4)] = (struct PathPoint){.row = r1, .col = c1});
-
-#line 245 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(result.points[_z_check_bounds(1, 4)] = (struct PathPoint){.row = r2, .col = c2});
-
-#line 246 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return result;
-    }
-
-#line 250 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    Path corner1 = 
-#line 250 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-find_one_corner_path(state, r1, c1, r2, c2);
-
-#line 251 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((corner1.length > 0))     {
-
-#line 252 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return corner1;
-    }
-
-#line 256 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    Path corner2 = 
-#line 256 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-find_two_corner_path(state, r1, c1, r2, c2);
-
-#line 257 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((corner2.length > 0))     {
-
-#line 258 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return corner2;
-    }
-
-#line 261 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return result;
-    }
-}
-
-#line 154 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-
-bool click_tile(LinkLinkState* state, int32_t row, int32_t col)
-{
-    {
-
-#line 156 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((((row < 0) || (row >= 8)) || (col < 0)) || (col >= 8)))     {
-
-#line 157 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
-    }
-
-#line 161 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((!state->tiles[_z_check_bounds(row, 8)][_z_check_bounds(col, 8)].visible))     {
-
-#line 162 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return false;
-    }
-
-#line 166 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((state->selectedRow < 0))     {
-
-#line 167 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->selectedRow = row);
-
-#line 168 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->selectedCol = col);
-
-#line 169 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->lastMatch = false);
-
-#line 170 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->pathLength = 0);
-
-#line 171 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 254 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
     return true;
     }
 
-#line 175 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((state->selectedRow == row) && (state->selectedCol == col)))     {
+#line 256 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return false;
 
-#line 176 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->selectedRow = (-1));
+#line 257 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #else
 
-#line 177 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->selectedCol = (-1));
 
-#line 178 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->lastMatch = false);
+#line 258 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return false;
 
-#line 179 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->pathLength = 0);
+#line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
 
-#line 180 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return true;
-    }
-
-#line 184 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t selectedType = state->tiles[_z_check_bounds(state->selectedRow, 8)][_z_check_bounds(state->selectedCol, 8)].tileType;
-
-#line 185 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t clickedType = state->tiles[_z_check_bounds(row, 8)][_z_check_bounds(col, 8)].tileType;
-
-#line 187 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((selectedType == clickedType))     {
-
-#line 189 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    Path path = 
-#line 189 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-find_path(state, state->selectedRow, state->selectedCol, row, col);
-
-#line 191 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if (((path.length > 0) && (path.length <= 3)))     {
-
-#line 193 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->tiles[_z_check_bounds(state->selectedRow, 8)][_z_check_bounds(state->selectedCol, 8)].visible = false);
-
-#line 194 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->tiles[_z_check_bounds(row, 8)][_z_check_bounds(col, 8)].visible = false);
-
-#line 195 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->tilesRemaining = (state->tilesRemaining - 2));
-
-#line 198 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t baseScore = 100;
-
-#line 199 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t timeBonus = (state->timeLeft / 10);
-
-#line 200 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t pathBonus = ((3 - path.length) * 20);
-
-#line 201 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->score = (((state->score + baseScore) + timeBonus) + pathBonus));
-
-#line 204 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->connectionPath = path.points);
-
-#line 205 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->pathLength = path.length);
-
-#line 206 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->lastMatch = true);
-
-#line 209 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-if ((state->tilesRemaining <= 0))     {
-
-#line 210 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->gameWon = true);
-
-#line 211 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->gameOver = true);
-    }
-    }
- else     {
-
-#line 215 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->lastMatch = false);
-
-#line 216 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->pathLength = 0);
-    }
-    }
- else     {
-
-#line 220 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->lastMatch = false);
-
-#line 221 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->pathLength = 0);
-    }
-
-#line 225 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->selectedRow = row);
-
-#line 226 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->selectedCol = col);
-
-#line 228 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return true;
     }
 }
 
-#line 147 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 242 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-Tuple__int32_t__int32_t get_tile_position(LinkLinkState* state, int32_t row, int32_t col)
+void redraw_window(void* window)
 {
     {
 
-#line 148 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t x = (50 + (col * (48 + 4)));
+#line 243 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
 
-#line 149 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t y = (60 + (row * (48 + 4)));
 
-#line 150 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return (Tuple__int32_t__int32_t){x, y};
+#line 244 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+InvalidateRect(window, null, true);
+
+#line 245 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
+
     }
 }
 
-#line 87 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 236 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-void init_game(LinkLinkState* state)
+void kill_game_timer(void* window)
 {
     {
 
-#line 89 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO r = 0; r < 8; r++)     {
+#line 237 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
 
-#line 90 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO c = 0; c < 8; c++)     {
 
-#line 91 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->tiles[_z_check_bounds(r, 8)][_z_check_bounds(c, 8)].tileType = (-1));
+#line 238 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+KillTimer(window, 1);
 
-#line 92 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->tiles[_z_check_bounds(r, 8)][_z_check_bounds(c, 8)].row = r);
+#line 239 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
 
-#line 93 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->tiles[_z_check_bounds(r, 8)][_z_check_bounds(c, 8)].col = c);
-
-#line 94 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->tiles[_z_check_bounds(r, 8)][_z_check_bounds(c, 8)].visible = false);
-    }
-    }
-
-#line 100 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t totalTiles = (8 * 8);
-
-#line 101 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t pairs = (totalTiles / 2);
-
-#line 103 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t types[256] = {0};
-
-#line 104 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t typeIndex = 0;
-
-#line 107 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO i = 0; i < pairs; i++)     {
-
-#line 108 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t tileType = (i % 18);
-
-#line 110 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(types[_z_check_bounds(typeIndex, 256)] = tileType);
-
-#line 111 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(typeIndex = (typeIndex + 1));
-
-#line 112 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(types[_z_check_bounds(typeIndex, 256)] = tileType);
-
-#line 113 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(typeIndex = (typeIndex + 1));
-    }
-
-#line 117 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO i = 0; i < 256; i++)     {
-
-#line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t j = (
-#line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-rand() % 256);
-
-#line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-as;
-int;
-
-#line 119 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    int32_t temp = types[_z_check_bounds(i, 256)];
-
-#line 120 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(types[_z_check_bounds(i, 256)] = types[_z_check_bounds(j, 256)]);
-
-#line 121 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(types[_z_check_bounds(j, 256)] = temp);
-    }
-
-#line 125 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(typeIndex = 0);
-
-#line 126 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO r = 0; r < 8; r++)     {
-
-#line 127 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-for (ZC_AUTO c = 0; c < 8; c++)     {
-
-#line 128 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->tiles[_z_check_bounds(r, 8)][_z_check_bounds(c, 8)].tileType = types[_z_check_bounds(typeIndex, 256)]);
-
-#line 129 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->tiles[_z_check_bounds(r, 8)][_z_check_bounds(c, 8)].visible = true);
-
-#line 130 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(typeIndex = (typeIndex + 1));
-    }
-    }
-
-#line 135 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->selectedRow = (-1));
-
-#line 136 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->selectedCol = (-1));
-
-#line 137 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->score = 0);
-
-#line 138 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->timeLeft = 300);
-
-#line 139 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->gameOver = false);
-
-#line 140 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->gameWon = false);
-
-#line 141 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->tilesRemaining = totalTiles);
-
-#line 142 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->lastMatch = false);
-
-#line 143 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-(state->pathLength = 0);
     }
 }
 
-#line 80 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 230 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-int32_t abs(int32_t x)
+void set_game_timer(void* window, uint32_t interval_ms)
 {
     {
 
-#line 81 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return ({ __typeof__((-x)) _ifval; if ((x < 0)) { _ifval = (-x); } else { _ifval = x; } _ifval; });
+#line 231 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
+
+
+#line 232 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+SetTimer(window, 1, interval_ms, null);
+
+#line 233 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
+
     }
 }
 
-#line 76 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
+#line 224 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
 
-uint32_t rgb(uint8_t r, uint8_t g, uint8_t b)
+void quit_application(void)
 {
     {
 
-#line 77 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/game_logic.zc"
-    return (((((uint32_t)(4278190080)) | (((uint32_t)(r)) << 16)) | (((uint32_t)(g)) << 8)) | ((uint32_t)(b)));
+#line 225 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
+
+
+#line 226 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+PostQuitMessage(0);
+
+#line 227 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
+
+    }
+}
+
+#line 214 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+
+void run_event_loop(void* window)
+{
+    {
+
+#line 215 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
+
+
+#line 216 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    uint8_t msg[28] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+#line 217 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+while (
+#line 217 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+GetMessageA((&msg), window, 0, 0))     {
+
+#line 218 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+TranslateMessage((&msg));
+
+#line 219 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+DispatchMessageA((&msg));
+    }
+
+#line 221 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
+
+    }
+}
+
+#line 207 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+
+void show_window(void* window)
+{
+    {
+
+#line 208 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
+
+
+#line 209 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+ShowWindow(window, 1);
+
+#line 210 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+UpdateWindow(window);
+
+#line 211 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
+
+    }
+}
+
+#line 170 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+
+void* create_window(string title, int32_t width, int32_t height)
+{
+    {
+
+#line 171 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #if IS_WINDOWS
+
+
+#line 172 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* hInstance = 
+#line 172 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+GetModuleHandleA(null);
+
+#line 174 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    WNDCLASSA wndclass = (struct WNDCLASSA){.style = (2 | 1), .lpfnWndProc = window_proc, .hInstance = hInstance, .hIcon = null, .hCursor = 
+#line 179 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+LoadCursorA(null, IDC_ARROW), .hbrBackground = ((void*)(1)), .lpszMenuName = null, .lpszClassName = 
+#line 182 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+char*__c_str((char*[]){"BreakoutGame\0"})};
+
+#line 185 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+RegisterClassA((&wndclass));
+
+#line 187 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    void* hwnd = 
+#line 187 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+CreateWindowExA(0, 
+#line 189 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+char*__c_str((char*[]){"BreakoutGame\0"}), 
+#line 190 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+char*__c_str(&title), (((12582912 | 524288) | 131072) | 65536), 18446744071562067968ULL, 18446744071562067968ULL, (width + 16), (height + 56), null, null, hInstance, null);
+
+#line 199 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return hwnd;
+
+#line 200 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #elif IS_LINUX
+
+
+#line 201 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return null;
+
+#line 202 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #elif IS_MACOS
+
+
+#line 203 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    return null;
+
+#line 204 "/home/yq/github/xingmu/windows-minigames-diy/src/004-breakout/src/platform_api.zc"
+    #endif
+
     }
 }
 
@@ -7633,245 +7681,272 @@ exit(1);
     }
 }
 
-#line 149 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 9 "/usr/local/share/zenc/std/math.zc"
 
-Rect Rect__new(int32_t x, int32_t y, int32_t w, int32_t h)
+double Math__PI(void)
 {
     {
 
-#line 150 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return (struct Rect){.x = x, .y = y, .width = w, .height = h};
+#line 9 "/usr/local/share/zenc/std/math.zc"
+    return 3.1415926535897931;
     }
 }
 
-#line 153 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 10 "/usr/local/share/zenc/std/math.zc"
 
-bool Rect__contains(Rect* self, int32_t px, int32_t py)
+double Math__E(void)
 {
     {
 
-#line 154 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return ((((px >= self->x) && (px < (self->x + self->width))) && (py >= self->y)) && (py < (self->y + self->height)));
+#line 10 "/usr/local/share/zenc/std/math.zc"
+    return 2.7182818284590451;
     }
 }
 
-#line 130 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 13 "/usr/local/share/zenc/std/math.zc"
 
-Font Font__new(str name, int32_t size)
+double Math__abs(double x)
 {
     {
 
-#line 131 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return (struct Font){.name = name, .size = size, .bold = false};
+#line 14 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 14 "/usr/local/share/zenc/std/math.zc"
+fabs(x);
     }
 }
 
-#line 134 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 18 "/usr/local/share/zenc/std/math.zc"
 
-Font Font__withBold(Font* self, bool bold)
+double Math__sin(double x)
 {
     {
 
-#line 135 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-(self->bold = bold);
-
-#line 136 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return (*self);
+#line 19 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 19 "/usr/local/share/zenc/std/math.zc"
+sin(x);
     }
 }
 
-#line 97 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 22 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__Black(void)
+double Math__cos(double x)
 {
     {
 
-#line 97 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4278190080;
+#line 23 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 23 "/usr/local/share/zenc/std/math.zc"
+cos(x);
     }
 }
 
-#line 98 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 26 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__White(void)
+double Math__tan(double x)
 {
     {
 
-#line 98 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4294967295;
+#line 27 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 27 "/usr/local/share/zenc/std/math.zc"
+tan(x);
     }
 }
 
-#line 99 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 30 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__Red(void)
+double Math__asin(double x)
 {
     {
 
-#line 99 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4294901760;
+#line 31 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 31 "/usr/local/share/zenc/std/math.zc"
+asin(x);
     }
 }
 
-#line 100 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 34 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__Green(void)
+double Math__acos(double x)
 {
     {
 
-#line 100 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4278255360;
+#line 35 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 35 "/usr/local/share/zenc/std/math.zc"
+acos(x);
     }
 }
 
-#line 101 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 38 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__Blue(void)
+double Math__atan(double x)
 {
     {
 
-#line 101 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4278190335;
+#line 39 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 39 "/usr/local/share/zenc/std/math.zc"
+atan(x);
     }
 }
 
-#line 102 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 42 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__Yellow(void)
+double Math__atan2(double y, double x)
 {
     {
 
-#line 102 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4294967040;
+#line 43 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 43 "/usr/local/share/zenc/std/math.zc"
+atan2(y, x);
     }
 }
 
-#line 103 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 47 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__Cyan(void)
+double Math__sqrt(double x)
 {
     {
 
-#line 103 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4278255615;
+#line 48 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 48 "/usr/local/share/zenc/std/math.zc"
+sqrt(x);
     }
 }
 
-#line 104 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 51 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__Magenta(void)
+double Math__pow(double base, double exp)
 {
     {
 
-#line 104 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4294902015;
+#line 52 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 52 "/usr/local/share/zenc/std/math.zc"
+pow(base, exp);
     }
 }
 
-#line 105 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 55 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__Gray(void)
+double Math__exp(double x)
 {
     {
 
-#line 105 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4286611584;
+#line 56 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 56 "/usr/local/share/zenc/std/math.zc"
+exp(x);
     }
 }
 
-#line 106 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 59 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__LightGray(void)
+double Math__log(double x)
 {
     {
 
-#line 106 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4291875024;
+#line 60 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 60 "/usr/local/share/zenc/std/math.zc"
+log(x);
     }
 }
 
-#line 107 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 63 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__DarkGray(void)
+double Math__log10(double x)
 {
     {
 
-#line 107 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4282400832;
+#line 64 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 64 "/usr/local/share/zenc/std/math.zc"
+log10(x);
     }
 }
 
-#line 108 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 68 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__Orange(void)
+double Math__ceil(double x)
 {
     {
 
-#line 108 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4294934528;
+#line 69 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 69 "/usr/local/share/zenc/std/math.zc"
+ceil(x);
     }
 }
 
-#line 109 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 72 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__Purple(void)
+double Math__floor(double x)
 {
     {
 
-#line 109 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4286578816;
+#line 73 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 73 "/usr/local/share/zenc/std/math.zc"
+floor(x);
     }
 }
 
-#line 110 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 76 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__Brown(void)
+double Math__round(double x)
 {
     {
 
-#line 110 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4286578688;
+#line 77 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 77 "/usr/local/share/zenc/std/math.zc"
+round(x);
     }
 }
 
-#line 111 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 80 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__Pink(void)
+double Math__mod(double x, double y)
 {
     {
 
-#line 111 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return 4294951115;
+#line 81 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 81 "/usr/local/share/zenc/std/math.zc"
+fmod(x, y);
     }
 }
 
-#line 113 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 85 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__RGB(uint8_t r, uint8_t g, uint8_t b)
+double Math__max(double a, double b)
 {
     {
 
-#line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return (((4278190080 | (r << 16)) | (g << 8)) | b);
-
-#line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-as;
-Color;
+#line 86 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 86 "/usr/local/share/zenc/std/math.zc"
+fmax(a, b);
     }
 }
 
-#line 117 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
+#line 89 "/usr/local/share/zenc/std/math.zc"
 
-uint32_t uint32_t__ARGB(uint8_t a, uint8_t r, uint8_t g, uint8_t b)
+double Math__min(double a, double b)
 {
     {
 
-#line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-    return ((((a << 24) | (r << 16)) | (g << 8)) | b);
-
-#line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/011-linklink/src/platform_api.zc"
-as;
-Color;
+#line 90 "/usr/local/share/zenc/std/math.zc"
+    return 
+#line 90 "/usr/local/share/zenc/std/math.zc"
+fmin(a, b);
     }
 }
 

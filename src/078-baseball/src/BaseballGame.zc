@@ -176,8 +176,8 @@ pub fn start_pitch(state: &BaseballState) {
     };
     
     // 设定投球目标 (本垒板附近)
-    state.pitcher_target_x = HOME_X as f32 + (rand() % 41 - 20) as f32;  // -20 到 +20
-    state.pitcher_target_y = HOME_Y as f32;
+    state.pitcher_target_x = (f32)(HOME_X) + (rand() % 41 - 20) as f32;  // -20 到 +20
+    state.pitcher_target_y = (f32)(HOME_Y);
     
     state.pitch_timer = 0.0;
 }
@@ -203,8 +203,8 @@ pub fn update_pitch(state: &BaseballState, dt: f32) {
     // 球的位置 (从投手到本垒的抛物线)
     let t = min(progress / pitch_duration, 1.0);
     
-    state.ball.x = PITCHER_X as f32 + (state.pitcher_target_x - PITCHER_X as f32) * t;
-    state.ball.y = PITCHER_Y as f32 + (state.pitcher_target_y - PITCHER_Y as f32) * t;
+    state.ball.x = (f32)(PITCHER_X) + (state.pitcher_target_x - (f32)(PITCHER_X)) * t;
+    state.ball.y = (f32)(PITCHER_Y) + (state.pitcher_target_y - (f32)(PITCHER_Y)) * t;
     
     // 抛物线高度
     let arc_height = match state.pitch_type {
@@ -229,8 +229,8 @@ pub fn update_pitch(state: &BaseballState, dt: f32) {
 
 fn check_ball_or_strike(state: &BaseballState) {
     // 球落在好球区 (本垒板周围)
-    let dx = abs(state.ball.x - HOME_X as f32);
-    let dy = abs(state.ball.y - HOME_Y as f32);
+    let dx = abs(state.ball.x - (f32)(HOME_X));
+    let dy = abs(state.ball.y - (f32)(HOME_Y));
     
     // 好球区: 宽度约30像素, 高度约20像素
     if dx < 20.0 && dy < 15.0 && state.ball.z < 25.0 {
@@ -343,8 +343,8 @@ fn calculate_trajectory(state: &BaseballState) {
     }
     
     // 记录落点
-    state.ball_land_x = x as int;
-    state.ball_land_y = y as int;
+    state.ball_land_x = (int)(x);
+    state.ball_land_y = (int)(y);
 }
 
 pub fn update_ball_flight(state: &BaseballState, dt: f32) {

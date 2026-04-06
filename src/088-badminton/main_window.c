@@ -5825,18 +5825,10 @@ if ((!self->shuttleActive))     {
     }
 
 #line 515 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game_logic.zc"
-    ZC_AUTO sx = self->shuttleX;
-
-#line 515 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game_logic.zc"
-as;
-int;
+    int32_t sx = ((int32_t)(self->shuttleX));
 
 #line 516 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game_logic.zc"
-    ZC_AUTO sy = self->shuttleY;
-
-#line 516 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game_logic.zc"
-as;
-int;
+    int32_t sy = ((int32_t)(self->shuttleY));
 
 #line 519 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game_logic.zc"
 Canvas__fillCircle(&canvas, sx, sy, (8 / 2), Color.White());
@@ -6338,21 +6330,13 @@ if (((currentTime - self->aiLastUpdate) < ((uint32_t)(80))))     {
 if ((self->shuttleActive && (self->shuttleX > (800 / 2))))     {
 
 #line 229 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game_logic.zc"
-    ZC_AUTO timeToReach = ((self->aiX - self->shuttleX) / self->shuttleVX);
-
-#line 229 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game_logic.zc"
-as;
-float;
+    float timeToReach = ((self->aiX - self->shuttleX) / ((float)(self->shuttleVX)));
 
 #line 230 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game_logic.zc"
 if (((timeToReach > 0.0) && (timeToReach < 30.0)))     {
 
 #line 231 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game_logic.zc"
-(self->aiTargetY = (self->shuttleY + (self->shuttleVY * timeToReach)));
-
-#line 231 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game_logic.zc"
-as;
-float;
+(self->aiTargetY = (self->shuttleY + (self->shuttleVY * ((float)(timeToReach)))));
     }
  else     {
 
@@ -7201,11 +7185,7 @@ void create(str title, int32_t width, int32_t height, int32_t fps)
 (self->targetFPS = fps);
 
 #line 42 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game.zc"
-(self->frameTime = (1000 / fps));
-
-#line 42 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game.zc"
-as;
-u32;
+(self->frameTime = (1000 / ((uint32_t)(fps))));
 
 #line 43 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game.zc"
 (self->state = GameState__Ready);
@@ -8103,11 +8083,7 @@ Color.Black();
     int32_t offset = ((y * (self->pitch / 4)) + x);
 
 #line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game.zc"
-    ZC_AUTO pixels = self->buffer;
-
-#line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game.zc"
-as;
-u32;
+    uint32_t pixels = ((uint32_t)(self->buffer));
 
 #line 260 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/game.zc"
     return pixels[offset];
@@ -8562,11 +8538,7 @@ uint32_t uint32_t__RGB(uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/platform_api.zc"
-    return (((4278190080 | (r << 16)) | (g << 8)) | b);
-
-#line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/platform_api.zc"
-as;
-Color;
+    return (((4278190080 | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 
@@ -8577,11 +8549,7 @@ uint32_t uint32_t__ARGB(uint8_t a, uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/platform_api.zc"
-    return ((((a << 24) | (r << 16)) | (g << 8)) | b);
-
-#line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/088-badminton/src/platform_api.zc"
-as;
-Color;
+    return ((((a << 24) | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 

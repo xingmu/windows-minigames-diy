@@ -100,7 +100,7 @@ fn draw_dartboard() {
     let sector_angle = 360.0 / 20.0;
     
     for i in 0..20 {
-        let start_angle = i as f32 * sector_angle;
+        let start_angle = (f32)(i) * sector_angle;
         let end_angle = (i + 1) as f32 * sector_angle;
         
         // 判断是奇数还是偶数扇区（标准镖盘黑白交替）
@@ -117,7 +117,7 @@ fn draw_dartboard() {
     
     // 双倍环 (红色/绿色交替)
     for i in 0..20 {
-        let start_angle = i as f32 * sector_angle;
+        let start_angle = (f32)(i) * sector_angle;
         let end_angle = (i + 1) as f32 * sector_angle;
         let is_odd = (i % 2) == 0;
         
@@ -127,7 +127,7 @@ fn draw_dartboard() {
     
     // 三倍环 (红色/绿色交替)
     for i in 0..20 {
-        let start_angle = i as f32 * sector_angle;
+        let start_angle = (f32)(i) * sector_angle;
         let end_angle = (i + 1) as f32 * sector_angle;
         let is_odd = (i % 2) == 0;
         
@@ -158,17 +158,17 @@ fn draw_dartboard() {
     // 绘制扇区分隔线
     let wire_angle = sector_angle / 2.0;
     for i in 0..20 {
-        let angle = i as f32 * sector_angle + wire_angle;
+        let angle = (f32)(i) * sector_angle + wire_angle;
         let rad = angle * 3.14159 / 180.0;
         let cos_a = math.cos(rad);
         let sin_a = math.sin(rad);
         
         // 从中心到外圈的铁丝
         fb_draw_line(i32)(
-            cx + (TRIPLE_RING_INNER as f32 * cos_a),
-            cy - (i32)(TRIPLE_RING_INNER as f32 * sin_a),
-            cx + (i32)(r as f32 * cos_a),
-            cy - (i32)(r as f32 * sin_a),
+            cx + ((f32)(TRIPLE_RING_INNER) * cos_a),
+            cy - (i32)((f32)(TRIPLE_RING_INNER) * sin_a),
+            cx + (i32)((f32)(r) * cos_a),
+            cy - (i32)((f32)(r) * sin_a),
             COLOR_GREY
         );
     }
@@ -181,24 +181,24 @@ fn draw_sector(cx: i32, cy: i32, inner_r: i32, outer_r: i32,
                start_angle: f32, end_angle: f32, color: Color) {
     // 使用多个三角形扇形近似扇形
     let steps = 18;
-    let angle_step = (end_angle - start_angle) / steps as f32;
+    let angle_step = (end_angle - start_angle) / (f32)(steps);
     
     for step in 0..steps {
-        let a1 = start_angle + step as f32 * angle_step;
+        let a1 = start_angle + (f32)(step) * angle_step;
         let a2 = start_angle + (step + 1) as f32 * angle_step;
         
         let rad1 = a1 * 3.14159 / 180.0;
         let rad2 = a2 * 3.14159 / 180.0;
         
         // 计算4个角点
-        let x1i = cx + (inner_r as f32 * math.cos(rad1)) as i32;
-        let y1i = cy - (inner_r as f32 * math.sin(rad1)) as i32;
-        let x2i = cx + (inner_r as f32 * math.cos(rad2)) as i32;
-        let y2i = cy - (inner_r as f32 * math.sin(rad2)) as i32;
-        let x1o = cx + (outer_r as f32 * math.cos(rad1)) as i32;
-        let y1o = cy - (outer_r as f32 * math.sin(rad1)) as i32;
-        let x2o = cx + (outer_r as f32 * math.cos(rad2)) as i32;
-        let y2o = cy - (outer_r as f32 * math.sin(rad2)) as i32;
+        let x1i = cx + ((f32)(inner_r) * math.cos(rad1)) as i32;
+        let y1i = cy - ((f32)(inner_r) * math.sin(rad1)) as i32;
+        let x2i = cx + ((f32)(inner_r) * math.cos(rad2)) as i32;
+        let y2i = cy - ((f32)(inner_r) * math.sin(rad2)) as i32;
+        let x1o = cx + ((f32)(outer_r) * math.cos(rad1)) as i32;
+        let y1o = cy - ((f32)(outer_r) * math.sin(rad1)) as i32;
+        let x2o = cx + ((f32)(outer_r) * math.cos(rad2)) as i32;
+        let y2o = cy - ((f32)(outer_r) * math.sin(rad2)) as i32;
         
         // 绘制4边形（两个三角形）
         fill_triangle(x1i, y1i, x2i, y2i, x1o, y1o, color);
@@ -263,11 +263,11 @@ fn draw_numbers(cx: i32, cy: i32) {
     let sector_angle = 360.0 / 20.0;
     
     for i in 0..20 {
-        let angle = i as f32 * sector_angle - 90.0;  // 从12点钟方向开始
+        let angle = (f32)(i) * sector_angle - 90.0;  // 从12点钟方向开始
         let rad = angle * 3.14159 / 180.0;
         
-        let nx = cx + (number_radius as f32 * math.cos(rad)) as i32;
-        let ny = cy - (number_radius as f32 * math.sin(rad)) as i32;
+        let nx = cx + ((f32)(number_radius) * math.cos(rad)) as i32;
+        let ny = cy - ((f32)(number_radius) * math.sin(rad)) as i32;
         
         let num_str = SECTOR_SCORES[i].toString();
         fb_draw_text_size(nx - 6, ny - 8, num_str, COLOR_CREAM, 14);

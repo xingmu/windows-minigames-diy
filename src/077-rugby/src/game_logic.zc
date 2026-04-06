@@ -128,8 +128,8 @@ pub class RugbyGame extends Game {
         self.tryEffectTimer = 0;
         
         // 玩家
-        self.playerX = WINDOW_WIDTH / 2 as float;
-        self.playerY = WINDOW_HEIGHT - 200 as float;
+        self.playerX = WINDOW_WIDTH / (float)(2);
+        self.playerY = WINDOW_HEIGHT - (float)(200);
         self.playerVX = 0.0;
         self.playerVY = 0.0;
         self.playerHasBall = true;
@@ -216,7 +216,7 @@ pub class RugbyGame extends Game {
             return;
         }
         
-        let speed = PLAYER_SPEED as float;
+        let speed = (float)(PLAYER_SPEED);
         
         if self.keyLeft {
             self.playerVX = -speed;
@@ -246,16 +246,16 @@ pub class RugbyGame extends Game {
         
         // 边界
         if self.playerX < (float)FIELD_LEFT + (float)PLAYER_RADIUS {
-            self.playerX = (float)FIELD_LEFT + PLAYER_RADIUS as float;
+            self.playerX = (float)FIELD_LEFT + (float)(PLAYER_RADIUS);
         }
         if self.playerX > (float)FIELD_RIGHT - (float)PLAYER_RADIUS {
-            self.playerX = (float)FIELD_RIGHT - PLAYER_RADIUS as float;
+            self.playerX = (float)FIELD_RIGHT - (float)(PLAYER_RADIUS);
         }
         if self.playerY < (float)FIELD_TOP + (float)PLAYER_RADIUS {
-            self.playerY = (float)FIELD_TOP + PLAYER_RADIUS as float;
+            self.playerY = (float)FIELD_TOP + (float)(PLAYER_RADIUS);
         }
         if self.playerY > (float)FIELD_BOTTOM - (float)PLAYER_RADIUS {
-            self.playerY = (float)FIELD_BOTTOM - PLAYER_RADIUS as float;
+            self.playerY = (float)FIELD_BOTTOM - (float)(PLAYER_RADIUS);
         }
         
         // 状态
@@ -290,16 +290,16 @@ pub class RugbyGame extends Game {
             
             // 边界
             if self.teammateX[i] < (float)FIELD_LEFT + (float)PLAYER_RADIUS {
-                self.teammateX[i] = (float)FIELD_LEFT + PLAYER_RADIUS as float;
+                self.teammateX[i] = (float)FIELD_LEFT + (float)(PLAYER_RADIUS);
             }
             if self.teammateX[i] > (float)FIELD_RIGHT - (float)PLAYER_RADIUS {
-                self.teammateX[i] = (float)FIELD_RIGHT - PLAYER_RADIUS as float;
+                self.teammateX[i] = (float)FIELD_RIGHT - (float)(PLAYER_RADIUS);
             }
             if self.teammateY[i] < (float)FIELD_TOP + (float)PLAYER_RADIUS {
-                self.teammateY[i] = (float)FIELD_TOP + PLAYER_RADIUS as float;
+                self.teammateY[i] = (float)FIELD_TOP + (float)(PLAYER_RADIUS);
             }
             if self.teammateY[i] > (float)FIELD_BOTTOM - (float)PLAYER_RADIUS {
-                self.teammateY[i] = (float)FIELD_BOTTOM - PLAYER_RADIUS as float;
+                self.teammateY[i] = (float)FIELD_BOTTOM - (float)(PLAYER_RADIUS);
             }
         }
     }
@@ -343,16 +343,16 @@ pub class RugbyGame extends Game {
             
             // 边界
             if self.defenderX[i] < (float)FIELD_LEFT + (float)PLAYER_RADIUS {
-                self.defenderX[i] = (float)FIELD_LEFT + PLAYER_RADIUS as float;
+                self.defenderX[i] = (float)FIELD_LEFT + (float)(PLAYER_RADIUS);
             }
             if self.defenderX[i] > (float)FIELD_RIGHT - (float)PLAYER_RADIUS {
-                self.defenderX[i] = (float)FIELD_RIGHT - PLAYER_RADIUS as float;
+                self.defenderX[i] = (float)FIELD_RIGHT - (float)(PLAYER_RADIUS);
             }
             if self.defenderY[i] < (float)FIELD_TOP + (float)PLAYER_RADIUS {
-                self.defenderY[i] = (float)FIELD_TOP + PLAYER_RADIUS as float;
+                self.defenderY[i] = (float)FIELD_TOP + (float)(PLAYER_RADIUS);
             }
             if self.defenderY[i] > (float)FIELD_BOTTOM - (float)PLAYER_RADIUS {
-                self.defenderY[i] = (float)FIELD_BOTTOM - PLAYER_RADIUS as float;
+                self.defenderY[i] = (float)FIELD_BOTTOM - (float)(PLAYER_RADIUS);
             }
             
             // 检查擒抱
@@ -375,8 +375,8 @@ pub class RugbyGame extends Game {
                 self.teammateHasBall[r] = true;
                 
                 // 重置玩家位置
-                self.playerX = WINDOW_WIDTH / 2 as float;
-                self.playerY = WINDOW_HEIGHT - 200 as float;
+                self.playerX = WINDOW_WIDTH / (float)(2);
+                self.playerY = WINDOW_HEIGHT - (float)(200);
                 self.playerState = PlayerState.Idle;
                 
                 // 重置防守
@@ -419,19 +419,19 @@ pub class RugbyGame extends Game {
             
             // 边界
             if self.ballX < (float)FIELD_LEFT {
-                self.ballX = FIELD_LEFT as float;
+                self.ballX = (float)(FIELD_LEFT);
                 self.ballVX = -self.ballVX * 0.5;
             }
             if self.ballX > (float)FIELD_RIGHT {
-                self.ballX = FIELD_RIGHT as float;
+                self.ballX = (float)(FIELD_RIGHT);
                 self.ballVX = -self.ballVX * 0.5;
             }
             if self.ballY < (float)FIELD_TOP {
-                self.ballY = FIELD_TOP as float;
+                self.ballY = (float)(FIELD_TOP);
                 self.ballVY = -self.ballVY * 0.5;
             }
             if self.ballY > (float)FIELD_BOTTOM {
-                self.ballY = FIELD_BOTTOM as float;
+                self.ballY = (float)(FIELD_BOTTOM);
                 self.ballVY = -self.ballVY * 0.5;
             }
         }
@@ -443,14 +443,14 @@ pub class RugbyGame extends Game {
            self.playerY < (float)(FIELD_TOP + TRY_ZONE_HEIGHT) {
             self.playerState = PlayerState.Scored;
             self.score = self.score + TRY_POINTS;
-            self.tryX = self.playerX as int;
-            self.tryY = self.playerY as int;
+            self.tryX = (int)(self.playerX);
+            self.tryY = (int)(self.playerY);
             self.tryEffectTimer = 60;
             
             // 重置
             self.playerHasBall = true;
-            self.playerX = WINDOW_WIDTH / 2 as float;
-            self.playerY = WINDOW_HEIGHT - 200 as float;
+            self.playerX = WINDOW_WIDTH / (float)(2);
+            self.playerY = WINDOW_HEIGHT - (float)(200);
             self.playerState = PlayerState.Idle;
             self.resetDefenders();
         }
@@ -556,8 +556,8 @@ pub class RugbyGame extends Game {
     }
     
     fn drawPlayer(canvas: Canvas) {
-        let px = self.playerX as int;
-        let py = self.playerY as int;
+        let px = (int)(self.playerX);
+        let py = (int)(self.playerY);
         
         // 阴影
         canvas.fillCircle(px + 3, py + 3, PLAYER_RADIUS, Color.ARGB(80, 0, 0, 0));
@@ -625,8 +625,8 @@ pub class RugbyGame extends Game {
     
     fn drawBall(canvas: Canvas) {
         if self.ballActive {
-            let bx = self.ballX as int;
-            let by = self.ballY as int;
+            let bx = (int)(self.ballX);
+            let by = (int)(self.ballY);
             
             // 阴影
             canvas.fillOval(bx + 2, by + 2, BALL_RADIUS * 2, BALL_RADIUS, Color.ARGB(80, 0, 0, 0));
@@ -638,8 +638,8 @@ pub class RugbyGame extends Game {
             // 缝线
             canvas.drawLine(bx - BALL_RADIUS + 2, by, bx + BALL_RADIUS - 2, by, Color.White());
         } else if self.playerHasBall {
-            let hx = self.playerX as int;
-            let hy = self.playerY as int;
+            let hx = (int)(self.playerX);
+            let hy = (int)(self.playerY);
             canvas.fillCircle(hx, hy - PLAYER_RADIUS - 10, BALL_RADIUS, Color.Brown());
         } else {
             for i in 0..self.teammateCount {
@@ -803,8 +803,8 @@ pub class RugbyGame extends Game {
         
         if dist > 0.0 {
             self.ballActive = true;
-            self.ballVX = (dx / dist) * BALL_SPEED as float;
-            self.ballVY = (dy / dist) * BALL_SPEED as float;
+            self.ballVX = (dx / dist) * (float)(BALL_SPEED);
+            self.ballVY = (dy / dist) * (float)(BALL_SPEED);
             
             self.playerHasBall = false;
             self.teammateHasBall[nearestIdx] = true;

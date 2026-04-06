@@ -191,8 +191,8 @@ fn draw_track_background(ctx: GraphicsContext*) {
 
 // 绘制赛车
 fn draw_car(ctx: GraphicsContext*, x: f32, y: f32, angle: f32, state: CarState) {
-    let cx = x as i32;
-    let cy = y as i32;
+    let cx = (i32)(x);
+    let cy = (i32)(y);
     
     // 根据角度计算四个角的坐标
     let cos_a = math.cos(angle);
@@ -217,8 +217,8 @@ fn draw_car(ctx: GraphicsContext*, x: f32, y: f32, angle: f32, state: CarState) 
     for i in 0..4 {
         let rx = corners_x[i] as f32 * cos_a - corners_y[i] as f32 * sin_a;
         let ry = corners_x[i] as f32 * sin_a + corners_y[i] as f32 * cos_a;
-        pts_x[i] = cx + rx as i32;
-        pts_y[i] = cy + ry as i32;
+        pts_x[i] = cx + (i32)(rx);
+        pts_y[i] = cy + (i32)(ry);
     }
     
     // 根据状态选择颜色
@@ -248,22 +248,22 @@ fn draw_car(ctx: GraphicsContext*, x: f32, y: f32, angle: f32, state: CarState) 
     let front_y = cy - hh;
     let front_x = cx;
     // 旋转前部点
-    let front_rx = (0 as f32) * cos_a - (-hh as f32) * sin_a;
-    let front_ry = (0 as f32) * sin_a + (-hh as f32) * cos_a;
-    let tip_x = cx + front_rx as i32;
-    let tip_y = cy + front_ry as i32;
+    let front_rx = ((f32)(0)) * cos_a - (-(f32)(hh)) * sin_a;
+    let front_ry = ((f32)(0)) * sin_a + (-(f32)(hh)) * cos_a;
+    let tip_x = cx + (i32)(front_rx);
+    let tip_y = cy + (i32)(front_ry);
     
     // 左肩
     let left_rx = (-(hw - 4) as f32) * cos_a - (-(hh - 4) as f32) * sin_a;
     let left_ry = (-(hw - 4) as f32) * sin_a + (-(hh - 4) as f32) * cos_a;
-    let left_x = cx + left_rx as i32;
-    let left_y = cy + left_ry as i32;
+    let left_x = cx + (i32)(left_rx);
+    let left_y = cy + (i32)(left_ry);
     
     // 右肩
     let right_rx = ((hw - 4) as f32) * cos_a - (-(hh - 4) as f32) * sin_a;
     let right_ry = ((hw - 4) as f32) * sin_a + (-(hh - 4) as f32) * cos_a;
-    let right_x = cx + right_rx as i32;
-    let right_y = cy + right_ry as i32;
+    let right_x = cx + (i32)(right_rx);
+    let right_y = cy + (i32)(right_ry);
     
     // 绘制车头三角
     draw_pixel_line(ctx, tip_x, tip_y, left_x, left_y, CAR_ACCENT_COLOR);
@@ -273,22 +273,22 @@ fn draw_car(ctx: GraphicsContext*, x: f32, y: f32, angle: f32, state: CarState) 
     if state == CarState::Boosted || state == CarState::OffTrack {
         let flame_len = if state == CarState::Boosted { 15 } else { 8 };
         // 后部中心
-        let back_rx = (0 as f32) * cos_a - (hh as f32) * sin_a;
-        let back_ry = (0 as f32) * sin_a + (hh as f32) * cos_a;
-        let back_x = cx + back_rx as i32;
-        let back_y = cy + back_ry as i32;
+        let back_rx = ((f32)(0)) * cos_a - ((f32)(hh)) * sin_a;
+        let back_ry = ((f32)(0)) * sin_a + ((f32)(hh)) * cos_a;
+        let back_x = cx + (i32)(back_rx);
+        let back_y = cy + (i32)(back_ry);
         
         // 左火焰点
-        let lf_rx = (-(hw / 2) as f32) * cos_a - (hh as f32 + flame_len as f32) * sin_a;
-        let lf_ry = (-(hw / 2) as f32) * sin_a + (hh as f32 + flame_len as f32) * cos_a;
-        let lf_x = cx + lf_rx as i32;
-        let lf_y = cy + lf_ry as i32;
+        let lf_rx = (-(hw / 2) as f32) * cos_a - ((f32)(hh) + (f32)(flame_len)) * sin_a;
+        let lf_ry = (-(hw / 2) as f32) * sin_a + ((f32)(hh) + (f32)(flame_len)) * cos_a;
+        let lf_x = cx + (i32)(lf_rx);
+        let lf_y = cy + (i32)(lf_ry);
         
         // 右火焰点
-        let rf_rx = ((hw / 2) as f32) * cos_a - (hh as f32 + flame_len as f32) * sin_a;
-        let rf_ry = ((hw / 2) as f32) * sin_a + (hh as f32 + flame_len as f32) * cos_a;
-        let rf_x = cx + rf_rx as i32;
-        let rf_y = cy + rf_ry as i32;
+        let rf_rx = ((hw / 2) as f32) * cos_a - ((f32)(hh) + (f32)(flame_len)) * sin_a;
+        let rf_ry = ((hw / 2) as f32) * sin_a + ((f32)(hh) + (f32)(flame_len)) * cos_a;
+        let rf_x = cx + (i32)(rf_rx);
+        let rf_y = cy + (i32)(rf_ry);
         
         draw_pixel_line(ctx, back_x, back_y, lf_x, lf_y, Color.RGB(255, 100, 0));
         draw_pixel_line(ctx, back_x, back_y, rf_x, rf_y, Color.RGB(255, 100, 0));
@@ -411,7 +411,7 @@ extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) ->
         },
         
         WM_KEYDOWN => {
-            let key = wParam as i32;
+            let key = (i32)(wParam);
             if key == 27 { // ESC
                 running = false;
                 PostQuitMessage(0);
@@ -423,7 +423,7 @@ extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) ->
         },
         
         WM_KEYUP => {
-            let key = wParam as i32;
+            let key = (i32)(wParam);
             handle_input_key(&game, key, false);
             InvalidateRect(hwnd, null, true);
             return 0;

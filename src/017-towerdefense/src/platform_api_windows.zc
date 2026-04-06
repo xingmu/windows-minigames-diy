@@ -323,7 +323,7 @@ pub fn createWindow(title: str, width: int, height: int) -> WindowHandle {
         // 确保尺寸正确
     }
     
-    return hwnd as WindowHandle;
+    return (WindowHandle)(hwnd);
 }
 
 pub fn closeWindow(window: WindowHandle) {
@@ -374,7 +374,7 @@ pub fn pollEvent(window: WindowHandle, event: Event*) -> bool {
 }
 
 pub fn getFrameBuffer(window: WindowHandle) -> rawptr {
-    return frameBuffer as rawptr;
+    return (rawptr)(frameBuffer);
 }
 
 pub fn getFrameBufferPitch(window: WindowHandle) -> int {

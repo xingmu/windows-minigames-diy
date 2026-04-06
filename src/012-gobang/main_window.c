@@ -8063,11 +8063,7 @@ uint32_t uint32_t__RGB(uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 107 "/home/yq/github/xingmu/windows-minigames-diy/src/012-gobang/src/platform_api.zc"
-    return (((4278190080 | (r << 16)) | (g << 8)) | b);
-
-#line 107 "/home/yq/github/xingmu/windows-minigames-diy/src/012-gobang/src/platform_api.zc"
-as;
-Color;
+    return (((4278190080 | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 
@@ -8078,11 +8074,7 @@ uint32_t uint32_t__ARGB(uint8_t a, uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 111 "/home/yq/github/xingmu/windows-minigames-diy/src/012-gobang/src/platform_api.zc"
-    return ((((a << 24) | (r << 16)) | (g << 8)) | b);
-
-#line 111 "/home/yq/github/xingmu/windows-minigames-diy/src/012-gobang/src/platform_api.zc"
-as;
-Color;
+    return ((((a << 24) | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 

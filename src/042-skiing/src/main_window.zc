@@ -72,7 +72,7 @@ fn on_paint(w: i32, h: i32) {
     
     // 绘制雪山背景（渐变效果）
     for y in 0..(h / 3) {
-        let shade = (y as f32 / (h as f32 / 3.0) * 30.0) as i32;
+        let shade = ((f32)(y) / ((f32)(h) / 3.0) * 30.0) as i32;
         fb_draw_rect(0, y, w, 1, rgb(250 - shade, 250 - shade, 255 - shade));
     }
     

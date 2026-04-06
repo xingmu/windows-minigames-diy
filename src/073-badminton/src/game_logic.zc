@@ -289,21 +289,21 @@ pub class BadmintonGame extends Game {
         
         // 上下边界碰撞
         if self.shuttleY <= (float)COURT_TOP + (float)SHUTTLECOCK_SIZE {
-            self.shuttleY = (float)COURT_TOP + SHUTTLECOCK_SIZE as float;
+            self.shuttleY = (float)COURT_TOP + (float)(SHUTTLECOCK_SIZE);
             self.shuttleVY = -self.shuttleVY * SHUTTLECOCK_BOUNCE;
         }
         if self.shuttleY >= (float)COURT_BOTTOM - (float)SHUTTLECOCK_SIZE {
-            self.shuttleY = (float)COURT_BOTTOM - SHUTTLECOCK_SIZE as float;
+            self.shuttleY = (float)COURT_BOTTOM - (float)(SHUTTLECOCK_SIZE);
             self.shuttleVY = -self.shuttleVY * SHUTTLECOCK_BOUNCE;
         }
         
         // 边界碰撞（左右边界）
         if self.shuttleX <= (float)COURT_LEFT + (float)SHUTTLECOCK_SIZE {
-            self.shuttleX = (float)COURT_LEFT + SHUTTLECOCK_SIZE as float;
+            self.shuttleX = (float)COURT_LEFT + (float)(SHUTTLECOCK_SIZE);
             self.shuttleVX = -self.shuttleVX * SHUTTLECOCK_BOUNCE;
         }
         if self.shuttleX >= (float)COURT_RIGHT - (float)SHUTTLECOCK_SIZE {
-            self.shuttleX = (float)COURT_RIGHT - SHUTTLECOCK_SIZE as float;
+            self.shuttleX = (float)COURT_RIGHT - (float)(SHUTTLECOCK_SIZE);
             self.shuttleVX = -self.shuttleVX * SHUTTLECOCK_BOUNCE;
         }
         
@@ -311,7 +311,7 @@ pub class BadmintonGame extends Game {
         if self.checkRacketCollision(self.playerRacketX, self.playerRacketY, self.playerRacketWidth, self.playerRacketHeight) {
             self.shuttleVX = self.absFloat(self.shuttleVX);
             if self.shuttleVX < (float)SHUTTLECOCK_MIN_SPEED {
-                self.shuttleVX = SHUTTLECOCK_MIN_SPEED as float;
+                self.shuttleVX = (float)(SHUTTLECOCK_MIN_SPEED);
             }
             
             let racketCenter = (float)(self.playerRacketY) + (float)RACKET_HEIGHT / 2.0;
@@ -326,8 +326,8 @@ pub class BadmintonGame extends Game {
             // 限制速度
             let currentSpeed = self.sqrtFloat(self.shuttleVX * self.shuttleVX + self.shuttleVY * self.shuttleVY);
             if currentSpeed > (float)SHUTTLECOCK_MAX_SPEED {
-                self.shuttleVX = self.shuttleVX / currentSpeed * self.shuttleSpeed as float;
-                self.shuttleVY = self.shuttleVY / currentSpeed * self.shuttleSpeed as float;
+                self.shuttleVX = self.shuttleVX / currentSpeed * (float)(self.shuttleSpeed);
+                self.shuttleVY = self.shuttleVY / currentSpeed * (float)(self.shuttleSpeed);
             }
             
             self.shuttleX = (self.playerRacketX + self.playerRacketWidth + SHUTTLECOCK_SIZE) as float;
@@ -337,7 +337,7 @@ pub class BadmintonGame extends Game {
         if self.checkRacketCollision(self.cpuRacketX, self.cpuRacketY, self.cpuRacketWidth, self.cpuRacketHeight) {
             self.shuttleVX = -self.absFloat(self.shuttleVX);
             if self.shuttleVX > -(float)SHUTTLECOCK_MIN_SPEED {
-                self.shuttleVX = -SHUTTLECOCK_MIN_SPEED as float;
+                self.shuttleVX = -(float)(SHUTTLECOCK_MIN_SPEED);
             }
             
             let racketCenter = (float)(self.cpuRacketY) + (float)RACKET_HEIGHT / 2.0;
@@ -352,8 +352,8 @@ pub class BadmintonGame extends Game {
             // 限制速度
             let currentSpeed = self.sqrtFloat(self.shuttleVX * self.shuttleVX + self.shuttleVY * self.shuttleVY);
             if currentSpeed > (float)SHUTTLECOCK_MAX_SPEED {
-                self.shuttleVX = self.shuttleVX / currentSpeed * self.shuttleSpeed as float;
-                self.shuttleVY = self.shuttleVY / currentSpeed * self.shuttleSpeed as float;
+                self.shuttleVX = self.shuttleVX / currentSpeed * (float)(self.shuttleSpeed);
+                self.shuttleVY = self.shuttleVY / currentSpeed * (float)(self.shuttleSpeed);
             }
             
             self.shuttleX = (self.cpuRacketX - SHUTTLECOCK_SIZE) as float;
@@ -381,9 +381,9 @@ pub class BadmintonGame extends Game {
         let shuttleTop = self.shuttleY - (float)SHUTTLECOCK_SIZE / 2.0;
         let shuttleBottom = self.shuttleY + (float)SHUTTLECOCK_SIZE / 2.0;
         
-        let racketLeft = rx as float;
+        let racketLeft = (float)(rx);
         let racketRight = (rx + rw) as float;
-        let racketTop = ry as float;
+        let racketTop = (float)(ry);
         let racketBottom = (ry + rh) as float;
         
         return shuttleRight >= racketLeft && shuttleLeft <= racketRight &&
@@ -508,7 +508,7 @@ pub class BadmintonGame extends Game {
         // 羽毛球尾部（羽毛部分用线条表示）
         let tailDir = if self.shuttleVX > 0.0 { -1 } else { 1 };
         let tailX = (int)(self.shuttleX) + tailDir * SHUTTLECOCK_SIZE * 2;
-        let tailY = self.shuttleY as int;
+        let tailY = (int)(self.shuttleY);
         canvas.drawLine((int)(self.shuttleX), (int)(self.shuttleY), tailX, tailY, Color.Cyan());
     }
     

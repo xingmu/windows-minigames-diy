@@ -375,7 +375,7 @@ pub class FightingGame extends Game {
                     self.cpuIsKicking = true;
                     self.cpuAttackTimer = KICK_DURATION;
                     self.cpuAttackCooldown = ATTACK_COOLDOWN;
-                    self.aiNextAttack = currentTime + AI_ATTACK_DELAY as u32;
+                    self.aiNextAttack = currentTime + (u32)(AI_ATTACK_DELAY);
                 }
             }
         }
@@ -396,7 +396,7 @@ pub class FightingGame extends Game {
     }
     
     // 更新物理 (重力/落地)
-    private fn updatePhysics(x: &int, y: &int, isJumping: &bool) {
+    private fn updatePhysics(x: &int, y: &int, isJumping: bool*) {
         if *isJumping {
             *y = *y + 8;  // 简化的重力
             
@@ -545,7 +545,7 @@ pub class FightingGame extends Game {
     private fn drawBackground(canvas: Canvas) {
         // 渐变背景
         for y in 0..(GROUND_Y) {
-            let ratio = (float)y / GROUND_Y as float;
+            let ratio = (float)y / (float)(GROUND_Y);
             let r = (30.0 * ratio + 20.0) as int;
             let g = (30.0 * ratio + 20.0) as int;
             let b = (60.0 * ratio + 80.0) as int;

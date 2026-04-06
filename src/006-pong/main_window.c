@@ -5982,11 +5982,7 @@ bool checkPaddleCollision(int32_t px, int32_t py, int32_t pw, int32_t ph)
     double ballBottom = (self->ballY + (((float)(10)) / 2.0));
 
 #line 277 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-    int32_t paddleLeft = px;
-
-#line 277 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-as;
-float;
+    float paddleLeft = ((float)(px));
 
 #line 278 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
     int32_t paddleRight = (px + pw);
@@ -5996,11 +5992,7 @@ as;
 float;
 
 #line 279 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-    int32_t paddleTop = py;
-
-#line 279 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-as;
-float;
+    float paddleTop = ((float)(py));
 
 #line 280 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
     int32_t paddleBottom = (py + ph);
@@ -6063,11 +6055,7 @@ void__absFloat(self, self->ballVX));
     float hitPos = (self->ballY - paddleCenter);
 
 #line 230 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-(self->ballVY = ((hitPos / (((float)(80)) / 2.0)) * self->ballSpeed));
-
-#line 230 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-as;
-float;
+(self->ballVY = ((hitPos / (((float)(80)) / 2.0)) * ((float)(self->ballSpeed))));
 
 #line 233 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
 if ((self->ballSpeed < 12))     {
@@ -6081,18 +6069,10 @@ if ((self->ballSpeed < 12))     {
 void__sqrtFloat(self, ((self->ballVX * self->ballVX) + (self->ballVY * self->ballVY)));
 
 #line 236 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-(self->ballVX = ((self->ballVX / currentSpeed) * self->ballSpeed));
-
-#line 236 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-as;
-float;
+(self->ballVX = ((self->ballVX / currentSpeed) * ((float)(self->ballSpeed))));
 
 #line 237 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-(self->ballVY = ((self->ballVY / currentSpeed) * self->ballSpeed));
-
-#line 237 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-as;
-float;
+(self->ballVY = ((self->ballVY / currentSpeed) * ((float)(self->ballSpeed))));
     }
     }
 
@@ -6113,11 +6093,7 @@ void__absFloat(self, self->ballVX)));
     float hitPos = (self->ballY - paddleCenter);
 
 #line 247 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-(self->ballVY = ((hitPos / (((float)(80)) / 2.0)) * self->ballSpeed));
-
-#line 247 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-as;
-float;
+(self->ballVY = ((hitPos / (((float)(80)) / 2.0)) * ((float)(self->ballSpeed))));
 
 #line 250 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
 if ((self->ballSpeed < 12))     {
@@ -6131,18 +6107,10 @@ if ((self->ballSpeed < 12))     {
 void__sqrtFloat(self, ((self->ballVX * self->ballVX) + (self->ballVY * self->ballVY)));
 
 #line 253 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-(self->ballVX = ((self->ballVX / currentSpeed) * self->ballSpeed));
-
-#line 253 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-as;
-float;
+(self->ballVX = ((self->ballVX / currentSpeed) * ((float)(self->ballSpeed))));
 
 #line 254 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-(self->ballVY = ((self->ballVY / currentSpeed) * self->ballSpeed));
-
-#line 254 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game_logic.zc"
-as;
-float;
+(self->ballVY = ((self->ballVY / currentSpeed) * ((float)(self->ballSpeed))));
     }
     }
 
@@ -6889,11 +6857,7 @@ void create(str title, int32_t width, int32_t height, int32_t fps)
 (self->targetFPS = fps);
 
 #line 42 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game.zc"
-(self->frameTime = (1000 / fps));
-
-#line 42 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game.zc"
-as;
-u32;
+(self->frameTime = (1000 / ((uint32_t)(fps))));
 
 #line 43 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game.zc"
 (self->state = GameState__Ready);
@@ -7791,11 +7755,7 @@ Color.Black();
     int32_t offset = ((y * (self->pitch / 4)) + x);
 
 #line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game.zc"
-    ZC_AUTO pixels = self->buffer;
-
-#line 259 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game.zc"
-as;
-u32;
+    uint32_t pixels = ((uint32_t)(self->buffer));
 
 #line 260 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/game.zc"
     return pixels[offset];
@@ -8250,11 +8210,7 @@ uint32_t uint32_t__RGB(uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/platform_api.zc"
-    return (((4278190080 | (r << 16)) | (g << 8)) | b);
-
-#line 114 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/platform_api.zc"
-as;
-Color;
+    return (((4278190080 | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 
@@ -8265,11 +8221,7 @@ uint32_t uint32_t__ARGB(uint8_t a, uint8_t r, uint8_t g, uint8_t b)
     {
 
 #line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/platform_api.zc"
-    return ((((a << 24) | (r << 16)) | (g << 8)) | b);
-
-#line 118 "/home/yq/github/xingmu/windows-minigames-diy/src/006-pong/src/platform_api.zc"
-as;
-Color;
+    return ((((a << 24) | (r << 16)) | (g << 8)) | ((uint32_t)(b)));
     }
 }
 

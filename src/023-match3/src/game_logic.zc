@@ -142,8 +142,8 @@ fn init_game(game: &Match3State) {
 
 // 重置发射球
 fn reset_ball(game: &Match3State) {
-    game.ball.x = GAME_WIDTH / 2 as f32;
-    game.ball.y = SHOOTER_Y as f32;
+    game.ball.x = GAME_WIDTH / (f32)(2);
+    game.ball.y = (f32)(SHOOTER_Y);
     game.ball.vx = 0.0;
     game.ball.vy = 0.0;
     game.ball.active = false;
@@ -153,12 +153,12 @@ fn reset_ball(game: &Match3State) {
 
 // 计算发射方向
 fn calculate_velocity(game: &Match3State, target_x: i32, target_y: i32) {
-    let dx = target_x as f32 - game.ball.x;
-    let dy = target_y as f32 - game.ball.y;
+    let dx = (f32)(target_x) - game.ball.x;
+    let dy = (f32)(target_y) - game.ball.y;
     let dist = sqrt_f(dx*dx + dy*dy);
     if dist > 0.0 {
-        game.ball.vx = (dx / dist) * BALL_SPEED as f32;
-        game.ball.vy = (dy / dist) * BALL_SPEED as f32;
+        game.ball.vx = (dx / dist) * (f32)(BALL_SPEED);
+        game.ball.vy = (dy / dist) * (f32)(BALL_SPEED);
     }
 }
 
@@ -197,17 +197,17 @@ fn update_game(game: &Match3State) -> bool {
         game.ball.y = game.ball.y + game.ball.vy;
         
         // 左右墙壁碰撞
-        if game.ball.x - BALL_RADIUS as f32 <= 0.0 {
-            game.ball.x = BALL_RADIUS as f32;
+        if game.ball.x - (f32)(BALL_RADIUS) <= 0.0 {
+            game.ball.x = (f32)(BALL_RADIUS);
             game.ball.vx = -game.ball.vx;
         }
-        if game.ball.x + BALL_RADIUS as f32 >= GAME_WIDTH as f32 {
+        if game.ball.x + (f32)(BALL_RADIUS) >= (f32)(GAME_WIDTH) {
             game.ball.x = (GAME_WIDTH - BALL_RADIUS) as f32;
             game.ball.vx = -game.ball.vx;
         }
         
         // 顶部碰撞 - 嵌入网格
-        if game.ball.y - BALL_RADIUS as f32 <= (GRID_OFFSET_Y + GRID_ROWS * CELL_SIZE) as f32 {
+        if game.ball.y - (f32)(BALL_RADIUS) <= (GRID_OFFSET_Y + GRID_ROWS * CELL_SIZE) as f32 {
             let col = ((game.ball.(i32)x - GRID_OFFSET_X) / CELL_SIZE);
             let row = ((game.ball.(i32)y - GRID_OFFSET_Y) / CELL_SIZE);
             
@@ -237,7 +237,7 @@ fn update_game(game: &Match3State) -> bool {
         }
         
         // 底部 - 不应该发生
-        if game.ball.y + BALL_RADIUS as f32 >= SHOOTER_Y as f32 {
+        if game.ball.y + (f32)(BALL_RADIUS) >= (f32)(SHOOTER_Y) {
             reset_ball(game);
             return true;
         }
