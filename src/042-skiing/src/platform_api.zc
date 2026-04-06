@@ -21,8 +21,8 @@ import "string.zc";
     #error "Unsupported platform"
 #endif
 
-type WindowHandle = *void;
-type GraphicsContext = *void;
+type WindowHandle = void*;
+type GraphicsContext = void*;
 
 enum EventType {
     EventNone,
@@ -65,76 +65,76 @@ struct Event {
 
 extern "user32.dll" fn CreateWindowExA(
     dwExStyle: u32,
-    lpClassName: *def i8,
-    lpWindowName: *def i8,
+    lpClassName: i8*,
+    lpWindowName: i8*,
     dwStyle: u32,
     x: i32,
     y: i32,
     nWidth: i32,
     nHeight: i32,
     hWndParent: WindowHandle,
-    hMenu: *void,
-    hInstance: *void,
-    lpParam: *void
+    hMenu: void*,
+    hInstance: void*,
+    lpParam: void*
 ) -> WindowHandle;
 
 extern "user32.dll" fn ShowWindow(hWnd: WindowHandle, nCmdShow: i32) -> bool;
 extern "user32.dll" fn UpdateWindow(hWnd: WindowHandle) -> bool;
-extern "user32.dll" fn GetMessageA(lpMsg: *void, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32) -> bool;
-extern "user32.dll" fn TranslateMessage(lpMsg: *void) -> bool;
-extern "user32.dll" fn DispatchMessageA(lpMsg: *void) -> i32;
-extern "user32.dll" fn InvalidateRect(hWnd: WindowHandle, lpRect: *void, bErase: bool) -> bool;
-extern "user32.dll" fn BeginPaint(hWnd: WindowHandle, lpPaint: *void) -> GraphicsContext;
-extern "user32.dll" fn EndPaint(hWnd: WindowHandle, lpPaint: *void);
-extern "user32.dll" fn GetClientRect(hWnd: WindowHandle, lpRect: *void) -> bool;
-extern "user32.dll" fn FillRect(hDC: GraphicsContext, lprc: *void, hbr: *void) -> i32;
+extern "user32.dll" fn GetMessageA(lpMsg: void*, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32) -> bool;
+extern "user32.dll" fn TranslateMessage(lpMsg: void*) -> bool;
+extern "user32.dll" fn DispatchMessageA(lpMsg: void*) -> i32;
+extern "user32.dll" fn InvalidateRect(hWnd: WindowHandle, lpRect: void*, bErase: bool) -> bool;
+extern "user32.dll" fn BeginPaint(hWnd: WindowHandle, lpPaint: void*) -> GraphicsContext;
+extern "user32.dll" fn EndPaint(hWnd: WindowHandle, lpPaint: void*);
+extern "user32.dll" fn GetClientRect(hWnd: WindowHandle, lpRect: void*) -> bool;
+extern "user32.dll" fn FillRect(hDC: GraphicsContext, lprc: void*, hbr: void*) -> i32;
 extern "user32.dll" fn Rectangle(hDC: GraphicsContext, left: i32, top: i32, right: i32, bottom: i32) -> bool;
 extern "user32.dll" fn Ellipse(hDC: GraphicsContext, left: i32, top: i32, right: i32, bottom: i32) -> bool;
-extern "user32.dll" fn CreateSolidBrush(color: u32) -> *void;
-extern "user32.dll" fn SelectObject(hDC: GraphicsContext, hObject: *void) -> *void;
-extern "user32.dll" fn DeleteObject(hObject: *void) -> bool;
-extern "user32.dll" fn SetTimer(hWnd: WindowHandle, nIDEvent: u32, uElapse: u32, lpTimerFunc: *void) -> u32;
+extern "user32.dll" fn CreateSolidBrush(color: u32) -> void*;
+extern "user32.dll" fn SelectObject(hDC: GraphicsContext, hObject: void*) -> void*;
+extern "user32.dll" fn DeleteObject(hObject: void*) -> bool;
+extern "user32.dll" fn SetTimer(hWnd: WindowHandle, nIDEvent: u32, uElapse: u32, lpTimerFunc: void*) -> u32;
 extern "user32.dll" fn KillTimer(hWnd: WindowHandle, uIDEvent: u32) -> bool;
 extern "user32.dll" fn PostQuitMessage(nExitCode: i32);
-extern "user32.dll" fn GetModuleHandleA(lpModuleName: *def i8) -> *void;
-extern "user32.dll" fn LoadCursorA(hInstance: *void, lpCursorName: *def i8) -> *void;
-extern "user32.dll" fn SetCursor(hCursor: *void);
+extern "user32.dll" fn GetModuleHandleA(lpModuleName: i8*) -> void*;
+extern "user32.dll" fn LoadCursorA(hInstance: void*, lpCursorName: i8*) -> void*;
+extern "user32.dll" fn SetCursor(hCursor: void*);
 extern "user32.dll" fn GetDC(hWnd: WindowHandle) -> GraphicsContext;
 extern "user32.dll" fn ReleaseDC(hWnd: WindowHandle, hDC: GraphicsContext) -> i32;
 extern "user32.dll" fn CreateCompatibleDC(hDC: GraphicsContext) -> GraphicsContext;
-extern "user32.dll" fn CreateCompatibleBitmap(hDC: GraphicsContext, width: i32, height: i32) -> *void;
-extern "user32.dll" fn SelectObject_2(hDC: GraphicsContext, hObject: *void) -> *void;
+extern "user32.dll" fn CreateCompatibleBitmap(hDC: GraphicsContext, width: i32, height: i32) -> void*;
+extern "user32.dll" fn SelectObject_2(hDC: GraphicsContext, hObject: void*) -> void*;
 extern "user32.dll" fn BitBlt(hDC: GraphicsContext, x: i32, y: i32, w: i32, h: i32, hSrcDC: GraphicsContext, xSrc: i32, ySrc: i32, rop: u32) -> bool;
 extern "user32.dll" fn DeleteDC(hDC: GraphicsContext) -> bool;
-extern "user32.dll" fn DeleteObject_2(hObject: *void) -> bool;
+extern "user32.dll" fn DeleteObject_2(hObject: void*) -> bool;
 extern "user32.dll" fn RegisterClassA(lpWndClass: *def WNDCLASSA) -> u16;
 extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, msg: u32, wParam: u32, lParam: u32) -> u32;
 extern "user32.dll" fn SetWindowLongPtrA(hWnd: WindowHandle, nIndex: i32, dwNewLong: u64) -> u64;
 extern "user32.dll" fn GetWindowLongPtrA(hWnd: WindowHandle, nIndex: i32) -> u64;
 extern "user32.dll" fn CreateWindowExA_2(
     dwExStyle: u32,
-    lpClassName: *def i8,
-    lpWindowName: *def i8,
+    lpClassName: i8*,
+    lpWindowName: i8*,
     dwStyle: u32,
     x: i32,
     y: i32,
     nWidth: i32,
     nHeight: i32,
     hWndParent: WindowHandle,
-    hMenu: *void,
-    hInstance: *void,
-    lpParam: *void
+    hMenu: void*,
+    hInstance: void*,
+    lpParam: void*
 ) -> WindowHandle;
 
 struct WNDCLASSA {
     style: u32,
-    lpfnWndProc: *void,
-    hInstance: *void,
-    hIcon: *void,
-    hCursor: *void,
-    hbrBackground: *void,
-    lpszMenuName: *def i8,
-    lpszClassName: *def i8,
+    lpfnWndProc: void*,
+    hInstance: void*,
+    hIcon: void*,
+    hCursor: void*,
+    hbrBackground: void*,
+    lpszMenuName: i8*,
+    lpszClassName: i8*,
 }
 
 def WS_OVERLAPPEDWINDOW: u32 = 0x00CF0000;
@@ -149,7 +149,7 @@ def WM_DESTROY: u32 = 0x0002;
 def WM_TIMER: u32 = 0x0113;
 def WM_SIZE: u32 = 0x0005;
 def COLOR_WINDOW: i32 = 5;
-def IDC_ARROW: *def i8 = 32512 as *def i8;
+def IDC_ARROW: i8* = 32512 as i8*;
 def SRCCOPY: u32 = 0x00CC0020;
 def GWLP_WNDPROC: i32 = -4;
 def CS_HREDRAW: u32 = 0x0002;
@@ -177,7 +177,7 @@ fn create_window(title: string, width: i32, height: i32) -> WindowHandle {
             hInstance: hInstance,
             hIcon: null,
             hCursor: LoadCursorA(null, IDC_ARROW),
-            hbrBackground: 1 as *void,  // COLOR_WINDOW+1
+            hbrBackground: 1 as void*,  // COLOR_WINDOW+1
             lpszMenuName: null,
             lpszClassName: "SkiingGame\0".c_str(),
         };
@@ -309,8 +309,8 @@ private struct FBData {
     height: i32,
     hdc: GraphicsContext,
     memDC: GraphicsContext,
-    bitmap: *void,
-    buffer: *void,
+    bitmap: void*,
+    buffer: void*,
     valid: bool,
 }
 
@@ -396,12 +396,12 @@ fn fb_shutdown() {
 
 #if IS_WINDOWS
 
-extern "gdi32.dll" fn TextOutA(hDC: GraphicsContext, x: i32, y: i32, lpString: *def i8, cBytes: i32) -> bool;
+extern "gdi32.dll" fn TextOutA(hDC: GraphicsContext, x: i32, y: i32, lpString: i8*, cBytes: i32) -> bool;
 extern "gdi32.dll" fn SetBkMode(hDC: GraphicsContext, mode: i32) -> i32;
 extern "gdi32.dll" fn SetTextColor(hDC: GraphicsContext, color: u32) -> u32;
-extern "gdi32.dll" fn CreateFontA(height: i32, width: i32, escapement: i32, orientation: i32, weight: i32, italic: u8, underline: u8, strikeout: u8, charset: u8, outPrecision: u8, clipPrecision: u8, quality: u8, pitchAndFamily: u8, lpszFace: *def i8) -> *void;
-extern "gdi32.dll" fn SelectObject_3(hDC: GraphicsContext, hObject: *void) -> *void;
-extern "gdi32.dll" fn DeleteObject_3(hObject: *void) -> bool;
+extern "gdi32.dll" fn CreateFontA(height: i32, width: i32, escapement: i32, orientation: i32, weight: i32, italic: u8, underline: u8, strikeout: u8, charset: u8, outPrecision: u8, clipPrecision: u8, quality: u8, pitchAndFamily: u8, lpszFace: i8*) -> void*;
+extern "gdi32.dll" fn SelectObject_3(hDC: GraphicsContext, hObject: void*) -> void*;
+extern "gdi32.dll" fn DeleteObject_3(hObject: void*) -> bool;
 
 def TRANSPARENT: i32 = 1;
 def OUT_DEFAULT_PRECIS: i8 = 0;

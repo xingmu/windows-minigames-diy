@@ -28,7 +28,7 @@ import "string.zc";
 
 // ==================== 类型定义 ====================
 
-type WindowHandle = *void;
+type WindowHandle = void*;
 
 enum EventType {
     EventNone,
@@ -97,8 +97,8 @@ struct Event {
 // ==================== 绘图类型 ====================
 
 type Color = u32;
-type Font = *void;
-type GraphicsContext = *void;
+type Font = void*;
+type GraphicsContext = void*;
 
 struct Rect {
     x: i32,
@@ -123,61 +123,61 @@ fn argb(a: u8, r: u8, g: u8, b: u8) -> Color {
 
 extern "user32.dll" fn CreateWindowExA(
     dwExStyle: u32,
-    lpClassName: *def i8,
-    lpWindowName: *def i8,
+    lpClassName: i8*,
+    lpWindowName: i8*,
     dwStyle: u32,
     x: i32, y: i32,
     nWidth: i32, nHeight: i32,
     hWndParent: WindowHandle,
-    hMenu: *void,
-    hInstance: *void,
-    lpParam: *void
+    hMenu: void*,
+    hInstance: void*,
+    lpParam: void*
 ) -> WindowHandle;
 
 extern "user32.dll" fn ShowWindow(hWnd: WindowHandle, nCmdShow: i32) -> bool;
 extern "user32.dll" fn UpdateWindow(hWnd: WindowHandle) -> bool;
-extern "user32.dll" fn GetMessageA(lpMsg: *void, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32) -> i32;
-extern "user32.dll" fn TranslateMessage(lpMsg: *void) -> bool;
-extern "user32.dll" fn DispatchMessageA(lpMsg: *void) -> i32;
-extern "user32.dll" fn InvalidateRect(hWnd: WindowHandle, lpRect: *void, bErase: bool) -> bool;
+extern "user32.dll" fn GetMessageA(lpMsg: void*, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32) -> i32;
+extern "user32.dll" fn TranslateMessage(lpMsg: void*) -> bool;
+extern "user32.dll" fn DispatchMessageA(lpMsg: void*) -> i32;
+extern "user32.dll" fn InvalidateRect(hWnd: WindowHandle, lpRect: void*, bErase: bool) -> bool;
 extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, msg: u32, wParam: u64, lParam: i64) -> i64;
 extern "user32.dll" fn PostQuitMessage(exitCode: i32);
-extern "user32.dll" fn LoadCursorA(hInstance: *void, lpCursorName: *def i8) -> *void;
-extern "user32.dll" fn SetCursor(hCursor: *void);
-extern "user32.dll" fn GetClientRect(hWnd: WindowHandle, lpRect: *Rect) -> bool;
+extern "user32.dll" fn LoadCursorA(hInstance: void*, lpCursorName: i8*) -> void*;
+extern "user32.dll" fn SetCursor(hCursor: void*);
+extern "user32.dll" fn GetClientRect(hWnd: WindowHandle, lpRect: Rect*) -> bool;
 extern "user32.dll" fn GetDC(hWnd: WindowHandle) -> GraphicsContext;
 extern "user32.dll" fn ReleaseDC(hWnd: WindowHandle, hDC: GraphicsContext) -> i32;
 extern "user32.dll" fn CreateCompatibleDC(hDC: GraphicsContext) -> GraphicsContext;
-extern "user32.dll" fn CreateCompatibleBitmap(hDC: GraphicsContext, nWidth: i32, nHeight: i32) -> *void;
-extern "user32.dll" fn SelectObject(hDC: GraphicsContext, hObject: *void) -> *void;
+extern "user32.dll" fn CreateCompatibleBitmap(hDC: GraphicsContext, nWidth: i32, nHeight: i32) -> void*;
+extern "user32.dll" fn SelectObject(hDC: GraphicsContext, hObject: void*) -> void*;
 extern "user32.dll" fn BitBlt(hdcDest: GraphicsContext, x: i32, y: i32, w: i32, h: i32, hdcSrc: GraphicsContext, xsrc: i32, ysrc: i32, rop: u32) -> bool;
 extern "user32.dll" fn DeleteDC(hDC: GraphicsContext);
-extern "user32.dll" fn DeleteObject(hObject: *void);
-extern "user32.dll" fn CreateSolidBrush(color: Color) -> *void;
-extern "user32.dll" fn FillRect(hDC: GraphicsContext, lpRect: *Rect, hBrush: *void) -> bool;
+extern "user32.dll" fn DeleteObject(hObject: void*);
+extern "user32.dll" fn CreateSolidBrush(color: Color) -> void*;
+extern "user32.dll" fn FillRect(hDC: GraphicsContext, lpRect: Rect*, hBrush: void*) -> bool;
 extern "user32.dll" fn SetBkMode(hDC: GraphicsContext, mode: i32) -> i32;
 extern "user32.dll" fn SetTextColor(hDC: GraphicsContext, color: Color) -> Color;
-extern "user32.dll" fn TextOutA(hDC: GraphicsContext, x: i32, y: i32, lpString: *def i8, c: i32) -> bool;
-extern "user32.dll" fn RegisterClassA(lpWndClass: *WndClassExA) -> u16;
+extern "user32.dll" fn TextOutA(hDC: GraphicsContext, x: i32, y: i32, lpString: i8*, c: i32) -> bool;
+extern "user32.dll" fn RegisterClassA(lpWndClass: *WndClassExA*) -> u16;
 extern "user32.dll" fn CreateFontA(nHeight: i32, nWidth: i32, fnEscapement: i32, fnOrientation: i32,
     fnWeight: i32, fdwItalic: bool, fdwUnderline: bool, fdwStrikeOut: bool,
     fdwCharSet: u8, fdwOutputPrecision: u8, fdwClipPrecision: u8,
-    fdwQuality: u8, fdwPitchAndFamily: u8, lpszFace: *def i8) -> Font;
+    fdwQuality: u8, fdwPitchAndFamily: u8, lpszFace: i8*) -> Font;
 extern "user32.dll" fn GetAsyncKeyState(vKey: i32) -> i16;
 
 struct WndClassExA {
     cbSize: u32,
     style: u32,
-    lpfnWndProc: *void,
+    lpfnWndProc: void*,
     cbClsExtra: i32,
     cbWndExtra: i32,
-    hInstance: *void,
-    hIcon: *void,
-    hCursor: *void,
-    hbrBackground: *void,
-    lpszMenuName: *def i8,
-    lpszClassName: *def i8,
-    hIconSm: *void,
+    hInstance: void*,
+    hIcon: void*,
+    hCursor: void*,
+    hbrBackground: void*,
+    lpszMenuName: i8*,
+    lpszClassName: i8*,
+    hIconSm: void*,
 }
 
 struct MSG {
@@ -210,20 +210,20 @@ def CW_USEDEFAULT = 0x80000000 as i32;
 def WS_OVERLAPPEDWINDOW = 0x00CF0000;
 def SW_SHOWNORMAL = 1;
 
-static mut g_hInst: *void = null;
+static mut g_hInst: void* = null;
 static mut g_hwnd: WindowHandle = null;
 static mut g_backbuffer: GraphicsContext = null;
-static mut g_backbitmap: *void = null;
+static mut g_backbitmap: void* = null;
 static mut g_screen_width: i32 = 900;
 static mut g_screen_height: i32 = 700;
 static mut g_font: Font = null;
 
-extern "user32.dll" fn CallWindowProcA(lpPrevWndFunc: *void, hWnd: WindowHandle, msg: u32, wParam: u64, lParam: i64) -> i64;
+extern "user32.dll" fn CallWindowProcA(lpPrevWndFunc: void*, hWnd: WindowHandle, msg: u32, wParam: u64, lParam: i64) -> i64;
 
-static mut g_wndproc: *void = null;
+static mut g_wndproc: void* = null;
 
 fn initPlatform() {
-    g_hInst = 0 as *void;
+    g_hInst = 0 as void*;
     g_screen_width = 900;
     g_screen_height = 700;
 }
@@ -252,8 +252,8 @@ fn createWindow(title: str, width: i32, height: i32) -> WindowHandle {
         cbWndExtra: 0,
         hInstance: g_hInst,
         hIcon: null,
-        hCursor: LoadCursorA(null as *void, IDC_ARROW as *def i8),
-        hbrBackground: null as *void,
+        hCursor: LoadCursorA(null as void*, IDC_ARROW as i8*),
+        hbrBackground: null as void*,
         lpszMenuName: null,
         lpszClassName: "DoudizhuGame".as_ptr(),
         hIconSm: null,
@@ -269,9 +269,9 @@ fn createWindow(title: str, width: i32, height: i32) -> WindowHandle {
         CW_USEDEFAULT, CW_USEDEFAULT,
         width + 16, height + 39,
         null as WindowHandle,
-        null as *void,
+        null as void*,
         g_hInst,
-        null as *void
+        null as void*
     );
 
     if hwnd == null {
@@ -314,13 +314,13 @@ fn pollEvent(hwnd: WindowHandle, event: Event*) -> bool {
         // Space is down
     }
 
-    if GetMessageA(&msg as *void, g_hwnd, 0, 0) == 0 {
+    if GetMessageA(&msg as void*, g_hwnd, 0, 0) == 0 {
         event.msg = EventType.EventNone;
         return false;
     }
 
-    TranslateMessage(&msg as *void);
-    DispatchMessageA(&msg as *void);
+    TranslateMessage(&msg as void*);
+    DispatchMessageA(&msg as void*);
 
     match msg.message {
         WM_KEYDOWN => {
@@ -414,7 +414,7 @@ fn clear_screen(ctx: GraphicsContext, color: Color) {
     let rect = Rect { x: 0, y: 0, width: g_screen_width, height: g_screen_height };
     let brush = CreateSolidBrush(color);
     FillRect(ctx, &rect, brush);
-    DeleteObject(brush as *void);
+    DeleteObject(brush as void*);
 }
 
 fn draw_pixel(ctx: GraphicsContext, x: i32, y: i32, color: Color) {
@@ -428,14 +428,14 @@ fn draw_line(ctx: GraphicsContext, x1: i32, y1: i32, x2: i32, y2: i32, color: Co
     let brush = CreateSolidBrush(color);
     let rect = Rect { x: min(x1,x2), y: min(y1,y2), width: abs(x2-x1)+1, height: abs(y2-y1)+1 };
     FillRect(ctx, &rect, brush);
-    DeleteObject(brush as *void);
+    DeleteObject(brush as void*);
 }
 
 fn draw_rect(ctx: GraphicsContext, x: i32, y: i32, w: i32, h: i32, color: Color) {
     let brush = CreateSolidBrush(color);
     let rect = Rect { x: x, y: y, width: w, height: h };
     FillRect(ctx, &rect, brush);
-    DeleteObject(brush as *void);
+    DeleteObject(brush as void*);
 }
 
 fn draw_circle(ctx: GraphicsContext, cx: i32, cy: i32, radius: i32, color: Color) {
