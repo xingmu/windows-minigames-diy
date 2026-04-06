@@ -356,9 +356,9 @@ fn updateGame(dt: u32) {
     for i in 0..platformCount {
         let plat = platforms[i];
         if rectIntersect(marioX, marioY, MARIO_WIDTH, MARIO_HEIGHT,
-                        plat.(float)x, plat.(float)y, plat.w, plat.h) {
-            if marioVY > 0.0 && (marioY + (float)MARIO_HEIGHT - marioVY * dtSec) <= plat.(float)y + 5.0 {
-                marioY = plat.(float)y - (float)(MARIO_HEIGHT);
+                        (float)(plat.x), (float)(plat.y), plat.w, plat.h) {
+            if marioVY > 0.0 && (marioY + (float)MARIO_HEIGHT - marioVY * dtSec) <= (float)(plat.y) + 5.0 {
+                marioY = (float)(plat.y) - (float)(MARIO_HEIGHT);
                 marioVY = 0.0;
                 marioOnGround = true;
             }
@@ -409,8 +409,8 @@ fn updateGame(dt: u32) {
         
         // 马里奥碰撞
         if marioInvincible <= 0 {
-            let dx = abs((enemies[i].(int)x) - ((int)marioX));
-            let dy = abs((enemies[i].(int)y) - ((int)marioY));
+            let dx = abs((enemies[i]((int))(x) - ((int)marioX));
+            let dy = abs((enemies[i]((int))(y) - ((int)marioY));
             if dx < MARIO_WIDTH && dy < MARIO_HEIGHT {
                 if marioVY > 0.0 && marioY + (float)MARIO_HEIGHT - enemies[i].y < 15.0 {
                     enemies[i].squashTimer = 20;
@@ -594,8 +594,8 @@ fn drawMario(ctx: rawptr, pitch: int, buffer: rawptr) {
 }
 
 fn drawEnemy(ctx: rawptr, pitch: int, buffer: rawptr, enemy: Enemy) {
-    let sx = (enemy.(int)x) - cameraX;
-    let sy = (enemy.(int)y);
+    let sx = (enemy((int))(x) - cameraX;
+    let sy = (enemy((int))(y);
     if sx < -GOOMBA_WIDTH || sx > WINDOW_WIDTH { return; }
     if !enemy.alive { return; }
     
@@ -640,8 +640,8 @@ fn drawCoin(ctx: rawptr, pitch: int, buffer: rawptr, coin: Coin) {
 fn drawParticles(ctx: rawptr, pitch: int, buffer: rawptr) {
     for i in 0..particleCount {
         if particles[i].life <= 0 { continue; }
-        let sx = (particles[i].(int)x) - cameraX;
-        let sy = (particles[i].(int)y);
+        let sx = (particles[i]((int))(x) - cameraX;
+        let sy = (particles[i]((int))(y);
         drawRect(ctx, sx, sy, 4, 4, pitch, buffer, particles[i].color);
     }
 }
