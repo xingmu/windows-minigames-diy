@@ -50,13 +50,13 @@ struct Piece {
 struct Player {
     color: Color;
     isHuman: bool;
-    pieces: [PIECES_PER_PLAYER]Piece;
+    pieces: Piece[PIECES_PER_PLAYER];
     piecesInGoal: int;
     name: str,
 }
 
 struct LudoGame {
-    players: [PLAYER_COUNT]Player;
+    players: Player[PLAYER_COUNT];
     currentPlayer: int;
     diceValue: int;
     diceRolled: bool;
@@ -141,14 +141,14 @@ fn initGame(game: LudoGame*) {
     game.players[PLAYER_HUMAN] = Player {
         color: HUMAN_COLOR,
         isHuman: true,
-        pieces: [PIECES_PER_PLAYER]Piece,
+        pieces: Piece[PIECES_PER_PLAYER],
         piecesInGoal: 0,
         name: "玩家",
     };
     game.players[PLAYER_CPU] = Player {
         color: CPU_COLOR,
         isHuman: false,
-        pieces: [PIECES_PER_PLAYER]Piece,
+        pieces: Piece[PIECES_PER_PLAYER],
         piecesInGoal: 0,
         name: "电脑",
     };
@@ -186,7 +186,7 @@ fn rollDice(game: LudoGame*) {
     game.diceValue = ((rng_seed / 7) % 6) + 1;
     game.diceRolled = true;
 
-    io.println(game.players[game.currentPlayer]."{name} 掷出: {game}".diceValue.toString());
+    io.println("Player dice roll");
 
     if !hasMovablePiece(game) {
         io.println "没有可移动的棋子!";
