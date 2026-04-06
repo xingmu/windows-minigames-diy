@@ -583,37 +583,37 @@ const int32_t WINDOW_HEIGHT = 700;
 const int32_t GAME_AREA_X = 50;
 const int32_t GAME_AREA_Y = 80;
 const ZC_AUTO WALL_COLOR = 
-#line 27 "src/010-sokoban/src/main_window.zc"
+#line 27 "src/main_window.zc"
 Color.RGB(80, 80, 80);
 const ZC_AUTO FLOOR_COLOR = 
-#line 30 "src/010-sokoban/src/main_window.zc"
+#line 30 "src/main_window.zc"
 Color.RGB(45, 45, 50);
 const ZC_AUTO TARGET_COLOR = 
-#line 33 "src/010-sokoban/src/main_window.zc"
+#line 33 "src/main_window.zc"
 Color.RGB(0, 200, 100);
 const ZC_AUTO BOX_COLOR = 
-#line 36 "src/010-sokoban/src/main_window.zc"
+#line 36 "src/main_window.zc"
 Color.RGB(180, 120, 60);
 const ZC_AUTO BOX_ON_TARGET_COLOR = 
-#line 39 "src/010-sokoban/src/main_window.zc"
+#line 39 "src/main_window.zc"
 Color.RGB(0, 220, 120);
 const ZC_AUTO PLAYER_COLOR = 
-#line 42 "src/010-sokoban/src/main_window.zc"
+#line 42 "src/main_window.zc"
 Color.RGB(60, 140, 220);
 const ZC_AUTO PLAYER_ON_TARGET_COLOR = 
-#line 45 "src/010-sokoban/src/main_window.zc"
+#line 45 "src/main_window.zc"
 Color.RGB(100, 180, 255);
 const ZC_AUTO BACKGROUND_COLOR = 
-#line 48 "src/010-sokoban/src/main_window.zc"
+#line 48 "src/main_window.zc"
 Color.RGB(25, 25, 35);
 const ZC_AUTO TEXT_COLOR = 
-#line 51 "src/010-sokoban/src/main_window.zc"
+#line 51 "src/main_window.zc"
 Color.RGB(220, 220, 220);
 const ZC_AUTO TITLE_COLOR = 
-#line 54 "src/010-sokoban/src/main_window.zc"
+#line 54 "src/main_window.zc"
 Color.RGB(255, 200, 100);
 const ZC_AUTO BORDER_COLOR = 
-#line 57 "src/010-sokoban/src/main_window.zc"
+#line 57 "src/main_window.zc"
 Color.RGB(100, 100, 140);
 Clone Clone__clone(Clone* self) {
     void* res = self->vtable->clone(self->self);
@@ -5374,47 +5374,47 @@ Vec__char__free(self);
     }
 }
 
-#line 437 "src/010-sokoban/src/main_window.zc"
+#line 437 "src/main_window.zc"
 
 int main(void)
 {
     {
 
-#line 438 "src/010-sokoban/src/main_window.zc"
+#line 438 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "==========================================="); fprintf(stdout, "\n"); 0; });
 
-#line 439 "src/010-sokoban/src/main_window.zc"
+#line 439 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "  Zen-C 推箱子游戏 (Sokoban)"); fprintf(stdout, "\n"); 0; });
 
-#line 440 "src/010-sokoban/src/main_window.zc"
+#line 440 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "  使用 003-framework 框架"); fprintf(stdout, "\n"); 0; });
 
-#line 441 "src/010-sokoban/src/main_window.zc"
+#line 441 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "==========================================="); fprintf(stdout, "\n"); 0; });
 
-#line 444 "src/010-sokoban/src/main_window.zc"
+#line 444 "src/main_window.zc"
 initPlatform();
 
-#line 447 "src/010-sokoban/src/main_window.zc"
+#line 447 "src/main_window.zc"
     ZC_AUTO game = 
-#line 447 "src/010-sokoban/src/main_window.zc"
+#line 447 "src/main_window.zc"
 SokobanGame("Sokoban - Zen-C", 800, 700, 60);
 
-#line 450 "src/010-sokoban/src/main_window.zc"
+#line 450 "src/main_window.zc"
 game.run();
 
-#line 453 "src/010-sokoban/src/main_window.zc"
+#line 453 "src/main_window.zc"
 game.destroy();
 
-#line 456 "src/010-sokoban/src/main_window.zc"
+#line 456 "src/main_window.zc"
 shutdownPlatform();
 
-#line 458 "src/010-sokoban/src/main_window.zc"
+#line 458 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "游戏退出!"); fprintf(stdout, "\n"); 0; });
     }
 }
 
-#line 430 "src/010-sokoban/src/main_window.zc"
+#line 430 "src/main_window.zc"
 
 void onMouseUp(int32_t x, int32_t y, MouseButton button)
 {
@@ -5422,7 +5422,7 @@ void onMouseUp(int32_t x, int32_t y, MouseButton button)
     }
 }
 
-#line 426 "src/010-sokoban/src/main_window.zc"
+#line 426 "src/main_window.zc"
 
 void onMouseDown(int32_t x, int32_t y, MouseButton button)
 {
@@ -5430,7 +5430,7 @@ void onMouseDown(int32_t x, int32_t y, MouseButton button)
     }
 }
 
-#line 422 "src/010-sokoban/src/main_window.zc"
+#line 422 "src/main_window.zc"
 
 void onKeyUp(VirtualKey key)
 {
@@ -5438,554 +5438,554 @@ void onKeyUp(VirtualKey key)
     }
 }
 
-#line 390 "src/010-sokoban/src/main_window.zc"
+#line 390 "src/main_window.zc"
 
 void onKeyDown(VirtualKey key)
 {
     {
 
-#line 391 "src/010-sokoban/src/main_window.zc"
+#line 391 "src/main_window.zc"
 { VirtualKey _m_0 = key; 
-#line 392 "src/010-sokoban/src/main_window.zc"
+#line 392 "src/main_window.zc"
 if (_m_0.tag == 1) {     {
 
-#line 393 "src/010-sokoban/src/main_window.zc"
+#line 393 "src/main_window.zc"
 movePlayer((&self->state), Direction__Left);
     }
  } else 
-#line 395 "src/010-sokoban/src/main_window.zc"
+#line 395 "src/main_window.zc"
 if (_m_0.tag == 1) {     {
 
-#line 396 "src/010-sokoban/src/main_window.zc"
+#line 396 "src/main_window.zc"
 movePlayer((&self->state), Direction__Right);
     }
  } else 
-#line 398 "src/010-sokoban/src/main_window.zc"
+#line 398 "src/main_window.zc"
 if (_m_0.tag == 1) {     {
 
-#line 399 "src/010-sokoban/src/main_window.zc"
+#line 399 "src/main_window.zc"
 movePlayer((&self->state), Direction__Up);
     }
  } else 
-#line 401 "src/010-sokoban/src/main_window.zc"
+#line 401 "src/main_window.zc"
 if (_m_0.tag == 1) {     {
 
-#line 402 "src/010-sokoban/src/main_window.zc"
+#line 402 "src/main_window.zc"
 movePlayer((&self->state), Direction__Down);
     }
  } else 
-#line 404 "src/010-sokoban/src/main_window.zc"
+#line 404 "src/main_window.zc"
 if (_m_0 == VirtualKey__KeyR) {     {
 
-#line 406 "src/010-sokoban/src/main_window.zc"
+#line 406 "src/main_window.zc"
 resetLevel((&self->state));
     }
  } else 
-#line 408 "src/010-sokoban/src/main_window.zc"
+#line 408 "src/main_window.zc"
 if (_m_0 == VirtualKey__KeyN) {     {
 
-#line 410 "src/010-sokoban/src/main_window.zc"
+#line 410 "src/main_window.zc"
 if ((self->state.levelWon && (!self->state.allWon)))     {
 
-#line 411 "src/010-sokoban/src/main_window.zc"
+#line 411 "src/main_window.zc"
 nextLevel((&self->state));
     }
     }
  } else 
-#line 414 "src/010-sokoban/src/main_window.zc"
+#line 414 "src/main_window.zc"
 if (_m_0.tag == 1) {     {
 
-#line 416 "src/010-sokoban/src/main_window.zc"
+#line 416 "src/main_window.zc"
 (self->running = false);
     }
  } else 
-#line 418 "src/010-sokoban/src/main_window.zc"
+#line 418 "src/main_window.zc"
 if (1) {     {
     }
  } };
     }
 }
 
-#line 367 "src/010-sokoban/src/main_window.zc"
+#line 367 "src/main_window.zc"
 
 void drawAllWinOverlay(Canvas canvas)
 {
     {
 
-#line 368 "src/010-sokoban/src/main_window.zc"
+#line 368 "src/main_window.zc"
     ZC_AUTO gridWidth = self->state.gridWidth;
 
-#line 369 "src/010-sokoban/src/main_window.zc"
+#line 369 "src/main_window.zc"
     ZC_AUTO gridHeight = self->state.gridHeight;
 
-#line 372 "src/010-sokoban/src/main_window.zc"
+#line 372 "src/main_window.zc"
 Canvas__fillRect(&canvas, (50 - 5), (80 - 5), ((gridWidth * 50) + 10), ((gridHeight * 50) + 10), 
-#line 374 "src/010-sokoban/src/main_window.zc"
+#line 374 "src/main_window.zc"
 Color.RGB(0, 0, 0, 200));
 
-#line 377 "src/010-sokoban/src/main_window.zc"
+#line 377 "src/main_window.zc"
 Canvas__drawText(&canvas, (50 + 20), ((80 + ((gridHeight * 50) / 2)) - 50), "CONGRATULATIONS!", 
-#line 378 "src/010-sokoban/src/main_window.zc"
+#line 378 "src/main_window.zc"
 Color.RGB(255, 215, 0), (struct Font){0});
 
-#line 380 "src/010-sokoban/src/main_window.zc"
+#line 380 "src/main_window.zc"
 Canvas__drawText(&canvas, (50 + 60), ((80 + ((gridHeight * 50) / 2)) + 10), "You completed all levels!", 
-#line 382 "src/010-sokoban/src/main_window.zc"
+#line 382 "src/main_window.zc"
 Color.RGB(255, 255, 100), (struct Font){0});
 
-#line 384 "src/010-sokoban/src/main_window.zc"
+#line 384 "src/main_window.zc"
 Canvas__drawText(&canvas, (50 + 90), ((80 + ((gridHeight * 50) / 2)) + 50), "Press ESC to exit", 
-#line 386 "src/010-sokoban/src/main_window.zc"
+#line 386 "src/main_window.zc"
 Color.RGB(200, 200, 200), (struct Font){0});
     }
 }
 
-#line 342 "src/010-sokoban/src/main_window.zc"
+#line 342 "src/main_window.zc"
 
 void drawWinOverlay(Canvas canvas)
 {
     {
 
-#line 343 "src/010-sokoban/src/main_window.zc"
+#line 343 "src/main_window.zc"
     ZC_AUTO gridWidth = self->state.gridWidth;
 
-#line 344 "src/010-sokoban/src/main_window.zc"
+#line 344 "src/main_window.zc"
     ZC_AUTO gridHeight = self->state.gridHeight;
 
-#line 347 "src/010-sokoban/src/main_window.zc"
+#line 347 "src/main_window.zc"
 Canvas__fillRect(&canvas, (50 - 5), (80 - 5), ((gridWidth * 50) + 10), ((gridHeight * 50) + 10), 
-#line 349 "src/010-sokoban/src/main_window.zc"
+#line 349 "src/main_window.zc"
 Color.RGB(0, 0, 0, 180));
 
-#line 352 "src/010-sokoban/src/main_window.zc"
+#line 352 "src/main_window.zc"
 Canvas__drawText(&canvas, (50 + 30), ((80 + ((gridHeight * 50) / 2)) - 30), "LEVEL COMPLETE!", 
-#line 353 "src/010-sokoban/src/main_window.zc"
+#line 353 "src/main_window.zc"
 Color.RGB(100, 255, 100), (struct Font){0});
 
-#line 355 "src/010-sokoban/src/main_window.zc"
+#line 355 "src/main_window.zc"
 Canvas__drawText(&canvas, (50 + 50), ((80 + ((gridHeight * 50) / 2)) + 20), 
-#line 356 "src/010-sokoban/src/main_window.zc"
+#line 356 "src/main_window.zc"
 ({ 
-#line 356 "src/010-sokoban/src/main_window.zc"
+#line 356 "src/main_window.zc"
     static char _b[4096]; _b[0]=0;
     char _t[128];
     strcat(_b, "Steps: ");
 
-#line 356 "src/010-sokoban/src/main_window.zc"
+#line 356 "src/main_window.zc"
 sprintf(_t, _z_str(self), self);
 
-#line 356 "src/010-sokoban/src/main_window.zc"
+#line 356 "src/main_window.zc"
     strcat(_b, _t);
     _b;
  }).state.steps.toString(), 
-#line 357 "src/010-sokoban/src/main_window.zc"
+#line 357 "src/main_window.zc"
 Color.RGB(255, 255, 100), (struct Font){0});
 
-#line 359 "src/010-sokoban/src/main_window.zc"
+#line 359 "src/main_window.zc"
 if ((self->state.currentLevel < (3 - 1)))     {
 
-#line 360 "src/010-sokoban/src/main_window.zc"
+#line 360 "src/main_window.zc"
 Canvas__drawText(&canvas, (50 + 40), ((80 + ((gridHeight * 50) / 2)) + 60), "Press N for next level", 
-#line 362 "src/010-sokoban/src/main_window.zc"
+#line 362 "src/main_window.zc"
 Color.RGB(200, 200, 200), (struct Font){0});
     }
     }
 }
 
-#line 290 "src/010-sokoban/src/main_window.zc"
+#line 290 "src/main_window.zc"
 
 void drawInfoPanel(Canvas canvas)
 {
     {
 
-#line 291 "src/010-sokoban/src/main_window.zc"
+#line 291 "src/main_window.zc"
     int32_t panelX = ((50 + (self->state.gridWidth * 50)) + 30);
 
-#line 292 "src/010-sokoban/src/main_window.zc"
+#line 292 "src/main_window.zc"
     int32_t panelY = 80;
 
-#line 295 "src/010-sokoban/src/main_window.zc"
+#line 295 "src/main_window.zc"
     int32_t panelWidth = 180;
 
-#line 296 "src/010-sokoban/src/main_window.zc"
+#line 296 "src/main_window.zc"
     int32_t panelHeight = 250;
 
-#line 298 "src/010-sokoban/src/main_window.zc"
+#line 298 "src/main_window.zc"
 Canvas__fillRect(&canvas, (panelX - 5), (panelY - 5), (panelWidth + 10), (panelHeight + 10), 
-#line 299 "src/010-sokoban/src/main_window.zc"
+#line 299 "src/main_window.zc"
 Color.RGB(40, 40, 55));
 
-#line 300 "src/010-sokoban/src/main_window.zc"
+#line 300 "src/main_window.zc"
 Canvas__drawRect(&canvas, (panelX - 5), (panelY - 5), (panelWidth + 10), (panelHeight + 10), BORDER_COLOR);
 
-#line 304 "src/010-sokoban/src/main_window.zc"
+#line 304 "src/main_window.zc"
 Canvas__drawText(&canvas, (panelX + 20), (panelY + 15), "INFO", 
-#line 305 "src/010-sokoban/src/main_window.zc"
+#line 305 "src/main_window.zc"
 Color.RGB(180, 180, 200), (struct Font){0});
 
-#line 308 "src/010-sokoban/src/main_window.zc"
+#line 308 "src/main_window.zc"
 Canvas__drawText(&canvas, (panelX + 10), (panelY + 50), "Level:", 
-#line 309 "src/010-sokoban/src/main_window.zc"
+#line 309 "src/main_window.zc"
 Color.RGB(150, 150, 150), (struct Font){0});
 
-#line 310 "src/010-sokoban/src/main_window.zc"
+#line 310 "src/main_window.zc"
 Canvas__drawText(&canvas, (panelX + 10), (panelY + 75), ({ 
-#line 311 "src/010-sokoban/src/main_window.zc"
+#line 311 "src/main_window.zc"
     static char _b[4096]; _b[0]=0;
     char _t[128];
 
-#line 311 "src/010-sokoban/src/main_window.zc"
+#line 311 "src/main_window.zc"
 sprintf(_t, _z_str((self->state.currentLevel + 1)), (self->state.currentLevel + 1));
 
-#line 311 "src/010-sokoban/src/main_window.zc"
+#line 311 "src/main_window.zc"
     strcat(_b, _t);
     strcat(_b, " / ");
 
-#line 311 "src/010-sokoban/src/main_window.zc"
+#line 311 "src/main_window.zc"
 sprintf(_t, _z_str(3), 3);
 
-#line 311 "src/010-sokoban/src/main_window.zc"
+#line 311 "src/main_window.zc"
     strcat(_b, _t);
     _b;
  }), TEXT_COLOR, 
-#line 312 "src/010-sokoban/src/main_window.zc"
+#line 312 "src/main_window.zc"
 (struct Font){0});
 
-#line 315 "src/010-sokoban/src/main_window.zc"
+#line 315 "src/main_window.zc"
 Canvas__drawText(&canvas, (panelX + 10), (panelY + 115), "Steps:", 
-#line 316 "src/010-sokoban/src/main_window.zc"
+#line 316 "src/main_window.zc"
 Color.RGB(150, 150, 150), (struct Font){0});
 
-#line 317 "src/010-sokoban/src/main_window.zc"
+#line 317 "src/main_window.zc"
 Canvas__drawText(&canvas, (panelX + 10), (panelY + 140), 
-#line 318 "src/010-sokoban/src/main_window.zc"
+#line 318 "src/main_window.zc"
 self->state.steps.toString(), TEXT_COLOR, 
-#line 319 "src/010-sokoban/src/main_window.zc"
+#line 319 "src/main_window.zc"
 (struct Font){0});
 
-#line 322 "src/010-sokoban/src/main_window.zc"
+#line 322 "src/main_window.zc"
 Canvas__drawText(&canvas, (panelX + 20), (panelY + 185), "LEGEND", 
-#line 323 "src/010-sokoban/src/main_window.zc"
+#line 323 "src/main_window.zc"
 Color.RGB(180, 180, 200), (struct Font){0});
 
-#line 326 "src/010-sokoban/src/main_window.zc"
+#line 326 "src/main_window.zc"
 Canvas__fillCircle(&canvas, (panelX + 25), (panelY + 215), 8, PLAYER_COLOR);
 
-#line 327 "src/010-sokoban/src/main_window.zc"
+#line 327 "src/main_window.zc"
 Canvas__drawText(&canvas, (panelX + 45), (panelY + 208), "Player", 
-#line 328 "src/010-sokoban/src/main_window.zc"
+#line 328 "src/main_window.zc"
 Color.RGB(200, 200, 200), (struct Font){0});
 
-#line 331 "src/010-sokoban/src/main_window.zc"
+#line 331 "src/main_window.zc"
 Canvas__fillRect(&canvas, (panelX + 17), (panelY + 230), 16, 16, BOX_COLOR);
 
-#line 332 "src/010-sokoban/src/main_window.zc"
+#line 332 "src/main_window.zc"
 Canvas__drawText(&canvas, (panelX + 45), (panelY + 233), "Box", 
-#line 333 "src/010-sokoban/src/main_window.zc"
+#line 333 "src/main_window.zc"
 Color.RGB(200, 200, 200), (struct Font){0});
 
-#line 336 "src/010-sokoban/src/main_window.zc"
+#line 336 "src/main_window.zc"
 Canvas__drawCircle(&canvas, (panelX + 25), (panelY + 260), 8, TARGET_COLOR);
 
-#line 337 "src/010-sokoban/src/main_window.zc"
+#line 337 "src/main_window.zc"
 Canvas__drawText(&canvas, (panelX + 45), (panelY + 253), "Target", 
-#line 338 "src/010-sokoban/src/main_window.zc"
+#line 338 "src/main_window.zc"
 Color.RGB(200, 200, 200), (struct Font){0});
     }
 }
 
-#line 263 "src/010-sokoban/src/main_window.zc"
+#line 263 "src/main_window.zc"
 
 void drawPlayer(Canvas canvas, int32_t x, int32_t y, uint32_t color)
 {
     {
 
-#line 264 "src/010-sokoban/src/main_window.zc"
+#line 264 "src/main_window.zc"
     int32_t margin = 6;
 
-#line 265 "src/010-sokoban/src/main_window.zc"
+#line 265 "src/main_window.zc"
     int32_t size = (50 - (margin * 2));
 
-#line 268 "src/010-sokoban/src/main_window.zc"
+#line 268 "src/main_window.zc"
 Canvas__fillCircle(&canvas, (x + (50 / 2)), (y + (50 / 2)), ((size / 2) - 2), color);
 
-#line 272 "src/010-sokoban/src/main_window.zc"
+#line 272 "src/main_window.zc"
 Canvas__fillCircle(&canvas, ((x + (50 / 2)) - 4), ((y + (50 / 2)) - 4), 6, 
-#line 273 "src/010-sokoban/src/main_window.zc"
+#line 273 "src/main_window.zc"
 Color.RGB(255, 255, 255, 100));
 
-#line 276 "src/010-sokoban/src/main_window.zc"
+#line 276 "src/main_window.zc"
     int32_t eyeSize = 5;
 
-#line 277 "src/010-sokoban/src/main_window.zc"
+#line 277 "src/main_window.zc"
 Canvas__fillCircle(&canvas, ((x + (50 / 2)) - 7), ((y + (50 / 2)) - 3), eyeSize, 
-#line 278 "src/010-sokoban/src/main_window.zc"
+#line 278 "src/main_window.zc"
 Color.White());
 
-#line 279 "src/010-sokoban/src/main_window.zc"
+#line 279 "src/main_window.zc"
 Canvas__fillCircle(&canvas, ((x + (50 / 2)) + 7), ((y + (50 / 2)) - 3), eyeSize, 
-#line 280 "src/010-sokoban/src/main_window.zc"
+#line 280 "src/main_window.zc"
 Color.White());
 
-#line 283 "src/010-sokoban/src/main_window.zc"
+#line 283 "src/main_window.zc"
 Canvas__fillCircle(&canvas, ((x + (50 / 2)) - 6), ((y + (50 / 2)) - 2), 2, 
-#line 284 "src/010-sokoban/src/main_window.zc"
+#line 284 "src/main_window.zc"
 Color.Black());
 
-#line 285 "src/010-sokoban/src/main_window.zc"
+#line 285 "src/main_window.zc"
 Canvas__fillCircle(&canvas, ((x + (50 / 2)) + 8), ((y + (50 / 2)) - 2), 2, 
-#line 286 "src/010-sokoban/src/main_window.zc"
+#line 286 "src/main_window.zc"
 Color.Black());
     }
 }
 
-#line 231 "src/010-sokoban/src/main_window.zc"
+#line 231 "src/main_window.zc"
 
 void drawBox(Canvas canvas, int32_t x, int32_t y, uint32_t color)
 {
     {
 
-#line 232 "src/010-sokoban/src/main_window.zc"
+#line 232 "src/main_window.zc"
     int32_t margin = 4;
 
-#line 235 "src/010-sokoban/src/main_window.zc"
+#line 235 "src/main_window.zc"
 Canvas__fillRect(&canvas, (x + margin), (y + margin), (50 - (margin * 2)), (50 - (margin * 2)), color);
 
-#line 240 "src/010-sokoban/src/main_window.zc"
+#line 240 "src/main_window.zc"
 Canvas__fillRect(&canvas, (x + margin), (y + margin), (50 - (margin * 2)), 3, 
-#line 242 "src/010-sokoban/src/main_window.zc"
+#line 242 "src/main_window.zc"
 Color.RGB(220, 180, 120));
 
-#line 243 "src/010-sokoban/src/main_window.zc"
+#line 243 "src/main_window.zc"
 Canvas__fillRect(&canvas, (x + margin), (y + margin), 3, (50 - (margin * 2)), 
-#line 245 "src/010-sokoban/src/main_window.zc"
+#line 245 "src/main_window.zc"
 Color.RGB(220, 180, 120));
 
-#line 248 "src/010-sokoban/src/main_window.zc"
+#line 248 "src/main_window.zc"
 Canvas__fillRect(&canvas, (((x + 50) - margin) - 2), (y + margin), 2, (50 - (margin * 2)), 
-#line 250 "src/010-sokoban/src/main_window.zc"
+#line 250 "src/main_window.zc"
 Color.RGB(100, 60, 20));
 
-#line 251 "src/010-sokoban/src/main_window.zc"
+#line 251 "src/main_window.zc"
 Canvas__fillRect(&canvas, (x + margin), (((y + 50) - margin) - 2), (50 - (margin * 2)), 2, 
-#line 253 "src/010-sokoban/src/main_window.zc"
+#line 253 "src/main_window.zc"
 Color.RGB(100, 60, 20));
 
-#line 256 "src/010-sokoban/src/main_window.zc"
+#line 256 "src/main_window.zc"
     int32_t innerMargin = 8;
 
-#line 257 "src/010-sokoban/src/main_window.zc"
+#line 257 "src/main_window.zc"
 Canvas__fillRect(&canvas, ((x + innerMargin) + 2), ((y + innerMargin) + 2), ((50 - (innerMargin * 2)) - 4), ((50 - (innerMargin * 2)) - 4), 
-#line 259 "src/010-sokoban/src/main_window.zc"
+#line 259 "src/main_window.zc"
 Color.RGB(140, 80, 30));
     }
 }
 
-#line 217 "src/010-sokoban/src/main_window.zc"
+#line 217 "src/main_window.zc"
 
 void drawTarget(Canvas canvas, int32_t x, int32_t y)
 {
     {
 
-#line 218 "src/010-sokoban/src/main_window.zc"
+#line 218 "src/main_window.zc"
     int32_t margin = 8;
 
-#line 219 "src/010-sokoban/src/main_window.zc"
+#line 219 "src/main_window.zc"
     int32_t innerSize = (50 - (margin * 2));
 
-#line 222 "src/010-sokoban/src/main_window.zc"
+#line 222 "src/main_window.zc"
 Canvas__drawRect(&canvas, (x + margin), (y + margin), innerSize, innerSize, TARGET_COLOR);
 
-#line 225 "src/010-sokoban/src/main_window.zc"
+#line 225 "src/main_window.zc"
     int32_t centerSize = 12;
 
-#line 226 "src/010-sokoban/src/main_window.zc"
+#line 226 "src/main_window.zc"
     int32_t centerOffset = ((50 - centerSize) / 2);
 
-#line 227 "src/010-sokoban/src/main_window.zc"
+#line 227 "src/main_window.zc"
 Canvas__fillCircle(&canvas, (x + (50 / 2)), (y + (50 / 2)), (centerSize / 2), TARGET_COLOR);
     }
 }
 
-#line 108 "src/010-sokoban/src/main_window.zc"
+#line 108 "src/main_window.zc"
 
 void onRender(Canvas canvas)
 {
     {
 
-#line 110 "src/010-sokoban/src/main_window.zc"
+#line 110 "src/main_window.zc"
 Canvas__clear(&canvas, BACKGROUND_COLOR);
 
-#line 113 "src/010-sokoban/src/main_window.zc"
+#line 113 "src/main_window.zc"
 Canvas__drawText(&canvas, 50, 20, "SOKOBAN", TITLE_COLOR, (struct Font){0});
 
-#line 116 "src/010-sokoban/src/main_window.zc"
+#line 116 "src/main_window.zc"
     ZC_AUTO gridWidth = self->state.gridWidth;
 
-#line 117 "src/010-sokoban/src/main_window.zc"
+#line 117 "src/main_window.zc"
     ZC_AUTO gridHeight = self->state.gridHeight;
 
-#line 118 "src/010-sokoban/src/main_window.zc"
+#line 118 "src/main_window.zc"
     int32_t gameWidth = (gridWidth * 50);
 
-#line 119 "src/010-sokoban/src/main_window.zc"
+#line 119 "src/main_window.zc"
     int32_t gameHeight = (gridHeight * 50);
 
-#line 122 "src/010-sokoban/src/main_window.zc"
+#line 122 "src/main_window.zc"
 Canvas__fillRect(&canvas, (50 - 5), (80 - 5), (gameWidth + 10), (gameHeight + 10), 
-#line 124 "src/010-sokoban/src/main_window.zc"
+#line 124 "src/main_window.zc"
 Color.RGB(35, 35, 50));
 
-#line 127 "src/010-sokoban/src/main_window.zc"
+#line 127 "src/main_window.zc"
 Canvas__drawRect(&canvas, (50 - 5), (80 - 5), (gameWidth + 10), (gameHeight + 10), BORDER_COLOR);
 
-#line 132 "src/010-sokoban/src/main_window.zc"
+#line 132 "src/main_window.zc"
 for (ZC_AUTO y = 0; y < gridHeight; y++)     {
 
-#line 133 "src/010-sokoban/src/main_window.zc"
+#line 133 "src/main_window.zc"
 for (ZC_AUTO x = 0; x < gridWidth; x++)     {
 
-#line 134 "src/010-sokoban/src/main_window.zc"
+#line 134 "src/main_window.zc"
     int32_t cellX = (50 + (x * 50));
 
-#line 135 "src/010-sokoban/src/main_window.zc"
+#line 135 "src/main_window.zc"
     int32_t cellY = (80 + (y * 50));
 
-#line 136 "src/010-sokoban/src/main_window.zc"
+#line 136 "src/main_window.zc"
     int32_t cell = self->state.grid[y][x];
 
-#line 139 "src/010-sokoban/src/main_window.zc"
+#line 139 "src/main_window.zc"
 if ((cell == CellType__Wall))     {
 
-#line 141 "src/010-sokoban/src/main_window.zc"
+#line 141 "src/main_window.zc"
 Canvas__fillRect(&canvas, cellX, cellY, 50, 50, WALL_COLOR);
 
-#line 143 "src/010-sokoban/src/main_window.zc"
+#line 143 "src/main_window.zc"
 Canvas__fillRect(&canvas, cellX, cellY, 50, 3, Color.RGB(120, 120, 120));
 
-#line 144 "src/010-sokoban/src/main_window.zc"
+#line 144 "src/main_window.zc"
 Canvas__fillRect(&canvas, cellX, cellY, 3, 50, Color.RGB(120, 120, 120));
 
-#line 146 "src/010-sokoban/src/main_window.zc"
+#line 146 "src/main_window.zc"
 Canvas__fillRect(&canvas, ((cellX + 50) - 2), cellY, 2, 50, Color.RGB(40, 40, 40));
 
-#line 147 "src/010-sokoban/src/main_window.zc"
+#line 147 "src/main_window.zc"
 Canvas__fillRect(&canvas, cellX, ((cellY + 50) - 2), 50, 2, Color.RGB(40, 40, 40));
     }
  else     {
 
-#line 150 "src/010-sokoban/src/main_window.zc"
+#line 150 "src/main_window.zc"
 Canvas__fillRect(&canvas, cellX, cellY, 50, 50, FLOOR_COLOR);
 
-#line 153 "src/010-sokoban/src/main_window.zc"
+#line 153 "src/main_window.zc"
 if ((cell == CellType__Target))     {
 
-#line 154 "src/010-sokoban/src/main_window.zc"
+#line 154 "src/main_window.zc"
 void__drawTarget(self, canvas, cellX, cellY);
     }
     }
     }
     }
 
-#line 161 "src/010-sokoban/src/main_window.zc"
+#line 161 "src/main_window.zc"
 for (ZC_AUTO i = 0; i < self->state.boxCount; i++)     {
 
-#line 162 "src/010-sokoban/src/main_window.zc"
+#line 162 "src/main_window.zc"
     ZC_AUTO bx = self->state.boxes[i].x;
 
-#line 163 "src/010-sokoban/src/main_window.zc"
+#line 163 "src/main_window.zc"
     ZC_AUTO by = self->state.boxes[i].y;
 
-#line 164 "src/010-sokoban/src/main_window.zc"
+#line 164 "src/main_window.zc"
     int32_t cellX = (50 + (bx * 50));
 
-#line 165 "src/010-sokoban/src/main_window.zc"
+#line 165 "src/main_window.zc"
     int32_t cellY = (80 + (by * 50));
 
-#line 168 "src/010-sokoban/src/main_window.zc"
+#line 168 "src/main_window.zc"
     bool onTarget = 
-#line 168 "src/010-sokoban/src/main_window.zc"
+#line 168 "src/main_window.zc"
 isTarget((&self->state), bx, by);
 
-#line 170 "src/010-sokoban/src/main_window.zc"
+#line 170 "src/main_window.zc"
 if (onTarget)     {
 
-#line 171 "src/010-sokoban/src/main_window.zc"
+#line 171 "src/main_window.zc"
 void__drawBox(self, canvas, cellX, cellY, BOX_ON_TARGET_COLOR);
     }
  else     {
 
-#line 173 "src/010-sokoban/src/main_window.zc"
+#line 173 "src/main_window.zc"
 void__drawBox(self, canvas, cellX, cellY, BOX_COLOR);
     }
     }
 
-#line 178 "src/010-sokoban/src/main_window.zc"
+#line 178 "src/main_window.zc"
     ZC_AUTO px = self->state.playerX;
 
-#line 179 "src/010-sokoban/src/main_window.zc"
+#line 179 "src/main_window.zc"
     ZC_AUTO py = self->state.playerY;
 
-#line 180 "src/010-sokoban/src/main_window.zc"
+#line 180 "src/main_window.zc"
     int32_t playerCellX = (50 + (px * 50));
 
-#line 181 "src/010-sokoban/src/main_window.zc"
+#line 181 "src/main_window.zc"
     int32_t playerCellY = (80 + (py * 50));
 
-#line 183 "src/010-sokoban/src/main_window.zc"
+#line 183 "src/main_window.zc"
     bool playerOnTarget = 
-#line 183 "src/010-sokoban/src/main_window.zc"
+#line 183 "src/main_window.zc"
 isTarget((&self->state), px, py);
 
-#line 185 "src/010-sokoban/src/main_window.zc"
+#line 185 "src/main_window.zc"
 if (playerOnTarget)     {
 
-#line 186 "src/010-sokoban/src/main_window.zc"
+#line 186 "src/main_window.zc"
 void__drawPlayer(self, canvas, playerCellX, playerCellY, PLAYER_ON_TARGET_COLOR);
     }
  else     {
 
-#line 188 "src/010-sokoban/src/main_window.zc"
+#line 188 "src/main_window.zc"
 void__drawPlayer(self, canvas, playerCellX, playerCellY, PLAYER_COLOR);
     }
 
-#line 192 "src/010-sokoban/src/main_window.zc"
+#line 192 "src/main_window.zc"
 void__drawInfoPanel(self, canvas);
 
-#line 195 "src/010-sokoban/src/main_window.zc"
+#line 195 "src/main_window.zc"
 Canvas__drawText(&canvas, 50, ((80 + (gridHeight * 50)) + 70), 
-#line 196 "src/010-sokoban/src/main_window.zc"
+#line 196 "src/main_window.zc"
 getControlsText(), 
-#line 197 "src/010-sokoban/src/main_window.zc"
+#line 197 "src/main_window.zc"
 Color.RGB(160, 160, 160), (struct Font){0});
 
-#line 200 "src/010-sokoban/src/main_window.zc"
+#line 200 "src/main_window.zc"
     str statusText = 
-#line 200 "src/010-sokoban/src/main_window.zc"
+#line 200 "src/main_window.zc"
 getStatusText((&self->state));
 
-#line 201 "src/010-sokoban/src/main_window.zc"
+#line 201 "src/main_window.zc"
 Canvas__drawText(&canvas, 50, ((80 + (gridHeight * 50)) + 45), statusText, 
-#line 203 "src/010-sokoban/src/main_window.zc"
+#line 203 "src/main_window.zc"
 Color.RGB(255, 255, 100), (struct Font){0});
 
-#line 206 "src/010-sokoban/src/main_window.zc"
+#line 206 "src/main_window.zc"
 if ((self->state.levelWon && (!self->state.allWon)))     {
 
-#line 207 "src/010-sokoban/src/main_window.zc"
+#line 207 "src/main_window.zc"
 void__drawWinOverlay(self, canvas);
     }
 
-#line 211 "src/010-sokoban/src/main_window.zc"
+#line 211 "src/main_window.zc"
 if (self->state.allWon)     {
 
-#line 212 "src/010-sokoban/src/main_window.zc"
+#line 212 "src/main_window.zc"
 void__drawAllWinOverlay(self, canvas);
     }
     }
 }
 
-#line 103 "src/010-sokoban/src/main_window.zc"
+#line 103 "src/main_window.zc"
 
 void onUpdate(uint32_t dt)
 {
@@ -5993,84 +5993,84 @@ void onUpdate(uint32_t dt)
     }
 }
 
-#line 99 "src/010-sokoban/src/main_window.zc"
+#line 99 "src/main_window.zc"
 
 void onShutdown(void)
 {
     {
 
-#line 100 "src/010-sokoban/src/main_window.zc"
+#line 100 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "Sokoban 游戏关闭"); fprintf(stdout, "\n"); 0; });
     }
 }
 
-#line 95 "src/010-sokoban/src/main_window.zc"
+#line 95 "src/main_window.zc"
 
 void onInit(void)
 {
     {
 
-#line 96 "src/010-sokoban/src/main_window.zc"
+#line 96 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "Sokoban 游戏初始化"); fprintf(stdout, "\n"); 0; });
     }
 }
 
-#line 66 "src/010-sokoban/src/main_window.zc"
+#line 66 "src/main_window.zc"
 
 void create(str title, int32_t width, int32_t height, int32_t fps)
 {
     {
 
-#line 67 "src/010-sokoban/src/main_window.zc"
+#line 67 "src/main_window.zc"
 (self->width = width);
 
-#line 68 "src/010-sokoban/src/main_window.zc"
+#line 68 "src/main_window.zc"
 (self->height = height);
 
-#line 69 "src/010-sokoban/src/main_window.zc"
+#line 69 "src/main_window.zc"
 (self->targetFPS = fps);
 
-#line 70 "src/010-sokoban/src/main_window.zc"
+#line 70 "src/main_window.zc"
 (self->frameTime = (1000 / fps));
 
-#line 70 "src/010-sokoban/src/main_window.zc"
+#line 70 "src/main_window.zc"
 as;
 u32;
 
-#line 71 "src/010-sokoban/src/main_window.zc"
+#line 71 "src/main_window.zc"
 (self->state = GameState__Ready);
 
-#line 72 "src/010-sokoban/src/main_window.zc"
+#line 72 "src/main_window.zc"
 (self->score = 0);
 
-#line 73 "src/010-sokoban/src/main_window.zc"
+#line 73 "src/main_window.zc"
 (self->running = false);
 
-#line 76 "src/010-sokoban/src/main_window.zc"
+#line 76 "src/main_window.zc"
 (self->window = 
-#line 76 "src/010-sokoban/src/main_window.zc"
+#line 76 "src/main_window.zc"
 createWindow(title, width, height));
 
-#line 77 "src/010-sokoban/src/main_window.zc"
+#line 77 "src/main_window.zc"
 if ((self->window == nil))     {
 
-#line 78 "src/010-sokoban/src/main_window.zc"
+#line 78 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "错误: 无法创建窗口"); fprintf(stdout, "\n"); 0; });
 
-#line 79 "src/010-sokoban/src/main_window.zc"
+#line 79 "src/main_window.zc"
     return ;
     }
 
-#line 83 "src/010-sokoban/src/main_window.zc"
+#line 83 "src/main_window.zc"
 initGame((&self->state), 0);
 
-#line 86 "src/010-sokoban/src/main_window.zc"
+#line 86 "src/main_window.zc"
 setRandomSeed(getTickCount());
 
-#line 88 "src/010-sokoban/src/main_window.zc"
+#line 88 "src/main_window.zc"
 (self->state = GameState__Playing);
 
-#line 90 "src/010-sokoban/src/main_window.zc"
+#line 90 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "推箱子游戏创建成功: "); fprintf(stdout, "%s", title); fprintf(stdout, "\n"); 0; });
     }
 }

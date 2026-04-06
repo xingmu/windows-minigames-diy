@@ -308,7 +308,7 @@ class SokobanGame extends Game {
         canvas.drawText(panelX + 10, panelY + 50, 
                        "Level:", Color.RGB(150, 150, 150), Font("Arial", 14));
         canvas.drawText(panelX + 10, panelY + 75, 
-                       (self.state.currentLevel + 1).toString() ++ " / {MAX_LEVELS}", 
+                       "{self.state.currentLevel + 1} / {MAX_LEVELS}", 
                        TEXT_COLOR, Font("Arial", 24));
         
         // 步数
