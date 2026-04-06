@@ -97,15 +97,15 @@ class MinesweeperPlusGame extends Game {
     
     fn drawDigitalDisplay(self, canvas: Canvas, x: int, y: int, value: int) {
         // 七段数码管显示
-        var displayWidth = 60;
-        var displayHeight = 30;
+        let displayWidth = 60;
+        let displayHeight = 30;
         
         // 背景
         canvas.fillRect(x, y, displayWidth, displayHeight, Color.Black());
         canvas.drawRect(x, y, displayWidth, displayHeight, Color.RGB(64, 64, 64));
         
         // 显示数字
-        var text = "";
+        let text = "";
         if value < 0 {
             text = "-" ++ (-value).toString();
         } else {
@@ -113,13 +113,13 @@ class MinesweeperPlusGame extends Game {
         }
         
         // 简单文字显示
-        canvas.drawText(x + 5, y + 5, text, Color.Red(), Font.("Consolas", 18));
+        canvas.drawText(x + 5, y + 5, text, Color.Red(), Font("Consolas", 18));
     }
     
     fn drawResetButton(self, canvas: Canvas) {
-        var cx = self.resetButtonX;
-        var cy = self.resetButtonY;
-        var size = self.resetButtonSize;
+        let cx = self.resetButtonX;
+        let cy = self.resetButtonY;
+        let size = self.resetButtonSize;
         
         // 按钮背景
         canvas.fillRect(cx, cy, size, size, Color.RGB(192, 192, 192));
@@ -127,7 +127,7 @@ class MinesweeperPlusGame extends Game {
         canvas.drawRect(cx + 1, cy + 1, size - 2, size - 2, Color.Black());
         
         // 表情
-        var faceColor = Color.Black();
+        let faceColor = Color.Black();
         if self.board.gameOver {
             if self.board.victory {
                 // 胜利表情
@@ -139,14 +139,14 @@ class MinesweeperPlusGame extends Game {
         }
         
         // 眼睛
-        var eyeY = cy + size / 3;
-        var leftEyeX = cx + size / 3;
-        var rightEyeX = cx + 2 * size / 3;
+        let eyeY = cy + size / 3;
+        let leftEyeX = cx + size / 3;
+        let rightEyeX = cx + 2 * size / 3;
         canvas.fillCircle(leftEyeX, eyeY, 3, faceColor);
         canvas.fillCircle(rightEyeX, eyeY, 3, faceColor);
         
         // 嘴巴
-        var mouthY = cy + 2 * size / 3;
+        let mouthY = cy + 2 * size / 3;
         if self.board.victory {
             // 笑脸
             canvas.drawCircle(cx + size / 2, mouthY - 2, size / 4, faceColor);
@@ -168,31 +168,31 @@ class MinesweeperPlusGame extends Game {
     }
     
     fn drawCell(self, canvas: Canvas, row: int, col: int) {
-        var cell = self.board.getCell(row, col);
+        let cell = self.board.getCell(row, col);
         if cell == nil {
             return;
         }
         
-        var x = self.boardX + col * CELL_TOTAL;
-        var y = self.boardY + row * CELL_TOTAL;
+        let x = self.boardX + col * CELL_TOTAL;
+        let y = self.boardY + row * CELL_TOTAL;
         
         // 判断是否为按下状态
-        var isPressed = false;
+        let isPressed = false;
         if self.mouseDown && row == self.mouseDownRow && col == self.mouseDownCol {
             isPressed = true;
         }
         
         match cell.state {
-            CellState.Hidden => {
+            CellState::Hidden => {
                 self.drawHiddenCell(canvas, x, y, isPressed);
             }
-            CellState.Revealed => {
+            CellState::Revealed => {
                 self.drawRevealedCell(canvas, x, y, cell.adjacentMines);
             }
-            CellState.Flagged => {
+            CellState::Flagged => {
                 self.drawFlaggedCell(canvas, x, y, isPressed);
             }
-            CellState.Question => {
+            CellState::Question => {
                 self.drawQuestionCell(canvas, x, y, isPressed);
             }
         }
@@ -218,9 +218,9 @@ class MinesweeperPlusGame extends Game {
         
         // 绘制数字
         if adjacent > 0 {
-            var color = self.cellColors[adjacent];
-            var text = adjacent.toString();
-            canvas.drawText(x + 6, y + 4, text, color, Font.("Arial", 14));
+            let color = self.cellColors[adjacent];
+            let text = adjacent.toString();
+            canvas.drawText(x + 6, y + 4, text, color, Font("Arial", 14));
         }
     }
     
@@ -251,7 +251,7 @@ class MinesweeperPlusGame extends Game {
         }
         
         // 绘制问号
-        canvas.drawText(x + 6, y + 4, "?", Color.Blue(), Font.("Arial", 14));
+        canvas.drawText(x + 6, y + 4, "?", Color.Blue(), Font("Arial", 14));
     }
     
     fn drawFlag(self, canvas: Canvas, cx: int, cy: int, color: Color) {
@@ -274,30 +274,30 @@ class MinesweeperPlusGame extends Game {
         
         // 触须
         for i in 0..8 {
-            var angle = i * 45;
-            var rad = angle * 3.14159 / 180;
-            var x1 = cx + (6 * sin(rad)) as int;
-            var y1 = cy + (6 * cos(rad)) as int;
-            var x2 = cx + (10 * sin(rad)) as int;
-            var y2 = cy + (10 * cos(rad)) as int;
+            let angle = i * 45;
+            let rad = angle * 3.14159 / 180;
+            let x1 = cx + (6 * sin(rad)) as int;
+            let y1 = cy + (6 * cos(rad)) as int;
+            let x2 = cx + (10 * sin(rad)) as int;
+            let y2 = cy + (10 * cos(rad)) as int;
             canvas.drawLine(x1, y1, x2, y2, Color.Black());
         }
     }
     
     fn onKeyDown(self, key: VirtualKey) {
         match key {
-            VirtualKey.F2 => {
+            VirtualKey::F2 => {
                 self.newGame();
             }
-            VirtualKey.Key1 => {
+            VirtualKey::Key1 => {
                 self.currentDifficulty = Difficulty.Beginner;
                 self.newGame();
             }
-            VirtualKey.Key2 => {
+            VirtualKey::Key2 => {
                 self.currentDifficulty = Difficulty.Intermediate;
                 self.newGame();
             }
-            VirtualKey.Key3 => {
+            VirtualKey::Key3 => {
                 self.currentDifficulty = Difficulty.Advanced;
                 self.newGame();
             }
@@ -314,8 +314,8 @@ class MinesweeperPlusGame extends Game {
         }
         
         // 检查是否点击游戏板
-        var col = (x - self.boardX) / CELL_TOTAL;
-        var row = (y - self.boardY) / CELL_TOTAL;
+        let col = (x - self.boardX) / CELL_TOTAL;
+        let row = (y - self.boardY) / CELL_TOTAL;
         
         if !self.board.isValid(row, col) {
             return;
@@ -326,15 +326,15 @@ class MinesweeperPlusGame extends Game {
         }
         
         match button {
-            MouseButton.Left => {
+            MouseButton::Left => {
                 self.mouseDown = true;
                 self.mouseDownRow = row;
                 self.mouseDownCol = col;
             }
-            MouseButton.Right => {
+            MouseButton::Right => {
                 self.board.toggleFlag(row, col);
             }
-            MouseButton.Middle => {
+            MouseButton::Middle => {
                 self.board.chordReveal(row, col);
             }
             _ => {}
@@ -346,11 +346,11 @@ class MinesweeperPlusGame extends Game {
             return;
         }
         
-        var col = (x - self.boardX) / CELL_TOTAL;
-        var row = (y - self.boardY) / CELL_TOTAL;
+        let col = (x - self.boardX) / CELL_TOTAL;
+        let row = (y - self.boardY) / CELL_TOTAL;
         
         match button {
-            MouseButton.Left => {
+            MouseButton::Left => {
                 if self.board.isValid(row, col) && row == self.mouseDownRow && col == self.mouseDownCol {
                     self.board.reveal(row, col);
                 }
@@ -367,20 +367,20 @@ class MinesweeperPlusGame extends Game {
         }
         
         match self.currentDifficulty {
-            Difficulty.Beginner => {
-                self.board = MineBoard.(9, 9, 10);
+            Difficulty::Beginner => {
+                self.board = MineBoard(9, 9, 10);
             }
-            Difficulty.Intermediate => {
-                self.board = MineBoard.(16, 16, 40);
+            Difficulty::Intermediate => {
+                self.board = MineBoard(16, 16, 40);
             }
-            Difficulty.Advanced => {
-                self.board = MineBoard.(16, 30, 99);
+            Difficulty::Advanced => {
+                self.board = MineBoard(16, 30, 99);
             }
         }
         
         // 计算界面偏移
-        var boardWidth = self.board.cols * CELL_TOTAL;
-        var boardHeight = self.board.rows * CELL_TOTAL;
+        let boardWidth = self.board.cols * CELL_TOTAL;
+        let boardHeight = self.board.rows * CELL_TOTAL;
         
         self.boardX = (self.width - boardWidth) / 2;
         self.boardY = 60;
@@ -401,15 +401,15 @@ class MinesweeperPlusGame extends Game {
     fn resizeWindow() {
         // 根据难度调整窗口大小
         match self.currentDifficulty {
-            Difficulty.Beginner => {
+            Difficulty::Beginner => {
                 self.width = 280;
                 self.height = 340;
             }
-            Difficulty.Intermediate => {
+            Difficulty::Intermediate => {
                 self.width = 480;
                 self.height = 520;
             }
-            Difficulty.Advanced => {
+            Difficulty::Advanced => {
                 self.width = 800;
                 self.height = 560;
             }
@@ -419,16 +419,16 @@ class MinesweeperPlusGame extends Game {
 
 // 主函数 - 程序入口
 pub fn main() {
-    println("===========================================");
-    println("  Zen-C MinesweeperPlus 扫雷增强版");
-    println("  Zen-C 现代系统编程");
-    println("===========================================");
+    println "===========================================";
+    println "  Zen-C MinesweeperPlus 扫雷增强版";
+    println "  Zen-C 现代系统编程";
+    println "===========================================";
     
     // 初始化平台
     initPlatform();
     
     // 创建游戏实例
-    var game = MinesweeperPlusGame.("MinesweeperPlus 扫雷增强版", 280, 340, 60);
+    let game = MinesweeperPlusGame("MinesweeperPlus 扫雷增强版", 280, 340, 60);
     
     // 运行游戏
     game.run();
@@ -437,16 +437,16 @@ pub fn main() {
     game.destroy();
     shutdownPlatform();
     
-    println("游戏结束");
+    println "游戏结束";
 }
 
 // 数学函数
 fn sin(x: float) -> float {
     // 简化实现
-    var result = x;
-    var term = x;
+    let result = x;
+    let term = x;
     for i in 1..10 {
-        term = -term * x * x / ((2 * i) as float) / ((2 * i + 1) as float);
+        term = -term * x * x / (float)((2 * i)) / (float)((2 * i + 1));
         result = result + term;
     }
     return result;

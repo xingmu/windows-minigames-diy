@@ -1,28 +1,28 @@
 // game_logic.zc - 射击游戏核心逻辑
 // Shooting Gallery - 60秒限时射击游戏
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 800;
-const GAME_HEIGHT: i32 = 600;
-const GAME_DURATION: i32 = 60;
-const MAX_TARGETS: i32 = 8;
-const TARGET_SPAWN_INTERVAL: u32 = 1200;
-const TARGET_LIFETIME: u32 = 3500;
-const CROSSHAIR_SIZE: i32 = 20;
+def GAME_WIDTH: i32 = 800;
+def GAME_HEIGHT: i32 = 600;
+def GAME_DURATION: i32 = 60;
+def MAX_TARGETS: i32 = 8;
+def TARGET_SPAWN_INTERVAL: u32 = 1200;
+def TARGET_LIFETIME: u32 = 3500;
+def CROSSHAIR_SIZE: i32 = 20;
 
-const TARGET_TYPE_STANDING: i32 = 0;
-const TARGET_TYPE_MOVING: i32 = 1;
-const TARGET_TYPE_BONUS: i32 = 2;
+def TARGET_TYPE_STANDING: i32 = 0;
+def TARGET_TYPE_MOVING: i32 = 1;
+def TARGET_TYPE_BONUS: i32 = 2;
 
-const POINTS_STANDING: i32 = 10;
-const POINTS_MOVING: i32 = 20;
-const POINTS_BONUS: i32 = 50;
+def POINTS_STANDING: i32 = 10;
+def POINTS_MOVING: i32 = 20;
+def POINTS_BONUS: i32 = 50;
 
-const TARGET_WIDTH: i32 = 40;
-const TARGET_HEIGHT: i32 = 60;
+def TARGET_WIDTH: i32 = 40;
+def TARGET_HEIGHT: i32 = 60;
 
 // ==================== 数据结构 ====================
 
@@ -78,7 +78,7 @@ fn rgb(r: u8, g: u8, b: u8) -> Color {
 }
 
 fn color_to_u32(c: Color) -> u32 {
-    (c.r as u32) | ((c.g as u32) << 8) | ((c.b as u32) << 16)
+    (c.(u32)r) | ((c.(u32)g) << 8) | ((c.(u32)b) << 16)
 }
 
 // ==================== 初始化函数 ====================
@@ -122,7 +122,7 @@ fn reset_game(game: &mut ShootingGalleryState) {
 // ==================== 目标生成 ====================
 
 fn spawn_target(game: &mut ShootingGalleryState) {
-    var slot: i32 = -1;
+    let slot: i32 = -1;
     for i in 0..MAX_TARGETS {
         if !game.targets[i].alive {
             slot = i;
@@ -134,18 +134,18 @@ fn spawn_target(game: &mut ShootingGalleryState) {
         return;
     }
     
-    var r = math.rand() % 100;
-    var targetType = TARGET_TYPE_STANDING;
+    let r = math.rand() % 100;
+    let targetType = TARGET_TYPE_STANDING;
     if r >= 90 {
         targetType = TARGET_TYPE_BONUS;
     } else if r >= 70 {
         targetType = TARGET_TYPE_MOVING;
     }
     
-    var x = (math.rand() % (game.width - TARGET_WIDTH - 100)) as i32 + 50;
-    var y = (math.rand() % 280) as i32 + 200;
+    let x = (math.rand() % (game.width - TARGET_WIDTH - 100)) as i32 + 50;
+    let y = (math.rand() % 280) as i32 + 200;
     
-    var target = &mut game.targets[slot];
+    let target = &mut game.targets[slot];
     target.x = x;
     target.y = y;
     target.width = TARGET_WIDTH;
@@ -174,8 +174,8 @@ fn update_game(game: &mut ShootingGalleryState) -> bool {
         return false;
     }
     
-    var currentTime = get_tick_count();
-    var elapsed = (currentTime - game.lastUpdateTime) as i32;
+    let currentTime = get_tick_count();
+    let elapsed = (currentTime - game.lastUpdateTime) as i32;
     game.totalTime = game.totalTime + elapsed;
     game.lastUpdateTime = currentTime;
     
@@ -192,7 +192,7 @@ fn update_game(game: &mut ShootingGalleryState) -> bool {
     }
     
     for i in 0..MAX_TARGETS {
-        var target = &mut game.targets[i];
+        let target = &mut game.targets[i];
         
         if !target.alive {
             continue;
@@ -238,10 +238,10 @@ fn handle_shoot(game: &mut ShootingGalleryState, shootX: i32, shootY: i32) -> bo
         return false;
     }
     
-    var hit = false;
+    let hit = false;
     
     for i in 0..MAX_TARGETS {
-        var target = &mut game.targets[i];
+        let target = &mut game.targets[i];
         
         if !target.alive || target.hit {
             continue;
@@ -291,24 +291,24 @@ fn start_game(game: &mut ShootingGalleryState) {
 
 // ==================== 状态查询 ====================
 
-fn get_score(game: &ShootingGalleryState) -> i32 {
+fn get_score(game: ShootingGalleryState*) -> i32 {
     game.score
 }
 
-fn get_time_left(game: &ShootingGalleryState) -> i32 {
+fn get_time_left(game: ShootingGalleryState*) -> i32 {
     game.timeLeft
 }
 
-fn get_status(game: &ShootingGalleryState) -> GameStatus {
+fn get_status(game: ShootingGalleryState*) -> GameStatus {
     game.status
 }
 
-fn get_miss_count(game: &ShootingGalleryState) -> i32 {
+fn get_miss_count(game: ShootingGalleryState*) -> i32 {
     game.missCount
 }
 
-fn get_accuracy(game: &ShootingGalleryState) -> i32 {
-    var totalShots = game.score / POINTS_STANDING + game.missCount;
+fn get_accuracy(game: ShootingGalleryState*) -> i32 {
+    let totalShots = game.score / POINTS_STANDING + game.missCount;
     if totalShots == 0 {
         return 100;
     }

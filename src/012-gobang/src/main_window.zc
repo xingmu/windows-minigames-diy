@@ -1,6 +1,6 @@
 // main_window.zc - Zen-C Gobang 五子棋游戏主程序
 
-import std.io;
+import "io.zc";
 
 // 导入游戏逻辑
 import "platform_api.zc";
@@ -8,8 +8,8 @@ import "game_logic.zc";
 
 // ==================== 常量 ====================
 
-const WINDOW_WIDTH = 680;
-const WINDOW_HEIGHT = 700;
+def WINDOW_WIDTH = 680;
+def WINDOW_HEIGHT = 700;
 
 // 帧数据（全局状态）
 struct FrameData {
@@ -42,7 +42,7 @@ fn fb_shutdown() {
 
 fn fb_clear(color: u32) {
     if !fb_data.valid { return; }
-    var pixels = fb_data.buffer as u32 mut;
+    let pixels = fb_data.(u32)buffer mut;
     let count = (fb_data.pitch * fb_data.height) / 4;
     for i in 0..count {
         pixels[i] = color;
@@ -60,7 +60,7 @@ fn fb_draw_rect(x: int, y: int, w: int, h: int, color: u32) {
     if !fb_data.valid { return; }
     if x < 0 || y < 0 || w <= 0 || h <= 0 { return; }
 
-    var pixels = fb_data.buffer as u32 mut;
+    let pixels = fb_data.(u32)buffer mut;
     let pitch32 = fb_data.pitch / 4;
 
     for py in y..(y + h) {
@@ -75,25 +75,25 @@ fn fb_draw_rect(x: int, y: int, w: int, h: int, color: u32) {
 fn fb_draw_line(x1: int, y1: int, x2: int, y2: int, color: u32) {
     if !fb_data.valid { return; }
 
-    var dx = abs(x2 - x1);
-    var dy = abs(y2 - y1);
-    var sx = if x1 < x2 { 1 } else { -1 };
-    var sy = if y1 < y2 { 1 } else { -1 };
-    var err = dx - dy;
+    let dx = abs(x2 - x1);
+    let dy = abs(y2 - y1);
+    let sx = if x1 < x2 { 1 } else { -1 };
+    let sy = if y1 < y2 { 1 } else { -1 };
+    let err = dx - dy;
 
-    var x = x1;
-    var y = y1;
+    let x = x1;
+    let y = y1;
 
     loop {
         if x >= 0 && x < fb_data.width && y >= 0 && y < fb_data.height {
-            var pixels = fb_data.buffer as u32 mut;
+            let pixels = fb_data.(u32)buffer mut;
             let pitch32 = fb_data.pitch / 4;
             pixels[y * pitch32 + x] = color;
         }
 
         if x == x2 && y == y2 { break; }
 
-        var e2 = 2 * err;
+        let e2 = 2 * err;
         if e2 > -dy {
             err = err - dy;
             x = x + sx;
@@ -109,9 +109,9 @@ fn fb_draw_circle(cx: int, cy: int, radius: int, color: u32) {
     if !fb_data.valid { return; }
     if radius <= 0 { return; }
 
-    var d = 3 - 2 * radius;
-    var x = 0;
-    var y = radius;
+    let d = 3 - 2 * radius;
+    let x = 0;
+    let y = radius;
 
     loop {
         // 八分圆
@@ -125,7 +125,7 @@ fn fb_draw_circle(cx: int, cy: int, radius: int, color: u32) {
         for p in pts {
             let (px, py) = p;
             if px >= 0 && px < fb_data.width && py >= 0 && py < fb_data.height {
-                var pixels = fb_data.buffer as u32 mut;
+                let pixels = fb_data.(u32)buffer mut;
                 let pitch32 = fb_data.pitch / 4;
                 pixels[py * pitch32 + px] = color;
             }
@@ -147,7 +147,7 @@ fn fb_fill_circle(cx: int, cy: int, radius: int, color: u32) {
     if !fb_data.valid { return; }
     if radius <= 0 { return; }
 
-    var pixels = fb_data.buffer as u32 mut;
+    let pixels = fb_data.(u32)buffer mut;
     let pitch32 = fb_data.pitch / 4;
 
     for py in (-radius)..(radius + 1) {
@@ -170,8 +170,8 @@ fn fb_draw_text_size(x: int, y: int, text: str, color: u32, size: int) {
     let charW = size * 3 / 4;
     let charH = size;
 
-    var px = x;
-    var py = y;
+    let px = x;
+    let py = y;
 
     for i in 0..len(text) {
         if text[i] == '\n' {
@@ -185,7 +185,7 @@ fn fb_draw_text_size(x: int, y: int, text: str, color: u32, size: int) {
         // 这里用点阵字模替代
 
         let ch = text[i];
-        if ch >= 32 as u8 && ch <= 126 as u8 {
+        if ch >= (u8)32 && ch <= (u8)126 {
             // 绘制一个简化的字符背景
             // 使用小圆点组成字符轮廓
             fb_draw_rect(px, py, charW, charH / 8, color);
@@ -218,9 +218,9 @@ fn fb_draw_rounded_rect(x: int, y: int, w: int, h: int, radius: int, color: u32)
 
 // ==================== 棋盘绘制 ====================
 
-const BOARD_BG = rgb(220, 179, 133);
-const GRID_COLOR = rgb(0, 0, 0);
-const GRID_THICK = 1;
+def BOARD_BG = rgb(220, 179, 133);
+def GRID_COLOR = rgb(0, 0, 0);
+def GRID_THICK = 1;
 
 // 绘制棋盘背景（木纹色）
 fn draw_board_bg() {
@@ -291,7 +291,7 @@ fn draw_piece(row: int, col: int, player: int, isLast: bool) {
 }
 
 // 绘制获胜连线
-fn draw_win_line(info: &WinInfo) {
+fn draw_win_line(info: WinInfo*) {
     if !info.hasWin { return; }
 
     let (x1, y1) = (BOARD_OFFSET_X + info.startCol * CELL_SIZE, BOARD_OFFSET_Y + info.startRow * CELL_SIZE);
@@ -301,7 +301,7 @@ fn draw_win_line(info: &WinInfo) {
 }
 
 // 绘制整个棋盘
-fn draw_board(state: &GobangState) {
+fn draw_board(state: GobangState*) {
     draw_board_bg();
     draw_grid_lines();
     draw_star_points();
@@ -388,11 +388,11 @@ fn on_paint(w: i32, h: i32) {
 
 fn on_key(key: KeyCode) -> bool {
     match key {
-        KeyCode.Escape => {
+        KeyCode::Escape => {
             running = false;
             return false;
         },
-        KeyCode.KeyR => {
+        KeyCode::KeyR => {
             restart_game(&mut game);
             return true;
         },
@@ -426,9 +426,9 @@ fn on_destroy() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C Gobang 五子棋游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C Gobang 五子棋游戏";
+    io.println "========================================";
 
     // 初始化游戏
     init_game(&mut game);
@@ -438,7 +438,7 @@ fn main() -> i32 {
     window = create_window(title, WINDOW_WIDTH, WINDOW_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
@@ -459,12 +459,12 @@ fn main() -> i32 {
     // 显示窗口
     show_window(window);
 
-    io.println("窗口创建成功!");
-    io.println("游戏规则:");
-    io.println("  - 黑棋先手，点击棋盘交叉点落子");
-    io.println("  - 横、竖、斜任意方向连成五子获胜");
-    io.println("  - 按 R 重新开始，ESC 退出");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "游戏规则:";
+    io.println "  - 黑棋先手，点击棋盘交叉点落子";
+    io.println "  - 横、竖、斜任意方向连成五子获胜";
+    io.println "  - 按 R 重新开始，ESC 退出";
+    io.println "========================================";
 
     // 初始绘制
     redraw_window(window);
@@ -472,8 +472,8 @@ fn main() -> i32 {
     // 运行事件循环
     run_event_loop(window);
 
-    io.println("游戏结束!");
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println "========================================";
 
     0
 }

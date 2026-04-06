@@ -1,26 +1,26 @@
 // game_logic.zc - Zen-C Match3（消消乐）游戏核心逻辑
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 480;
-const GAME_HEIGHT: i32 = 640;
-const GRID_COLS: i32 = 8;
-const GRID_ROWS: i32 = 10;
-const CELL_SIZE: i32 = 44;
-const GRID_OFFSET_X: i32 = 16;
-const GRID_OFFSET_Y: i32 = 80;
-const BALL_RADIUS: i32 = 16;
-const BALL_SPEED: i32 = 10;
-const SHOOTER_Y: i32 = GAME_HEIGHT - 60;
-const INITIAL_TIME: i32 = 120;  // 2分钟
-const POINTS_PER_BLOCK: i32 = 10;
-const COMBO_BONUS: i32 = 5;
+def GAME_WIDTH: i32 = 480;
+def GAME_HEIGHT: i32 = 640;
+def GRID_COLS: i32 = 8;
+def GRID_ROWS: i32 = 10;
+def CELL_SIZE: i32 = 44;
+def GRID_OFFSET_X: i32 = 16;
+def GRID_OFFSET_Y: i32 = 80;
+def BALL_RADIUS: i32 = 16;
+def BALL_SPEED: i32 = 10;
+def SHOOTER_Y: i32 = GAME_HEIGHT - 60;
+def INITIAL_TIME: i32 = 120;  // 2分钟
+def POINTS_PER_BLOCK: i32 = 10;
+def COMBO_BONUS: i32 = 5;
 
 // ==================== 颜色定义 ====================
 
-const BLOCK_COLORS: [6]Color = [
+def BLOCK_COLORS: [Color; 6] = [
     Color { r: 255, g: 89, b: 94 },   // 红色
     Color { r: 255, g: 202, b: 58 },  // 黄色
     Color { r: 76, g: 201, b: 131 },  // 绿色
@@ -179,7 +179,7 @@ fn shoot_ball(game: &mut Match3State, target_x: i32, target_y: i32) {
     if game.status != GameStatus.Playing { return; }
     
     // 只允许向上发射
-    if target_y >= game.ball.y as i32 { return; }
+    if target_y >= game.ball.(i32)y { return; }
     
     calculate_velocity(game, target_x, target_y);
     game.ball.active = true;
@@ -208,8 +208,8 @@ fn update_game(game: &mut Match3State) -> bool {
         
         // 顶部碰撞 - 嵌入网格
         if game.ball.y - BALL_RADIUS as f32 <= (GRID_OFFSET_Y + GRID_ROWS * CELL_SIZE) as f32 {
-            let col = ((game.ball.x as i32 - GRID_OFFSET_X) / CELL_SIZE);
-            let row = ((game.ball.y as i32 - GRID_OFFSET_Y) / CELL_SIZE);
+            let col = ((game.ball.(i32)x - GRID_OFFSET_X) / CELL_SIZE);
+            let row = ((game.ball.(i32)y - GRID_OFFSET_Y) / CELL_SIZE);
             
             // 找到球接触的最近的格子
             if col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS {
@@ -248,7 +248,7 @@ fn update_game(game: &mut Match3State) -> bool {
 
 // 查找并移除匹配
 fn find_and_remove_matches(game: &mut Match3State) -> i32 {
-    var matched: [GRID_ROWS][GRID_COLS]bool;
+    let matched: [GRID_ROWS][GRID_COLS]bool;
     for row in 0..GRID_ROWS {
         for col in 0..GRID_COLS {
             matched[row][col] = false;
@@ -257,12 +257,12 @@ fn find_and_remove_matches(game: &mut Match3State) -> i32 {
     
     // 水平匹配
     for row in 0..GRID_ROWS {
-        var col = 0;
+        let col = 0;
         while col < GRID_COLS - 2 {
             let ci = game.grid[row][col].color_index;
             if ci == -1 { col = col + 1; continue; }
             
-            var count = 1;
+            let count = 1;
             while col + count < GRID_COLS && game.grid[row][col+count].color_index == ci {
                 count = count + 1;
             }
@@ -278,12 +278,12 @@ fn find_and_remove_matches(game: &mut Match3State) -> i32 {
     
     // 垂直匹配
     for col in 0..GRID_COLS {
-        var row = 0;
+        let row = 0;
         while row < GRID_ROWS - 2 {
             let ci = game.grid[row][col].color_index;
             if ci == -1 { row = row + 1; continue; }
             
-            var count = 1;
+            let count = 1;
             while row + count < GRID_ROWS && game.grid[row+count][col].color_index == ci {
                 count = count + 1;
             }
@@ -298,7 +298,7 @@ fn find_and_remove_matches(game: &mut Match3State) -> i32 {
     }
     
     // 统计匹配数量并清除
-    var total_matched = 0;
+    let total_matched = 0;
     for row in 0..GRID_ROWS {
         for col in 0..GRID_COLS {
             if matched[row][col] {
@@ -321,8 +321,8 @@ fn apply_gravity(game: &mut Match3State) {
     // 从底部向顶部处理
     for col in 0..GRID_COLS {
         // 收集非空块
-        var temp: [GRID_ROWS]i32;
-        var temp_count = 0;
+        let temp: [GRID_ROWS]i32;
+        let temp_count = 0;
         
         for row in 0..GRID_ROWS {
             if game.grid[row][col].color_index != -1 {
@@ -332,7 +332,7 @@ fn apply_gravity(game: &mut Match3State) {
         }
         
         // 从底部填充
-        var write_row = GRID_ROWS - 1;
+        let write_row = GRID_ROWS - 1;
         for i in 0..temp_count {
             game.grid[write_row][col].color_index = temp[temp_count - 1 - i];
             write_row = write_row - 1;
@@ -348,13 +348,13 @@ fn apply_gravity(game: &mut Match3State) {
 // 处理键盘输入
 fn handle_input(game: &mut Match3State, key: KeyCode) -> bool {
     match key {
-        KeyCode.KeySpace => {
+        KeyCode::KeySpace => {
             if game.status == GameStatus.Ready || game.status == GameStatus.GameOver {
                 init_game(game);
                 game.status = GameStatus.Playing;
             }
         },
-        KeyCode.KeyEscape => {
+        KeyCode::KeyEscape => {
             return false;
         },
         _ => {}
@@ -391,17 +391,17 @@ fn tick_timer(game: &mut Match3State) -> bool {
 }
 
 // 检查游戏是否结束（时间到）
-fn is_game_over(game: &Match3State) -> bool {
+fn is_game_over(game: Match*3State) -> bool {
     game.status == GameStatus.GameOver
 }
 
 // 获取状态文本
-fn get_status_text(game: &Match3State) -> string {
+fn get_status_text(game: Match*3State) -> string {
     match game.status {
-        GameStatus.Ready => return "点击开始游戏",
-        GameStatus.Playing => return "游戏中...",
-        GameStatus.Paused => return "游戏暂停",
-        GameStatus.GameOver => return "时间到! 游戏结束",
+        GameStatus::Ready => return "点击开始游戏",
+        GameStatus::Playing => return "游戏中...",
+        GameStatus::Paused => return "游戏暂停",
+        GameStatus::GameOver => return "时间到! 游戏结束",
     }
 }
 

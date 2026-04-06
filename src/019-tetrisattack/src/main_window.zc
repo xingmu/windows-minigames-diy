@@ -1,6 +1,6 @@
 // main_window.zc - Zen-C TetrisAttack 俄罗斯方块消消乐主程序
 
-import std.io;
+import "io.zc";
 
 // 导入游戏逻辑
 import "platform_api.zc";
@@ -8,9 +8,9 @@ import "game_logic.zc";
 
 // ==================== 常量 ====================
 
-const WINDOW_WIDTH = 420;
-const WINDOW_HEIGHT = 600;
-const TIMER_INTERVAL = 1000;  // 1秒
+def WINDOW_WIDTH = 420;
+def WINDOW_HEIGHT = 600;
+def TIMER_INTERVAL = 1000;  // 1秒
 
 // ==================== 全局变量 ====================
 
@@ -68,7 +68,7 @@ fn add_color(color: u32, amount: i32) -> u32 {
     g = min(255, g + amount);
     b = min(255, b + amount);
     
-    return 0xFF000000 as u32 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+    return (u32)0xFF000000 | (((u32)r) << 16) | (((u32)g) << 8) | ((u32)b);
 }
 
 // 颜色变暗
@@ -81,7 +81,7 @@ fn sub_color(color: u32, amount: i32) -> u32 {
     g = max(0, g - amount);
     b = max(0, b - amount);
     
-    return 0xFF000000 as u32 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+    return (u32)0xFF000000 | (((u32)r) << 16) | (((u32)g) << 8) | ((u32)b);
 }
 
 fn min(a: i32, b: i32) -> i32 { return if a < b { a } else { b }; }
@@ -104,7 +104,7 @@ fn on_paint(w: i32, h: i32) {
     fb_draw_text_size(15, 15, scoreText, rgb(255, 255, 255), 20);
     
     // 绘制时间
-    let timeText = "时间: " ++ get_time_text(&game);
+    let timeText = "时间: {get_time_text}"(&game);
     fb_draw_text_size(WINDOW_WIDTH - 130, 15, timeText, rgb(255, 255, 255), 20);
     
     // 绘制游戏网格背景
@@ -163,7 +163,7 @@ fn on_paint(w: i32, h: i32) {
         let msg = if game.gameWon { "恭喜通关！" } else { "时间到！" };
         fb_draw_text_size(WINDOW_WIDTH/2 - 60, WINDOW_HEIGHT/2 - 35, msg, rgb(255, 255, 0), 24);
         
-        let finalScore = "得分: " ++ game.score.toString();
+        let finalScore = "得分: {game}".score.toString();
         fb_draw_text_size(WINDOW_WIDTH/2 - 55, WINDOW_HEIGHT/2, finalScore, rgb(255, 255, 255), 20);
         fb_draw_text_size(WINDOW_WIDTH/2 - 70, WINDOW_HEIGHT/2 + 25, "按 R 重新开始", rgb(200, 200, 200), 16);
     }
@@ -174,16 +174,16 @@ fn on_paint(w: i32, h: i32) {
 
 fn on_key(key: KeyCode) -> bool {
     match key {
-        KeyCode.Escape => {
+        KeyCode::Escape => {
             running = false;
             return false;
         },
-        KeyCode.KeyR => {
+        KeyCode::KeyR => {
             restart_game(&mut game);
             fallingTimer = getTickCount();
             return true;
         },
-        KeyCode.Left => {
+        KeyCode::Left => {
             if !game.gameOver {
                 if game.falling.active {
                     move_falling_horizontal(&mut game, -1);
@@ -194,7 +194,7 @@ fn on_key(key: KeyCode) -> bool {
             }
             return true;
         },
-        KeyCode.Right => {
+        KeyCode::Right => {
             if !game.gameOver {
                 if game.falling.active {
                     move_falling_horizontal(&mut game, 1);
@@ -205,20 +205,20 @@ fn on_key(key: KeyCode) -> bool {
             }
             return true;
         },
-        KeyCode.Up => {
+        KeyCode::Up => {
             if !game.gameOver && game.falling.active {
                 swap_falling_blocks(&mut game);
             }
             return true;
         },
-        KeyCode.Down => {
+        KeyCode::Down => {
             if !game.gameOver {
                 if game.falling.active {
                     // 快速下落
                     if move_falling_down(&mut game) {
                         // 方块已放置，应用重力并检查消除
                         apply_gravity(&mut game);
-                        var cleared = check_and_clear_matches(&mut game);
+                        let cleared = check_and_clear_matches(&mut game);
                         // 如果消除了方块，继续应用重力
                         while cleared > 0 {
                             apply_gravity(&mut game);
@@ -234,7 +234,7 @@ fn on_key(key: KeyCode) -> bool {
             }
             return true;
         },
-        KeyCode.Space => {
+        KeyCode::Space => {
             if !game.gameOver && !game.falling.active {
                 // 将光标位置的方块上移（换位置）
                 // 简化处理：只是提示
@@ -270,13 +270,13 @@ fn on_update() {
     
     // 处理下落方块的自动下落
     if game.falling.active {
-        if currentTime - fallingTimer > game.fallingSpeed as u32 {
+        if currentTime - fallingTimer > game.(u32)fallingSpeed {
             fallingTimer = currentTime;
             
             if move_falling_down(&mut game) {
                 // 方块已放置，应用重力并检查消除
                 apply_gravity(&mut game);
-                var cleared = check_and_clear_matches(&mut game);
+                let cleared = check_and_clear_matches(&mut game);
                 // 如果消除了方块，继续应用重力
                 while cleared > 0 {
                     apply_gravity(&mut game);
@@ -313,9 +313,9 @@ fn on_destroy() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C TetrisAttack 俄罗斯方块消消乐");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C TetrisAttack 俄罗斯方块消消乐";
+    io.println "========================================";
 
     // 初始化游戏状态
     init_game(&mut game);
@@ -325,7 +325,7 @@ fn main() -> i32 {
     window = create_window(title, WINDOW_WIDTH, WINDOW_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
@@ -351,16 +351,16 @@ fn main() -> i32 {
     // 设置游戏定时器
     set_game_timer(window, TIMER_INTERVAL);
 
-    io.println("窗口创建成功!");
-    io.println("游戏规则:");
-    io.println("  - 两个方块一起下落");
-    io.println("  - 相同颜色3个以上相连可消除");
-    io.println("  - 使用方向键控制：");
-    io.println("    ← → 移动方块");
-    io.println("    ↑ 交换两个方块颜色");
-    io.println("    ↓ 快速下落");
-    io.println("  - 限时 3 分钟，尽量获得高分!");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "游戏规则:";
+    io.println "  - 两个方块一起下落";
+    io.println "  - 相同颜色3个以上相连可消除";
+    io.println "  - 使用方向键控制：";
+    io.println "    ← → 移动方块";
+    io.println "    ↑ 交换两个方块颜色";
+    io.println "    ↓ 快速下落";
+    io.println "  - 限时 3 分钟，尽量获得高分!";
+    io.println "========================================";
     
     fallingTimer = getTickCount();
 
@@ -370,9 +370,9 @@ fn main() -> i32 {
     // 运行事件循环
     run_event_loop(window);
 
-    io.println("游戏结束!");
-    io.println("最终得分: " ++ game.score.toString());
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println("最终得分: {game}".score.toString());
+    io.println "========================================";
 
     0
 }

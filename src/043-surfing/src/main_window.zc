@@ -1,8 +1,8 @@
 // main_window.zc - Zen-C Surfing（冲浪）游戏主程序
 // 窗体版本 - 在海浪上保持平衡，收集分数
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 
 // 导入游戏逻辑和平台API
 import "game_logic.zc";
@@ -17,12 +17,12 @@ static mut running: bool = true;
 // ==================== 图形绘制函数 ====================
 
 // 在画布上绘制像素（用于调试）
-fn draw_pixel_at(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_pixel_at(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.setPixel(x, y, color);
 }
 
 // 绘制实心椭圆
-fn draw_filled_ellipse(canvas: &Canvas, cx: i32, cy: i32, rx: i32, ry: i32, color: Color) {
+fn draw_filled_ellipse(canvas: Canvas*, cx: i32, cy: i32, rx: i32, ry: i32, color: Color) {
     for py in (-ry)..(ry + 1) {
         for px in (-rx)..(rx + 1) {
             let val = (px * px) as f64 / (rx * rx) as f64 + (py * py) as f64 / (ry * ry) as f64;
@@ -34,7 +34,7 @@ fn draw_filled_ellipse(canvas: &Canvas, cx: i32, cy: i32, rx: i32, ry: i32, colo
 }
 
 // 绘制波浪
-fn draw_wave(canvas: &Canvas, wave_offset: i32, base_y: i32) {
+fn draw_wave(canvas: Canvas*, wave_offset: i32, base_y: i32) {
     let prev_y = 0;
     let sky_bottom = base_y - 50;
 
@@ -68,7 +68,7 @@ fn draw_wave(canvas: &Canvas, wave_offset: i32, base_y: i32) {
 }
 
 // 绘制冲浪者和冲浪板
-fn draw_surfer(canvas: &Canvas, surfer: &Surfer, wave_offset: i32, base_y: i32) {
+fn draw_surfer(canvas: Canvas*, surfer: Surfer*, wave_offset: i32, base_y: i32) {
     let cx = surfer.x + SURFER_WIDTH / 2;
     let cy = surfer.y + SURFER_HEIGHT / 2;
 
@@ -110,9 +110,9 @@ fn draw_surfer(canvas: &Canvas, surfer: &Surfer, wave_offset: i32, base_y: i32) 
 }
 
 // 绘制星星（收集物）
-fn draw_star(canvas: &Canvas, cx: i32, cy: i32, radius: i32, color: Color) {
+fn draw_star(canvas: Canvas*, cx: i32, cy: i32, radius: i32, color: Color) {
     // 绘制5角星
-    let points: [10]i32 = [
+    let points: [i32; 10] = [
         0, -radius,                                    // 上
         cx + radius / 4, -radius / 3,                  // 右上内
         cx + radius, -radius / 3,                       // 右上
@@ -131,14 +131,14 @@ fn draw_star(canvas: &Canvas, cx: i32, cy: i32, radius: i32, color: Color) {
 }
 
 // 绘制贝壳（收集物）
-fn draw_shell(canvas: &Canvas, cx: i32, cy: i32, radius: i32, color: Color) {
+fn draw_shell(canvas: Canvas*, cx: i32, cy: i32, radius: i32, color: Color) {
     // 绘制贝壳形状（半椭圆）
     draw_filled_ellipse(canvas, cx, cy, radius, radius * 2 / 3, color);
     canvas.drawLine(cx - radius, cy, cx + radius, cy, Color.RGB(200, 150, 100));
 }
 
 // 绘制收集物品
-fn draw_collectibles(canvas: &Canvas, collectibles: &[COLLECTIBLE_COUNT]Collectible) {
+fn draw_collectibles(canvas: Canvas*, collectibles: &[COLLECTIBLE_COUNT]Collectible) {
     for i in 0..COLLECTIBLE_COUNT {
         if collectibles[i].active {
             let cx = collectibles[i].x;
@@ -153,7 +153,7 @@ fn draw_collectibles(canvas: &Canvas, collectibles: &[COLLECTIBLE_COUNT]Collecti
 }
 
 // 绘制云朵
-fn draw_cloud(canvas: &Canvas, cloud: &Cloud) {
+fn draw_cloud(canvas: Canvas*, cloud: Cloud*) {
     let x = cloud.x;
     let y = cloud.y;
     let w = cloud.width;
@@ -166,7 +166,7 @@ fn draw_cloud(canvas: &Canvas, cloud: &Cloud) {
 }
 
 // 绘制平衡条
-fn draw_balance_bar(canvas: &Canvas, x: i32, y: i32, balance: i32) {
+fn draw_balance_bar(canvas: Canvas*, x: i32, y: i32, balance: i32) {
     let bar_width = 200;
     let bar_height = 20;
 
@@ -183,7 +183,7 @@ fn draw_balance_bar(canvas: &Canvas, x: i32, y: i32, balance: i32) {
 }
 
 // 绘制分数UI
-fn draw_ui(canvas: &Canvas, score: i32, lives: i32, level: i32, balance: i32) {
+fn draw_ui(canvas: Canvas*, score: i32, lives: i32, level: i32, balance: i32) {
     // 顶部信息栏背景
     canvas.fillRect(0, 0, GAME_WIDTH, 45, Color.RGB(0, 50, 80));
 
@@ -219,7 +219,7 @@ fn draw_ui(canvas: &Canvas, score: i32, lives: i32, level: i32, balance: i32) {
 }
 
 // 绘制心形
-fn draw_heart(canvas: &Canvas, cx: i32, cy: i32, size: i32) {
+fn draw_heart(canvas: Canvas*, cx: i32, cy: i32, size: i32) {
     let color = COLOR_DANGER;
     // 心形由两个圆和一个三角形组成，简化为画圆
     canvas.fillCircle(cx, cy, size, color);
@@ -228,8 +228,8 @@ fn draw_heart(canvas: &Canvas, cx: i32, cy: i32, size: i32) {
 }
 
 // 绘制数字（简化版）
-fn draw_number(canvas: &Canvas, x: i32, y: i32, num: i32) {
-    let digits: [6]i32 = [0; 6];
+fn draw_number(canvas: Canvas*, x: i32, y: i32, num: i32) {
+    let digits: [i32; 6] = [0; 6];
     let temp = num;
     let digit_count = 0;
 
@@ -252,7 +252,7 @@ fn draw_number(canvas: &Canvas, x: i32, y: i32, num: i32) {
 }
 
 // 绘制单个数字
-fn draw_digit(canvas: &Canvas, x: i32, y: i32, digit: i32) {
+fn draw_digit(canvas: Canvas*, x: i32, y: i32, digit: i32) {
     let color = COLOR_UI_TEXT;
     // 简化的7段数码管风格
     // 每个数字用矩形方块表示
@@ -322,7 +322,7 @@ fn draw_digit(canvas: &Canvas, x: i32, y: i32, digit: i32) {
 }
 
 // 绘制开始界面
-fn draw_ready_screen(canvas: &Canvas) {
+fn draw_ready_screen(canvas: Canvas*) {
     // 标题
     let title_x = GAME_WIDTH / 2 - 100;
     let title_y = GAME_HEIGHT / 2 - 100;
@@ -348,7 +348,7 @@ fn draw_ready_screen(canvas: &Canvas) {
 }
 
 // 绘制游戏结束界面
-fn draw_game_over_screen(canvas: &Canvas, score: i32, high_score: i32, reason: str) {
+fn draw_game_over_screen(canvas: Canvas*, score: i32, high_score: i32, reason: str) {
     // 半透明覆盖
     canvas.fillRect(0, GAME_HEIGHT / 2 - 100, GAME_WIDTH, 200, Color.RGB(0, 0, 0));
 
@@ -372,7 +372,7 @@ fn draw_game_over_screen(canvas: &Canvas, score: i32, high_score: i32, reason: s
 }
 
 // 绘制暂停界面
-fn draw_paused_screen(canvas: &Canvas) {
+fn draw_paused_screen(canvas: Canvas*) {
     canvas.fillRect(0, GAME_HEIGHT / 2 - 40, GAME_WIDTH, 80, Color.RGB(0, 50, 80));
     canvas.drawRect(GAME_WIDTH / 2 - 80, GAME_HEIGHT / 2 - 30, 160, 60, COLOR_UI_TEXT);
     canvas.fillRect(GAME_WIDTH / 2 - 60, GAME_HEIGHT / 2 - 10, 120, 20, COLOR_UI_TEXT);
@@ -393,7 +393,7 @@ fn on_key_up(key_code: i32) {
 // ==================== 主渲染函数 ====================
 
 // 渲染游戏画面
-fn render_game(canvas: &Canvas) {
+fn render_game(canvas: Canvas*) {
     let wave_base_y = GAME_HEIGHT / 2 + 20;
 
     // 绘制天空渐变
@@ -427,13 +427,13 @@ fn render_game(canvas: &Canvas) {
 
     // 根据游戏状态绘制覆盖层
     match get_game_status(&game) {
-        GameStatus.Ready => {
+        GameStatus::Ready => {
             draw_ready_screen(canvas);
         },
-        GameStatus.Paused => {
+        GameStatus::Paused => {
             draw_paused_screen(canvas);
         },
-        GameStatus.GameOver => {
+        GameStatus::GameOver => {
             draw_game_over_screen(canvas, get_score(&game), get_high_score(&game), get_game_over_reason(&game));
         },
         _ => {}
@@ -443,10 +443,10 @@ fn render_game(canvas: &Canvas) {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C Surfing Game - 冲浪游戏");
-    io.println("在海浪上保持平衡，收集星星!");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C Surfing Game - 冲浪游戏";
+    io.println "在海浪上保持平衡，收集星星!";
+    io.println "========================================";
 
     // 初始化游戏
     game = SurfingState {
@@ -479,15 +479,15 @@ fn main() -> i32 {
     window = createWindow(title, GAME_WIDTH, GAME_HEIGHT);
 
     if window == nil {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
-    io.println("窗口创建成功!");
-    io.println("控制: A/D 或 ←/→ 倾斜平衡, W/S 调整速度");
-    io.println("按 空格键/回车键 开始游戏");
-    io.println("按 ESC 退出");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "控制: A/D 或 ←/→ 倾斜平衡, W/S 调整速度";
+    io.println "按 空格键/回车键 开始游戏";
+    io.println "按 ESC 退出";
+    io.println "========================================";
 
     // 主循环（使用poll模式）
     running = true;
@@ -495,26 +495,26 @@ fn main() -> i32 {
     let update_interval: u32 = 16; // ~60 FPS
 
     while running {
-        var event = Event.{ msg: MessageType.None, mouse: MouseEvent.{ x: 0, y: 0, button: MouseButton.None }, key: KeyEvent.{ key: VirtualKey.None, pressed: false }, width: GAME_WIDTH, height: GAME_HEIGHT };
+        let event = Event { msg: MessageType.None, mouse: MouseEvent { x: 0, y: 0, button: MouseButton.None }, key: KeyEvent { key: VirtualKey.None, pressed: false }, width: GAME_WIDTH, height: GAME_HEIGHT };
 
         // 处理事件
         while pollEvent(window, &event) {
             match event.msg {
-                MessageType.Quit => {
+                MessageType::Quit => {
                     running = false;
                 },
-                MessageType.KeyDown => {
+                MessageType::KeyDown => {
                     if event.key.key == VirtualKey.Escape {
                         running = false;
                     } else {
-                        let handled = on_key_down(event.key.key as i32);
+                        let handled = on_key_down(event.key.(i32)key);
                         if !handled {
                             running = false;
                         }
                     }
                 },
-                MessageType.KeyUp => {
-                    on_key_up(event.key.key as i32);
+                MessageType::KeyUp => {
+                    on_key_up(event.key.(i32)key);
                 },
                 _ => {}
             }
@@ -540,9 +540,9 @@ fn main() -> i32 {
         }
     }
 
-    io.println("游戏退出!");
+    io.println "游戏退出!";
     io.println("最终分数: {}", get_score(&game));
-    io.println("========================================");
+    io.println "========================================";
 
     closeWindow(window);
     0

@@ -1,33 +1,33 @@
 // game_logic.zc - BoatRace游戏逻辑
 // 047-BoatRace 赛船游戏
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const WINDOW_WIDTH: int = 800;
-const WINDOW_HEIGHT: int = 600;
+def WINDOW_WIDTH: int = 800;
+def WINDOW_HEIGHT: int = 600;
 
-const TRACK_LEFT: int = 50;
-const TRACK_RIGHT: int = 750;
-const TRACK_TOP: int = 80;
-const TRACK_BOTTOM: int = 550;
+def TRACK_LEFT: int = 50;
+def TRACK_RIGHT: int = 750;
+def TRACK_TOP: int = 80;
+def TRACK_BOTTOM: int = 550;
 
-const BOAT_WIDTH: int = 40;
-const BOAT_HEIGHT: int = 20;
+def BOAT_WIDTH: int = 40;
+def BOAT_HEIGHT: int = 20;
 
-const INITIAL_SPEED: float = 2.0;
-const MAX_SPEED: float = 8.0;
-const ACCELERATION: float = 0.15;
-const DECELERATION: float = 0.05;
-const TURN_SPEED: float = 4.0;
-const DRIFT_FACTOR: float = 0.92;
+def INITIAL_SPEED: float = 2.0;
+def MAX_SPEED: float = 8.0;
+def ACCELERATION: float = 0.15;
+def DECELERATION: float = 0.05;
+def TURN_SPEED: float = 4.0;
+def DRIFT_FACTOR: float = 0.92;
 
-const BUOY_COUNT: int = 15;
-const BUOY_RADIUS: int = 12;
+def BUOY_COUNT: int = 15;
+def BUOY_RADIUS: int = 12;
 
-const LAP_COUNT: int = 3;
-const CHECKPOINT_COUNT: int = 4;
+def LAP_COUNT: int = 3;
+def CHECKPOINT_COUNT: int = 4;
 
 // ==================== 数据结构 ====================
 
@@ -91,7 +91,7 @@ pub class BoatRaceGame extends Game {
     lapCount: int;
     
     // 波浪效果
-    waves: [50]Wave;
+    waves: [Wave; 50];
     waveCount: int;
     
     // 赛道相关
@@ -108,7 +108,7 @@ pub class BoatRaceGame extends Game {
     waterColor: Color;
     trackColor: Color;
     boatColor: Color;
-    buoyColors: [4]Color;
+    buoyColors: [Color; 4];
     
     // onInit - 初始化游戏
     pub fn onInit() {
@@ -298,9 +298,9 @@ pub class BoatRaceGame extends Game {
         }
         
         // 根据角度计算速度
-        var angleRad = self.playerBoat.angle * 3.14159 / 180.0;
-        var targetVx = self.cos(angleRad) * self.playerBoat.speed;
-        var targetVy = self.sin(angleRad) * self.playerBoat.speed;
+        let angleRad = self.playerBoat.angle * 3.14159 / 180.0;
+        let targetVx = self.cos(angleRad) * self.playerBoat.speed;
+        let targetVy = self.sin(angleRad) * self.playerBoat.speed;
         
         // 漂移效果
         self.playerBoat.vx = self.playerBoat.vx * DRIFT_FACTOR + targetVx * (1.0 - DRIFT_FACTOR);
@@ -311,20 +311,20 @@ pub class BoatRaceGame extends Game {
         self.playerBoat.y = self.playerBoat.y + self.playerBoat.vy;
         
         // 边界限制
-        if self.playerBoat.x < TRACK_LEFT as float + BOAT_WIDTH / 2 {
-            self.playerBoat.x = TRACK_LEFT as float + BOAT_WIDTH / 2;
+        if self.playerBoat.x < (float)TRACK_LEFT + BOAT_WIDTH / 2 {
+            self.playerBoat.x = (float)TRACK_LEFT + BOAT_WIDTH / 2;
             self.playerBoat.vx = 0.0;
         }
-        if self.playerBoat.x > TRACK_RIGHT as float - BOAT_WIDTH / 2 {
-            self.playerBoat.x = TRACK_RIGHT as float - BOAT_WIDTH / 2;
+        if self.playerBoat.x > (float)TRACK_RIGHT - BOAT_WIDTH / 2 {
+            self.playerBoat.x = (float)TRACK_RIGHT - BOAT_WIDTH / 2;
             self.playerBoat.vx = 0.0;
         }
-        if self.playerBoat.y < TRACK_TOP as float + BOAT_HEIGHT / 2 {
-            self.playerBoat.y = TRACK_TOP as float + BOAT_HEIGHT / 2;
+        if self.playerBoat.y < (float)TRACK_TOP + BOAT_HEIGHT / 2 {
+            self.playerBoat.y = (float)TRACK_TOP + BOAT_HEIGHT / 2;
             self.playerBoat.vy = 0.0;
         }
-        if self.playerBoat.y > TRACK_BOTTOM as float - BOAT_HEIGHT / 2 {
-            self.playerBoat.y = TRACK_BOTTOM as float - BOAT_HEIGHT / 2;
+        if self.playerBoat.y > (float)TRACK_BOTTOM - BOAT_HEIGHT / 2 {
+            self.playerBoat.y = (float)TRACK_BOTTOM - BOAT_HEIGHT / 2;
             self.playerBoat.vy = 0.0;
         }
         
@@ -350,20 +350,20 @@ pub class BoatRaceGame extends Game {
     
     // 检查碰撞
     fn checkCollisions() {
-        var boatX = self.playerBoat.x as int;
-        var boatY = self.playerBoat.y as int;
+        let boatX = self.playerBoat.x as int;
+        let boatY = self.playerBoat.y as int;
         
         for i in 0..BUOY_COUNT {
-            var dx = boatX - self.buoys[i].x;
-            var dy = boatY - self.buoys[i].y;
-            var dist = self.sqrtInt(dx * dx + dy * dy);
+            let dx = boatX - self.buoys[i].x;
+            let dy = boatY - self.buoys[i].y;
+            let dist = self.sqrtInt(dx * dx + dy * dy);
             
             if dist < BUOY_RADIUS + BOAT_WIDTH / 2 {
                 // 碰撞，减速
                 self.playerBoat.speed = self.playerBoat.speed * 0.5;
                 
                 // 反弹
-                var angle = self.atan2(dy, dx);
+                let angle = self.atan2(dy, dx);
                 self.playerBoat.x = self.playerBoat.x + self.cos(angle) * 5.0;
                 self.playerBoat.y = self.playerBoat.y + self.sin(angle) * 5.0;
             }
@@ -372,12 +372,12 @@ pub class BoatRaceGame extends Game {
     
     // 检查检查点
     fn checkCheckpoints() {
-        var nextCheckpoint = (self.currentCheckpoint + 1) % CHECKPOINT_COUNT;
-        var cp = self.checkpoints[nextCheckpoint];
+        let nextCheckpoint = (self.currentCheckpoint + 1) % CHECKPOINT_COUNT;
+        let cp = self.checkpoints[nextCheckpoint];
         
-        var dx = self.playerBoat.x as int - cp.x;
-        var dy = self.playerBoat.y as int - cp.y;
-        var dist = self.sqrtInt(dx * dx + dy * dy);
+        let dx = self.playerBoat(int)x - cp.x;
+        let dy = self.playerBoat(int)y - cp.y;
+        let dist = self.sqrtInt(dx * dx + dy * dy);
         
         if dist < cp.radius + BOAT_WIDTH / 2 {
             if nextCheckpoint == 0 && self.currentCheckpoint == CHECKPOINT_COUNT - 1 {
@@ -436,8 +436,8 @@ pub class BoatRaceGame extends Game {
         // 绘制波浪纹理
         for y in 0..self.height {
             for x in 0..self.width {
-                var wave = self.sin(x as float * 0.05 + self.trackOffset * 0.1 + y as float * 0.02) * 5.0;
-                if (x + y as int + wave as int) % 40 < 2 {
+                let wave = self.sin((float)x * 0.05 + self.trackOffset * 0.1 + (float)y * 0.02) * 5.0;
+                if (x + (int)y + (int)wave) % 40 < 2 {
                     canvas.setPixel(x, y, Color.RGB(40, 120, 170));
                 }
             }
@@ -453,16 +453,16 @@ pub class BoatRaceGame extends Game {
         canvas.drawRect(TRACK_LEFT, TRACK_TOP, TRACK_RIGHT - TRACK_LEFT, TRACK_BOTTOM - TRACK_TOP, Color.White());
         
         // 起跑线
-        var startX = (TRACK_LEFT + TRACK_RIGHT) / 2;
+        let startX = (TRACK_LEFT + TRACK_RIGHT) / 2;
         for i in 0..10 {
-            var y = TRACK_BOTTOM - 60 + i * 6;
+            let y = TRACK_BOTTOM - 60 + i * 6;
             if i % 2 == 0 {
                 canvas.drawLine(startX - 30, y, startX + 30, y, Color.White());
             }
         }
         
         // 赛道编号标记
-        var font = Font.("Arial", 12);
+        let font = Font("Arial", 12);
         canvas.drawText(TRACK_LEFT + 5, TRACK_TOP + 5, "1", Color.White(), font);
         canvas.drawText(TRACK_RIGHT - 20, TRACK_TOP + 5, "2", Color.White(), font);
         canvas.drawText(TRACK_LEFT + 5, TRACK_BOTTOM - 20, "3", Color.White(), font);
@@ -472,8 +472,8 @@ pub class BoatRaceGame extends Game {
     // 绘制检查点
     fn drawCheckpoints(canvas: Canvas) {
         for i in 0..CHECKPOINT_COUNT {
-            var cp = self.checkpoints[i];
-            var color = if i == (self.currentCheckpoint + 1) % CHECKPOINT_COUNT {
+            let cp = self.checkpoints[i];
+            let color = if i == (self.currentCheckpoint + 1) % CHECKPOINT_COUNT {
                 Color.Green()
             } else {
                 Color.RGB(100, 100, 100)
@@ -485,9 +485,9 @@ pub class BoatRaceGame extends Game {
             // 填充半透明
             for r in 0..cp.radius {
                 for angle in 0..360 {
-                    var rad = angle as float * 3.14159 / 180.0;
-                    var px = cp.x + (r as float * self.cos(rad)) as int;
-                    var py = cp.y + (r as float * self.sin(rad)) as int;
+                    let rad = (float)angle * 3.14159 / 180.0;
+                    let px = cp.x + ((float)r * self.cos(rad)) as int;
+                    let py = cp.y + ((float)r * self.sin(rad)) as int;
                     if px >= 0 && px < self.width && py >= 0 && py < self.height {
                         if r < cp.radius - 2 {
                             canvas.setPixel(px, py, Color.ARGB(80, 0, 255, 0));
@@ -501,7 +501,7 @@ pub class BoatRaceGame extends Game {
     // 绘制浮标
     fn drawBuoys(canvas: Canvas) {
         for i in 0..BUOY_COUNT {
-            var buoy = self.buoys[i];
+            let buoy = self.buoys[i];
             
             // 浮标主体
             canvas.fillCircle(buoy.x, buoy.y, buoy.radius, buoy.color);
@@ -515,34 +515,34 @@ pub class BoatRaceGame extends Game {
     fn drawWaves(canvas: Canvas) {
         for i in 0..50 {
             if self.waves[i].life > 0.0 {
-                var alpha = (self.waves[i].life / 30.0 * 200.0) as u8;
-                var waveColor = Color.ARGB(alpha, 200, 230, 255);
-                canvas.drawCircle(self.waves[i].x as int, self.waves[i].y as int, self.waves[i].size as int, waveColor);
+                let alpha = (self.waves[i].life / 30.0 * 200.0) as u8;
+                let waveColor = Color.ARGB(alpha, 200, 230, 255);
+                canvas.drawCircle(self.waves[i].(int)x, self.waves[i].(int)y, self.waves[i].(int)size, waveColor);
             }
         }
     }
     
     // 绘制船只
     fn drawBoat(canvas: Canvas) {
-        var x = self.playerBoat.x as int;
-        var y = self.playerBoat.y as int;
-        var angle = self.playerBoat.angle;
+        let x = self.playerBoat.x as int;
+        let y = self.playerBoat.y as int;
+        let angle = self.playerBoat.angle;
         
         // 保存画布状态（简化版本直接绘制）
         
         // 绘制船体
-        var halfW = BOAT_WIDTH / 2;
-        var halfH = BOAT_HEIGHT / 2;
+        let halfW = BOAT_WIDTH / 2;
+        let halfH = BOAT_HEIGHT / 2;
         
         // 绘制船身形（三角形）
-        var tipX = x + (halfW as float * self.cos(angle * 3.14159 / 180.0)) as int;
-        var tipY = y + (halfW as float * self.sin(angle * 3.14159 / 180.0)) as int;
+        let tipX = x + ((float)halfW * self.cos(angle * 3.14159 / 180.0)) as int;
+        let tipY = y + ((float)halfW * self.sin(angle * 3.14159 / 180.0)) as int;
         
-        var backAngle = angle + 180.0;
-        var backX1 = x + (halfH as float * self.cos((backAngle - 30.0) * 3.14159 / 180.0)) as int;
-        var backY1 = y + (halfH as float * self.sin((backAngle - 30.0) * 3.14159 / 180.0)) as int;
-        var backX2 = x + (halfH as float * self.cos((backAngle + 30.0) * 3.14159 / 180.0)) as int;
-        var backY2 = y + (halfH as float * self.sin((backAngle + 30.0) * 3.14159 / 180.0)) as int;
+        let backAngle = angle + 180.0;
+        let backX1 = x + ((float)halfH * self.cos((backAngle - 30.0) * 3.14159 / 180.0)) as int;
+        let backY1 = y + ((float)halfH * self.sin((backAngle - 30.0) * 3.14159 / 180.0)) as int;
+        let backX2 = x + ((float)halfH * self.cos((backAngle + 30.0) * 3.14159 / 180.0)) as int;
+        let backY2 = y + ((float)halfH * self.sin((backAngle + 30.0) * 3.14159 / 180.0)) as int;
         
         // 绘制船体轮廓
         canvas.drawLine(tipX, tipY, backX1, backY1, self.boatColor);
@@ -561,14 +561,14 @@ pub class BoatRaceGame extends Game {
         
         // 绘制速度线
         if self.playerBoat.speed > 2.0 {
-            var speedLines = (self.playerBoat.speed / MAX_SPEED * 5.0) as int;
+            let speedLines = (self.playerBoat.speed / MAX_SPEED * 5.0) as int;
             for i in 0..speedLines {
-                var lineAngle = angle + 180.0 + (i - speedLines / 2) * 10.0;
-                var lineLen = 15 + (self.playerBoat.speed * 2.0) as int;
-                var startX = x - (halfW as float * self.cos(angle * 3.14159 / 180.0)) as int;
-                var startY = y - (halfW as float * self.sin(angle * 3.14159 / 180.0)) as int;
-                var endX = startX - (lineLen as float * self.cos(lineAngle * 3.14159 / 180.0)) as int;
-                var endY = startY - (lineLen as float * self.sin(lineAngle * 3.14159 / 180.0)) as int;
+                let lineAngle = angle + 180.0 + (i - speedLines / 2) * 10.0;
+                let lineLen = 15 + (self.playerBoat.speed * 2.0) as int;
+                let startX = x - ((float)halfW * self.cos(angle * 3.14159 / 180.0)) as int;
+                let startY = y - ((float)halfW * self.sin(angle * 3.14159 / 180.0)) as int;
+                let endX = startX - ((float)lineLen * self.cos(lineAngle * 3.14159 / 180.0)) as int;
+                let endY = startY - ((float)lineLen * self.sin(lineAngle * 3.14159 / 180.0)) as int;
                 canvas.drawLine(startX, startY, endX, endY, Color.Cyan());
             }
         }
@@ -580,74 +580,74 @@ pub class BoatRaceGame extends Game {
         canvas.fillRect(0, 0, self.width, 50, Color.Black());
         
         // 标题
-        var font = Font.("Arial", 24);
-        var titleFont = Font.("Arial", 16);
+        let font = Font("Arial", 24);
+        let titleFont = Font("Arial", 16);
         canvas.drawText(self.width / 2 - 80, 10, "赛船大赛", Color.Yellow(), font);
         
         // 圈数
-        var lapText = "第 " ++ self.intToString(self.lapCount + 1) ++ " / " ++ self.intToString(LAP_COUNT) ++ " 圈";
+        let lapText = "第 {self}".intToString(self.lapCount + 1) ++ " / {self}".intToString(LAP_COUNT) ++ " 圈";
         canvas.drawText(10, 15, lapText, Color.White(), titleFont);
         
         // 时间
-        var timeText = "时间: " ++ self.formatTime(self.raceTime);
+        let timeText = "时间: {self}".formatTime(self.raceTime);
         canvas.drawText(self.width - 150, 15, timeText, Color.White(), titleFont);
         
         // 速度表
-        var speedText = "速度: " ++ self.intToString((self.playerBoat.speed / MAX_SPEED * 100.0) as int) ++ "%";
+        let speedText = "速度: {self}".intToString(int)((self.playerBoat.speed / MAX_SPEED * 100.0)) ++ "%";
         canvas.drawText(self.width / 2 - 50, 15, speedText, Color.Cyan(), titleFont);
         
         // 速度条
         canvas.drawRect(self.width / 2 + 50, 15, 100, 15, Color.Gray());
-        var speedBarWidth = (self.playerBoat.speed / MAX_SPEED * 100.0) as int;
+        let speedBarWidth = (self.playerBoat.speed / MAX_SPEED * 100.0) as int;
         canvas.fillRect(self.width / 2 + 50, 15, speedBarWidth, 15, Color.Green());
         
         // 下一检查点提示
-        var nextCP = (self.currentCheckpoint + 1) % CHECKPOINT_COUNT;
-        var cpNames = ["起点/终点", "上方", "左侧", "右侧"];
-        var cpHint = "下一检查点: " ++ cpNames[nextCP];
-        canvas.drawText(self.width / 2 - 80, 35, cpHint, Color.LightGray(), Font.("Arial", 12));
+        let nextCP = (self.currentCheckpoint + 1) % CHECKPOINT_COUNT;
+        let cpNames = ["起点/终点", "上方", "左侧", "右侧"];
+        let cpHint = "下一检查点: {cpNames}"[nextCP];
+        canvas.drawText(self.width / 2 - 80, 35, cpHint, Color.LightGray(), Font("Arial", 12));
     }
     
     // 绘制游戏结束
     fn drawGameOver(canvas: Canvas) {
         canvas.fillRect(0, 0, self.width, self.height, Color.ARGB(180, 0, 0, 0));
         
-        var font = Font.("Arial", 48);
-        var text = "🏆 " ++ self.winner ++ " 获胜! 🏆";
+        let font = Font("Arial", 48);
+        let text = "🏆 {self}"."{winner} 获胜! 🏆";
         canvas.drawText(self.width / 2 - 180, self.height / 2 - 80, text, Color.Yellow(), font);
         
-        var timeFont = Font.("Arial", 28);
-        var timeText = "完成时间: " ++ self.formatTime(self.raceTime);
+        let timeFont = Font("Arial", 28);
+        let timeText = "完成时间: {self}".formatTime(self.raceTime);
         canvas.drawText(self.width / 2 - 120, self.height / 2 - 20, timeText, Color.White(), timeFont);
         
         if self.bestTime < 999999 {
-            var bestText = "最佳时间: " ++ self.formatTime(self.bestTime);
+            let bestText = "最佳时间: {self}".formatTime(self.bestTime);
             canvas.drawText(self.width / 2 - 100, self.height / 2 + 20, bestText, Color.Green(), timeFont);
         }
         
-        var smallFont = Font.("Arial", 20);
-        var restartText = "按 R 键重新开始";
+        let smallFont = Font("Arial", 20);
+        let restartText = "按 R 键重新开始";
         canvas.drawText(self.width / 2 - 100, self.height / 2 + 80, restartText, Color.White(), smallFont);
     }
     
     // onKeyDown - 键盘按下
     pub fn onKeyDown(key: VirtualKey) {
         match key {
-            VirtualKey.Up => {
+            VirtualKey::Up => {
                 self.keyUp = true;
             }
-            VirtualKey.Left => {
+            VirtualKey::Left => {
                 self.keyLeft = true;
             }
-            VirtualKey.Right => {
+            VirtualKey::Right => {
                 self.keyRight = true;
             }
-            VirtualKey.KeyR => {
+            VirtualKey::KeyR => {
                 if self.gameOver {
                     self.onInit();
                 }
             }
-            VirtualKey.Space => {
+            VirtualKey::Space => {
                 if !self.gameStarted {
                     self.gameStarted = true;
                 }
@@ -659,13 +659,13 @@ pub class BoatRaceGame extends Game {
     // onKeyUp - 键盘释放
     pub fn onKeyUp(key: VirtualKey) {
         match key {
-            VirtualKey.Up => {
+            VirtualKey::Up => {
                 self.keyUp = false;
             }
-            VirtualKey.Left => {
+            VirtualKey::Left => {
                 self.keyLeft = false;
             }
-            VirtualKey.Right => {
+            VirtualKey::Right => {
                 self.keyRight = false;
             }
             _ => {}
@@ -683,9 +683,9 @@ pub class BoatRaceGame extends Game {
     // ============ 辅助函数 ============
     
     fn cos(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = 1.0;
-        var term = 1.0;
+        let rad = x * 3.14159 / 180.0;
+        let result = 1.0;
+        let term = 1.0;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
             result = result + term;
@@ -694,9 +694,9 @@ pub class BoatRaceGame extends Game {
     }
     
     fn sin(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = rad;
-        var term = rad;
+        let rad = x * 3.14159 / 180.0;
+        let result = rad;
+        let term = rad;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
             result = result + term;
@@ -720,8 +720,8 @@ pub class BoatRaceGame extends Game {
     }
     
     fn atan(x: float) -> float {
-        var result = x;
-        var term = x;
+        let result = x;
+        let term = x;
         for i in 1..10 {
             term = term * (-x * x);
             result = result + term / (2 * i + 1);
@@ -733,8 +733,8 @@ pub class BoatRaceGame extends Game {
         if n < 0 {
             return 0;
         }
-        var x = n;
-        var y = 1;
+        let x = n;
+        let y = 1;
         while y < x {
             x = (x + y) / 2;
             y = n / x;
@@ -746,38 +746,38 @@ pub class BoatRaceGame extends Game {
         if n == 0 {
             return "0";
         }
-        var result = "";
-        var negative = false;
-        var num = n;
+        let result = "";
+        let negative = false;
+        let num = n;
         if num < 0 {
             negative = true;
             num = -num;
         }
         while num > 0 {
-            var digit = num % 10;
-            result = (digit as char + "") ++ result;
+            let digit = num % 10;
+            result = ((char)digit + "") ++ result;
             num = num / 10;
         }
-        return if negative { "-" ++ result } else { result };
+        return if negative { "-{result}" } else { result };
     }
     
     fn formatTime(ms: u32) -> str {
-        var seconds = ms / 1000;
-        var minutes = seconds / 60;
-        var secs = seconds % 60;
-        var millis = (ms % 1000) / 10;
+        let seconds = ms / 1000;
+        let minutes = seconds / 60;
+        let secs = seconds % 60;
+        let millis = (ms % 1000) / 10;
         
-        var minStr = self.intToString(minutes as int);
-        var secStr = self.intToString(secs as int);
-        var msStr = self.intToString(millis as int);
+        let minStr = self.intToString((int)minutes);
+        let secStr = self.intToString((int)secs);
+        let msStr = self.intToString((int)millis);
         
         if secs < 10 {
-            secStr = "0" ++ secStr;
+            secStr = "0{secStr}";
         }
         if millis < 10 {
-            msStr = "0" ++ msStr;
+            msStr = "0{msStr}";
         }
         
-        return minStr ++ ":" ++ secStr ++ "." ++ msStr;
+        return "{minStr}:{secStr}" ++ ".{msStr}";
     }
 }

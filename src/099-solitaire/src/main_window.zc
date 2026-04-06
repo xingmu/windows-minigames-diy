@@ -1,8 +1,8 @@
 // main_window.zc - Zen-C 纸牌接龙游戏主程序(Windows GUI版本)
 // 所有平台使用同一份Zen-C代码，通过条件编译处理平台差异
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 
 // 导入游戏逻辑和平台API
 import "game_logic.zc";
@@ -11,35 +11,35 @@ import "platform_api.zc";
 // ==================== 常量定义 ====================
 
 // 窗口和纸牌尺寸
-const WINDOW_WIDTH: i32 = 900;
-const WINDOW_HEIGHT: i32 = 700;
-const CARD_WIDTH: i32 = 70;
-const CARD_HEIGHT: i32 = 100;
-const CARD_SPACING: i32 = 15;
-const PILE_TOP_Y: i32 = 50;
-const PILE_LEFT_X: i32 = 30;
-const FOUNDATION_LEFT_X: i32 = 420;
-const STOCK_LEFT_X: i32 = 30;
+def WINDOW_WIDTH: i32 = 900;
+def WINDOW_HEIGHT: i32 = 700;
+def CARD_WIDTH: i32 = 70;
+def CARD_HEIGHT: i32 = 100;
+def CARD_SPACING: i32 = 15;
+def PILE_TOP_Y: i32 = 50;
+def PILE_LEFT_X: i32 = 30;
+def FOUNDATION_LEFT_X: i32 = 420;
+def STOCK_LEFT_X: i32 = 30;
 
 // tableau牌堆的初始X位置
-const TABLEAU_START_X: i32 = 30;
+def TABLEAU_START_X: i32 = 30;
 // tableau牌堆之间的间距
-const TABLEAU_SPACING: i32 = 85;
+def TABLEAU_SPACING: i32 = 85;
 // tableau中每张牌的垂直偏移
-const TABLEAU_CARD_OFFSET: i32 = 25;
+def TABLEAU_CARD_OFFSET: i32 = 25;
 
 // ==================== 颜色定义 ====================
 
 // 纸牌颜色
-const RED_COLOR = rgb(220, 50, 50);          // 红色(红心/方块)
-const BLACK_COLOR = rgb(30, 30, 30);         // 黑色(黑桃/梅花)
-const CARD_BACK_COLOR = rgb(30, 80, 180);    // 牌背面蓝色
-const CARD_FRONT_COLOR = rgb(250, 250, 250); // 牌正面白色
-const BACKGROUND_COLOR = rgb(34, 139, 34);    // 绿色背景(经典纸牌桌)
-const TEXT_COLOR = rgb(255, 255, 255);       // 白色文字
-const HIGHLIGHT_COLOR = rgb(255, 255, 0);    // 高亮选择
-const BORDER_COLOR = rgb(100, 100, 100);     // 边框颜色
-const EMPTY_PILE_COLOR = rgb(0, 100, 0);    // 空牌堆颜色
+def RED_COLOR = rgb(220, 50, 50);          // 红色(红心/方块)
+def BLACK_COLOR = rgb(30, 30, 30);         // 黑色(黑桃/梅花)
+def CARD_BACK_COLOR = rgb(30, 80, 180);    // 牌背面蓝色
+def CARD_FRONT_COLOR = rgb(250, 250, 250); // 牌正面白色
+def BACKGROUND_COLOR = rgb(34, 139, 34);    // 绿色背景(经典纸牌桌)
+def TEXT_COLOR = rgb(255, 255, 255);       // 白色文字
+def HIGHLIGHT_COLOR = rgb(255, 255, 0);    // 高亮选择
+def BORDER_COLOR = rgb(100, 100, 100);     // 边框颜色
+def EMPTY_PILE_COLOR = rgb(0, 100, 0);    // 空牌堆颜色
 
 // ==================== 图形上下文(简化版) ====================
 
@@ -87,7 +87,7 @@ private class FrameBufferCanvasInstance {
 
 impl FrameBufferCanvasInstance {
     fn get_instance() -> Canvas {
-        return NullCanvas.{};
+        return NullCanvas{};
     }
 }
 
@@ -96,7 +96,7 @@ private class NullCanvas { }
 
 impl Canvas for NullCanvas {
     fn clear(color: Color) {
-        var pixels = FrameBufferCanvasInstance.fb as u32 mut;
+        let pixels = FrameBufferCanvasInstance(u32)fb mut;
         let count = (FrameBufferCanvasInstance.pitch * window_height) / 4;
         for i in 0..count {
             pixels[i] = color;
@@ -106,7 +106,7 @@ impl Canvas for NullCanvas {
     fn setPixel(x: i32, y: i32, color: Color) {
         if x < 0 || x >= window_width || y < 0 || y >= window_height { return; }
         let offset = y * (FrameBufferCanvasInstance.pitch / 4) + x;
-        let pixels = FrameBufferCanvasInstance.fb as u32 mut;
+        let pixels = FrameBufferCanvasInstance(u32)fb mut;
         pixels[offset] = color;
     }
     
@@ -116,11 +116,11 @@ impl Canvas for NullCanvas {
     
     fn drawLine(x1: i32, y1: i32, x2: i32, y2: i32, color: Color) {
         // Bresenham
-        var dx = abs(x2 - x1);
-        var dy = abs(y2 - y1);
-        var sx = if x1 < x2 { 1 } else { -1 };
-        var sy = if y1 < y2 { 1 } else { -1 };
-        var err = dx - dy;
+        let dx = abs(x2 - x1);
+        let dy = abs(y2 - y1);
+        let sx = if x1 < x2 { 1 } else { -1 };
+        let sy = if y1 < y2 { 1 } else { -1 };
+        let err = dx - dy;
         
         loop {
             self.setPixel(x1, y1, color);
@@ -266,7 +266,7 @@ fn draw_stock(ctx: GraphicsContext) {
         c.fillCircle(x + CARD_WIDTH/2, y + CARD_HEIGHT/2, 8, rgb(100, 100, 100));
     } else {
         // 绘制牌背
-        let card = Card.{ suit: Suit::Hearts, rank: 1, face_up: false, card_id: 0 };
+        let card = Card { suit: Suit::Hearts, rank: 1, face_up: false, card_id: 0 };
         draw_card(ctx, x, y, card, false);
     }
 }
@@ -596,7 +596,7 @@ fn handle_key(key: VirtualKey) -> bool {
 // ==================== 窗口事件处理 ====================
 
 fn on_paint() {
-    let ctx = GraphicsContext.{ dummy: 0 };
+    let ctx = GraphicsContext { dummy: 0 };
     
     let fb = getFrameBuffer(window);
     let pitch = getFrameBufferPitch(window);
@@ -664,9 +664,9 @@ extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, uMsg: u32, wParam: u32
 #endif
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 纸牌接龙游戏 (Klondike Solitaire)");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 纸牌接龙游戏 (Klondike Solitaire)";
+    io.println "========================================";
     io.println("平台: {}", 
         #if IS_WINDOWS
             "Windows"
@@ -678,7 +678,7 @@ fn main() -> i32 {
             "未知"
         #endif
     );
-    io.println("========================================");
+    io.println "========================================";
     
     // 初始化游戏
     game = GameState {
@@ -700,15 +700,15 @@ fn main() -> i32 {
     window = createWindow(window_title, WINDOW_WIDTH, WINDOW_HEIGHT);
     
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
     
-    io.println("窗口创建成功!");
-    io.println("游戏已初始化");
-    io.println("使用鼠标点击操作");
-    io.println("按 ESC 退出游戏");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "游戏已初始化";
+    io.println "使用鼠标点击操作";
+    io.println "按 ESC 退出游戏";
+    io.println "========================================";
     
     // 初始化画布
     FrameBufferCanvasInstance.fb = getFrameBuffer(window);
@@ -721,10 +721,10 @@ fn main() -> i32 {
     // 运行事件循环
     run_event_loop(window);
     
-    io.println("游戏结束!");
+    io.println "游戏结束!";
     io.println("最终统计: {}", get_stats_text(&game));
-    io.println("谢谢游玩 Zen-C 纸牌接龙!");
-    io.println("========================================");
+    io.println "谢谢游玩 Zen-C 纸牌接龙!";
+    io.println "========================================";
     
     quit_application();
     0

@@ -1,8 +1,8 @@
 // main_window.zc - Zen-C 高尔夫游戏主程序
 // 俯视角迷你高尔夫游戏
 
-import std.io;
-import std.math;
+import "io.zc";
+import "math.zc";
 
 // 导入平台API
 import "platform_api.zc";
@@ -10,8 +10,8 @@ import "game_logic.zc";
 
 // ==================== 常量 ====================
 
-const VIEW_HEIGHT: i32 = GAME_HEIGHT;
-const VIEW_WIDTH: i32 = GAME_WIDTH;
+def VIEW_HEIGHT: i32 = GAME_HEIGHT;
+def VIEW_WIDTH: i32 = GAME_WIDTH;
 
 // ==================== 全局变量 ====================
 
@@ -32,7 +32,7 @@ fn fb_set_pixel(x: i32, y: i32, color: Color) {
         return;
     }
     let offset = y * (fb_pitch / 4) + x;
-    let pixels = fb_buffer as u32 mut;
+    let pixels = (u32)fb_buffer mut;
     pixels[offset] = color;
 }
 
@@ -130,7 +130,7 @@ fn fb_fill_circle(cx: i32, cy: i32, radius: i32, color: Color) {
 
 fn fb_clear(color: Color) {
     let count = fb_pitch * fb_height / 4;
-    let pixels = fb_buffer as u32 mut;
+    let pixels = (u32)fb_buffer mut;
     for i in 0..count {
         pixels[i] = color;
     }
@@ -146,16 +146,16 @@ fn fb_present() {
 
 fn getTerrainColor(terrain: TerrainType) -> Color {
     match terrain {
-        TerrainType.Grass => return Color.RGB(30, 120, 30),
-        TerrainType.Fairway => return Color.RGB(35, 140, 35),
-        TerrainType.Rough => return Color.RGB(20, 80, 20),
-        TerrainType.Sand => return Color.RGB(230, 210, 140),
-        TerrainType.Water => return Color.RGB(30, 100, 200),
-        TerrainType.Hole => return Color.RGB(30, 160, 40),
+        TerrainType::Grass => return Color.RGB(30, 120, 30),
+        TerrainType::Fairway => return Color.RGB(35, 140, 35),
+        TerrainType::Rough => return Color.RGB(20, 80, 20),
+        TerrainType::Sand => return Color.RGB(230, 210, 140),
+        TerrainType::Water => return Color.RGB(30, 100, 200),
+        TerrainType::Hole => return Color.RGB(30, 160, 40),
     }
 }
 
-fn drawTerrain(state: &GolfState) {
+fn drawTerrain(state: GolfState*) {
     // 绘制地形区域 (世界坐标 -> 屏幕坐标转换)
     for i in 0..state.terrainCount {
         let t = state.terrains[i];
@@ -190,7 +190,7 @@ fn drawTerrain(state: &GolfState) {
     }
 }
 
-fn drawHoleMarker(state: &GolfState) {
+fn drawHoleMarker(state: GolfState*) {
     let hole = state.holes[state.currentHole];
     let screenX = hole.x - state.cameraX;
 
@@ -210,7 +210,7 @@ fn drawHoleMarker(state: &GolfState) {
     fb_fill_rect(screenX, hole.y - 60, 25, 15, Color.Red());
 }
 
-fn drawObstacles(state: &GolfState) {
+fn drawObstacles(state: GolfState*) {
     for i in 0..state.obstacleCount {
         let obs = state.obstacles[i];
         let screenX = obs.x - state.cameraX;
@@ -220,7 +220,7 @@ fn drawObstacles(state: &GolfState) {
         }
 
         match obs.type {
-            ObstacleType.Tree => {
+            ObstacleType::Tree => {
                 // 树干
                 fb_fill_rect(screenX - 5, obs.y - 20, 10, 25, Color.RGB(100, 60, 30));
                 // 树冠
@@ -228,7 +228,7 @@ fn drawObstacles(state: &GolfState) {
                 fb_fill_circle(screenX - 10, obs.y - 15, obs.radius - 5, Color.RGB(25, 130, 25));
                 fb_fill_circle(screenX + 10, obs.y - 20, obs.radius - 5, Color.RGB(15, 110, 15));
             }
-            ObstacleType.Rock => {
+            ObstacleType::Rock => {
                 fb_fill_circle(screenX, obs.y, obs.radius, Color.RGB(100, 100, 100));
                 fb_fill_circle(screenX - 5, obs.y - 5, obs.radius - 3, Color.RGB(130, 130, 130));
             }
@@ -236,12 +236,12 @@ fn drawObstacles(state: &GolfState) {
     }
 }
 
-fn drawBall(state: &GolfState) {
+fn drawBall(state: GolfState*) {
     if !state.ball.active || state.ball.inHole {
         return;
     }
 
-    let screenX = state.ball.x as i32 - state.cameraX;
+    let screenX = state.ball.(i32)x - state.cameraX;
     let screenY = state.ball.y as i32;
 
     if screenX < -20 || screenX > VIEW_WIDTH + 20 {
@@ -258,12 +258,12 @@ fn drawBall(state: &GolfState) {
     fb_fill_circle(screenX - 2, screenY - 2, BALL_RADIUS / 3, Color.RGB(255, 255, 255));
 }
 
-fn drawAimLine(state: &GolfState) {
+fn drawAimLine(state: GolfState*) {
     if state.status != GameStatus.Dragging {
         return;
     }
 
-    let ballScreenX = state.ball.x as i32 - state.cameraX;
+    let ballScreenX = state.ball.(i32)x - state.cameraX;
     let ballScreenY = state.ball.y as i32;
 
     // 瞄准方向线 (从球到鼠标的延长线)
@@ -281,7 +281,7 @@ fn drawAimLine(state: &GolfState) {
         let x2 = ballScreenX + (endX - ballScreenX) * t2;
         let y2 = ballScreenY + (endY - ballScreenY) * t2;
         if s % 2 == 0 {
-            fb_draw_line(x1 as i32, y1 as i32, x2 as i32, y2 as i32, Color.Yellow());
+            fb_draw_line((i32)x1, (i32)y1, (i32)x2, (i32)y2, Color.Yellow());
         }
     }
 
@@ -316,7 +316,7 @@ fn drawAimLine(state: &GolfState) {
     fb_fill_rect(barX, barY, fillW, barHeight, powerColor);
 }
 
-fn drawUI(state: &GolfState) {
+fn drawUI(state: GolfState*) {
     // 顶部信息栏
     fb_fill_rect(0, 0, VIEW_WIDTH, 40, Color.RGB(20, 80, 20));
 
@@ -325,15 +325,15 @@ fn drawUI(state: &GolfState) {
     draw_text(10, 10, holeInfo, Color.White(), 18);
 
     // 杆数
-    let strokesText = "本洞: " ++ state.holeStrokes.toString() ++ "杆";
+    let strokesText = "本洞: {state}"."{holeStrokes}杆";
     draw_text(350, 10, strokesText, Color.Yellow(), 18);
 
     // 总杆数
-    let totalText = "总杆: " ++ state.totalStrokes.toString();
+    let totalText = "总杆: {state}".totalStrokes.toString();
     draw_text(550, 10, totalText, Color.Cyan(), 18);
 
     // 风力
-    let windText = "风力: " ++ (if state.wind > 0 { "右" ++ state.wind.toString() } else if state.wind < 0 { "左" ++ (-state.wind).toString() } else { "无" });
+    let windText = "风力: " ++ (if state.wind > 0 { "右{state}".wind.toString() } else if state.wind < 0 { "左" ++ (-state.wind).toString() } else { "无" });
     draw_text(700, 10, windText, Color.RGB(180, 180, 180), 16);
 
     // 底部状态栏
@@ -346,14 +346,14 @@ fn drawUI(state: &GolfState) {
     draw_text(VIEW_WIDTH - 350, VIEW_HEIGHT - 25, controls, Color.RGB(180, 180, 180), 14);
 
     // 果岭信息 (如果靠近洞)
-    if state.ball.x as i32 > state.holes[state.currentHole].x - 200 {
+    if state.ball.(i32)x > state.holes[state.currentHole].x - 200 {
         let hole = state.holes[state.currentHole];
-        let parText = "Par " ++ hole.par.toString();
+        let parText = "Par {hole}".par.toString();
         draw_text(VIEW_WIDTH / 2 - 30, 50, parText, Color.Yellow(), 24);
     }
 }
 
-fn drawMinimap(state: &GolfState) {
+fn drawMinimap(state: GolfState*) {
     // 右侧小地图
     let mapX = VIEW_WIDTH - 120;
     let mapY = 50;
@@ -368,7 +368,7 @@ fn drawMinimap(state: &GolfState) {
     fb_fill_rect(mapX + 5, mapY + 5, mapW - 10, mapH - 10, Color.RGB(35, 140, 35));
 
     // 球的位置 (白色点)
-    let ballMapX = mapX + 5 + (state.ball.x as i32 * (mapW - 10) / state.courseWidth);
+    let ballMapX = mapX + 5 + (state.ball.(i32)x * (mapW - 10) / state.courseWidth);
     let ballMapY = mapY + mapH / 2;
     fb_fill_circle(ballMapX, ballMapY, 2, Color.White());
 
@@ -382,8 +382,8 @@ fn draw_text(x: i32, y: i32, text: string, color: Color, size: i32) {
     let charW = size * 2 / 3;
     let charH = size;
 
-    var px = x;
-    var py = y;
+    let px = x;
+    let py = y;
 
     for i in 0..len(text) {
         if text[i] == ' ' {
@@ -442,12 +442,12 @@ fn render_game() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 高尔夫游戏 - Mini Golf");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 高尔夫游戏 - Mini Golf";
+    io.println "========================================";
 
     // 初始化随机种子
-    setRandomSeed(42 as u32);
+    setRandomSeed((u32)42);
 
     // 初始化游戏状态
     init_game(&mut game);
@@ -457,7 +457,7 @@ fn main() -> i32 {
     window = createWindow(title, VIEW_WIDTH, VIEW_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
@@ -465,39 +465,39 @@ fn main() -> i32 {
     fb_buffer = getFrameBuffer(window);
     fb_pitch = getFrameBufferPitch(window);
 
-    io.println("窗口创建成功!");
-    io.println("控制: 点击并拖拽球进行瞄准和蓄力");
-    io.println("      松开鼠标击球");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "控制: 点击并拖拽球进行瞄准和蓄力";
+    io.println "      松开鼠标击球";
+    io.println "========================================";
 
     // 主消息循环
     running = true;
     let mut lastTime = getTickCount();
 
     while running {
-        var event = Event.{};
+        let event = Event{};
 
         while pollEvent(window, &event) {
             match event.msg {
-                MessageType.Quit => {
+                MessageType::Quit => {
                     running = false;
                 }
-                MessageType.KeyDown => {
+                MessageType::KeyDown => {
                     if event.key.key == VirtualKey.Escape {
                         running = false;
                     }
                 }
-                MessageType.MouseDown => {
+                MessageType::MouseDown => {
                     let x = event.mouse.x;
                     let y = event.mouse.y;
                     onMouseDown(&mut game, x, y);
                 }
-                MessageType.MouseMove => {
+                MessageType::MouseMove => {
                     let x = event.mouse.x;
                     let y = event.mouse.y;
                     onMouseMove(&mut game, x, y);
                 }
-                MessageType.MouseUp => {
+                MessageType::MouseUp => {
                     let x = event.mouse.x;
                     let y = event.mouse.y;
                     onMouseUp(&mut game, x, y);
@@ -525,7 +525,7 @@ fn main() -> i32 {
         lastTime = getTickCount();
     }
 
-    io.println("游戏结束!");
+    io.println "游戏结束!";
     0
 }
 

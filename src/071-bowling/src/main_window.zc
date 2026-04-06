@@ -1,8 +1,8 @@
 // main_window.zc - Zen-C 保龄球游戏主程序
 // 经典十瓶保龄球游戏
 
-import std.io;
-import std.math;
+import "io.zc";
+import "math.zc";
 
 // 导入平台API
 import "platform_api.zc";
@@ -10,9 +10,9 @@ import "game_logic.zc";
 
 // ==================== 常量 ====================
 
-const TITLE = "保龄球 - Bowling";
-const FPS = 60;
-const FRAME_TIME = 1000 / FPS;
+def TITLE = "保龄球 - Bowling";
+def FPS = 60;
+def FRAME_TIME = 1000 / FPS;
 
 // ==================== 全局变量 ====================
 
@@ -33,7 +33,7 @@ fn fb_set_pixel(x: i32, y: i32, color: Color) {
         return;
     }
     let offset = y * (fb_pitch / 4) + x;
-    let pixels = fb_buffer as u32 mut;
+    let pixels = (u32)fb_buffer mut;
     pixels[offset] = color;
 }
 
@@ -160,7 +160,7 @@ fn fb_fill_ellipse(cx: i32, cy: i32, rx: i32, ry: i32, color: Color) {
 // 清屏
 fn fb_clear(color: Color) {
     let count = fb_pitch * fb_height / 4;
-    let pixels = fb_buffer as u32 mut;
+    let pixels = (u32)fb_buffer mut;
     for i in 0..count {
         pixels[i] = color;
     }
@@ -220,7 +220,7 @@ fn render_game() {
 
     // 站立瓶数
     let standing = countStandingPins(&game);
-    draw_text(GAME_WIDTH - 100, 50, "瓶: " ++ standing.toString() ++ "/10", Color.White(), 16);
+    draw_text(GAME_WIDTH - 100, 50, "瓶: {standing}" ++ "/10", Color.White(), 16);
 }
 
 fn render_lane() {
@@ -347,7 +347,7 @@ fn render_aim_and_power() {
                 let x2 = ball.x + (aimEndX - ball.x) * t2;
                 let y2 = ball.y + (aimEndY - ball.y) * t2;
                 if s % 2 == 0 {
-                    fb_draw_line(x1 as i32, y1 as i32, x2 as i32, y2 as i32, Color.RGB(255, 255, 200));
+                    fb_draw_line((i32)x1, (i32)y1, (i32)x2, (i32)y2, Color.RGB(255, 255, 200));
                 }
             }
         }
@@ -457,7 +457,7 @@ fn render_score_board() {
     }
 
     // 总分
-    draw_text(boardX, boardY + 75, "总分: " ++ game.totalScore.toString(), Color.Green(), 16);
+    draw_text(boardX, boardY + 75, "总分: {game}".totalScore.toString(), Color.Green(), 16);
 }
 
 fn sqrt_int(n: i32) -> i32 {
@@ -483,7 +483,7 @@ fn draw_text(x: i32, y: i32, text: string, color: Color, size: i32) {
     let charW = size * 2 / 3;
     let charH = size;
 
-    var px = x;
+    let px = x;
     let py = y;
 
     for i in 0..len(text) {
@@ -561,29 +561,29 @@ fn game_loop() {
 
     while running {
         // 处理事件
-        event = Event.{};
+        event = Event{};
         while pollEvent(window, &event) {
             match event.msg {
-                MessageType.Quit => {
+                MessageType::Quit => {
                     running = false;
                 }
-                MessageType.KeyDown => {
+                MessageType::KeyDown => {
                     if event.key.key == VirtualKey.Escape {
                         running = false;
                     } else {
                         handle_key(event.key.key);
                     }
                 }
-                MessageType.MouseDown => {
+                MessageType::MouseDown => {
                     handle_mouse_down(event.mouse.x, event.mouse.y, event.mouse.button);
                 }
-                MessageType.MouseUp => {
+                MessageType::MouseUp => {
                     handle_mouse_up(event.mouse.x, event.mouse.y, event.mouse.button);
                 }
-                MessageType.MouseMove => {
+                MessageType::MouseMove => {
                     handle_mouse_move(event.mouse.x, event.mouse.y);
                 }
-                MessageType.Resize => {
+                MessageType::Resize => {
                     fb_width = event.width;
                     fb_height = event.height;
                 }
@@ -618,9 +618,9 @@ fn game_loop() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 保龄球游戏 - Bowling");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 保龄球游戏 - Bowling";
+    io.println "========================================";
 
     // 初始化游戏
     init_game(&mut game);
@@ -629,13 +629,13 @@ fn main() -> i32 {
     window = createWindow(TITLE, GAME_WIDTH, GAME_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
-    io.println("窗口创建成功!");
-    io.println("点击并向上拖拽蓄力掷球");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "点击并向上拖拽蓄力掷球";
+    io.println "========================================";
 
     // 运行游戏主循环
     game_loop();
@@ -645,7 +645,7 @@ fn main() -> i32 {
         closeWindow(window);
     }
 
-    io.println("游戏已退出");
+    io.println "游戏已退出";
     return 0;
 }
 

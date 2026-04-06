@@ -8,24 +8,24 @@ import "game.zc";
 // ============================================================================
 // 游戏配置
 // ============================================================================
-const WINDOW_WIDTH = 800;
-const WINDOW_HEIGHT = 600;
-const FPS = 60;
+def WINDOW_WIDTH = 800;
+def WINDOW_HEIGHT = 600;
+def FPS = 60;
 
 // 赛车参数
-const CAR_WIDTH = 20;
-const CAR_HEIGHT = 30;
-const MAX_SPEED = 8;
-const ACCELERATION = 3;
-const BRAKE_POWER = 5;
-const FRICTION = 0.98;
-const TURN_SPEED = 4;
-const OFF_ROAD_FRICTION = 0.92;
+def CAR_WIDTH = 20;
+def CAR_HEIGHT = 30;
+def MAX_SPEED = 8;
+def ACCELERATION = 3;
+def BRAKE_POWER = 5;
+def FRICTION = 0.98;
+def TURN_SPEED = 4;
+def OFF_ROAD_FRICTION = 0.92;
 
 // 赛道参数
-const TRACK_MARGIN = 80;
-const TRACK_WIDTH = 120;
-const CHECKPOINT_COUNT = 4;
+def TRACK_MARGIN = 80;
+def TRACK_WIDTH = 120;
+def CHECKPOINT_COUNT = 4;
 
 // ============================================================================
 // 赛车
@@ -79,9 +79,9 @@ class RacingGame extends Game {
     
     fn onInit() {
         // 初始化赛车
-        self.car = Car.{
-            x: WINDOW_WIDTH / 2 as float,
-            y: WINDOW_HEIGHT - TRACK_MARGIN - TRACK_WIDTH / 2 - 50 as float,
+        self.car = Car {
+            x: WINDOW_WIDTH / (float)2,
+            y: WINDOW_HEIGHT - TRACK_MARGIN - TRACK_WIDTH / 2 - (float)50,
             angle: -3.14159 / 2.0,  // 朝上
             speed: 0.0,
             steering: 0.0,
@@ -89,7 +89,7 @@ class RacingGame extends Game {
         };
         
         // 赛道外边界
-        self.trackOuter = Rect.{
+        self.trackOuter = Rect {
             x: TRACK_MARGIN,
             y: TRACK_MARGIN,
             width: WINDOW_WIDTH - 2 * TRACK_MARGIN,
@@ -97,7 +97,7 @@ class RacingGame extends Game {
         };
         
         // 赛道内边界 (草地区域)
-        self.trackInner = Rect.{
+        self.trackInner = Rect {
             x: TRACK_MARGIN + TRACK_WIDTH,
             y: TRACK_MARGIN + TRACK_WIDTH,
             width: WINDOW_WIDTH - 2 * (TRACK_MARGIN + TRACK_WIDTH),
@@ -105,10 +105,10 @@ class RacingGame extends Game {
         };
         
         // 初始化检查点 (上右下左)
-        self.checkpoints[0] = Checkpoint.{ x: WINDOW_WIDTH / 2 - TRACK_WIDTH / 2, y: TRACK_MARGIN, width: TRACK_WIDTH, height: 20 };
-        self.checkpoints[1] = Checkpoint.{ x: WINDOW_WIDTH - TRACK_MARGIN - 20, y: WINDOW_HEIGHT / 2 - TRACK_WIDTH / 2, width: 20, height: TRACK_WIDTH };
-        self.checkpoints[2] = Checkpoint.{ x: WINDOW_WIDTH / 2 - TRACK_WIDTH / 2, y: WINDOW_HEIGHT - TRACK_MARGIN - 20, width: TRACK_WIDTH, height: 20 };
-        self.checkpoints[3] = Checkpoint.{ x: TRACK_MARGIN, y: WINDOW_HEIGHT / 2 - TRACK_WIDTH / 2, width: 20, height: TRACK_WIDTH };
+        self.checkpoints[0] = Checkpoint { x: WINDOW_WIDTH / 2 - TRACK_WIDTH / 2, y: TRACK_MARGIN, width: TRACK_WIDTH, height: 20 };
+        self.checkpoints[1] = Checkpoint { x: WINDOW_WIDTH - TRACK_MARGIN - 20, y: WINDOW_HEIGHT / 2 - TRACK_WIDTH / 2, width: 20, height: TRACK_WIDTH };
+        self.checkpoints[2] = Checkpoint { x: WINDOW_WIDTH / 2 - TRACK_WIDTH / 2, y: WINDOW_HEIGHT - TRACK_MARGIN - 20, width: TRACK_WIDTH, height: 20 };
+        self.checkpoints[3] = Checkpoint { x: TRACK_MARGIN, y: WINDOW_HEIGHT / 2 - TRACK_WIDTH / 2, width: 20, height: TRACK_WIDTH };
         
         self.lap = 0;
         self.lastCheckpoint = -1;
@@ -131,15 +131,15 @@ class RacingGame extends Game {
             return;
         }
         
-        var car = &self.car;
+        let car = &self.car;
         
         // 加速 / 刹车
         if self.keyUp {
-            car.speed = car.speed + ACCELERATION * (dt as float / 1000.0);
+            car.speed = car.speed + ACCELERATION * ((float)dt / 1000.0);
         }
         
         // 摩擦力
-        var friction = self.isOnTrack(car.x as int, car.y as int) ? FRICTION : OFF_ROAD_FRICTION;
+        let friction = self.isOnTrack(car.(int)x, car.(int)y) ? FRICTION : OFF_ROAD_FRICTION;
         car.speed = car.speed * friction;
         
         // 速度限制
@@ -152,7 +152,7 @@ class RacingGame extends Game {
         
         // 转向 (仅在有速度时有效)
         if car.speed != 0.0 {
-            var turnAmount = TURN_SPEED * (dt as float / 1000.0) * (car.speed / MAX_SPEED);
+            let turnAmount = TURN_SPEED * ((float)dt / 1000.0) * (car.speed / MAX_SPEED);
             if self.keyLeft {
                 car.angle = car.angle - turnAmount;
             }
@@ -166,25 +166,25 @@ class RacingGame extends Game {
         car.y = car.y + sin(car.angle) * car.speed;
         
         // 边界约束
-        if car.x < CAR_WIDTH as float {
+        if car.x < (float)CAR_WIDTH {
             car.x = CAR_WIDTH as float;
             car.speed = car.speed * 0.3;
         }
-        if car.x > (WINDOW_WIDTH - CAR_WIDTH) as float {
+        if car.x > (float)(WINDOW_WIDTH - CAR_WIDTH) {
             car.x = (WINDOW_WIDTH - CAR_WIDTH) as float;
             car.speed = car.speed * 0.3;
         }
-        if car.y < CAR_HEIGHT as float {
+        if car.y < (float)CAR_HEIGHT {
             car.y = CAR_HEIGHT as float;
             car.speed = car.speed * 0.3;
         }
-        if car.y > (WINDOW_HEIGHT - CAR_HEIGHT) as float {
+        if car.y > (float)(WINDOW_HEIGHT - CAR_HEIGHT) {
             car.y = (WINDOW_HEIGHT - CAR_HEIGHT) as float;
             car.speed = car.speed * 0.3;
         }
         
         // 检查点检测
-        self.checkCheckpoint(car.x as int, car.y as int);
+        self.checkCheckpoint(car.(int)x, car.(int)y);
         
         // 更新峰值速度
         if car.speed > self.maxSpeedSeen {
@@ -196,8 +196,8 @@ class RacingGame extends Game {
     }
     
     fn checkCheckpoint(cx: int, cy: int) {
-        var nextCP = (self.lastCheckpoint + 1) % CHECKPOINT_COUNT;
-        var cp = &self.checkpoints[nextCP];
+        let nextCP = (self.lastCheckpoint + 1) % CHECKPOINT_COUNT;
+        let cp = &self.checkpoints[nextCP];
         
         if cx >= cp.x && cx <= cp.x + cp.width &&
            cy >= cp.y && cy <= cp.y + cp.height {
@@ -212,9 +212,9 @@ class RacingGame extends Game {
     
     fn isOnTrack(x: int, y: int) -> bool {
         // 在外边界内但不在内边界内 = 在赛道上
-        var inOuter = x >= self.trackOuter.x && x <= self.trackOuter.x + self.trackOuter.width &&
+        let inOuter = x >= self.trackOuter.x && x <= self.trackOuter.x + self.trackOuter.width &&
                       y >= self.trackOuter.y && y <= self.trackOuter.y + self.trackOuter.height;
-        var inInner = x >= self.trackInner.x && x <= self.trackInner.x + self.trackInner.width &&
+        let inInner = x >= self.trackInner.x && x <= self.trackInner.x + self.trackInner.width &&
                       y >= self.trackInner.y && y <= self.trackInner.y + self.trackInner.height;
         return inOuter && !inInner;
     }
@@ -249,7 +249,7 @@ class RacingGame extends Game {
         );
         
         // 赛道边界线 - 白线
-        var c = Color.White();
+        let c = Color.White();
         
         // 外边界
         canvas.drawRect(self.trackOuter.x, self.trackOuter.y,
@@ -260,12 +260,12 @@ class RacingGame extends Game {
                         self.trackInner.width, self.trackInner.height, c);
         
         // 开始/终点线
-        var startX = WINDOW_WIDTH / 2 - TRACK_WIDTH / 2;
-        var startY = WINDOW_HEIGHT - TRACK_MARGIN - TRACK_WIDTH;
+        let startX = WINDOW_WIDTH / 2 - TRACK_WIDTH / 2;
+        let startY = WINDOW_HEIGHT - TRACK_MARGIN - TRACK_WIDTH;
         canvas.fillRect(startX, startY, TRACK_WIDTH, 10, Color.White());
         
         // 黑白格子
-        var checkSize = 10;
+        let checkSize = 10;
         for i in 0..(TRACK_WIDTH / checkSize) {
             if i % 2 == 0 {
                 canvas.fillRect(startX + i * checkSize, startY, checkSize, 10, Color.Black());
@@ -274,8 +274,8 @@ class RacingGame extends Game {
         
         // 检查点提示 (半透明)
         for i in 0..CHECKPOINT_COUNT {
-            var cp = &self.checkpoints[i];
-            var color = if i == (self.lastCheckpoint + 1) % CHECKPOINT_COUNT {
+            let cp = &self.checkpoints[i];
+            let color = if i == (self.lastCheckpoint + 1) % CHECKPOINT_COUNT {
                 Color.ARGB(128, 255, 255, 0)  // 黄色高亮下一个
             } else {
                 Color.ARGB(64, 255, 255, 255)  // 半透明白
@@ -285,16 +285,16 @@ class RacingGame extends Game {
     }
     
     fn drawCar(canvas: Canvas) {
-        var car = &self.car;
-        var cx = car.x as int;
-        var cy = car.y as int;
+        let car = &self.car;
+        let cx = car.x as int;
+        let cy = car.y as int;
         
         // 计算四个角的旋转后位置
-        var hw = CAR_WIDTH / 2;
-        var hh = CAR_HEIGHT / 2;
+        let hw = CAR_WIDTH / 2;
+        let hh = CAR_HEIGHT / 2;
         
         // 简化为矩形车体，带方向指示
-        var points: [int, 8] = [
+        let points: [int, 8] = [
             cx - hw, cy - hh,  // 左上
             cx + hw, cy - hh,  // 右上
             cx + hw, cy + hh,  // 右下
@@ -302,11 +302,11 @@ class RacingGame extends Game {
         ];
         
         // 车身颜色 (速度越快越亮)
-        var speedRatio = (car.speed / MAX_SPEED) as float;
-        var r = (200 + 55 * speedRatio) as u8;
-        var g = (50 as float + 100 * speedRatio) as u8;
-        var b = (50 as float + 50 * speedRatio) as u8;
-        var carColor = Color.RGB(r, g, b);
+        let speedRatio = (car.speed / MAX_SPEED) as float;
+        let r = (200 + 55 * speedRatio) as u8;
+        let g = ((float)50 + 100 * speedRatio) as u8;
+        let b = ((float)50 + 50 * speedRatio) as u8;
+        let carColor = Color.RGB(r, g, b);
         
         // 绘制车身为简单矩形
         canvas.fillRect(cx - hw, cy - hh, CAR_WIDTH, CAR_HEIGHT, carColor);
@@ -315,28 +315,28 @@ class RacingGame extends Game {
         canvas.drawRect(cx - hw, cy - hh, CAR_WIDTH, CAR_HEIGHT, Color.White());
         
         // 方向指示 (车头三角形)
-        var frontY = cy - hh;
-        var tipX = cx;
-        var tipY = cy - hh - 8;
+        let frontY = cy - hh;
+        let tipX = cx;
+        let tipY = cy - hh - 8;
         
         // 根据角度计算车头位置
-        var cos_a = cos(car.angle);
-        var sin_a = sin(car.angle);
+        let cos_a = cos(car.angle);
+        let sin_a = sin(car.angle);
         
         // 车头位置
-        var noseX = cx + cos_a * (hh as float + 5);
-        var noseY = cy + sin_a * (hh as float + 5);
+        let noseX = cx + cos_a * ((float)hh + 5);
+        let noseY = cy + sin_a * ((float)hh + 5);
         
         // 绘制车头标记
-        canvas.fillCircle(noseX as int, noseY as int, 4, Color.Yellow());
+        canvas.fillCircle((int)noseX, (int)noseY, 4, Color.Yellow());
         
         // 速度条背景
         canvas.fillRect(cx - 15, cy + hh + 5, 30, 6, Color.DarkGray());
         
         // 速度条前景
-        var speedWidth = (30 * (car.speed / MAX_SPEED)) as int;
+        let speedWidth = (30 * (car.speed / MAX_SPEED)) as int;
         if speedWidth > 0 {
-            var speedColor = if car.speed > MAX_SPEED * 0.7 {
+            let speedColor = if car.speed > MAX_SPEED * 0.7 {
                 Color.Red()
             } else if car.speed > MAX_SPEED * 0.4 {
                 Color.Yellow()
@@ -349,51 +349,51 @@ class RacingGame extends Game {
     
     fn drawHUD(canvas: Canvas) {
         // 速度表
-        var speed = (abs(self.car.speed) * 30) as int;  // 转换为 "km/h"
-        var speedText = speed.toString() ++ " km/h";
+        let speed = (abs(self.car.speed) * 30) as int;  // 转换为 "km/h"
+        let speedText = "{speed} km/h";
         
         // 背景框
         canvas.fillRect(10, 10, 150, 70, Color.ARGB(180, 0, 0, 0));
         canvas.drawRect(10, 10, 150, 70, Color.White());
         
         // 文字
-        canvas.drawText(20, 20, "SPEED", Color.Gray(), Font.("Arial", 12));
-        canvas.drawText(20, 38, speedText, Color.White(), Font.("Arial", 20));
+        canvas.drawText(20, 20, "SPEED", Color.Gray(), Font("Arial", 12));
+        canvas.drawText(20, 38, speedText, Color.White(), Font("Arial", 20));
         
         // 圈数
         canvas.fillRect(WINDOW_WIDTH - 110, 10, 100, 40, Color.ARGB(180, 0, 0, 0));
         canvas.drawRect(WINDOW_WIDTH - 110, 10, 100, 40, Color.White());
-        canvas.drawText(WINDOW_WIDTH - 100, 20, "LAP " ++ self.lap.toString(), Color.White(), Font.("Arial", 18));
+        canvas.drawText(WINDOW_WIDTH - 100, 20, "LAP {self}".lap.toString(), Color.White(), Font("Arial", 18));
         
         // 时间
-        var secs = self.elapsedTime / 1000;
-        var ms = self.elapsedTime % 1000;
-        var timeStr = (secs / 60).toString() ++ ":" ++ ((secs % 60) / 10).toString() ++ 
+        let secs = self.elapsedTime / 1000;
+        let ms = self.elapsedTime % 1000;
+        let timeStr = (secs / 60).toString() ++ ":" ++ ((secs % 60) / 10).toString() ++ 
                       ((secs % 60) % 10).toString() ++ "." ++ (ms / 100).toString();
         canvas.fillRect(WINDOW_WIDTH - 160, 55, 150, 30, Color.ARGB(180, 0, 0, 0));
-        canvas.drawText(WINDOW_WIDTH - 150, 60, timeStr, Color.Cyan(), Font.("Arial", 16));
+        canvas.drawText(WINDOW_WIDTH - 150, 60, timeStr, Color.Cyan(), Font("Arial", 16));
         
         // 操作提示
         canvas.drawText(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT - 30,
-                        "↑: GAS  ← →: STEER", Color.White(), Font.("Arial", 12));
+                        "↑: GAS  ← →: STEER", Color.White(), Font("Arial", 12));
         
         // 当前位置提示
-        if !self.isOnTrack(self.car.x as int, self.car.y as int) {
-            canvas.drawText(WINDOW_WIDTH / 2 - 80, 60, "OFF TRACK!", Color.Red(), Font.("Arial", 16));
+        if !self.isOnTrack(self.car.(int)x, self.car.(int)y) {
+            canvas.drawText(WINDOW_WIDTH / 2 - 80, 60, "OFF TRACK!", Color.Red(), Font("Arial", 16));
         }
     }
     
     fn onKeyDown(key: VirtualKey) {
         match key {
-            VirtualKey.Up => { self.keyUp = true; }
-            VirtualKey.Left => { self.keyLeft = true; }
-            VirtualKey.Right => { self.keyRight = true; }
-            VirtualKey.Space => {
+            VirtualKey::Up => { self.keyUp = true; }
+            VirtualKey::Left => { self.keyLeft = true; }
+            VirtualKey::Right => { self.keyRight = true; }
+            VirtualKey::Space => {
                 if self.getState() == GameState.Ready {
                     self.setState(GameState.Playing);
                 }
             }
-            VirtualKey.Escape => {
+            VirtualKey::Escape => {
                 self.stop();
             }
             _ => {}
@@ -402,9 +402,9 @@ class RacingGame extends Game {
     
     fn onKeyUp(key: VirtualKey) {
         match key {
-            VirtualKey.Up => { self.keyUp = false; }
-            VirtualKey.Left => { self.keyLeft = false; }
-            VirtualKey.Right => { self.keyRight = false; }
+            VirtualKey::Up => { self.keyUp = false; }
+            VirtualKey::Left => { self.keyLeft = false; }
+            VirtualKey::Right => { self.keyRight = false; }
             _ => {}
         }
     }
@@ -420,39 +420,39 @@ fn abs(x: float) -> float {
 fn cos(x: float) -> float {
     // 泰勒展开近似
     // cos(x) = 1 - x^2/2! + x^4/4! - x^6/6! + ...
-    var x2 = x * x;
-    var x4 = x2 * x2;
-    var x6 = x4 * x2;
+    let x2 = x * x;
+    let x4 = x2 * x2;
+    let x6 = x4 * x2;
     return 1.0 - x2 / 2.0 + x4 / 24.0 - x6 / 720.0;
 }
 
 fn sin(x: float) -> float {
     // 泰勒展开近似
-    var x2 = x * x;
-    var x3 = x2 * x;
-    var x5 = x3 * x2;
+    let x2 = x * x;
+    let x3 = x2 * x;
+    let x5 = x3 * x2;
     return x - x3 / 6.0 + x5 / 120.0;
 }
 
 pub fn main() {
-    println("===========================================");
-    println("  024-Racing 俯视角赛车游戏");
-    println("  Zen-C + 003-framework");
-    println("===========================================");
-    println("");
-    println("操作说明:");
-    println("  ↑ 加速");
-    println("  ← → 转向");
-    println("  ESC 退出");
-    println("");
+    println "===========================================";
+    println "  024-Racing 俯视角赛车游戏";
+    println "  Zen-C + 003-framework";
+    println "===========================================";
+    println "";
+    println "操作说明:";
+    println "  ↑ 加速";
+    println "  ← → 转向";
+    println "  ESC 退出";
+    println "";
     
     initPlatform();
     
-    var game = RacingGame.("024-Racing 俯视角赛车", WINDOW_WIDTH, WINDOW_HEIGHT, FPS);
+    let game = RacingGame("024-Racing 俯视角赛车", WINDOW_WIDTH, WINDOW_HEIGHT, FPS);
     game.run();
     game.destroy();
     
     shutdownPlatform();
     
-    println("游戏结束");
+    println "游戏结束";
 }

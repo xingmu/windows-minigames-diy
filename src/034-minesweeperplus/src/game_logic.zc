@@ -5,7 +5,7 @@
 import "platform_api.zc";
 
 // 难度级别
-pub type Difficulty = enum {
+enum Difficulty {
     Beginner,  // 初级 9x9 10雷
     Intermediate, // 中级 16x16 40雷
     Advanced,  // 高级 30x16 99雷
@@ -20,20 +20,20 @@ pub struct GameConfig {
 
 pub impl GameConfig {
     pub static fn beginner() -> GameConfig {
-        return GameConfig.{ rows: 9, cols: 9, mines: 10 };
+        return GameConfig { rows: 9, cols: 9, mines: 10 };
     }
     
     pub static fn intermediate() -> GameConfig {
-        return GameConfig.{ rows: 16, cols: 16, mines: 40 };
+        return GameConfig { rows: 16, cols: 16, mines: 40 };
     }
     
     pub static fn advanced() -> GameConfig {
-        return GameConfig.{ rows: 16, cols: 30, mines: 99 };
+        return GameConfig { rows: 16, cols: 30, mines: 99 };
     }
 }
 
 // 格子状态
-pub type CellState = enum {
+enum CellState {
     Hidden,   // 未揭开
     Revealed, // 已揭开
     Flagged,  // 已标记
@@ -42,14 +42,14 @@ pub type CellState = enum {
 
 // 单个格子
 pub struct Cell {
-    pub isMine: bool;      // 是否是地雷
-    pub state: CellState;  // 格子状态
-    pub adjacentMines: int; // 周围地雷数 (0-8)
+    isMine: bool;      // 是否是地雷
+    state: CellState;  // 格子状态
+    adjacentMines: int; // 周围地雷数 (0-8)
 }
 
 impl Cell {
     pub fn new() -> Cell {
-        return Cell.{
+        return Cell {
             isMine: false,
             state: CellState.Hidden,
             adjacentMines: 0,
@@ -138,13 +138,13 @@ pub class MineBoard {
     pub fn setDifficulty(self mut, diff: Difficulty) {
         self.difficulty = diff;
         match diff {
-            Difficulty.Beginner => {
+            Difficulty::Beginner => {
                 self.resize(9, 9, 10);
             }
-            Difficulty.Intermediate => {
+            Difficulty::Intermediate => {
                 self.resize(16, 16, 40);
             }
-            Difficulty.Advanced => {
+            Difficulty::Advanced => {
                 self.resize(16, 30, 99);
             }
         }
@@ -159,11 +159,11 @@ pub class MineBoard {
     // 布置地雷（首次点击后调用）
     pub fn placeMines(self mut, safeRow: int, safeCol: int) {
         // 设置随机种子
-        var seed = getTickCount();
+        let seed = getTickCount();
         setRandomSeed(seed);
         
         // 计算安全区域（第一次点击的格子及其周围8格）
-        var safeCells = [][]bool.alloc(self.rows);
+        let safeCells = [][]bool.alloc(self.rows);
         for i in 0..self.rows {
             safeCells[i] = []bool.alloc(self.cols);
             for j in 0..self.cols {
@@ -174,8 +174,8 @@ pub class MineBoard {
         // 标记安全区域
         for dr in -1..=1 {
             for dc in -1..=1 {
-                var nr = safeRow + dr;
-                var nc = safeCol + dc;
+                let nr = safeRow + dr;
+                let nc = safeCol + dc;
                 if nr >= 0 && nr < self.rows && nc >= 0 && nc < self.cols {
                     safeCells[nr][nc] = true;
                 }
@@ -183,10 +183,10 @@ pub class MineBoard {
         }
         
         // 随机放置地雷
-        var placed = 0;
+        let placed = 0;
         while placed < self.totalMines {
-            var r = randInt(0, self.rows - 1);
-            var c = randInt(0, self.cols - 1);
+            let r = randInt(0, self.rows - 1);
+            let c = randInt(0, self.cols - 1);
             
             if !self.board[r][c].isMine && !safeCells[r][c] {
                 self.board[r][c].isMine = true;
@@ -215,14 +215,14 @@ pub class MineBoard {
     
     // 计算周围地雷数
     fn countAdjacentMines(self, row: int, col: int) -> int {
-        var count = 0;
+        let count = 0;
         for dr in -1..=1 {
             for dc in -1..=1 {
                 if dr == 0 && dc == 0 {
                     continue;
                 }
-                var nr = row + dr;
-                var nc = col + dc;
+                let nr = row + dr;
+                let nc = col + dc;
                 if nr >= 0 && nr < self.rows && nc >= 0 && nc < self.cols {
                     if self.board[nr][nc].isMine {
                         count = count + 1;
@@ -234,7 +234,7 @@ pub class MineBoard {
     }
     
     // 获取格子
-    pub fn getCell(self, row: int, col: int) -> &Cell {
+    pub fn getCell(self, row: int, col: int) -> Cell* {
         if row < 0 || row >= self.rows || col < 0 || col >= self.cols {
             return nil;
         }
@@ -252,7 +252,7 @@ pub class MineBoard {
             return false;
         }
         
-        var cell = &self.board[row][col];
+        let cell = &self.board[row][col];
         
         // 已揭开或已标记的不能揭开
         if cell.state == CellState.Revealed {
@@ -295,14 +295,14 @@ pub class MineBoard {
                 if dr == 0 && dc == 0 {
                     continue;
                 }
-                var nr = row + dr;
-                var nc = col + dc;
+                let nr = row + dr;
+                let nc = col + dc;
                 
                 if !self.isValid(nr, nc) {
                     continue;
                 }
                 
-                var neighbor = &self.board[nr][nc];
+                let neighbor = &self.board[nr][nc];
                 if neighbor.state != CellState.Hidden {
                     continue;
                 }
@@ -328,7 +328,7 @@ pub class MineBoard {
             return false;
         }
         
-        var cell = &self.board[row][col];
+        let cell = &self.board[row][col];
         
         // 已揭开的不能标记
         if cell.state == CellState.Revealed {
@@ -337,15 +337,15 @@ pub class MineBoard {
         
         // 切换状态
         match cell.state {
-            CellState.Hidden => {
+            CellState::Hidden => {
                 cell.state = CellState.Flagged;
                 self.flaggedCount = self.flaggedCount + 1;
             }
-            CellState.Flagged => {
+            CellState::Flagged => {
                 cell.state = CellState.Hidden;
                 self.flaggedCount = self.flaggedCount - 1;
             }
-            CellState.Question => {
+            CellState::Question => {
                 cell.state = CellState.Hidden;
             }
             _ => {}
@@ -360,7 +360,7 @@ pub class MineBoard {
             return false;
         }
         
-        var cell = &self.board[row][col];
+        let cell = &self.board[row][col];
         
         // 必须是已揭开的数字格
         if cell.state != CellState.Revealed || cell.adjacentMines == 0 {
@@ -368,14 +368,14 @@ pub class MineBoard {
         }
         
         // 统计周围标记数
-        var flaggedAround = 0;
+        let flaggedAround = 0;
         for dr in -1..=1 {
             for dc in -1..=1 {
                 if dr == 0 && dc == 0 {
                     continue;
                 }
-                var nr = row + dr;
-                var nc = col + dc;
+                let nr = row + dr;
+                let nc = col + dc;
                 if self.isValid(nr, nc) {
                     if self.board[nr][nc].state == CellState.Flagged {
                         flaggedAround = flaggedAround + 1;
@@ -391,10 +391,10 @@ pub class MineBoard {
                     if dr == 0 && dc == 0 {
                         continue;
                     }
-                    var nr = row + dr;
-                    var nc = col + dc;
+                    let nr = row + dr;
+                    let nc = col + dc;
                     if self.isValid(nr, nc) {
-                        var neighbor = &self.board[nr][nc];
+                        let neighbor = &self.board[nr][nc];
                         if neighbor.state == CellState.Hidden {
                             self.reveal(nr, nc);
                         }
@@ -409,7 +409,7 @@ pub class MineBoard {
     
     // 检查胜利条件
     fn checkVictory(self mut) {
-        var nonMineCells = self.rows * self.cols - self.totalMines;
+        let nonMineCells = self.rows * self.cols - self.totalMines;
         if self.revealedCount >= nonMineCells {
             self.victory = true;
             self.gameOver = true;

@@ -1,36 +1,36 @@
 // main_window.zc - Zen-C 超级玛丽风格游戏
 // 经典横版平台跳跃游戏
 
-import std.io;
+import "io.zc";
 
 // 导入平台 API
 import "platform_api.zc";
 
 // ==================== 游戏配置 ====================
 
-const WINDOW_WIDTH: int = 480;
-const WINDOW_HEIGHT: int = 360;
-const TARGET_FPS: int = 60;
-const FRAME_TIME: u32 = 1000 / TARGET_FPS;
+def WINDOW_WIDTH: int = 480;
+def WINDOW_HEIGHT: int = 360;
+def TARGET_FPS: int = 60;
+def FRAME_TIME: u32 = 1000 / TARGET_FPS;
 
 // 地面高度
-const GROUND_Y: int = 300;
+def GROUND_Y: int = 300;
 
 // 马里奥配置
-const MARIO_WIDTH: int = 24;
-const MARIO_HEIGHT: int = 32;
-const MARIO_SPEED: int = 180;
-const JUMP_VELOCITY: int = -420;
-const GRAVITY: int = 980;
+def MARIO_WIDTH: int = 24;
+def MARIO_HEIGHT: int = 32;
+def MARIO_SPEED: int = 180;
+def JUMP_VELOCITY: int = -420;
+def GRAVITY: int = 980;
 
 // 敌人配置
-const GOOMBA_WIDTH: int = 24;
-const GOOMBA_HEIGHT: int = 24;
-const GOOMBA_SPEED: int = 60;
+def GOOMBA_WIDTH: int = 24;
+def GOOMBA_HEIGHT: int = 24;
+def GOOMBA_SPEED: int = 60;
 
 // 金币配置
-const COIN_SIZE: int = 16;
-const COIN_BONUS: int = 100;
+def COIN_SIZE: int = 16;
+def COIN_BONUS: int = 100;
 
 // ==================== 游戏状态 ====================
 
@@ -92,13 +92,13 @@ static mut marioAnimTimer: int = 0;
 static mut marioInvincible: int = 0;
 
 // 敌人
-static mut enemies: [8]Enemy;
+static mut enemies: [Enemy; 8];
 static mut enemyCount: int = 0;
 
 // 金币
-static mut coins: [20]Coin;
+static mut coins: [Coin; 20];
 static mut coinCount: int = 0;
-static mut particles: [30]Particle;
+static mut particles: [Particle; 30];
 static mut particleCount: int = 0;
 
 // 摄像机
@@ -110,7 +110,7 @@ static mut lives: int = 3;
 static mut coinsCollected: int = 0;
 
 // 关卡数据
-static mut platforms: [10]Platform;
+static mut platforms: [Platform; 10];
 static mut platformCount: int = 0;
 
 // 计时
@@ -125,24 +125,24 @@ static mut jumpPressed: bool = false;
 
 // ==================== 颜色定义 ====================
 
-const SKY_COLOR = Color.RGB(107, 140, 255);
-const GROUND_COLOR = Color.RGB(139, 69, 19);
-const GROUND_TOP_COLOR = Color.RGB(0, 150, 0);
-const BRICK_COLOR = Color.RGB(180, 120, 60);
-const BRICK_LINE_COLOR = Color.RGB(140, 90, 40);
-const MARIO_COLOR = Color.RGB(220, 50, 50);
-const MARIO_HAT_COLOR = Color.RGB(200, 40, 40);
-const MARIO_SHIRT_COLOR = Color.RGB(50, 100, 220);
-const MARIO_SKIN_COLOR = Color.RGB(255, 200, 150);
-const ENEMY_COLOR = Color.RGB(150, 90, 50);
-const ENEMY_DARK_COLOR = Color.RGB(100, 50, 30);
-const COIN_COLOR = Color.RGB(255, 210, 0);
-const COIN_SHINE_COLOR = Color.RGB(255, 255, 150);
-const QUESTION_COLOR = Color.RGB(255, 200, 50);
-const PIPE_COLOR = Color.RGB(50, 180, 50);
-const PIPE_DARK_COLOR = Color.RGB(30, 120, 30);
-const TEXT_COLOR = Color.White();
-const HUD_BG_COLOR = Color.RGB(0, 0, 0);
+def SKY_COLOR = Color.RGB(107, 140, 255);
+def GROUND_COLOR = Color.RGB(139, 69, 19);
+def GROUND_TOP_COLOR = Color.RGB(0, 150, 0);
+def BRICK_COLOR = Color.RGB(180, 120, 60);
+def BRICK_LINE_COLOR = Color.RGB(140, 90, 40);
+def MARIO_COLOR = Color.RGB(220, 50, 50);
+def MARIO_HAT_COLOR = Color.RGB(200, 40, 40);
+def MARIO_SHIRT_COLOR = Color.RGB(50, 100, 220);
+def MARIO_SKIN_COLOR = Color.RGB(255, 200, 150);
+def ENEMY_COLOR = Color.RGB(150, 90, 50);
+def ENEMY_DARK_COLOR = Color.RGB(100, 50, 30);
+def COIN_COLOR = Color.RGB(255, 210, 0);
+def COIN_SHINE_COLOR = Color.RGB(255, 255, 150);
+def QUESTION_COLOR = Color.RGB(255, 200, 50);
+def PIPE_COLOR = Color.RGB(50, 180, 50);
+def PIPE_DARK_COLOR = Color.RGB(30, 120, 30);
+def TEXT_COLOR = Color.White();
+def HUD_BG_COLOR = Color.RGB(0, 0, 0);
 
 // ==================== 关卡初始化 ====================
 
@@ -153,52 +153,52 @@ fn initLevel() {
     platformCount = 0;
     
     // 地面
-    platforms[platformCount] = Platform.{ x: -100, y: GROUND_Y, w: 1200, h: 60 };
+    platforms[platformCount] = Platform { x: -100, y: GROUND_Y, w: 1200, h: 60 };
     platformCount = platformCount + 1;
     
     // 左上平台
-    platforms[platformCount] = Platform.{ x: 80, y: 220, w: 80, h: 20 };
+    platforms[platformCount] = Platform { x: 80, y: 220, w: 80, h: 20 };
     platformCount = platformCount + 1;
     
     // 中间平台
-    platforms[platformCount] = Platform.{ x: 220, y: 180, w: 100, h: 20 };
+    platforms[platformCount] = Platform { x: 220, y: 180, w: 100, h: 20 };
     platformCount = platformCount + 1;
     
     // 右上平台
-    platforms[platformCount] = Platform.{ x: 380, y: 220, w: 80, h: 20 };
+    platforms[platformCount] = Platform { x: 380, y: 220, w: 80, h: 20 };
     platformCount = platformCount + 1;
     
     // 高处平台
-    platforms[platformCount] = Platform.{ x: 500, y: 150, w: 80, h: 20 };
+    platforms[platformCount] = Platform { x: 500, y: 150, w: 80, h: 20 };
     platformCount = platformCount + 1;
     
     // 下方隐蔽平台
-    platforms[platformCount] = Platform.{ x: 600, y: 260, w: 60, h: 20 };
+    platforms[platformCount] = Platform { x: 600, y: 260, w: 60, h: 20 };
     platformCount = platformCount + 1;
     
     // 远处的阶梯平台
-    platforms[platformCount] = Platform.{ x: 750, y: 250, w: 50, h: 20 };
+    platforms[platformCount] = Platform { x: 750, y: 250, w: 50, h: 20 };
     platformCount = platformCount + 1;
-    platforms[platformCount] = Platform.{ x: 820, y: 220, w: 50, h: 20 };
+    platforms[platformCount] = Platform { x: 820, y: 220, w: 50, h: 20 };
     platformCount = platformCount + 1;
-    platforms[platformCount] = Platform.{ x: 890, y: 190, w: 50, h: 20 };
+    platforms[platformCount] = Platform { x: 890, y: 190, w: 50, h: 20 };
     platformCount = platformCount + 1;
-    platforms[platformCount] = Platform.{ x: 960, y: 160, w: 80, h: 20 };
+    platforms[platformCount] = Platform { x: 960, y: 160, w: 80, h: 20 };
     platformCount = platformCount + 1;
     
     // 终点城堡
-    platforms[platformCount] = Platform.{ x: 1050, y: 160, w: 120, h: 140 };
+    platforms[platformCount] = Platform { x: 1050, y: 160, w: 120, h: 140 };
     platformCount = platformCount + 1;
     
     // 敌人 - 地面上的蘑菇
-    spawnEnemy(300.0, GROUND_Y - GOOMBA_HEIGHT as float);
-    spawnEnemy(450.0, GROUND_Y - GOOMBA_HEIGHT as float);
-    spawnEnemy(600.0, GROUND_Y - GOOMBA_HEIGHT as float);
-    spawnEnemy(900.0, GROUND_Y - GOOMBA_HEIGHT as float);
+    spawnEnemy(300.0, GROUND_Y - (float)GOOMBA_HEIGHT);
+    spawnEnemy(450.0, GROUND_Y - (float)GOOMBA_HEIGHT);
+    spawnEnemy(600.0, GROUND_Y - (float)GOOMBA_HEIGHT);
+    spawnEnemy(900.0, GROUND_Y - (float)GOOMBA_HEIGHT);
     
     // 敌人 - 平台上的蘑菇
-    spawnEnemy(230.0, 180 - GOOMBA_HEIGHT as float);
-    spawnEnemy(800.0, 220 - GOOMBA_HEIGHT as float);
+    spawnEnemy(230.0, 180 - (float)GOOMBA_HEIGHT);
+    spawnEnemy(800.0, 220 - (float)GOOMBA_HEIGHT);
     
     // 金币
     spawnCoin(120, 190);
@@ -217,9 +217,9 @@ fn initLevel() {
 
 fn spawnEnemy(x: float, y: float) {
     if enemyCount >= 8 { return; }
-    enemies[enemyCount] = Enemy.{
+    enemies[enemyCount] = Enemy {
         x: x, y: y,
-        vx: GOOMBA_SPEED as float,
+        vx: (float)GOOMBA_SPEED,
         alive: true,
         squashTimer: 0,
     };
@@ -228,7 +228,7 @@ fn spawnEnemy(x: float, y: float) {
 
 fn spawnCoin(x: int, y: int) {
     if coinCount >= 20 { return; }
-    coins[coinCount] = Coin.{
+    coins[coinCount] = Coin {
         x: x, y: y,
         collected: false,
         animFrame: 0,
@@ -238,7 +238,7 @@ fn spawnCoin(x: int, y: int) {
 
 fn spawnParticle(x: float, y: float, vx: float, vy: float, color: Color) {
     if particleCount >= 30 { return; }
-    particles[particleCount] = Particle.{
+    particles[particleCount] = Particle {
         x: x, y: y, vx: vx, vy: vy,
         life: 30, color: color,
     };
@@ -268,9 +268,9 @@ fn initGame() {
 
 fn handleKeyDown(key: VirtualKey) {
     match key {
-        VirtualKey.Left => { keyLeft = true; },
-        VirtualKey.Right => { keyRight = true; },
-        VirtualKey.Space => {
+        VirtualKey::Left => { keyLeft = true; },
+        VirtualKey::Right => { keyRight = true; },
+        VirtualKey::Space => {
             if !jumpPressed {
                 keyJump = true;
                 jumpPressed = true;
@@ -281,7 +281,7 @@ fn handleKeyDown(key: VirtualKey) {
                 }
             }
         },
-        VirtualKey.Up => {
+        VirtualKey::Up => {
             if !jumpPressed {
                 keyJump = true;
                 jumpPressed = true;
@@ -292,17 +292,17 @@ fn handleKeyDown(key: VirtualKey) {
                 }
             }
         },
-        VirtualKey.Escape => { running = false; },
+        VirtualKey::Escape => { running = false; },
         _ => {}
     }
 }
 
 fn handleKeyUp(key: VirtualKey) {
     match key {
-        VirtualKey.Left => { keyLeft = false; },
-        VirtualKey.Right => { keyRight = false; },
-        VirtualKey.Space => { jumpPressed = false; },
-        VirtualKey.Up => { jumpPressed = false; },
+        VirtualKey::Left => { keyLeft = false; },
+        VirtualKey::Right => { keyRight = false; },
+        VirtualKey::Space => { jumpPressed = false; },
+        VirtualKey::Up => { jumpPressed = false; },
         _ => {}
     }
 }
@@ -311,10 +311,10 @@ fn handleKeyUp(key: VirtualKey) {
 
 fn rectIntersect(r1x: float, r1y: float, r1w: int, r1h: int,
                  r2x: float, r2y: float, r2w: int, r2h: int) -> bool {
-    return r1x < r2x + r2w as float &&
-           r1x + r1w as float > r2x &&
-           r1y < r2y + r2h as float &&
-           r1y + r1h as float > r2y;
+    return r1x < r2x + (float)r2w &&
+           r1x + (float)r1w > r2x &&
+           r1y < r2y + (float)r2h &&
+           r1y + (float)r1h > r2y;
 }
 
 // ==================== 游戏逻辑更新 ====================
@@ -322,7 +322,7 @@ fn rectIntersect(r1x: float, r1y: float, r1w: int, r1h: int,
 fn updateGame(dt: u32) {
     if gameState != GameState.Playing { return; }
     
-    var dtSec = dt as float / 1000.0;
+    let dtSec = (float)dt / 1000.0;
     gameTime = gameTime + dt;
     
     // 移动输入
@@ -345,7 +345,7 @@ fn updateGame(dt: u32) {
     if !jumpPressed { keyJump = false; }
     
     // 重力
-    marioVY = marioVY + (GRAVITY as float * dtSec);
+    marioVY = marioVY + ((float)GRAVITY * dtSec);
     
     // 更新位置
     marioX = marioX + marioVX * dtSec;
@@ -354,11 +354,11 @@ fn updateGame(dt: u32) {
     // 平台碰撞
     marioOnGround = false;
     for i in 0..platformCount {
-        var plat = platforms[i];
+        let plat = platforms[i];
         if rectIntersect(marioX, marioY, MARIO_WIDTH, MARIO_HEIGHT,
-                        plat.x as float, plat.y as float, plat.w, plat.h) {
-            if marioVY > 0.0 && (marioY + MARIO_HEIGHT as float - marioVY * dtSec) <= plat.y as float + 5.0 {
-                marioY = plat.y as float - MARIO_HEIGHT as float;
+                        plat.(float)x, plat.(float)y, plat.w, plat.h) {
+            if marioVY > 0.0 && (marioY + (float)MARIO_HEIGHT - marioVY * dtSec) <= plat.(float)y + 5.0 {
+                marioY = plat.(float)y - MARIO_HEIGHT as float;
                 marioVY = 0.0;
                 marioOnGround = true;
             }
@@ -366,19 +366,19 @@ fn updateGame(dt: u32) {
     }
     
     // 地面边界
-    if marioY > GROUND_Y as float - MARIO_HEIGHT as float {
-        marioY = GROUND_Y as float - MARIO_HEIGHT as float;
+    if marioY > (float)GROUND_Y - (float)MARIO_HEIGHT {
+        marioY = (float)GROUND_Y - MARIO_HEIGHT as float;
         marioVY = 0.0;
         marioOnGround = true;
     }
     
     // 左侧边界
-    if marioX < cameraX as float - 50.0 {
-        marioX = cameraX as float - 50.0;
+    if marioX < (float)cameraX - 50.0 {
+        marioX = (float)cameraX - 50.0;
     }
     
     // 掉落死亡
-    if marioY > WINDOW_HEIGHT as float + 50.0 {
+    if marioY > (float)WINDOW_HEIGHT + 50.0 {
         loseLife();
         return;
     }
@@ -387,7 +387,7 @@ fn updateGame(dt: u32) {
     if marioInvincible > 0 { marioInvincible = marioInvincible - 1; }
     
     // 摄像机跟随
-    var targetCamX = marioX as int - WINDOW_WIDTH / 3;
+    let targetCamX = (int)marioX - WINDOW_WIDTH / 3;
     if targetCamX > cameraX { cameraX = targetCamX; }
     if cameraX < 0 { cameraX = 0; }
     
@@ -402,22 +402,22 @@ fn updateGame(dt: u32) {
         
         enemies[i].x = enemies[i].x + enemies[i].vx * dtSec;
         
-        if enemies[i].x < cameraX as float - 50.0 {
-            enemies[i].x = cameraX as float - 50.0;
+        if enemies[i].x < (float)cameraX - 50.0 {
+            enemies[i].x = (float)cameraX - 50.0;
             enemies[i].vx = -enemies[i].vx;
         }
         
         // 马里奥碰撞
         if marioInvincible <= 0 {
-            var dx = abs((enemies[i].x as int) - (marioX as int));
-            var dy = abs((enemies[i].y as int) - (marioY as int));
+            let dx = abs((enemies[i].(int)x) - ((int)marioX));
+            let dy = abs((enemies[i].(int)y) - ((int)marioY));
             if dx < MARIO_WIDTH && dy < MARIO_HEIGHT {
-                if marioVY > 0.0 && marioY + MARIO_HEIGHT as float - enemies[i].y < 15.0 {
+                if marioVY > 0.0 && marioY + (float)MARIO_HEIGHT - enemies[i].y < 15.0 {
                     enemies[i].squashTimer = 20;
                     enemies[i].vx = 0.0;
-                    marioVY = JUMP_VELOCITY as float * 0.6;
+                    marioVY = (float)JUMP_VELOCITY * 0.6;
                     score = score + 100;
-                    io.println("踩死敌人! +100 分数: " ++ score.toString());
+                    io.println "踩死敌人! +100 分数: {score}";
                     spawnParticle(enemies[i].x + 12.0, enemies[i].y, -50.0, -100.0, Color.White());
                     spawnParticle(enemies[i].x + 12.0, enemies[i].y, 50.0, -100.0, Color.White());
                 } else {
@@ -432,21 +432,21 @@ fn updateGame(dt: u32) {
     for i in 0..coinCount {
         if coins[i].collected { continue; }
         coins[i].animFrame = (coins[i].animFrame + 1) % 40;
-        var dx = abs(coins[i].x - (marioX as int));
-        var dy = abs(coins[i].y - (marioY as int));
+        let dx = abs(coins[i].x - ((int)marioX));
+        let dy = abs(coins[i].y - ((int)marioY));
         if dx < MARIO_WIDTH && dy < MARIO_HEIGHT {
             coins[i].collected = true;
             score = score + COIN_BONUS;
             coinsCollected = coinsCollected + 1;
-            io.println("吃到金币! +" ++ COIN_BONUS.toString() ++ " 分数: " ++ score.toString());
+            io.println("吃到金币! +{COIN_BONUS}" ++ " 分数: {score}");
             for p in 0..5 {
-                spawnParticle(coins[i].x as float + 8.0, coins[i].y as float,
+                spawnParticle(coins[i].(float)x + 8.0, coins[i].(float)y,
                             (randInt(-80, 80)) as float, (randInt(-150, -50)) as float, COIN_COLOR);
             }
             if coinsCollected >= 5 {
                 coinsCollected = 0;
                 lives = lives + 1;
-                io.println("获得1UP!");
+                io.println "获得1UP!";
             }
         }
     }
@@ -474,16 +474,16 @@ fn updateGame(dt: u32) {
     // 胜利检测
     if marioX > 1060.0 {
         gameState = GameState.Won;
-        io.println("恭喜通关! 最终分数: " ++ score.toString());
+        io.println "恭喜通关! 最终分数: {score}";
     }
 }
 
 fn loseLife() {
     lives = lives - 1;
-    io.println("哎呀! 剩余生命: " ++ lives.toString());
+    io.println "哎呀! 剩余生命: {lives}";
     if lives <= 0 {
         gameState = GameState.GameOver;
-        io.println("游戏结束! 最终分数: " ++ score.toString());
+        io.println "游戏结束! 最终分数: {score}";
     } else {
         marioX = 60.0;
         marioY = 200.0;
@@ -497,8 +497,8 @@ static mut rng_seed: u32 = 12345;
 
 fn randInt(minVal: int, maxVal: int) -> int {
     rng_seed = rng_seed * 1103515245 + 12345;
-    var r = (rng_seed / 65536) % 32768;
-    return minVal + (r as int % (maxVal - minVal + 1));
+    let r = (rng_seed / 65536) % 32768;
+    return minVal + ((int)r % (maxVal - minVal + 1));
 }
 
 fn abs(x: int) -> int {
@@ -509,10 +509,10 @@ fn abs(x: int) -> int {
 
 fn drawBackground(ctx: rawptr, pitch: int, buffer: rawptr) {
     for y in 0..GROUND_Y {
-        var t = y as float / GROUND_Y as float;
-        var r = 107 + ((135 - 107) as float * t) as u8;
-        var g = 140 + ((206 - 140) as float * t) as u8;
-        var b = 255;
+        let t = (float)y / GROUND_Y as float;
+        let r = 107 + (float)((135 - 107) * t) as u8;
+        let g = 140 + (float)((206 - 140) * t) as u8;
+        let b = 255;
         drawRect(ctx, 0, y, WINDOW_WIDTH, 1, pitch, buffer, Color.RGB(r, g, b));
     }
     drawCloud(ctx, pitch, buffer, 80 - cameraX % 200, 50);
@@ -520,32 +520,32 @@ fn drawBackground(ctx: rawptr, pitch: int, buffer: rawptr) {
     drawCloud(ctx, pitch, buffer, 400 - cameraX % 200, 40);
     drawCloud(ctx, pitch, buffer, 600 - cameraX % 200, 70);
     for x in 0..WINDOW_WIDTH {
-        var wx = x + cameraX;
-        var h = (sin(wx as float * 0.01) * 30.0 + 40.0) as int;
+        let wx = x + cameraX;
+        let h = (sin((float)wx * 0.01) * 30.0 + 40.0) as int;
         drawRect(ctx, x, GROUND_Y - h, 1, h, pitch, buffer, Color.RGB(60, 120, 60));
     }
 }
 
 fn drawCloud(ctx: rawptr, pitch: int, buffer: rawptr, x: int, y: int) {
     if x < -60 { x = x + 800; }
-    var c = Color.RGB(255, 255, 255);
+    let c = Color.RGB(255, 255, 255);
     fillCircle(ctx, x, y, 20, pitch, buffer, c);
     fillCircle(ctx, x + 20, y - 5, 15, pitch, buffer, c);
     fillCircle(ctx, x + 35, y, 18, pitch, buffer, c);
 }
 
 fn sin(x: float) -> float {
-    var result = x as float;
-    var term = x as float;
+    let result = x as float;
+    let term = x as float;
     for i in 1..6 {
-        term = -term * x * x / ((2 * i) as float * (2 * i + 1) as float);
+        term = -term * x * x / (float)((2 * i) * (float)(2 * i + 1));
         result = result + term;
     }
     return result;
 }
 
 fn drawPlatform(ctx: rawptr, pitch: int, buffer: rawptr, plat: Platform) {
-    var sx = plat.x - cameraX;
+    let sx = plat.x - cameraX;
     if sx + plat.w < 0 || sx > WINDOW_WIDTH { return; }
     drawRect(ctx, sx, plat.y, plat.w, 4, pitch, buffer, GROUND_TOP_COLOR);
     drawRect(ctx, sx, plat.y + 4, plat.w, plat.h - 4, pitch, buffer, GROUND_COLOR);
@@ -560,9 +560,9 @@ fn drawMario(ctx: rawptr, pitch: int, buffer: rawptr) {
     if gameState == GameState.GameOver { return; }
     if marioInvincible > 0 && (marioInvincible / 4) % 2 == 0 { return; }
     
-    var sx = (marioX as int) - cameraX;
-    var sy = (marioY as int);
-    var dir = if marioFacingRight { 1 } else { -1 };
+    let sx = ((int)marioX) - cameraX;
+    let sy = ((int)marioY);
+    let dir = if marioFacingRight { 1 } else { -1 };
     
     if dir < 0 { sx = sx - MARIO_WIDTH; }
     
@@ -581,7 +581,7 @@ fn drawMario(ctx: rawptr, pitch: int, buffer: rawptr) {
     drawRect(ctx, sx + 4, sy + 12, 16, 10, pitch, buffer, MARIO_SHIRT_COLOR);
     // 腿
     if marioOnGround && marioVX != 0.0 {
-        var legOff = marioAnimFrame * 4;
+        let legOff = marioAnimFrame * 4;
         drawRect(ctx, sx + 4 - legOff, sy + 22, 6, 10, pitch, buffer, MARIO_COLOR);
         drawRect(ctx, sx + 14 + legOff, sy + 22, 6, 10, pitch, buffer, MARIO_COLOR);
     } else if !marioOnGround {
@@ -594,8 +594,8 @@ fn drawMario(ctx: rawptr, pitch: int, buffer: rawptr) {
 }
 
 fn drawEnemy(ctx: rawptr, pitch: int, buffer: rawptr, enemy: Enemy) {
-    var sx = (enemy.x as int) - cameraX;
-    var sy = (enemy.y as int);
+    let sx = (enemy.(int)x) - cameraX;
+    let sy = (enemy.(int)y);
     if sx < -GOOMBA_WIDTH || sx > WINDOW_WIDTH { return; }
     if !enemy.alive { return; }
     
@@ -612,7 +612,7 @@ fn drawEnemy(ctx: rawptr, pitch: int, buffer: rawptr, enemy: Enemy) {
     drawRect(ctx, sx + 6, sy + 8, 3, 3, pitch, buffer, Color.Black());
     drawRect(ctx, sx + 16, sy + 8, 3, 3, pitch, buffer, Color.Black());
     
-    var footOffset = (gameTime / 100) % 2;
+    let footOffset = (gameTime / 100) % 2;
     drawRect(ctx, sx + 2 + footOffset * 2, sy + GOOMBA_HEIGHT - 6, 8, 6, pitch, buffer, ENEMY_DARK_COLOR);
     drawRect(ctx, sx + 14 - footOffset * 2, sy + GOOMBA_HEIGHT - 6, 8, 6, pitch, buffer, ENEMY_DARK_COLOR);
     drawRect(ctx, sx + 8, sy + 2, 8, 4, pitch, buffer, ENEMY_DARK_COLOR);
@@ -620,17 +620,17 @@ fn drawEnemy(ctx: rawptr, pitch: int, buffer: rawptr, enemy: Enemy) {
 
 fn drawCoin(ctx: rawptr, pitch: int, buffer: rawptr, coin: Coin) {
     if coin.collected { return; }
-    var sx = coin.x - cameraX;
-    var sy = coin.y;
+    let sx = coin.x - cameraX;
+    let sy = coin.y;
     if sx < -COIN_SIZE || sx > WINDOW_WIDTH { return; }
     
-    var scale = 1;
+    let scale = 1;
     if coin.animFrame < 10 { scale = 1; }
     else if coin.animFrame < 20 { scale = 0; }
     else if coin.animFrame < 30 { scale = -1; }
     else { scale = 0; }
     
-    var w = 8 + scale * 4;
+    let w = 8 + scale * 4;
     if w > 0 {
         drawRect(ctx, sx + (COIN_SIZE - w) / 2, sy, w, COIN_SIZE, pitch, buffer, COIN_COLOR);
         drawRect(ctx, sx + (COIN_SIZE - w) / 2 + 1, sy + 1, w - 2, 2, pitch, buffer, COIN_SHINE_COLOR);
@@ -640,8 +640,8 @@ fn drawCoin(ctx: rawptr, pitch: int, buffer: rawptr, coin: Coin) {
 fn drawParticles(ctx: rawptr, pitch: int, buffer: rawptr) {
     for i in 0..particleCount {
         if particles[i].life <= 0 { continue; }
-        var sx = (particles[i].x as int) - cameraX;
-        var sy = (particles[i].y as int);
+        let sx = (particles[i].(int)x) - cameraX;
+        let sy = (particles[i].(int)y);
         drawRect(ctx, sx, sy, 4, 4, pitch, buffer, particles[i].color);
     }
 }
@@ -658,11 +658,11 @@ fn drawHUD(ctx: rawptr, pitch: int, buffer: rawptr) {
 }
 
 fn drawCastle(ctx: rawptr, pitch: int, buffer: rawptr) {
-    var sx = 1050 - cameraX;
+    let sx = 1050 - cameraX;
     if sx < -120 || sx > WINDOW_WIDTH { return; }
     
-    var castleX = sx;
-    var castleY = 160;
+    let castleX = sx;
+    let castleY = 160;
     
     drawRect(ctx, castleX, castleY, 40, 140, pitch, buffer, BRICK_COLOR);
     drawRect(ctx, castleX, castleY, 40, 4, pitch, buffer, BRICK_LINE_COLOR);
@@ -684,13 +684,13 @@ fn drawGameOverScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
     drawRect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, pitch, buffer, Color.ARGB(200, 0, 0, 0));
     drawTextSimple(ctx, WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT / 2 - 40, "游戏结束!", 8, pitch, buffer, Color.Red());
     drawTextSimple(ctx, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2 + 10, "按空格重新开始", 5, pitch, buffer, Color.Yellow());
-    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 50, "最终分数: " ++ score.toString(), 5, pitch, buffer, Color.Yellow());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 50, "最终分数: {score}", 5, pitch, buffer, Color.Yellow());
 }
 
 fn drawWonScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
     drawRect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, pitch, buffer, Color.ARGB(200, 0, 50, 0));
     drawTextSimple(ctx, WINDOW_WIDTH / 2 - 50, WINDOW_HEIGHT / 2 - 50, "恭喜通关!", 8, pitch, buffer, Color.Yellow());
-    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2, "最终分数: " ++ score.toString(), 5, pitch, buffer, Color.White());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2, "最终分数: {score}", 5, pitch, buffer, Color.White());
     drawTextSimple(ctx, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2 + 40, "按空格重新开始", 5, pitch, buffer, Color.Cyan());
 }
 
@@ -698,8 +698,8 @@ fn drawWonScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
 
 fn setPixel(ctx: rawptr, x: int, y: int, pitch: int, buffer: rawptr, color: Color) {
     if x < 0 || x >= WINDOW_WIDTH || y < 0 || y >= WINDOW_HEIGHT { return; }
-    var offset = y * (pitch / 4) + x;
-    var pixels = buffer as u32 mut;
+    let offset = y * (pitch / 4) + x;
+    let pixels = (u32)buffer mut;
     pixels[offset] = color;
 }
 
@@ -724,10 +724,10 @@ fn fillCircle(ctx: rawptr, cx: int, cy: int, radius: int, pitch: int, buffer: ra
 
 // 简化文字绘制
 fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, size: int, pitch: int, buffer: rawptr, color: Color) {
-    var px = x;
-    var py = y;
-    var charW = size;
-    var charH = size;
+    let px = x;
+    let py = y;
+    let charW = size;
+    let charH = size;
     
     for i in 0..len(text) {
         if text[i] == '\n' {
@@ -735,8 +735,8 @@ fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, size: int, pitch: int,
             px = x;
             continue;
         }
-        var isFilled = false;
-        var charCode = text[i] as u32;
+        let isFilled = false;
+        let charCode = text[i] as u32;
         if charCode > 32 {
             isFilled = ((charCode + px + py) % 3) != 0;
         }
@@ -752,8 +752,8 @@ fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, size: int, pitch: int,
 }
 
 fn clearScreen(pitch: int, buffer: rawptr, color: Color) {
-    var pixels = buffer as u32 mut;
-    var count = (pitch * WINDOW_HEIGHT) / 4;
+    let pixels = (u32)buffer mut;
+    let count = (pitch * WINDOW_HEIGHT) / 4;
     for i in 0..count {
         pixels[i] = color;
     }
@@ -762,12 +762,12 @@ fn clearScreen(pitch: int, buffer: rawptr, color: Color) {
 // ==================== 事件处理 ====================
 
 fn processEvents() {
-    var event = Event.{};
+    let event = Event{};
     while pollEvent(window, &event) {
         match event.msg {
-            MessageType.Quit => { running = false; },
-            MessageType.KeyDown => { handleKeyDown(event.key.key); },
-            MessageType.KeyUp => { handleKeyUp(event.key.key); },
+            MessageType::Quit => { running = false; },
+            MessageType::KeyDown => { handleKeyDown(event.key.key); },
+            MessageType::KeyUp => { handleKeyUp(event.key.key); },
             _ => {}
         }
     }
@@ -781,14 +781,14 @@ fn gameLoop() {
     while running {
         processEvents();
         
-        var current = getTickCount();
-        var dt = current - lastFrame;
+        let current = getTickCount();
+        let dt = current - lastFrame;
         if dt > 100 { dt = 16; }
         
         updateGame(dt);
         
-        var fb = getFrameBuffer(window);
-        var pitch = getFrameBufferPitch(window);
+        let fb = getFrameBuffer(window);
+        let pitch = getFrameBufferPitch(window);
         
         clearScreen(pitch, fb, SKY_COLOR);
         
@@ -824,7 +824,7 @@ fn gameLoop() {
         
         lastFrame = current;
         
-        var elapsed = getTickCount() - lastFrame;
+        let elapsed = getTickCount() - lastFrame;
         if elapsed < FRAME_TIME {
             sleep(FRAME_TIME - elapsed);
         }
@@ -834,29 +834,29 @@ fn gameLoop() {
 // ==================== 主函数 ====================
 
 fn main() {
-    io.println("===========================================");
-    io.println("  Super Mario - Zen-C");
-    io.println("  版本: 1.0.0");
-    io.println("===========================================");
+    io.println "===========================================";
+    io.println "  Super Mario - Zen-C";
+    io.println "  版本: 1.0.0";
+    io.println "===========================================";
     
     initPlatform();
     
     window = createWindow("Super Mario - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT);
     
     if window == nil {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return;
     }
     
-    io.println("窗口创建成功!");
+    io.println "窗口创建成功!";
     
     initGame();
-    io.println("按空格或上箭头开始游戏");
-    io.println("按 ESC 退出");
+    io.println "按空格或上箭头开始游戏";
+    io.println "按 ESC 退出";
     
     gameLoop();
     
     shutdownPlatform();
     
-    io.println("游戏结束!");
+    io.println "游戏结束!";
 }

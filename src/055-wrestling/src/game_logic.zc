@@ -47,7 +47,7 @@ private val JUMP_POWER = 12;
 private val GRAVITY = 1;
 
 // 招数类型
-pub type MoveType = enum {
+enum MoveType {
     None,
     Grapple,       // 抓举
     BodySlam,      // 身体砸击
@@ -61,7 +61,7 @@ pub type MoveType = enum {
 };
 
 // 摔跤手状态
-pub type WrestlerState = enum {
+enum WrestlerState {
     Idle,
     Walking,
     Running,
@@ -168,7 +168,7 @@ class Wrestler {
     
     pub fn addEffect(fx: int, fy: int, text: str, color: Color) {
         if self.effectCount < 10 {
-            self.effects[self.effectCount] = WrestlerEffect.{
+            self.effects[self.effectCount] = WrestlerEffect {
                 x: fx,
                 y: fy,
                 text: text,
@@ -180,13 +180,13 @@ class Wrestler {
         }
     }
     
-    pub fn grapple(opponent: &Wrestler) -> bool {
+    pub fn grapple(opponent: Wrestler*) -> bool {
         if self.moveTimer > 0 || self.stunTimer > 0 || self.energy < 15 {
             return false;
         }
         
-        var dist = abs(self.x - opponent.x);
-        var dy = abs(self.y - opponent.y);
+        let dist = abs(self.x - opponent.x);
+        let dy = abs(self.y - opponent.y);
         
         if dist < GRAPPLE_RANGE && dy < 60 {
             self.currentMove = MoveType.Grapple;
@@ -203,13 +203,13 @@ class Wrestler {
         return false;
     }
     
-    pub fn executeMove(move: MoveType, opponent: &Wrestler, damage: int, energyCost: int) {
+    pub fn executeMove(move: MoveType, opponent: Wrestler*, damage: int, energyCost: int) {
         if self.moveTimer > 0 || self.stunTimer > 0 || self.energy < energyCost {
             return;
         }
         
-        var dist = abs(self.x - opponent.x);
-        var dy = abs(self.y - opponent.y);
+        let dist = abs(self.x - opponent.x);
+        let dy = abs(self.y - opponent.y);
         
         if dist > ATTACK_RANGE || dy > 60 {
             return;
@@ -226,7 +226,7 @@ class Wrestler {
             opponent.state = WrestlerState.Stunned;
             
             // 击退
-            var knockback = if self.facingRight { 40 } else { -40 };
+            let knockback = if self.facingRight { 40 } else { -40 };
             opponent.x = opponent.x + knockback;
             opponent.vx = knockback / 2;
             
@@ -246,13 +246,13 @@ class Wrestler {
         opponent.hitCooldown = 300;
     }
     
-    pub fn attemptPin(opponent: &Wrestler) -> bool {
+    pub fn attemptPin(opponent: Wrestler*) -> bool {
         if self.moveTimer > 0 || self.stunTimer > 0 || self.energy < 20 {
             return false;
         }
         
-        var dist = abs(self.x - opponent.x);
-        var dy = abs(self.y - opponent.y);
+        let dist = abs(self.x - opponent.x);
+        let dy = abs(self.y - opponent.y);
         
         // 必须在对手上方才能压制
         if dist < 60 && dy < 30 && opponent.state != WrestlerState.Pinned {
@@ -327,7 +327,7 @@ class Wrestler {
         }
         
         // 清理过期特效
-        var newCount = 0;
+        let newCount = 0;
         for i in 0..self.effectCount {
             if self.effects[i].timer > 0 {
                 self.effects[newCount] = self.effects[i];
@@ -382,8 +382,8 @@ class Wrestler {
         
         // 脱离被抓
         if self.isBeingGrappled && self.stunTimer == 0 {
-            var randVal = 0;
-            var i = 0;
+            let randVal = 0;
+            let i = 0;
             while i < 5 {
                 randVal = randVal + i * 7;
                 i = i + 1;
@@ -438,7 +438,7 @@ class Wrestler {
         self.moveTimer = 300;
         
         // 向后闪避
-        var dir = if self.facingRight { -1 } else { 1 };
+        let dir = if self.facingRight { -1 } else { 1 };
         self.vx = dir * MOVE_SPEED * 2;
     }
     
@@ -685,8 +685,8 @@ class WrestlingGame extends Game {
     }
     
     pub fn handlePlayer2AI() {
-        var dist = abs(self.player2.x - self.player1.x);
-        var dy = abs(self.player2.y - self.player1.y);
+        let dist = abs(self.player2.x - self.player1.x);
+        let dy = abs(self.player2.y - self.player1.y);
         
         // 简单AI：接近玩家并随机攻击
         if self.player2.stunTimer == 0 && self.player2.moveTimer == 0 && !self.player2.isBeingGrappled && !self.player2.isPinning {
@@ -709,8 +709,8 @@ class WrestlingGame extends Game {
         }
         
         // 随机决定行动
-        var randVal = 0;
-        var i = 0;
+        let randVal = 0;
+        let i = 0;
         while i < 10 {
             randVal = randVal + i * 13;
             i = i + 1;
@@ -719,7 +719,7 @@ class WrestlingGame extends Game {
         
         // 随机攻击/抓举
         if randVal < 3 && !self.player2.isInMove() && self.player2.stunTimer == 0 && dist < GRAPPLE_RANGE + 20 && dy < 60 {
-            var atkRand = randVal % 5;
+            let atkRand = randVal % 5;
             if atkRand == 0 {
                 self.player2.executeMove(MoveType.Grapple, &self.player1, 8, 10);
             } else if atkRand == 1 {
@@ -750,7 +750,7 @@ class WrestlingGame extends Game {
     }
     
     pub fn checkWinCondition() {
-        var winner = -1;
+        let winner = -1;
         
         // HP判定
         if self.player1.hp <= 0 {
@@ -800,7 +800,7 @@ class WrestlingGame extends Game {
         }
     }
     
-    pub fn onRender(canvas: &Canvas) {
+    pub fn onRender(canvas: Canvas*) {
         canvas.clear(COLOR_BG);
         self.drawRing(canvas);
         self.drawWrestler(canvas, &self.player1, true);
@@ -813,7 +813,7 @@ class WrestlingGame extends Game {
         }
     }
     
-    pub fn drawRing(canvas: &Canvas) {
+    pub fn drawRing(canvas: Canvas*) {
         // 摔跤台背景
         canvas.fillRect(RING_LEFT - 20, RING_TOP - 20, RING_RIGHT - RING_LEFT + 40, RING_BOTTOM - RING_TOP + 60, COLOR_RING);
         
@@ -831,14 +831,14 @@ class WrestlingGame extends Game {
         canvas.fillRect(RING_RIGHT - 5, RING_TOP - 60, 20, 80, COLOR_CORNER);
         
         // 三层绳索
-        var ropeY1 = RING_TOP + 30;
-        var ropeY2 = RING_TOP + 60;
-        var ropeY3 = RING_TOP + 90;
+        let ropeY1 = RING_TOP + 30;
+        let ropeY2 = RING_TOP + 60;
+        let ropeY3 = RING_TOP + 90;
         
         // 绳索颜色交替
-        var ropeColor1 = COLOR_ROPE;
-        var ropeColor2 = Color.White();
-        var ropeColor3 = COLOR_ROPE;
+        let ropeColor1 = COLOR_ROPE;
+        let ropeColor2 = Color.White();
+        let ropeColor3 = COLOR_ROPE;
         
         canvas.drawLine(RING_LEFT, ropeY1, RING_RIGHT, ropeY1, ropeColor1);
         canvas.drawLine(RING_LEFT, ropeY2, RING_RIGHT, ropeY2, ropeColor2);
@@ -857,22 +857,22 @@ class WrestlingGame extends Game {
         canvas.drawText(SCREEN_WIDTH - 120, 100, "<<<CROWD", Color.DarkGray(), Font.new("Arial", 14));
     }
     
-    pub fn drawWrestler(canvas: &Canvas, wrestler: &Wrestler, isPlayer1: bool) {
-        var color = if isPlayer1 { COLOR_PLAYER1 } else { COLOR_PLAYER2 };
-        var x = wrestler.x;
-        var y = wrestler.y;
+    pub fn drawWrestler(canvas: Canvas*, wrestler: Wrestler*, isPlayer1: bool) {
+        let color = if isPlayer1 { COLOR_PLAYER1 } else { COLOR_PLAYER2 };
+        let x = wrestler.x;
+        let y = wrestler.y;
         
         if self.uiShake > 0 {
             x = x + (self.randInt(0, 7) - 3);
             y = y + (self.randInt(0, 7) - 3);
         }
         
-        var bodyColor = color;
+        let bodyColor = color;
         if wrestler.state == WrestlerState.Stunned {
             bodyColor = Color.LightGray();
         }
         
-        var st = wrestler.state;
+        let st = wrestler.state;
         
         // 身体
         if st == WrestlerState.Idle || st == WrestlerState.Walking {
@@ -884,7 +884,7 @@ class WrestlingGame extends Game {
             canvas.fillRect(x - 35, y - 40, 20, 12, bodyColor);
             canvas.fillRect(x + 15, y - 40, 20, 12, bodyColor);
             // 腿
-            var legOffset = if st == WrestlerState.Walking { (getTickCount() / 150) as int % 10 - 5 } else { 0 };
+            let legOffset = if st == WrestlerState.Walking { (getTickCount() / 150) as int % 10 - 5 } else { 0 };
             canvas.fillRect(x - 15 + legOffset, y + 7, 12, 45, bodyColor);
             canvas.fillRect(x + 3 - legOffset, y + 7, 12, 45, bodyColor);
             // 摔跤短裤
@@ -894,7 +894,7 @@ class WrestlingGame extends Game {
             canvas.fillCircle(x, y - 65, 22, bodyColor);
             canvas.fillRect(x - 10, y - 43, 30, 50, bodyColor);
             // 伸出的手臂
-            var armDir = if wrestler.facingRight { 1 } else { -1 };
+            let armDir = if wrestler.facingRight { 1 } else { -1 };
             canvas.fillRect(x + armDir * 15, y - 35, 40 * armDir, 14, bodyColor);
             canvas.fillRect(x - 30, y - 25, 15, 12, bodyColor);
             canvas.fillRect(x + 15, y - 25, 15, 12, bodyColor);
@@ -914,7 +914,7 @@ class WrestlingGame extends Game {
             canvas.fillCircle(x, y - 60, 22, bodyColor);
             canvas.fillRect(x - 12, y - 38, 30, 48, bodyColor);
             // 挥出的一拳
-            var armDir = if wrestler.facingRight { 1 } else { -1 };
+            let armDir = if wrestler.facingRight { 1 } else { -1 };
             canvas.fillRect(x + armDir * 18, y - 40, 45 * armDir, 16, bodyColor);
             // 另一只手抓住
             canvas.fillRect(x - 35, y - 30, 20, 12, bodyColor);
@@ -928,13 +928,13 @@ class WrestlingGame extends Game {
             canvas.fillRect(x - 12, y + 5, 10, 45, bodyColor);
             canvas.fillRect(x + 2, y + 5, 10, 45, bodyColor);
             // 星星
-            var starAngle = (getTickCount() / 100) as int % 360;
+            let starAngle = (getTickCount() / 100) as int % 360;
             canvas.fillCircle(x + 30, y - 80, 5, Color.Yellow());
             canvas.fillCircle(x - 30, y - 75, 4, Color.Yellow());
             canvas.fillCircle(x + 20, y - 90, 3, Color.Yellow());
         } else if st == WrestlerState.Pinned {
             // 被压制 - 躺在地上
-            var dir = if wrestler.facingRight { 1 } else { -1 };
+            let dir = if wrestler.facingRight { 1 } else { -1 };
             canvas.fillCircle(x + dir * 40, y - 15, 20, bodyColor);
             canvas.fillRect(x + dir * 20, y - 10, 35, 20, bodyColor);
             canvas.fillRect(x + dir * 5, y + 10, 25, 10, bodyColor);
@@ -949,7 +949,7 @@ class WrestlingGame extends Game {
             canvas.fillRect(x - 18, y + 7, 36, 15, Color.White());
         } else if st == WrestlerState.Running {
             // 冲刺
-            var runOff = (getTickCount() / 80) as int % 8 - 4;
+            let runOff = (getTickCount() / 80) as int % 8 - 4;
             canvas.fillCircle(x, y - 68, 22, bodyColor);
             canvas.fillRect(x - 18, y - 46, 36, 52, bodyColor);
             canvas.fillRect(x + 20, y - 38, 30, 12, bodyColor);
@@ -984,14 +984,14 @@ class WrestlingGame extends Game {
         
         // 能量条 (在头顶)
         canvas.fillRect(x - 25, y - 100, 50, 8, COLOR_ENERGY_BG);
-        var energyWidth = (wrestler.energy as int * 50) / MAX_ENERGY;
+        let energyWidth = (wrestler.(int)energy * 50) / MAX_ENERGY;
         canvas.fillRect(x - 25, y - 100, energyWidth, 8, COLOR_ENERGY);
     }
     
-    pub fn drawEffects(canvas: &Canvas) {
-        var i = 0;
+    pub fn drawEffects(canvas: Canvas*) {
+        let i = 0;
         while i < self.player1.effectCount {
-            var eff = &self.player1.effects[i];
+            let eff = &self.player1.effects[i];
             if eff.timer > 0 {
                 canvas.fillRect(eff.x - 40, eff.y - 10, 80, 20, Color.ARGB(180, 0, 0, 0));
                 canvas.drawText(eff.x - 35, eff.y - 8, eff.text, eff.color, Font.new("Arial", 14));
@@ -1001,7 +1001,7 @@ class WrestlingGame extends Game {
         
         i = 0;
         while i < self.player2.effectCount {
-            var eff = &self.player2.effects[i];
+            let eff = &self.player2.effects[i];
             if eff.timer > 0 {
                 canvas.fillRect(eff.x - 40, eff.y - 10, 80, 20, Color.ARGB(180, 0, 0, 0));
                 canvas.drawText(eff.x - 35, eff.y - 8, eff.text, eff.color, Font.new("Arial", 14));
@@ -1010,20 +1010,20 @@ class WrestlingGame extends Game {
         }
     }
     
-    pub fn drawUI(canvas: &Canvas) {
+    pub fn drawUI(canvas: Canvas*) {
         // 玩家1血条
         canvas.drawText(20, 20, "P1", Color.White(), Font.new("Arial", 16));
         canvas.fillRect(60, 15, 220, 20, COLOR_HP_BG);
-        var hpWidth1 = (self.player1.hp as int * 220) / MAX_HP;
+        let hpWidth1 = (self.player1.(int)hp * 220) / MAX_HP;
         canvas.fillRect(60, 15, hpWidth1, 20, COLOR_HP_P1);
         
         // P1 能量条
         canvas.fillRect(60, 38, 220, 12, COLOR_ENERGY_BG);
-        var energyWidth1 = (self.player1.energy as int * 220) / MAX_ENERGY;
+        let energyWidth1 = (self.player1.(int)energy * 220) / MAX_ENERGY;
         canvas.fillRect(60, 38, energyWidth1, 12, COLOR_ENERGY);
         
         // P1 胜利标记
-        var i = 0;
+        let i = 0;
         while i < self.wins1 {
             canvas.drawCircle(300 + i * 25, 25, 10, Color.Yellow());
             i = i + 1;
@@ -1032,7 +1032,7 @@ class WrestlingGame extends Game {
         // 压制进度条 P1
         if self.player1.isPinning {
             canvas.fillRect(60, 55, 220, 8, COLOR_ENERGY_BG);
-            var pinW = (self.pinProgress1 as int * 220) / 3000;
+            let pinW = ((int)(self.pinProgress1) * 220) / 3000;
             canvas.fillRect(60, 55, pinW, 8, COLOR_PIN);
             canvas.drawText(60, 65, "PINNING!", COLOR_PIN, Font.new("Arial", 12));
         }
@@ -1040,12 +1040,12 @@ class WrestlingGame extends Game {
         // 玩家2血条
         canvas.drawText(SCREEN_WIDTH - 280, 20, "CPU", Color.White(), Font.new("Arial", 16));
         canvas.fillRect(SCREEN_WIDTH - 240, 15, 220, 20, COLOR_HP_BG);
-        var hpWidth2 = (self.player2.hp as int * 220) / MAX_HP;
+        let hpWidth2 = (self.player2.(int)hp * 220) / MAX_HP;
         canvas.fillRect(SCREEN_WIDTH - 240 + (220 - hpWidth2), 15, hpWidth2, 20, COLOR_HP_P2);
         
         // P2 能量条
         canvas.fillRect(SCREEN_WIDTH - 240, 38, 220, 12, COLOR_ENERGY_BG);
-        var energyWidth2 = (self.player2.energy as int * 220) / MAX_ENERGY;
+        let energyWidth2 = (self.player2.(int)energy * 220) / MAX_ENERGY;
         canvas.fillRect(SCREEN_WIDTH - 240 + (220 - energyWidth2), 38, energyWidth2, 12, COLOR_ENERGY);
         
         // P2 胜利标记
@@ -1058,23 +1058,23 @@ class WrestlingGame extends Game {
         // 压制进度条 P2
         if self.player2.isPinning {
             canvas.fillRect(SCREEN_WIDTH - 280, 55, 220, 8, COLOR_ENERGY_BG);
-            var pinW2 = (self.pinProgress2 as int * 220) / 3000;
+            let pinW2 = ((int)(self.pinProgress2) * 220) / 3000;
             canvas.fillRect(SCREEN_WIDTH - 280 + (220 - pinW2), 55, pinW2, 8, COLOR_PIN);
             canvas.drawText(SCREEN_WIDTH - 200, 65, "PINNING!", COLOR_PIN, Font.new("Arial", 12));
         }
         
         // 回合
-        var roundStr = "ROUND ";
+        let roundStr = "ROUND ";
         roundStr = roundStr ++ self.round.toString();
         canvas.drawText(SCREEN_WIDTH / 2 - 40, 15, roundStr, Color.White(), Font.new("Arial", 20));
         
         // 时间
-        var seconds = self.roundTimer / 1000;
-        var timeStr = (seconds / 60).toString();
-        timeStr = timeStr ++ ":";
-        var sec = seconds % 60;
+        let seconds = self.roundTimer / 1000;
+        let timeStr = (seconds / 60).toString();
+        timeStr = "{timeStr}:";
+        let sec = seconds % 60;
         if sec < 10 {
-            timeStr = timeStr ++ "0";
+            timeStr = "{timeStr}0";
         }
         timeStr = timeStr ++ (seconds % 60).toString();
         canvas.drawText(SCREEN_WIDTH / 2 - 25, 45, timeStr, Color.White(), Font.new("Arial", 16));
@@ -1098,18 +1098,18 @@ class WrestlingGame extends Game {
         }
     }
     
-    pub fn drawCountdown(canvas: &Canvas) {
+    pub fn drawCountdown(canvas: Canvas*) {
         if self.countdown > 0 {
-            var text = self.countdown.toString();
-            var centerX = SCREEN_WIDTH / 2 - 50;
-            var centerY = SCREEN_HEIGHT / 2 - 80;
+            let text = self.countdown.toString();
+            let centerX = SCREEN_WIDTH / 2 - 50;
+            let centerY = SCREEN_HEIGHT / 2 - 80;
             canvas.fillRect(centerX - 10, centerY - 10, 120, 80, Color.ARGB(200, 50, 50, 100));
             canvas.drawRect(centerX - 10, centerY - 10, 120, 80, Color.Yellow());
             canvas.drawText(centerX + 35, centerY + 15, text, Color.Yellow(), Font.new("Arial", 60));
         } else {
-            var text2 = "WRESTLE!";
-            var cx2 = SCREEN_WIDTH / 2 - 100;
-            var cy2 = SCREEN_HEIGHT / 2 - 80;
+            let text2 = "WRESTLE!";
+            let cx2 = SCREEN_WIDTH / 2 - 100;
+            let cy2 = SCREEN_HEIGHT / 2 - 80;
             canvas.fillRect(cx2, cy2, 200, 70, Color.ARGB(220, 100, 0, 0));
             canvas.drawText(cx2 + 20, cy2 + 15, text2, Color.Yellow(), Font.new("Arial", 40));
         }

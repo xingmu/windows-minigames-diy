@@ -6,20 +6,20 @@ import "game.zc";
 import "game_logic.zc";
 
 pub fn main() {
-    println("===========================================");
-    println("  041-Boxing 拳皇拳击");
-    println("  Zen-C + 003-framework");
-    println("===========================================");
-    println("");
+    println "===========================================";
+    println "  041-Boxing 拳皇拳击";
+    println "  Zen-C + 003-framework";
+    println "===========================================";
+    println "";
     
     // 初始化平台
     initPlatform();
     
-    println("正在创建游戏窗口...");
-    println("");
+    println "正在创建游戏窗口...";
+    println "";
     
     // 创建游戏实例
-    var game = BoxingGame.create();
+    let game = BoxingGame.create();
     
     // 运行游戏
     game.run();
@@ -28,6 +28,6 @@ pub fn main() {
     game.destroy();
     shutdownPlatform();
     
-    println("");
-    println("游戏已退出");
+    println "";
+    println "游戏已退出";
 }

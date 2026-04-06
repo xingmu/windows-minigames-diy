@@ -1,36 +1,36 @@
 // game_logic.zc - 足球游戏逻辑模块
 // Zen-C 足球游戏 - 俯视角足球对战游戏
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
 // 场地尺寸
-const FIELD_WIDTH: i32 = 800;
-const FIELD_HEIGHT: i32 = 600;
+def FIELD_WIDTH: i32 = 800;
+def FIELD_HEIGHT: i32 = 600;
 
 // 球门尺寸
-const GOAL_WIDTH: i32 = 120;
-const GOAL_HEIGHT: i32 = 20;
-const GOAL_Y_TOP: i32 = 0;
-const GOAL_Y_BOTTOM: i32 = FIELD_HEIGHT - GOAL_HEIGHT;
+def GOAL_WIDTH: i32 = 120;
+def GOAL_HEIGHT: i32 = 20;
+def GOAL_Y_TOP: i32 = 0;
+def GOAL_Y_BOTTOM: i32 = FIELD_HEIGHT - GOAL_HEIGHT;
 
 // 球参数
-const BALL_RADIUS: i32 = 10;
-const BALL_FRICTION: f64 = 0.985;
-const BALL_MAX_SPEED: f64 = 12.0;
+def BALL_RADIUS: i32 = 10;
+def BALL_FRICTION: f64 = 0.985;
+def BALL_MAX_SPEED: f64 = 12.0;
 
 // 球员参数
-const PLAYER_RADIUS: i32 = 15;
-const PLAYER_SPEED: f64 = 4.0;
-const PLAYER_KICK_POWER: f64 = 15.0;
+def PLAYER_RADIUS: i32 = 15;
+def PLAYER_SPEED: f64 = 4.0;
+def PLAYER_KICK_POWER: f64 = 15.0;
 
 // 球门区尺寸
-const PENALTY_AREA_WIDTH: i32 = 300;
-const PENALTY_AREA_HEIGHT: i32 = 150;
+def PENALTY_AREA_WIDTH: i32 = 300;
+def PENALTY_AREA_HEIGHT: i32 = 150;
 
 // 比赛时间（秒）
-const MATCH_TIME: i32 = 90;
+def MATCH_TIME: i32 = 90;
 
 // ==================== 数据结构 ====================
 
@@ -42,19 +42,19 @@ struct Vec2 {
 
 impl Vec2 {
     pub static fn new(x: f64, y: f64) -> Vec2 {
-        return Vec2.{ x: x, y: y };
+        return Vec2 { x: x, y: y };
     }
     
     pub fn add(self, other: Vec2) -> Vec2 {
-        return Vec2.{ x: self.x + other.x, y: self.y + other.y };
+        return Vec2 { x: self.x + other.x, y: self.y + other.y };
     }
     
     pub fn sub(self, other: Vec2) -> Vec2 {
-        return Vec2.{ x: self.x - other.x, y: self.y - other.y };
+        return Vec2 { x: self.x - other.x, y: self.y - other.y };
     }
     
     pub fn scale(self, s: f64) -> Vec2 {
-        return Vec2.{ x: self.x * s, y: self.y * s };
+        return Vec2 { x: self.x * s, y: self.y * s };
     }
     
     pub fn length(self) -> f64 {
@@ -64,9 +64,9 @@ impl Vec2 {
     pub fn normalize(self) -> Vec2 {
         let len = self.length();
         if len < 0.001 {
-            return Vec2.{ x: 0.0, y: 0.0 };
+            return Vec2 { x: 0.0, y: 0.0 };
         }
-        return Vec2.{ x: self.x / len, y: self.y / len };
+        return Vec2 { x: self.x / len, y: self.y / len };
     }
     
     pub fn limit(self, max_len: f64) -> Vec2 {
@@ -92,7 +92,7 @@ struct Player {
 
 impl Player {
     pub fn new(x: f64, y: f64, team: i32) -> Player {
-        return Player.{
+        return Player {
             x: x,
             y: y,
             vx: 0.0,
@@ -105,7 +105,7 @@ impl Player {
     }
     
     pub fn pos(self) -> Vec2 {
-        return Vec2.{ x: self.x, y: self.y };
+        return Vec2 { x: self.x, y: self.y };
     }
     
     pub fn update(self: &mut Player) {
@@ -154,7 +154,7 @@ struct Ball {
 
 impl Ball {
     pub fn new() -> Ball {
-        return Ball.{
+        return Ball {
             x: FIELD_WIDTH as f64 / 2.0,
             y: FIELD_HEIGHT as f64 / 2.0,
             vx: 0.0,
@@ -165,7 +165,7 @@ impl Ball {
     }
     
     pub fn pos(self) -> Vec2 {
-        return Vec2.{ x: self.x, y: self.y };
+        return Vec2 { x: self.x, y: self.y };
     }
     
     pub fn update(self: &mut Ball) {
@@ -283,7 +283,7 @@ impl Ball {
 }
 
 // 玩家摩擦力
-const PLAYER_FRICTION: f64 = 0.85;
+def PLAYER_FRICTION: f64 = 0.85;
 
 // 球门结构
 struct Goal {
@@ -295,7 +295,7 @@ struct Goal {
 
 impl Goal {
     pub fn new(x: i32, y: i32, width: i32, height: i32) -> Goal {
-        return Goal.{ x: x, y: y, width: width, height: height };
+        return Goal { x: x, y: y, width: width, height: height };
     }
     
     pub fn center_x(self) -> f64 {
@@ -575,7 +575,7 @@ fn check_goals(game: &mut GameState) -> bool {
 }
 
 // 判断是谁进的（球进入哪个球门）
-fn which_goal(game: &GameState) -> i32 {
+fn which_goal(game: GameState*) -> i32 {
     // 球进入右球门 = 玩家得分
     if game.ball.y > FIELD_HEIGHT as f64 - GOAL_HEIGHT as f64 {
         return 0;
@@ -587,16 +587,16 @@ fn which_goal(game: &GameState) -> i32 {
 // 更新游戏主循环
 fn update_game(game: &mut GameState) {
     match game.phase {
-        GamePhase.Ready => {
+        GamePhase::Ready => {
             // 等待开始
         },
-        GamePhase.Countdown => {
+        GamePhase::Countdown => {
             game.countdown -= 1;
             if game.countdown <= 0 {
                 game.phase = GamePhase.Playing;
             }
         },
-        GamePhase.Playing => {
+        GamePhase::Playing => {
             // 更新玩家
             game.player.update();
             
@@ -625,7 +625,7 @@ fn update_game(game: &mut GameState) {
             // 更新比赛时间
             // 注：实际实现中需要基于真实时间
         },
-        GamePhase.Goal => {
+        GamePhase::Goal => {
             game.goal_timer -= 1;
             if game.goal_timer <= 0 {
                 if game.game_time <= 0 {
@@ -638,7 +638,7 @@ fn update_game(game: &mut GameState) {
                 }
             }
         },
-        GamePhase.GameOver => {
+        GamePhase::GameOver => {
             // 游戏结束
         },
     }
@@ -661,23 +661,23 @@ fn toggle_pause(game: &mut GameState) {
 }
 
 // 获取游戏状态文本
-fn get_status_text(game: &GameState) -> string {
+fn get_status_text(game: GameState*) -> string {
     match game.phase {
-        GamePhase.Ready => "按空格开始比赛",
-        GamePhase.Countdown => "比赛即将开始: " ++ game.countdown.to_string(),
-        GamePhase.Playing => if game.paused { "已暂停 - 按P继续" } else { "比赛中..." },
-        GamePhase.Goal => "进球！",
-        GamePhase.GameOver => "比赛结束！",
+        GamePhase::Ready => "按空格开始比赛",
+        GamePhase::Countdown => "比赛即将开始: {game}".countdown.to_string(),
+        GamePhase::Playing => if game.paused { "已暂停 - 按P继续" } else { "比赛中..." },
+        GamePhase::Goal => "进球！",
+        GamePhase::GameOver => "比赛结束！",
     }
 }
 
 // 获取比分文本
-fn get_score_text(game: &GameState) -> string {
+fn get_score_text(game: GameState*) -> string {
     return format("{} - {}", game.player_score, game.ai_score);
 }
 
 // 获取时间文本
-fn get_time_text(game: &GameState) -> string {
+fn get_time_text(game: GameState*) -> string {
     let mins = game.game_time / 60;
     let secs = game.game_time % 60;
     return format("{}:{:02}", mins, secs);

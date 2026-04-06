@@ -1,7 +1,7 @@
 // main_window.zc - Zen-C Darts（飞镖）游戏主程序
 // 鼠标瞄准投掷飞镖
 
-import std.io;
+import "io.zc";
 
 import "platform_api.zc";
 import "game_logic.zc";
@@ -185,7 +185,7 @@ fn draw_wedge(cx: i32, cy: i32, r1: i32, r2: i32, startDeg: i32, endDeg: i32, co
         let x2_outer = cxF + r1 as f32 * cosF(a2);
         let y2_outer = cyF + r1 as f32 * sinF(a2);
 
-        fb_draw_line(x1_outer as i32, y1_outer as i32, x2_outer as i32, y2_outer as i32, color);
+        fb_draw_line((i32)x1_outer, (i32)y1_outer, (i32)x2_outer, (i32)y2_outer, color);
     }
 }
 
@@ -248,7 +248,7 @@ fn draw_aim_line() {
                 py = py + pvy;
 
                 if i % 3 == 0 {
-                    fb_fill_circle(px as i32, py as i32, 2, rgb(255, 255, 100));
+                    fb_fill_circle((i32)px, (i32)py, 2, rgb(255, 255, 100));
                 }
 
                 if px < 0.0 || px > GAME_WIDTH as f32 || py < 0.0 || py > GAME_HEIGHT as f32 {
@@ -264,7 +264,7 @@ fn draw_scoreboard() {
     fb_draw_rect(GAME_WIDTH - 210, 50, 200, GAME_HEIGHT - 100, rgb(40, 30, 20));
 
     // 总分
-    let totalText = "总分: " ++ game.totalScore.toString();
+    let totalText = "总分: {game}".totalScore.toString();
     fb_draw_text_size(GAME_WIDTH - 200, 60, totalText, rgb(255, 255, 0), 20);
 
     // 回合分数
@@ -275,13 +275,13 @@ fn draw_scoreboard() {
         let displayRound = round + 1;
 
         if displayRound < game.currentRound {
-            let text = "回合 " ++ displayRound.toString() ++ ": " ++ game.scores[round].toString();
+            let text = "回合 {displayRound}" ++ ": {game}".scores[round].toString();
             fb_draw_text_size(GAME_WIDTH - 200, y, text, rgb(200, 200, 200), 14);
         } else if displayRound == game.currentRound {
-            let text = "> 回合 " ++ displayRound.toString() ++ ": " ++ game.scores[round].toString();
+            let text = "> 回合 {displayRound}" ++ ": {game}".scores[round].toString();
             fb_draw_text_size(GAME_WIDTH - 200, y, text, rgb(255, 255, 100), 14);
         } else {
-            let text = "  回合 " ++ displayRound.toString() ++ ": --";
+            let text = "  回合 {displayRound}" ++ ": --";
             fb_draw_text_size(GAME_WIDTH - 200, y, text, rgb(100, 100, 100), 14);
         }
     }
@@ -312,9 +312,9 @@ fn draw_dart_rack() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C Darts 飞镖游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C Darts 飞镖游戏";
+    io.println "========================================";
 
     init_game(&mut game);
 
@@ -322,7 +322,7 @@ fn main() -> i32 {
     window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
@@ -345,18 +345,18 @@ fn main() -> i32 {
 
     set_game_timer(window, game_speed);
 
-    io.println("窗口创建成功!");
-    io.println("点击拖拽投掷飞镖!");
-    io.println("瞄准靶盘得分!");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "点击拖拽投掷飞镖!";
+    io.println "瞄准靶盘得分!";
+    io.println "========================================";
 
     redraw_window(window);
 
     run_event_loop(window);
 
-    io.println("游戏结束!");
-    io.println("最终得分: " ++ game.totalScore.toString());
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println("最终得分: {game}".totalScore.toString());
+    io.println "========================================";
 
     0
 }

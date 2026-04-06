@@ -1,32 +1,32 @@
 // main_window.zc - Zen-C Skiing（滑雪）游戏主程序
 // 障碍躲避类滑雪游戏
 
-import std.io;
+import "io.zc";
 
 // 导入平台 API
 import "platform_api.zc";
 
 // ==================== 游戏配置 ====================
 
-const WINDOW_WIDTH: int = 480;
-const WINDOW_HEIGHT: int = 720;
-const TARGET_FPS: int = 60;
-const FRAME_TIME: u32 = 1000 / TARGET_FPS;
+def WINDOW_WIDTH: int = 480;
+def WINDOW_HEIGHT: int = 720;
+def TARGET_FPS: int = 60;
+def FRAME_TIME: u32 = 1000 / TARGET_FPS;
 
 // 滑雪者配置
-const SKIER_X: int = 240;
-const SKIER_Y: int = 600;
-const SKIER_WIDTH: int = 40;
-const SKIER_HEIGHT: int = 50;
-const SKIER_SPEED: int = 8;
+def SKIER_X: int = 240;
+def SKIER_Y: int = 600;
+def SKIER_WIDTH: int = 40;
+def SKIER_HEIGHT: int = 50;
+def SKIER_SPEED: int = 8;
 
 // 障碍物配置
-const OBSTACLE_WIDTH: int = 50;
-const OBSTACLE_HEIGHT: int = 50;
-const INITIAL_OBSTACLE_SPEED: int = 5;
-const SPEED_INCREMENT: int = 1;
-const SPEED_INCREMENT_INTERVAL: u32 = 10000; // 每10秒加速
-const OBSTACLE_SPAWN_INTERVAL: u32 = 1200;
+def OBSTACLE_WIDTH: int = 50;
+def OBSTACLE_HEIGHT: int = 50;
+def INITIAL_OBSTACLE_SPEED: int = 5;
+def SPEED_INCREMENT: int = 1;
+def SPEED_INCREMENT_INTERVAL: u32 = 10000; // 每10秒加速
+def OBSTACLE_SPAWN_INTERVAL: u32 = 1200;
 
 // ==================== 游戏状态 ====================
 
@@ -60,7 +60,7 @@ static mut skierX: int = SKIER_X;
 static mut skierVelocityX: int = 0;
 
 // 障碍物
-static mut obstacles: [20]Obstacle;
+static mut obstacles: [Obstacle; 20];
 static mut obstacleCount: int = 0;
 
 // 计时
@@ -81,18 +81,18 @@ fn rgb(r: u8, g: u8, b: u8) -> Color {
 }
 
 // 雪地颜色
-const SKY_COLOR = Color.RGB(200, 220, 240);        // 浅蓝灰天空
-const SNOW_COLOR = Color.RGB(240, 248, 255);      // 雪白
-const SNOW_SHADOW = Color.RGB(200, 220, 240);     // 雪地阴影
-const SKIER_COLOR = Color.RGB(220, 20, 60);       // 红色滑雪服
-const SKIER_HAT_COLOR = Color.RGB(255, 100, 100); // 红色帽子
-const TREE_TRUNK = Color.RGB(139, 90, 43);        // 树干棕色
-const TREE_LEAVES = Color.RGB(34, 139, 34);       // 深绿色
-const ROCK_COLOR = Color.RGB(128, 128, 128);      // 灰色岩石
-const ROCK_DARK = Color.RGB(80, 80, 80);          // 深灰
-const SNOWMAN_COLOR = Color.RGB(250, 250, 250);  // 白色
-const TEXT_COLOR = Color.White();
-const SCORE_COLOR = Color.Yellow();
+def SKY_COLOR = Color.RGB(200, 220, 240);        // 浅蓝灰天空
+def SNOW_COLOR = Color.RGB(240, 248, 255);      // 雪白
+def SNOW_SHADOW = Color.RGB(200, 220, 240);     // 雪地阴影
+def SKIER_COLOR = Color.RGB(220, 20, 60);       // 红色滑雪服
+def SKIER_HAT_COLOR = Color.RGB(255, 100, 100); // 红色帽子
+def TREE_TRUNK = Color.RGB(139, 90, 43);        // 树干棕色
+def TREE_LEAVES = Color.RGB(34, 139, 34);       // 深绿色
+def ROCK_COLOR = Color.RGB(128, 128, 128);      // 灰色岩石
+def ROCK_DARK = Color.RGB(80, 80, 80);          // 深灰
+def SNOWMAN_COLOR = Color.RGB(250, 250, 250);  // 白色
+def TEXT_COLOR = Color.White();
+def SCORE_COLOR = Color.Yellow();
 
 // ==================== 游戏初始化 ====================
 
@@ -115,12 +115,12 @@ static mut rng_seed: u32 = 54321;
 
 fn randInt(minVal: int, maxVal: int) -> int {
     rng_seed = rng_seed * 1103515245 + 12345;
-    var r = (rng_seed / 65536) % 32768;
-    return minVal + (r as int % (maxVal - minVal + 1));
+    let r = (rng_seed / 65536) % 32768;
+    return minVal + ((int)r % (maxVal - minVal + 1));
 }
 
 fn randObstacleType() -> ObstacleType {
-    var r = randInt(0, 2);
+    let r = randInt(0, 2);
     match r {
         0 => return ObstacleType.Tree,
         1 => return ObstacleType.Rock,
@@ -144,10 +144,10 @@ fn spawnObstacle() {
         return;
     }
     
-    var obstacleType = randObstacleType();
-    var x = randInt(OBSTACLE_WIDTH, WINDOW_WIDTH - OBSTACLE_WIDTH * 2);
+    let obstacleType = randObstacleType();
+    let x = randInt(OBSTACLE_WIDTH, WINDOW_WIDTH - OBSTACLE_WIDTH * 2);
     
-    obstacles[obstacleCount] = Obstacle.{
+    obstacles[obstacleCount] = Obstacle {
         x: x,
         y: -OBSTACLE_HEIGHT,
         obstacleType: obstacleType,
@@ -165,7 +165,7 @@ fn updateGame(dt: u32) {
     // 速度递增
     if gameTime > SPEED_INCREMENT_INTERVAL && (gameTime - SPEED_INCREMENT_INTERVAL) % SPEED_INCREMENT_INTERVAL < dt {
         obstacleSpeed = obstacleSpeed + SPEED_INCREMENT;
-        io.println("速度加快! 当前速度: " ++ obstacleSpeed.toString());
+        io.println "速度加快! 当前速度: {obstacleSpeed}";
     }
     
     // 更新滑雪者位置
@@ -194,7 +194,7 @@ fn updateGame(dt: u32) {
     }
     
     // 更新障碍物
-    var move = obstacleSpeed;
+    let move = obstacleSpeed;
     
     for i in 0..obstacleCount {
         obstacles[i].y = obstacles[i].y + move;
@@ -218,22 +218,22 @@ fn updateGame(dt: u32) {
 }
 
 fn checkCollisions() {
-    var skierLeft = skierX - SKIER_WIDTH / 2 + 5;
-    var skierRight = skierX + SKIER_WIDTH / 2 - 5;
-    var skierTop = SKIER_Y - SKIER_HEIGHT / 2 + 5;
-    var skierBottom = SKIER_Y + SKIER_HEIGHT / 2 - 5;
+    let skierLeft = skierX - SKIER_WIDTH / 2 + 5;
+    let skierRight = skierX + SKIER_WIDTH / 2 - 5;
+    let skierTop = SKIER_Y - SKIER_HEIGHT / 2 + 5;
+    let skierBottom = SKIER_Y + SKIER_HEIGHT / 2 - 5;
     
     for i in 0..obstacleCount {
-        var obsLeft = obstacles[i].x - OBSTACLE_WIDTH / 2;
-        var obsRight = obstacles[i].x + OBSTACLE_WIDTH / 2;
-        var obsTop = obstacles[i].y - OBSTACLE_HEIGHT / 2;
-        var obsBottom = obstacles[i].y + OBSTACLE_HEIGHT / 2;
+        let obsLeft = obstacles[i].x - OBSTACLE_WIDTH / 2;
+        let obsRight = obstacles[i].x + OBSTACLE_WIDTH / 2;
+        let obsTop = obstacles[i].y - OBSTACLE_HEIGHT / 2;
+        let obsBottom = obstacles[i].y + OBSTACLE_HEIGHT / 2;
         
         // AABB碰撞检测
         if skierRight > obsLeft && skierLeft < obsRight &&
            skierBottom > obsTop && skierTop < obsBottom {
             gameState = GameState.GameOver;
-            io.println("游戏结束! 最终得分: " ++ score.toString());
+            io.println "游戏结束! 最终得分: {score}";
             return;
         }
     }
@@ -244,11 +244,11 @@ fn checkCollisions() {
 fn drawBackground(pitch: int, buffer: rawptr) {
     // 天空渐变效果
     for y in 0..WINDOW_HEIGHT {
-        var t = y as float / WINDOW_HEIGHT as float;
-        var r = (200 + (220 - 200) * t) as u8;
-        var g = (220 + (248 - 220) * t) as u8;
-        var b = (240 + (255 - 240) * t) as u8;
-        var rowColor = Color.RGB(r, g, b);
+        let t = (float)y / WINDOW_HEIGHT as float;
+        let r = (200 + (220 - 200) * t) as u8;
+        let g = (220 + (248 - 220) * t) as u8;
+        let b = (240 + (255 - 240) * t) as u8;
+        let rowColor = Color.RGB(r, g, b);
         
         for x in 0..WINDOW_WIDTH {
             setPixel(x, y, pitch, buffer, rowColor);
@@ -256,23 +256,23 @@ fn drawBackground(pitch: int, buffer: rawptr) {
     }
     
     // 绘制雪道痕迹
-    var centerX = WINDOW_WIDTH / 2;
+    let centerX = WINDOW_WIDTH / 2;
     for y in (SKIER_Y - 50)..WINDOW_HEIGHT {
-        var sway = (y / 30) % 3 - 1;
+        let sway = (y / 30) % 3 - 1;
         drawLine(ctx: rawptr, centerX + sway * 20, y, centerX + sway * 20 + 1, y + 1, pitch, buffer, SNOW_SHADOW);
     }
 }
 
 fn drawTree(x: int, y: int, pitch: int, buffer: rawptr) {
     // 树干
-    var trunkW = 10;
-    var trunkH = 20;
+    let trunkW = 10;
+    let trunkH = 20;
     fillRect(ctx, x - trunkW / 2, y, trunkW, trunkH, pitch, buffer, TREE_TRUNK);
     
     // 树冠 (三角形)
-    var leavesY = y - 5;
+    let leavesY = y - 5;
     for py in 0..25 {
-        var width = 25 - py;
+        let width = 25 - py;
         for px in -width..width {
             setPixel(x + px, leavesY - py, pitch, buffer, TREE_LEAVES);
         }
@@ -280,7 +280,7 @@ fn drawTree(x: int, y: int, pitch: int, buffer: rawptr) {
     
     // 顶部
     for py in 0..15 {
-        var width = 15 - py;
+        let width = 15 - py;
         for px in -width..width {
             setPixel(x + px, leavesY - 25 - py, pitch, buffer, TREE_LEAVES);
         }
@@ -291,8 +291,8 @@ fn drawRock(x: int, y: int, pitch: int, buffer: rawptr) {
     // 岩石主体 (不规则多边形)
     for py in 0..40 {
         for px in -20..20 {
-            var dx = px;
-            var dy = py - 20;
+            let dx = px;
+            let dy = py - 20;
             if dx * dx * 0.8 + dy * dy < 400 {
                 if py < 20 {
                     setPixel(x + px, y + py, pitch, buffer, ROCK_COLOR);
@@ -306,8 +306,8 @@ fn drawRock(x: int, y: int, pitch: int, buffer: rawptr) {
     // 岩石高光
     for py in 5..15 {
         for px in -10..0 {
-            var dx = px + 5;
-            var dy = py - 10;
+            let dx = px + 5;
+            let dy = py - 10;
             if dx * dx + dy * dy < 50 {
                 setPixel(x + px, y + py, pitch, buffer, Color.RGB(160, 160, 160));
             }
@@ -335,8 +335,8 @@ fn drawSnowman(x: int, y: int, pitch: int, buffer: rawptr) {
 }
 
 fn drawSkier(pitch: int, buffer: rawptr) {
-    var x = skierX;
-    var y = SKIER_Y;
+    let x = skierX;
+    let y = SKIER_Y;
     
     // 滑雪板
     fillRect(ctx, x - 20, y + 15, 40, 8, pitch, buffer, Color.RGB(100, 100, 100));
@@ -360,7 +360,7 @@ fn drawSkier(pitch: int, buffer: rawptr) {
 }
 
 fn drawScore(pitch: int, buffer: rawptr) {
-    var text = "分数: " ++ score.toString() ++ "  速度: " ++ obstacleSpeed.toString();
+    let text = "分数: {score}" ++ "  速度: {obstacleSpeed}";
     drawTextSimple(ctx, 10, 10, text, pitch, buffer, SCORE_COLOR);
 }
 
@@ -373,7 +373,7 @@ fn drawReadyScreen(pitch: int, buffer: rawptr) {
 
 fn drawGameOverScreen(pitch: int, buffer: rawptr) {
     drawTextSimple(ctx, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2 - 60, "游戏结束!", pitch, buffer, Color.Red());
-    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2, "得分: " ++ score.toString(), pitch, buffer, SCORE_COLOR);
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2, "得分: {score}", pitch, buffer, SCORE_COLOR);
     drawTextSimple(ctx, WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 + 40, "按空格重新开始", pitch, buffer, Color.Yellow());
 }
 
@@ -383,18 +383,18 @@ fn setPixel(x: int, y: int, pitch: int, buffer: rawptr, color: Color) {
     if x < 0 || x >= WINDOW_WIDTH || y < 0 || y >= WINDOW_HEIGHT {
         return;
     }
-    var offset = y * (pitch / 4) + x;
-    var pixels = buffer as u32 mut;
+    let offset = y * (pitch / 4) + x;
+    let pixels = (u32)buffer mut;
     pixels[offset] = color;
 }
 
 fn drawLine(ctx: rawptr, x1: int, y1: int, x2: int, y2: int, pitch: int, buffer: rawptr, color: Color) {
     // Bresenham 算法
-    var dx = abs(x2 - x1);
-    var dy = abs(y2 - y1);
-    var sx = if x1 < x2 { 1 } else { -1 };
-    var sy = if y1 < y2 { 1 } else { -1 };
-    var err = dx - dy;
+    let dx = abs(x2 - x1);
+    let dy = abs(y2 - y1);
+    let sx = if x1 < x2 { 1 } else { -1 };
+    let sy = if y1 < y2 { 1 } else { -1 };
+    let err = dx - dy;
     
     loop {
         setPixel(x1, y1, pitch, buffer, color);
@@ -403,7 +403,7 @@ fn drawLine(ctx: rawptr, x1: int, y1: int, x2: int, y2: int, pitch: int, buffer:
             break;
         }
         
-        var e2 = 2 * err;
+        let e2 = 2 * err;
         if e2 > -dy {
             err = err - dy;
             x1 = x1 + sx;
@@ -435,16 +435,16 @@ fn fillCircle(ctx: rawptr, cx: int, cy: int, radius: int, pitch: int, buffer: ra
 
 // 简化文字绘制 (8x8 字符块)
 fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, pitch: int, buffer: rawptr, color: Color) {
-    var px = x;
-    var py = y;
-    var charW = 8;
-    var charH = 8;
+    let px = x;
+    let py = y;
+    let charW = 8;
+    let charH = 8;
     
     for i in 0..len(text) {
         for cy in 0..charH {
             for cx in 0..charW {
-                var isFilled = false;
-                var charCode = text[i] as u32;
+                let isFilled = false;
+                let charCode = text[i] as u32;
                 
                 if charCode > 32 {
                     isFilled = ((charCode + cx + cy) % 3) != 0;
@@ -464,8 +464,8 @@ fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, pitch: int, buffer: ra
 }
 
 fn clearScreen(pitch: int, buffer: rawptr, color: Color) {
-    var pixels = buffer as u32 mut;
-    var count = (pitch * WINDOW_HEIGHT) / 4;
+    let pixels = (u32)buffer mut;
+    let count = (pitch * WINDOW_HEIGHT) / 4;
     for i in 0..count {
         pixels[i] = color;
     }
@@ -479,22 +479,22 @@ fn abs(x: int) -> int {
 
 fn handleKeyDown(key: VirtualKey) {
     match key {
-        VirtualKey.Space => {
+        VirtualKey::Space => {
             startGame();
         },
-        VirtualKey.Left => {
+        VirtualKey::Left => {
             leftPressed = true;
         },
-        VirtualKey.Right => {
+        VirtualKey::Right => {
             rightPressed = true;
         },
-        VirtualKey.KeyA => {
+        VirtualKey::KeyA => {
             leftPressed = true;
         },
-        VirtualKey.KeyD => {
+        VirtualKey::KeyD => {
             rightPressed = true;
         },
-        VirtualKey.Escape => {
+        VirtualKey::Escape => {
             running = false;
         },
         _ => {}
@@ -503,16 +503,16 @@ fn handleKeyDown(key: VirtualKey) {
 
 fn handleKeyUp(key: VirtualKey) {
     match key {
-        VirtualKey.Left => {
+        VirtualKey::Left => {
             leftPressed = false;
         },
-        VirtualKey.Right => {
+        VirtualKey::Right => {
             rightPressed = false;
         },
-        VirtualKey.KeyA => {
+        VirtualKey::KeyA => {
             leftPressed = false;
         },
-        VirtualKey.KeyD => {
+        VirtualKey::KeyD => {
             rightPressed = false;
         },
         _ => {}
@@ -520,20 +520,20 @@ fn handleKeyUp(key: VirtualKey) {
 }
 
 fn processEvents() {
-    var event = Event.{};
+    let event = Event{};
     
     while pollEvent(window, &event) {
         match event.msg {
-            MessageType.Quit => {
+            MessageType::Quit => {
                 running = false;
             },
-            MessageType.KeyDown => {
+            MessageType::KeyDown => {
                 handleKeyDown(event.key.key);
             },
-            MessageType.KeyUp => {
+            MessageType::KeyUp => {
                 handleKeyUp(event.key.key);
             },
-            MessageType.MouseDown => {
+            MessageType::MouseDown => {
                 if event.mouse.button == MouseButton.Left {
                     startGame();
                 }
@@ -551,15 +551,15 @@ fn gameLoop() {
     while running {
         processEvents();
         
-        var current = getTickCount();
-        var dt = current - lastFrame;
+        let current = getTickCount();
+        let dt = current - lastFrame;
         
         // 更新游戏逻辑
         updateGame(dt);
         
         // 渲染
-        var fb = getFrameBuffer(window);
-        var pitch = getFrameBufferPitch(window);
+        let fb = getFrameBuffer(window);
+        let pitch = getFrameBufferPitch(window);
         
         // 绘制背景
         drawBackground(pitch, fb);
@@ -567,13 +567,13 @@ fn gameLoop() {
         // 绘制障碍物
         for i in 0..obstacleCount {
             match obstacles[i].obstacleType {
-                ObstacleType.Tree => {
+                ObstacleType::Tree => {
                     drawTree(obstacles[i].x, obstacles[i].y, pitch, fb);
                 },
-                ObstacleType.Rock => {
+                ObstacleType::Rock => {
                     drawRock(obstacles[i].x, obstacles[i].y, pitch, fb);
                 },
-                ObstacleType.Snowman => {
+                ObstacleType::Snowman => {
                     drawSnowman(obstacles[i].x, obstacles[i].y, pitch, fb);
                 },
             }
@@ -596,7 +596,7 @@ fn gameLoop() {
         lastFrame = current;
         
         // 帧率控制
-        var elapsed = getTickCount() - lastFrame;
+        let elapsed = getTickCount() - lastFrame;
         if elapsed < FRAME_TIME {
             sleep(FRAME_TIME - elapsed);
         }
@@ -606,10 +606,10 @@ fn gameLoop() {
 // ==================== 主函数 ====================
 
 fn main() {
-    io.println("===========================================");
-    io.println("  滑雪大冒险 - Zen-C");
-    io.println("  版本: 1.0.0");
-    io.println("===========================================");
+    io.println "===========================================";
+    io.println "  滑雪大冒险 - Zen-C";
+    io.println "  版本: 1.0.0";
+    io.println "===========================================";
     
     // 初始化平台
     initPlatform();
@@ -618,17 +618,17 @@ fn main() {
     window = createWindow("滑雪大冒险 - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT);
     
     if window == nil {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return;
     }
     
-    io.println("窗口创建成功!");
+    io.println "窗口创建成功!";
     
     // 初始化游戏
     initGame();
-    io.println("按空格开始游戏");
-    io.println("按 ← → 或 A/D 左右移动躲避障碍");
-    io.println("按 ESC 退出");
+    io.println "按空格开始游戏";
+    io.println "按 ← → 或 A/D 左右移动躲避障碍";
+    io.println "按 ESC 退出";
     
     // 运行游戏主循环
     gameLoop();
@@ -636,5 +636,5 @@ fn main() {
     // 清理
     shutdownPlatform();
     
-    io.println("游戏结束!");
+    io.println "游戏结束!";
 }

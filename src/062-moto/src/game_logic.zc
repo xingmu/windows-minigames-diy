@@ -1,35 +1,35 @@
 // game_logic.zc - Zen-C 摩托车障碍躲避游戏逻辑
 // 所有平台共用相同的游戏逻辑代码
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 400;
-const GAME_HEIGHT: i32 = 600;
-const ROAD_WIDTH: i32 = 300;
-const LANE_COUNT: i32 = 3;
-const LANE_WIDTH: i32 = ROAD_WIDTH / LANE_COUNT;
+def GAME_WIDTH: i32 = 400;
+def GAME_HEIGHT: i32 = 600;
+def ROAD_WIDTH: i32 = 300;
+def LANE_COUNT: i32 = 3;
+def LANE_WIDTH: i32 = ROAD_WIDTH / LANE_COUNT;
 
-const BIKE_WIDTH: i32 = 40;
-const BIKE_HEIGHT: i32 = 70;
-const BIKE_Y_BASE: i32 = GAME_HEIGHT - 120;
+def BIKE_WIDTH: i32 = 40;
+def BIKE_HEIGHT: i32 = 70;
+def BIKE_Y_BASE: i32 = GAME_HEIGHT - 120;
 
-const OBSTACLE_WIDTH: i32 = 50;
-const OBSTACLE_HEIGHT: i32 = 50;
-const OBSTACLE_MIN_SPEED: i32 = 3;
-const OBSTACLE_MAX_SPEED: i32 = 8;
-const OBSTACLE_SPAWN_INTERVAL: u32 = 800; // ms
+def OBSTACLE_WIDTH: i32 = 50;
+def OBSTACLE_HEIGHT: i32 = 50;
+def OBSTACLE_MIN_SPEED: i32 = 3;
+def OBSTACLE_MAX_SPEED: i32 = 8;
+def OBSTACLE_SPAWN_INTERVAL: u32 = 800; // ms
 
-const CAR_WIDTH: i32 = 45;
-const CAR_HEIGHT: i32 = 80;
-const CAR_MIN_SPEED: i32 = 4;
-const CAR_MAX_SPEED: i32 = 9;
+def CAR_WIDTH: i32 = 45;
+def CAR_HEIGHT: i32 = 80;
+def CAR_MIN_SPEED: i32 = 4;
+def CAR_MAX_SPEED: i32 = 9;
 
-const MAX_OBSTACLES: i32 = 20;
-const COIN_SIZE: i32 = 20;
-const MAX_COINS: i32 = 10;
+def MAX_OBSTACLES: i32 = 20;
+def COIN_SIZE: i32 = 20;
+def MAX_COINS: i32 = 10;
 
 // ==================== 数据结构 ====================
 
@@ -266,7 +266,7 @@ fn update_game(game: &mut GameState, current_time: u64) -> bool {
     }
 
     // 生成障碍物
-    let spawn_interval = OBSTACLE_SPAWN_INTERVAL - (game.speed_increase * 50 as u32);
+    let spawn_interval = OBSTACLE_SPAWN_INTERVAL - (game.speed_increase * (u32)50);
     if spawn_interval < 400 {
         spawn_interval = 400;
     }
@@ -332,12 +332,12 @@ fn update_game(game: &mut GameState, current_time: u64) -> bool {
 }
 
 // 获取摩托车位置
-fn get_bike_position(game: &GameState) -> (i32, i32, i32, i32) {
+fn get_bike_position(game: GameState*) -> (i32, i32, i32, i32) {
     return (game.bike.x, game.bike.y, game.bike.width, game.bike.height);
 }
 
 // 获取障碍物信息
-fn get_obstacle_info(game: &GameState, index: i32) -> (i32, i32, i32, i32, bool, i32) {
+fn get_obstacle_info(game: GameState*, index: i32) -> (i32, i32, i32, i32, bool, i32) {
     if index >= 0 && index < MAX_OBSTACLES {
         return (
             game.obstacles[index].x,
@@ -345,14 +345,14 @@ fn get_obstacle_info(game: &GameState, index: i32) -> (i32, i32, i32, i32, bool,
             game.obstacles[index].width,
             game.obstacles[index].height,
             game.obstacles[index].active,
-            game.obstacles[index].obstacle_type as i32
+            game.obstacles[index].(i32)obstacle_type
         );
     }
     return (0, 0, 0, 0, false, 0);
 }
 
 // 获取金币信息
-fn get_coin_info(game: &GameState, index: i32) -> (i32, i32, bool) {
+fn get_coin_info(game: GameState*, index: i32) -> (i32, i32, bool) {
     if index >= 0 && index < MAX_COINS {
         return (
             game.coins[index].x,
@@ -364,22 +364,22 @@ fn get_coin_info(game: &GameState, index: i32) -> (i32, i32, bool) {
 }
 
 // 获取分数
-fn get_score(game: &GameState) -> i32 {
+fn get_score(game: GameState*) -> i32 {
     return game.score;
 }
 
 // 获取距离
-fn get_distance(game: &GameState) -> i32 {
+fn get_distance(game: GameState*) -> i32 {
     return game.distance;
 }
 
 // 获取游戏是否结束
-fn is_game_over(game: &GameState) -> bool {
+fn is_game_over(game: GameState*) -> bool {
     return game.game_over;
 }
 
 // 获取游戏是否暂停
-fn is_paused(game: &GameState) -> bool {
+fn is_paused(game: GameState*) -> bool {
     return game.paused;
 }
 
@@ -389,7 +389,7 @@ fn toggle_pause(game: &mut GameState) {
 }
 
 // 获取当前速度等级
-fn get_speed_level(game: &GameState) -> i32 {
+fn get_speed_level(game: GameState*) -> i32 {
     return game.speed_increase + 1;
 }
 

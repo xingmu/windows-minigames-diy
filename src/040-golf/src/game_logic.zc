@@ -3,26 +3,26 @@
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 800;
-const GAME_HEIGHT: i32 = 600;
+def GAME_WIDTH: i32 = 800;
+def GAME_HEIGHT: i32 = 600;
 
 // 球半径
-const BALL_RADIUS: i32 = 8;
+def BALL_RADIUS: i32 = 8;
 
 // 洞的半径
-const HOLE_RADIUS: i32 = 14;
+def HOLE_RADIUS: i32 = 14;
 
 // 最大击球力度
-const MAX_POWER: i32 = 30;
+def MAX_POWER: i32 = 30;
 
 // 摩擦系数 (每帧速度衰减)
-const FRICTION: i32 = 3;
+def FRICTION: i32 = 3;
 
 // 最小速度阈值
-const MIN_VELOCITY: i32 = 1;
+def MIN_VELOCITY: i32 = 1;
 
 // 墙壁反弹系数
-const BOUNCE: i32 = 80;
+def BOUNCE: i32 = 80;
 
 // ==================== 游戏状态 ====================
 
@@ -45,8 +45,8 @@ struct Hole {
 }
 
 struct Course {
-    holes: [9]Hole,
-    obstacles: [20]Obstacle,
+    holes: [Hole; 9],
+    obstacles: [Obstacle; 20],
     obsCount: i32,
     teeX: i32, teeY: i32,
     holeX: i32, holeY: i32,
@@ -87,24 +87,24 @@ struct GolfState {
 
 fn createCourse0() -> Course {
     // 第1洞: 简单直洞
-    return Course.{
+    return Course {
         holes: [
-            Hole.{ x: 700, y: 300, par: 3 },
-            Hole.{ x: 650, y: 150, par: 3 },
-            Hole.{ x: 200, y: 500, par: 4 },
-            Hole.{ x: 400, y: 300, par: 3 },
-            Hole.{ x: 700, y: 500, par: 3 },
-            Hole.{ x: 150, y: 150, par: 4 },
-            Hole.{ x: 400, y: 100, par: 3 },
-            Hole.{ x: 600, y: 450, par: 4 },
-            Hole.{ x: 350, y: 400, par: 3 },
+            Hole { x: 700, y: 300, par: 3 },
+            Hole { x: 650, y: 150, par: 3 },
+            Hole { x: 200, y: 500, par: 4 },
+            Hole { x: 400, y: 300, par: 3 },
+            Hole { x: 700, y: 500, par: 3 },
+            Hole { x: 150, y: 150, par: 4 },
+            Hole { x: 400, y: 100, par: 3 },
+            Hole { x: 600, y: 450, par: 4 },
+            Hole { x: 350, y: 400, par: 3 },
         ],
         teeX: 100,
         teeY: 300,
         holeX: 700,
         holeY: 300,
         obstacles: [
-            Obstacle.{ x1: 0, y1: 0, x2: 0, y2: 0, typ: 0 },
+            Obstacle { x1: 0, y1: 0, x2: 0, y2: 0, typ: 0 },
         ],
         obsCount: 0,
         name: "第1洞 - 练习场",
@@ -113,17 +113,17 @@ fn createCourse0() -> Course {
 
 fn createCourse1() -> Course {
     // 第2洞: L形
-    var c = Course.{
+    let c = Course {
         holes: [
-            Hole.{ x: 700, y: 300, par: 3 },
-            Hole.{ x: 650, y: 150, par: 3 },
-            Hole.{ x: 200, y: 500, par: 4 },
-            Hole.{ x: 400, y: 300, par: 3 },
-            Hole.{ x: 700, y: 500, par: 3 },
-            Hole.{ x: 150, y: 150, par: 4 },
-            Hole.{ x: 400, y: 100, par: 3 },
-            Hole.{ x: 600, y: 450, par: 4 },
-            Hole.{ x: 350, y: 400, par: 3 },
+            Hole { x: 700, y: 300, par: 3 },
+            Hole { x: 650, y: 150, par: 3 },
+            Hole { x: 200, y: 500, par: 4 },
+            Hole { x: 400, y: 300, par: 3 },
+            Hole { x: 700, y: 500, par: 3 },
+            Hole { x: 150, y: 150, par: 4 },
+            Hole { x: 400, y: 100, par: 3 },
+            Hole { x: 600, y: 450, par: 4 },
+            Hole { x: 350, y: 400, par: 3 },
         ],
         teeX: 100,
         teeY: 100,
@@ -134,30 +134,30 @@ fn createCourse1() -> Course {
     };
     
     // 中间墙壁
-    c.obstacles[0] = Obstacle.{ x1: 350, y1: 200, x2: 380, y2: 500, typ: 0 };
+    c.obstacles[0] = Obstacle { x1: 350, y1: 200, x2: 380, y2: 500, typ: 0 };
     // 水障碍
-    c.obstacles[1] = Obstacle.{ x1: 200, y1: 300, x2: 300, y2: 350, typ: 1 };
+    c.obstacles[1] = Obstacle { x1: 200, y1: 300, x2: 300, y2: 350, typ: 1 };
     // 沙坑
-    c.obstacles[2] = Obstacle.{ x1: 500, y1: 400, x2: 580, y2: 480, typ: 2 };
+    c.obstacles[2] = Obstacle { x1: 500, y1: 400, x2: 580, y2: 480, typ: 2 };
     // 沙坑
-    c.obstacles[3] = Obstacle.{ x1: 250, y1: 450, x2: 320, y2: 520, typ: 2 };
+    c.obstacles[3] = Obstacle { x1: 250, y1: 450, x2: 320, y2: 520, typ: 2 };
     
     return c;
 }
 
 fn createCourse2() -> Course {
     // 第3洞: 有水障碍
-    var c = Course.{
+    let c = Course {
         holes: [
-            Hole.{ x: 700, y: 300, par: 3 },
-            Hole.{ x: 650, y: 150, par: 3 },
-            Hole.{ x: 200, y: 500, par: 4 },
-            Hole.{ x: 400, y: 300, par: 3 },
-            Hole.{ x: 700, y: 500, par: 3 },
-            Hole.{ x: 150, y: 150, par: 4 },
-            Hole.{ x: 400, y: 100, par: 3 },
-            Hole.{ x: 600, y: 450, par: 4 },
-            Hole.{ x: 350, y: 400, par: 3 },
+            Hole { x: 700, y: 300, par: 3 },
+            Hole { x: 650, y: 150, par: 3 },
+            Hole { x: 200, y: 500, par: 4 },
+            Hole { x: 400, y: 300, par: 3 },
+            Hole { x: 700, y: 500, par: 3 },
+            Hole { x: 150, y: 150, par: 4 },
+            Hole { x: 400, y: 100, par: 3 },
+            Hole { x: 600, y: 450, par: 4 },
+            Hole { x: 350, y: 400, par: 3 },
         ],
         teeX: 100,
         teeY: 300,
@@ -168,30 +168,30 @@ fn createCourse2() -> Course {
     };
     
     // 中心水障碍
-    c.obstacles[0] = Obstacle.{ x1: 350, y1: 220, x2: 500, y2: 380, typ: 1 };
+    c.obstacles[0] = Obstacle { x1: 350, y1: 220, x2: 500, y2: 380, typ: 1 };
     // 墙壁
-    c.obstacles[1] = Obstacle.{ x1: 200, y1: 100, x2: 230, y2: 200, typ: 0 };
-    c.obstacles[2] = Obstacle.{ x1: 200, y1: 400, x2: 230, y2: 500, typ: 0 };
+    c.obstacles[1] = Obstacle { x1: 200, y1: 100, x2: 230, y2: 200, typ: 0 };
+    c.obstacles[2] = Obstacle { x1: 200, y1: 400, x2: 230, y2: 500, typ: 0 };
     // 沙坑
-    c.obstacles[3] = Obstacle.{ x1: 550, y1: 200, x2: 620, y2: 260, typ: 2 };
-    c.obstacles[4] = Obstacle.{ x1: 550, y1: 340, x2: 620, y2: 400, typ: 2 };
+    c.obstacles[3] = Obstacle { x1: 550, y1: 200, x2: 620, y2: 260, typ: 2 };
+    c.obstacles[4] = Obstacle { x1: 550, y1: 340, x2: 620, y2: 400, typ: 2 };
     
     return c;
 }
 
 fn createCourse3() -> Course {
     // 第4洞: 曲折
-    var c = Course.{
+    let c = Course {
         holes: [
-            Hole.{ x: 700, y: 300, par: 3 },
-            Hole.{ x: 650, y: 150, par: 3 },
-            Hole.{ x: 200, y: 500, par: 4 },
-            Hole.{ x: 400, y: 300, par: 3 },
-            Hole.{ x: 700, y: 500, par: 3 },
-            Hole.{ x: 150, y: 150, par: 4 },
-            Hole.{ x: 400, y: 100, par: 3 },
-            Hole.{ x: 600, y: 450, par: 4 },
-            Hole.{ x: 350, y: 400, par: 3 },
+            Hole { x: 700, y: 300, par: 3 },
+            Hole { x: 650, y: 150, par: 3 },
+            Hole { x: 200, y: 500, par: 4 },
+            Hole { x: 400, y: 300, par: 3 },
+            Hole { x: 700, y: 500, par: 3 },
+            Hole { x: 150, y: 150, par: 4 },
+            Hole { x: 400, y: 100, par: 3 },
+            Hole { x: 600, y: 450, par: 4 },
+            Hole { x: 350, y: 400, par: 3 },
         ],
         teeX: 80,
         teeY: 550,
@@ -202,27 +202,27 @@ fn createCourse3() -> Course {
     };
     
     // 折墙
-    c.obstacles[0] = Obstacle.{ x1: 200, y1: 100, x2: 230, y2: 450, typ: 0 };
-    c.obstacles[1] = Obstacle.{ x1: 400, y1: 150, x2: 430, y2: 500, typ: 0 };
-    c.obstacles[2] = Obstacle.{ x1: 580, y1: 100, x2: 610, y2: 400, typ: 0 };
-    c.obstacles[3] = Obstacle.{ x1: 300, y1: 300, x2: 350, y2: 330, typ: 1 };
+    c.obstacles[0] = Obstacle { x1: 200, y1: 100, x2: 230, y2: 450, typ: 0 };
+    c.obstacles[1] = Obstacle { x1: 400, y1: 150, x2: 430, y2: 500, typ: 0 };
+    c.obstacles[2] = Obstacle { x1: 580, y1: 100, x2: 610, y2: 400, typ: 0 };
+    c.obstacles[3] = Obstacle { x1: 300, y1: 300, x2: 350, y2: 330, typ: 1 };
     
     return c;
 }
 
 fn createCourse4() -> Course {
     // 第5洞: 狭长通道
-    var c = Course.{
+    let c = Course {
         holes: [
-            Hole.{ x: 700, y: 300, par: 3 },
-            Hole.{ x: 650, y: 150, par: 3 },
-            Hole.{ x: 200, y: 500, par: 4 },
-            Hole.{ x: 400, y: 300, par: 3 },
-            Hole.{ x: 700, y: 500, par: 3 },
-            Hole.{ x: 150, y: 150, par: 4 },
-            Hole.{ x: 400, y: 100, par: 3 },
-            Hole.{ x: 600, y: 450, par: 4 },
-            Hole.{ x: 350, y: 400, par: 3 },
+            Hole { x: 700, y: 300, par: 3 },
+            Hole { x: 650, y: 150, par: 3 },
+            Hole { x: 200, y: 500, par: 4 },
+            Hole { x: 400, y: 300, par: 3 },
+            Hole { x: 700, y: 500, par: 3 },
+            Hole { x: 150, y: 150, par: 4 },
+            Hole { x: 400, y: 100, par: 3 },
+            Hole { x: 600, y: 450, par: 4 },
+            Hole { x: 350, y: 400, par: 3 },
         ],
         teeX: 80,
         teeY: 300,
@@ -233,26 +233,26 @@ fn createCourse4() -> Course {
     };
     
     // 上墙壁
-    c.obstacles[0] = Obstacle.{ x1: 150, y1: 220, x2: 680, y2: 250, typ: 0 };
+    c.obstacles[0] = Obstacle { x1: 150, y1: 220, x2: 680, y2: 250, typ: 0 };
     // 下墙壁
-    c.obstacles[1] = Obstacle.{ x1: 150, y1: 350, x2: 680, y2: 380, typ: 0 };
+    c.obstacles[1] = Obstacle { x1: 150, y1: 350, x2: 680, y2: 380, typ: 0 };
     
     return c;
 }
 
 fn createCourse5() -> Course {
     // 第6洞: 圆形障碍
-    var c = Course.{
+    let c = Course {
         holes: [
-            Hole.{ x: 700, y: 300, par: 3 },
-            Hole.{ x: 650, y: 150, par: 3 },
-            Hole.{ x: 200, y: 500, par: 4 },
-            Hole.{ x: 400, y: 300, par: 3 },
-            Hole.{ x: 700, y: 500, par: 3 },
-            Hole.{ x: 150, y: 150, par: 4 },
-            Hole.{ x: 400, y: 100, par: 3 },
-            Hole.{ x: 600, y: 450, par: 4 },
-            Hole.{ x: 350, y: 400, par: 3 },
+            Hole { x: 700, y: 300, par: 3 },
+            Hole { x: 650, y: 150, par: 3 },
+            Hole { x: 200, y: 500, par: 4 },
+            Hole { x: 400, y: 300, par: 3 },
+            Hole { x: 700, y: 500, par: 3 },
+            Hole { x: 150, y: 150, par: 4 },
+            Hole { x: 400, y: 100, par: 3 },
+            Hole { x: 600, y: 450, par: 4 },
+            Hole { x: 350, y: 400, par: 3 },
         ],
         teeX: 100,
         teeY: 300,
@@ -263,26 +263,26 @@ fn createCourse5() -> Course {
     };
     
     // 圆形石头 (用矩形近似)
-    c.obstacles[0] = Obstacle.{ x1: 280, y1: 240, x2: 340, y2: 300, typ: 0 };
-    c.obstacles[1] = Obstacle.{ x1: 420, y1: 180, x2: 480, y2: 240, typ: 0 };
-    c.obstacles[2] = Obstacle.{ x1: 450, y1: 340, x2: 510, y2: 400, typ: 0 };
+    c.obstacles[0] = Obstacle { x1: 280, y1: 240, x2: 340, y2: 300, typ: 0 };
+    c.obstacles[1] = Obstacle { x1: 420, y1: 180, x2: 480, y2: 240, typ: 0 };
+    c.obstacles[2] = Obstacle { x1: 450, y1: 340, x2: 510, y2: 400, typ: 0 };
     
     return c;
 }
 
 fn createCourse6() -> Course {
     // 第7洞: 沙坑地狱
-    var c = Course.{
+    let c = Course {
         holes: [
-            Hole.{ x: 700, y: 300, par: 3 },
-            Hole.{ x: 650, y: 150, par: 3 },
-            Hole.{ x: 200, y: 500, par: 4 },
-            Hole.{ x: 400, y: 300, par: 3 },
-            Hole.{ x: 700, y: 500, par: 3 },
-            Hole.{ x: 150, y: 150, par: 4 },
-            Hole.{ x: 400, y: 100, par: 3 },
-            Hole.{ x: 600, y: 450, par: 4 },
-            Hole.{ x: 350, y: 400, par: 3 },
+            Hole { x: 700, y: 300, par: 3 },
+            Hole { x: 650, y: 150, par: 3 },
+            Hole { x: 200, y: 500, par: 4 },
+            Hole { x: 400, y: 300, par: 3 },
+            Hole { x: 700, y: 500, par: 3 },
+            Hole { x: 150, y: 150, par: 4 },
+            Hole { x: 400, y: 100, par: 3 },
+            Hole { x: 600, y: 450, par: 4 },
+            Hole { x: 350, y: 400, par: 3 },
         ],
         teeX: 100,
         teeY: 300,
@@ -292,28 +292,28 @@ fn createCourse6() -> Course {
         name: "第7洞 - 沙坑阵",
     };
     
-    c.obstacles[0] = Obstacle.{ x1: 250, y1: 180, x2: 350, y2: 240, typ: 2 };
-    c.obstacles[1] = Obstacle.{ x1: 380, y1: 250, x2: 480, y2: 310, typ: 2 };
-    c.obstacles[2] = Obstacle.{ x1: 250, y1: 360, x2: 350, y2: 420, typ: 2 };
-    c.obstacles[3] = Obstacle.{ x1: 500, y1: 150, x2: 560, y2: 210, typ: 2 };
-    c.obstacles[4] = Obstacle.{ x1: 500, y1: 390, x2: 560, y2: 450, typ: 2 };
+    c.obstacles[0] = Obstacle { x1: 250, y1: 180, x2: 350, y2: 240, typ: 2 };
+    c.obstacles[1] = Obstacle { x1: 380, y1: 250, x2: 480, y2: 310, typ: 2 };
+    c.obstacles[2] = Obstacle { x1: 250, y1: 360, x2: 350, y2: 420, typ: 2 };
+    c.obstacles[3] = Obstacle { x1: 500, y1: 150, x2: 560, y2: 210, typ: 2 };
+    c.obstacles[4] = Obstacle { x1: 500, y1: 390, x2: 560, y2: 450, typ: 2 };
     
     return c;
 }
 
 fn createCourse7() -> Course {
     // 第8洞: 梯田
-    var c = Course.{
+    let c = Course {
         holes: [
-            Hole.{ x: 700, y: 300, par: 3 },
-            Hole.{ x: 650, y: 150, par: 3 },
-            Hole.{ x: 200, y: 500, par: 4 },
-            Hole.{ x: 400, y: 300, par: 3 },
-            Hole.{ x: 700, y: 500, par: 3 },
-            Hole.{ x: 150, y: 150, par: 4 },
-            Hole.{ x: 400, y: 100, par: 3 },
-            Hole.{ x: 600, y: 450, par: 4 },
-            Hole.{ x: 350, y: 400, par: 3 },
+            Hole { x: 700, y: 300, par: 3 },
+            Hole { x: 650, y: 150, par: 3 },
+            Hole { x: 200, y: 500, par: 4 },
+            Hole { x: 400, y: 300, par: 3 },
+            Hole { x: 700, y: 500, par: 3 },
+            Hole { x: 150, y: 150, par: 4 },
+            Hole { x: 400, y: 100, par: 3 },
+            Hole { x: 600, y: 450, par: 4 },
+            Hole { x: 350, y: 400, par: 3 },
         ],
         teeX: 80,
         teeY: 100,
@@ -323,26 +323,26 @@ fn createCourse7() -> Course {
         name: "第8洞 - 梯田挑战",
     };
     
-    c.obstacles[0] = Obstacle.{ x1: 200, y1: 180, x2: 230, y2: 420, typ: 0 };
-    c.obstacles[1] = Obstacle.{ x1: 400, y1: 220, x2: 430, y2: 480, typ: 0 };
-    c.obstacles[2] = Obstacle.{ x1: 580, y1: 100, x2: 610, y2: 400, typ: 0 };
+    c.obstacles[0] = Obstacle { x1: 200, y1: 180, x2: 230, y2: 420, typ: 0 };
+    c.obstacles[1] = Obstacle { x1: 400, y1: 220, x2: 430, y2: 480, typ: 0 };
+    c.obstacles[2] = Obstacle { x1: 580, y1: 100, x2: 610, y2: 400, typ: 0 };
     
     return c;
 }
 
 fn createCourse8() -> Course {
     // 第9洞: 最终挑战
-    var c = Course.{
+    let c = Course {
         holes: [
-            Hole.{ x: 700, y: 300, par: 3 },
-            Hole.{ x: 650, y: 150, par: 3 },
-            Hole.{ x: 200, y: 500, par: 4 },
-            Hole.{ x: 400, y: 300, par: 3 },
-            Hole.{ x: 700, y: 500, par: 3 },
-            Hole.{ x: 150, y: 150, par: 4 },
-            Hole.{ x: 400, y: 100, par: 3 },
-            Hole.{ x: 600, y: 450, par: 4 },
-            Hole.{ x: 350, y: 400, par: 3 },
+            Hole { x: 700, y: 300, par: 3 },
+            Hole { x: 650, y: 150, par: 3 },
+            Hole { x: 200, y: 500, par: 4 },
+            Hole { x: 400, y: 300, par: 3 },
+            Hole { x: 700, y: 500, par: 3 },
+            Hole { x: 150, y: 150, par: 4 },
+            Hole { x: 400, y: 100, par: 3 },
+            Hole { x: 600, y: 450, par: 4 },
+            Hole { x: 350, y: 400, par: 3 },
         ],
         teeX: 80,
         teeY: 550,
@@ -353,12 +353,12 @@ fn createCourse8() -> Course {
     };
     
     // 复杂障碍
-    c.obstacles[0] = Obstacle.{ x1: 200, y1: 150, x2: 230, y2: 450, typ: 0 };
-    c.obstacles[1] = Obstacle.{ x1: 400, y1: 100, x2: 430, y2: 350, typ: 0 };
-    c.obstacles[2] = Obstacle.{ x1: 550, y1: 200, x2: 580, y2: 500, typ: 0 };
-    c.obstacles[3] = Obstacle.{ x1: 300, y1: 280, x2: 380, y2: 320, typ: 1 };
-    c.obstacles[4] = Obstacle.{ x1: 480, y1: 380, x2: 540, y2: 440, typ: 2 };
-    c.obstacles[5] = Obstacle.{ x1: 620, y1: 120, x2: 680, y2: 180, typ: 2 };
+    c.obstacles[0] = Obstacle { x1: 200, y1: 150, x2: 230, y2: 450, typ: 0 };
+    c.obstacles[1] = Obstacle { x1: 400, y1: 100, x2: 430, y2: 350, typ: 0 };
+    c.obstacles[2] = Obstacle { x1: 550, y1: 200, x2: 580, y2: 500, typ: 0 };
+    c.obstacles[3] = Obstacle { x1: 300, y1: 280, x2: 380, y2: 320, typ: 1 };
+    c.obstacles[4] = Obstacle { x1: 480, y1: 380, x2: 540, y2: 440, typ: 2 };
+    c.obstacles[5] = Obstacle { x1: 620, y1: 120, x2: 680, y2: 180, typ: 2 };
     
     return c;
 }
@@ -416,8 +416,8 @@ fn distance(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
 // ==================== 球杆绘制辅助 ====================
 
 // 球杆颜色
-const STICK_COLOR: Color = Color.RGB(139, 90, 43);
-const STICK_TIP_COLOR: Color = Color.RGB(200, 180, 150);
+def STICK_COLOR: Color = Color.RGB(139, 90, 43);
+def STICK_TIP_COLOR: Color = Color.RGB(200, 180, 150);
 
 // ==================== 障碍物碰撞 ====================
 
@@ -476,10 +476,10 @@ fn loadHole(state: &mut GolfState, holeIndex: i32) {
 // ==================== 物理更新 ====================
 
 fn updatePhysics(state: &mut GolfState) -> bool {
-    var anyMoving = false;
+    let anyMoving = false;
     
     // 检查是否在沙坑中 (沙坑摩擦更大)
-    var inSand = false;
+    let inSand = false;
     for i in 0..state.course.obsCount {
         let obs = state.course.obstacles[i];
         if obs.typ == 2 {  // 沙坑
@@ -607,7 +607,7 @@ fn updatePhysics(state: &mut GolfState) -> bool {
 }
 
 // 检查所有物体是否静止
-fn allStopped(state: &GolfState) -> bool {
+fn allStopped(state: GolfState*) -> bool {
     return state.vx == 0 && state.vy == 0;
 }
 
@@ -689,17 +689,17 @@ fn onMouseUp(state: &mut GolfState, x: i32, y: i32) {
 
 // ==================== 状态查询 ====================
 
-fn getStatusText(state: &GolfState) -> string {
+fn getStatusText(state: GolfState*) -> string {
     match state.status {
-        GameStatus.Ready => return "点击并拖拽瞄准击球方向",
-        GameStatus.Aiming => return "瞄准中...",
-        GameStatus.Dragging => return "蓄力中: " ++ state.power.toString(),
-        GameStatus.Moving => return "球运动中...",
-        GameStatus.HoleIn => return "进洞了! +" ++ state.strokes.toString() ++ "杆",
-        GameStatus.GameComplete => return "球场完成! 总杆数: " ++ state.totalStrokes.toString(),
+        GameStatus::Ready => return "点击并拖拽瞄准击球方向",
+        GameStatus::Aiming => return "瞄准中...",
+        GameStatus::Dragging => return "蓄力中: {state}".power.toString(),
+        GameStatus::Moving => return "球运动中...",
+        GameStatus::HoleIn => return "进洞了! +{state}"."{strokes}杆",
+        GameStatus::GameComplete => return "球场完成! 总杆数: {state}".totalStrokes.toString(),
     }
 }
 
-fn getHoleName(state: &GolfState) -> string {
+fn getHoleName(state: GolfState*) -> string {
     return state.course.name;
 }

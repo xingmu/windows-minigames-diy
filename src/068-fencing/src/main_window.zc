@@ -1,21 +1,21 @@
 // main_window.zc - 击剑游戏入口
 // 068-Fencing
 
-import std.time;
+// import "time.zc";
 
 import "platform_api.zc";
 import "game_logic.zc";
 
 pub fn main() {
-    println("===========================================");
-    println("  Zen-C 击剑游戏 v1.0.0");
-    println("  Fencing - 优雅的剑术对决");
-    println("===========================================");
-    println("");
+    println "===========================================";
+    println "  Zen-C 击剑游戏 v1.0.0";
+    println "  Fencing - 优雅的剑术对决";
+    println "===========================================";
+    println "";
     
     initPlatform();
     
-    var game = FightingGame.("Fencing 击剑", 800, 600, 60);
+    let game = FightingGame("Fencing 击剑", 800, 600, 60);
     game.run();
     game.destroy();
     

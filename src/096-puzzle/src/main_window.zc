@@ -2,9 +2,9 @@
 // 096-Puzzle - 4x4滑块拼图
 // 继承自Game类，框架版本: 1.0.0
 
-import std.io;
-import std.string;
-import std.time;
+import "io.zc";
+import "string.zc";
+// import "time.zc";
 
 // 导入框架和游戏逻辑
 import "platform_api.zc";
@@ -14,20 +14,20 @@ import "game_logic.zc";
 // ==================== 常量定义 ====================
 
 // 窗口尺寸
-const WINDOW_WIDTH = 480;
-const WINDOW_HEIGHT = 640;
+def WINDOW_WIDTH = 480;
+def WINDOW_HEIGHT = 640;
 
 // 游戏区域
-const GRID_OFFSET_X = 40;
-const GRID_OFFSET_Y = 160;
-const CELL_SIZE = 90;
-const CELL_GAP = 6;
-const GRID_BORDER = 6;
+def GRID_OFFSET_X = 40;
+def GRID_OFFSET_Y = 160;
+def CELL_SIZE = 90;
+def CELL_GAP = 6;
+def GRID_BORDER = 6;
 
 // ==================== 颜色定义 ====================
 
 // 方块颜色 - 15种不同颜色渐变
-const TILE_COLORS: [16]Color = [
+def TILE_COLORS: [Color; 16] = [
     0xFF2C3E50,  // 0-空白
     0xFFE74C3C,  // 1-红色
     0xFFE67E22,  // 2-橙色
@@ -47,15 +47,15 @@ const TILE_COLORS: [16]Color = [
 ];
 
 // 背景和网格
-const BACKGROUND_COLOR = 0xFF1A1A2E;     // 深蓝黑
-const GRID_BACKGROUND = 0xFF16213E;       // 深蓝
-const CELL_EMPTY = 0xFF0F3460;            // 空格子颜色
-const BORDER_COLOR = 0xFF533483;          // 紫色边框
+def BACKGROUND_COLOR = 0xFF1A1A2E;     // 深蓝黑
+def GRID_BACKGROUND = 0xFF16213E;       // 深蓝
+def CELL_EMPTY = 0xFF0F3460;            // 空格子颜色
+def BORDER_COLOR = 0xFF533483;          // 紫色边框
 
 // 文字颜色
-const TEXT_LIGHT = 0xFFEEEEEE;            // 浅色文字
-const TEXT_GOLD = 0xFFFFD700;             // 金色
-const TEXT_CYAN = 0xFF00FFFF;             // 青色
+def TEXT_LIGHT = 0xFFEEEEEE;            // 浅色文字
+def TEXT_GOLD = 0xFFFFD700;             // 金色
+def TEXT_CYAN = 0xFF00FFFF;             // 青色
 
 // ==================== 游戏类 ====================
 
@@ -66,8 +66,8 @@ class PuzzleGame extends Game {
     // 构造函数
     pub fn create(title: str, width: int, height: int, fps: int) {
         super.create(title, width, height, fps);
-        self.game_data = GameData.{
-            board: Board.{ cells: [0; 16] },
+        self.game_data = GameData {
+            board: Board { cells: [0; 16] },
             moves: 0,
             solved: false,
             started: false,
@@ -83,21 +83,21 @@ class PuzzleGame extends Game {
         init_game(&mut self.game_data);
         shuffle_game(&mut self.game_data);
         
-        io.println("[096-Puzzle] 15滑块拼图游戏已初始化!");
-        io.println("[096-Puzzle] 使用方向键或WASD移动方块");
-        io.println("[096-Puzzle] 按R键重新开始");
-        io.println("[096-Puzzle] 目标: 将1-15按顺序排列");
+        io.println "[096-Puzzle] 15滑块拼图游戏已初始化!";
+        io.println "[096-Puzzle] 使用方向键或WASD移动方块";
+        io.println "[096-Puzzle] 按R键重新开始";
+        io.println "[096-Puzzle] 目标: 将1-15按顺序排列";
     }
     
     fn onShutdown() {
-        io.println("[096-Puzzle] 游戏已退出!");
+        io.println "[096-Puzzle] 游戏已退出!";
     }
     
     fn onUpdate(dt: u32) {
         // 游戏逻辑在输入时处理
     }
     
-    fn onRender(canvas: &Canvas) {
+    fn onRender(canvas: Canvas*) {
         // 绘制背景
         canvas.clear(BACKGROUND_COLOR);
         
@@ -138,17 +138,17 @@ class PuzzleGame extends Game {
             return;
         }
         
-        var key_code: int = 0;
+        let key_code: int = 0;
         
         match key {
-            VirtualKey.Left => key_code = 37,
-            VirtualKey.Up => key_code = 38,
-            VirtualKey.Right => key_code = 39,
-            VirtualKey.Down => key_code = 40,
-            VirtualKey.KeyW => key_code = 87,
-            VirtualKey.KeyS => key_code = 83,
-            VirtualKey.KeyA => key_code = 65,
-            VirtualKey.KeyD => key_code = 68,
+            VirtualKey::Left => key_code = 37,
+            VirtualKey::Up => key_code = 38,
+            VirtualKey::Right => key_code = 39,
+            VirtualKey::Down => key_code = 40,
+            VirtualKey::KeyW => key_code = 87,
+            VirtualKey::KeyS => key_code = 83,
+            VirtualKey::KeyA => key_code = 65,
+            VirtualKey::KeyD => key_code = 68,
             _ => key_code = 0
         }
         
@@ -196,14 +196,14 @@ class PuzzleGame extends Game {
 
 // ==================== 绘图函数 ====================
 
-fn draw_background_decoration(canvas: &Canvas) {
+fn draw_background_decoration(canvas: Canvas*) {
     canvas.fillCircle(50, 80, 30, 0x10FFFFFF);
     canvas.fillCircle(WINDOW_WIDTH - 50, 100, 40, 0x10FFFFFF);
     canvas.fillCircle(80, WINDOW_HEIGHT - 100, 50, 0x10FFFFFF);
     canvas.fillCircle(WINDOW_WIDTH - 80, WINDOW_HEIGHT - 80, 35, 0x10FFFFFF);
 }
 
-fn draw_title(canvas: &Canvas) {
+fn draw_title(canvas: Canvas*) {
     canvas.fillRect(GRID_OFFSET_X - 10, 15, CELL_SIZE * 4 + CELL_GAP * 3 + 20, 120, GRID_BACKGROUND);
     canvas.drawRect(GRID_OFFSET_X - 10, 15, CELL_SIZE * 4 + CELL_GAP * 3 + 20, 120, BORDER_COLOR);
     
@@ -241,7 +241,7 @@ fn draw_title(canvas: &Canvas) {
 }
 
 // 绘制数字0
-fn draw_letter_0(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_0(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 30, 5, color);
     canvas.fillRect(x, y + 5, 5, 25, color);
     canvas.fillRect(x + 25, y + 5, 5, 25, color);
@@ -249,7 +249,7 @@ fn draw_letter_0(canvas: &Canvas, x: i32, y: i32, color: Color) {
 }
 
 // 绘制数字6
-fn draw_letter_6(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_6(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 30, 5, color);
     canvas.fillRect(x, y + 5, 5, 20, color);
     canvas.fillRect(x + 5, y + 25, 20, 5, color);
@@ -259,7 +259,7 @@ fn draw_letter_6(canvas: &Canvas, x: i32, y: i32, color: Color) {
 }
 
 // 绘制数字9
-fn draw_letter_9(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_9(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 30, 5, color);
     canvas.fillRect(x, y + 5, 5, 20, color);
     canvas.fillRect(x + 5, y + 5, 20, 5, color);
@@ -268,13 +268,13 @@ fn draw_letter_9(canvas: &Canvas, x: i32, y: i32, color: Color) {
 }
 
 // 绘制数字1
-fn draw_letter_1(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_1(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x + 10, y, 5, 35, color);
     canvas.fillRect(x, y + 30, 25, 5, color);
 }
 
 // 绘制数字5
-fn draw_letter_5(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_5(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 30, 5, color);
     canvas.fillRect(x, y + 5, 5, 15, color);
     canvas.fillRect(x + 5, y + 20, 20, 5, color);
@@ -283,7 +283,7 @@ fn draw_letter_5(canvas: &Canvas, x: i32, y: i32, color: Color) {
 }
 
 // 绘制字母P
-fn draw_letter_p(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_p(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 5, 40, color);
     canvas.fillRect(x + 5, y, 20, 5, color);
     canvas.fillRect(x + 5, y + 5, 5, 10, color);
@@ -292,27 +292,27 @@ fn draw_letter_p(canvas: &Canvas, x: i32, y: i32, color: Color) {
 }
 
 // 绘制字母U
-fn draw_letter_u(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_u(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 5, 35, color);
     canvas.fillRect(x + 25, y, 5, 35, color);
     canvas.fillRect(x + 5, y + 35, 20, 5, color);
 }
 
 // 绘制字母Z
-fn draw_letter_z(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_z(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 30, 5, color);
     canvas.fillRect(x + 22, y + 5, 8, 10, color);
     canvas.fillRect(x, y + 35, 30, 5, color);
 }
 
 // 绘制字母L
-fn draw_letter_l(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_l(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 5, 40, color);
     canvas.fillRect(x + 5, y + 35, 20, 5, color);
 }
 
 // 绘制字母E
-fn draw_letter_e(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_e(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 25, 5, color);
     canvas.fillRect(x, y + 5, 5, 15, color);
     canvas.fillRect(x + 5, y + 20, 15, 5, color);
@@ -321,11 +321,11 @@ fn draw_letter_e(canvas: &Canvas, x: i32, y: i32, color: Color) {
 }
 
 // 绘制破折号
-fn draw_dash(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_dash(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y + 15, 20, 5, color);
 }
 
-fn draw_stats(canvas: &Canvas) {
+fn draw_stats(canvas: Canvas*) {
     let stats_y = 140;
     
     // 移动次数背景
@@ -362,9 +362,9 @@ fn draw_stats(canvas: &Canvas) {
     draw_small_number(canvas, time_label_x + 38, stats_y + 2, elapsed, TEXT_GOLD);
 }
 
-fn draw_small_number(canvas: &Canvas, x: i32, y: i32, num: i32, color: Color) {
+fn draw_small_number(canvas: Canvas*, x: i32, y: i32, num: i32, color: Color) {
     if num < 10 {
-        draw_small_digit(canvas, x, y, num as i32, color);
+        draw_small_digit(canvas, x, y, (i32)num, color);
     } else if num < 100 {
         draw_small_digit(canvas, x, y, num / 10, color);
         draw_small_digit(canvas, x + 12, y, num % 10, color);
@@ -375,7 +375,7 @@ fn draw_small_number(canvas: &Canvas, x: i32, y: i32, num: i32, color: Color) {
     }
 }
 
-fn draw_small_digit(canvas: &Canvas, x: i32, y: i32, d: i32, color: Color) {
+fn draw_small_digit(canvas: Canvas*, x: i32, y: i32, d: i32, color: Color) {
     match d {
         0 => { canvas.fillRect(x, y, 8, 2, color); canvas.fillRect(x, y+2, 2, 8, color); canvas.fillRect(x+6, y+2, 2, 8, color); canvas.fillRect(x, y+10, 8, 2, color); },
         1 => { canvas.fillRect(x+2, y, 3, 12, color); },
@@ -391,7 +391,7 @@ fn draw_small_digit(canvas: &Canvas, x: i32, y: i32, d: i32, color: Color) {
     }
 }
 
-fn draw_grid(canvas: &Canvas) {
+fn draw_grid(canvas: Canvas*) {
     let grid_x = GRID_OFFSET_X;
     let grid_y = GRID_OFFSET_Y;
     let grid_w = CELL_SIZE * 4 + CELL_GAP * 3;
@@ -411,7 +411,7 @@ fn draw_grid(canvas: &Canvas) {
     }
 }
 
-fn draw_tiles(canvas: &Canvas) {
+fn draw_tiles(canvas: Canvas*) {
     let grid_x = GRID_OFFSET_X;
     let grid_y = GRID_OFFSET_Y;
     
@@ -454,16 +454,16 @@ fn get_tile_color(value: i32) -> Color {
     return CELL_EMPTY;
 }
 
-fn draw_large_number(canvas: &Canvas, x: i32, y: i32, num: i32, color: Color) {
+fn draw_large_number(canvas: Canvas*, x: i32, y: i32, num: i32, color: Color) {
     if num < 10 {
-        draw_large_digit(canvas, x, y, num as i32, color);
+        draw_large_digit(canvas, x, y, (i32)num, color);
     } else {
-        draw_large_digit(canvas, x - 15, y, (num / 10) as i32, color);
-        draw_large_digit(canvas, x + 15, y, (num % 10) as i32, color);
+        draw_large_digit(i32)(canvas, x - 15, y, (num / 10), color);
+        draw_large_digit(i32)(canvas, x + 15, y, (num % 10), color);
     }
 }
 
-fn draw_large_digit(canvas: &Canvas, x: i32, y: i32, d: i32, color: Color) {
+fn draw_large_digit(canvas: Canvas*, x: i32, y: i32, d: i32, color: Color) {
     match d {
         0 => { canvas.fillRect(x, y, 30, 5, color); canvas.fillRect(x, y+5, 5, 45, color); canvas.fillRect(x+25, y+5, 5, 45, color); canvas.fillRect(x, y+50, 30, 5, color); },
         1 => { canvas.fillRect(x+10, y, 8, 55, color); },
@@ -479,7 +479,7 @@ fn draw_large_digit(canvas: &Canvas, x: i32, y: i32, d: i32, color: Color) {
     }
 }
 
-fn draw_hints(canvas: &Canvas) {
+fn draw_hints(canvas: Canvas*) {
     let hint_y = GRID_OFFSET_Y + CELL_SIZE * 4 + CELL_GAP * 4 + 20;
     
     canvas.fillRect(GRID_OFFSET_X, hint_y, CELL_SIZE * 4 + CELL_GAP * 3, 60, GRID_BACKGROUND);
@@ -520,7 +520,7 @@ fn draw_hints(canvas: &Canvas) {
     canvas.fillRect(r_x, wasd_y+13, 5, 10, TEXT_LIGHT);
 }
 
-fn draw_win_message(canvas: &Canvas) {
+fn draw_win_message(canvas: Canvas*) {
     // 半透明覆盖
     for py in 0..WINDOW_HEIGHT {
         for px in 0..WINDOW_WIDTH {
@@ -627,26 +627,26 @@ fn draw_win_message(canvas: &Canvas) {
     canvas.fillRect(msg_x + 80, hint_y2, 200, 8, GRID_BACKGROUND);
 }
 
-fn draw_letter_c_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_c_large(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 30, 5, color);
     canvas.fillRect(x, y + 5, 5, 30, color);
     canvas.fillRect(x, y + 35, 30, 5, color);
 }
 
-fn draw_letter_o_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_o_large(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 30, 5, color);
     canvas.fillRect(x, y + 5, 5, 30, color);
     canvas.fillRect(x + 25, y + 5, 5, 30, color);
     canvas.fillRect(x, y + 35, 30, 5, color);
 }
 
-fn draw_letter_n_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_n_large(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 5, 40, color);
     canvas.fillRect(x + 25, y, 5, 40, color);
     canvas.fillRect(x + 5, y + 12, 15, 5, color);
 }
 
-fn draw_letter_g_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_g_large(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 30, 5, color);
     canvas.fillRect(x, y + 5, 5, 30, color);
     canvas.fillRect(x, y + 35, 30, 5, color);
@@ -654,7 +654,7 @@ fn draw_letter_g_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
     canvas.fillRect(x + 15, y + 20, 10, 5, color);
 }
 
-fn draw_letter_r_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_r_large(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 5, 40, color);
     canvas.fillRect(x + 5, y, 20, 5, color);
     canvas.fillRect(x + 20, y + 5, 5, 10, color);
@@ -663,32 +663,32 @@ fn draw_letter_r_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
     canvas.fillRect(x + 15, y + 25, 10, 15, color);
 }
 
-fn draw_letter_a_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_a_large(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x + 12, y, 5, 40, color);
     canvas.fillRect(x, y + 15, 30, 5, color);
 }
 
-fn draw_letter_t_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_t_large(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 30, 5, color);
     canvas.fillRect(x + 12, y + 5, 5, 35, color);
 }
 
-fn draw_letter_u_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_u_large(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 5, 35, color);
     canvas.fillRect(x + 25, y, 5, 35, color);
     canvas.fillRect(x + 5, y + 35, 20, 5, color);
 }
 
-fn draw_letter_l_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_l_large(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 5, 40, color);
     canvas.fillRect(x + 5, y + 35, 20, 5, color);
 }
 
-fn draw_letter_i_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_i_large(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 5, 40, color);
 }
 
-fn draw_letter_s_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_letter_s_large(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y, 25, 5, color);
     canvas.fillRect(x, y + 5, 8, 5, color);
     canvas.fillRect(x + 8, y + 10, 17, 5, color);
@@ -696,7 +696,7 @@ fn draw_letter_s_large(canvas: &Canvas, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y + 35, 25, 5, color);
 }
 
-fn draw_rank_text(canvas: &Canvas, x: i32, y: i32, rank: string, color: Color) {
+fn draw_rank_text(canvas: Canvas*, x: i32, y: i32, rank: string, color: Color) {
     // Rank: 大师/高手/熟练/入门/新手
     // R
     canvas.fillRect(x, y, 8, 12, color);
@@ -715,7 +715,7 @@ fn draw_rank_text(canvas: &Canvas, x: i32, y: i32, rank: string, color: Color) {
     canvas.fillRect(x+52, y+9, 5, 3, color);
 }
 
-fn draw_small_a(canvas: &Canvas, x: i32, y: i32, color: Color) {
+fn draw_small_a(canvas: Canvas*, x: i32, y: i32, color: Color) {
     canvas.fillRect(x, y+4, 10, 2, color);
     canvas.fillRect(x, y+6, 2, 6, color);
     canvas.fillRect(x+8, y+6, 2, 6, color);
@@ -725,16 +725,16 @@ fn draw_small_a(canvas: &Canvas, x: i32, y: i32, color: Color) {
 // ==================== 主函数入口 ====================
 
 pub fn main() {
-    io.println("===========================================");
-    io.println("  Zen-C 096-Puzzle Game");
-    io.println("  15-Puzzle Sliding Game");
-    io.println("  Framework v1.0.0");
-    io.println("===========================================");
+    io.println "===========================================";
+    io.println "  Zen-C 096-Puzzle Game";
+    io.println "  15-Puzzle Sliding Game";
+    io.println "  Framework v1.0.0";
+    io.println "===========================================";
     
     // 创建并运行游戏
-    var game = PuzzleGame.("096 Puzzle - 15滑块拼图", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    let game = PuzzleGame("096 Puzzle - 15滑块拼图", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
     game.run();
     game.destroy();
     
-    io.println("Goodbye!");
+    io.println "Goodbye!";
 }

@@ -1,23 +1,23 @@
 // game_logic.zc - Zen-C Surfing（冲浪）游戏核心逻辑
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 480;
-const GAME_HEIGHT: i32 = 720;
-const SURFER_WIDTH: i32 = 40;
-const SURFER_HEIGHT: i32 = 60;
-const OBSTACLE_SIZE: i32 = 30;
-const MAX_OBSTACLES: i32 = 15;
-const MAX_WAVES: i32 = 5;
-const INITIAL_SPEED: i32 = 4;
-const SPEED_INCREMENT: i32 = 1;
-const SURFER_SPEED: i32 = 8;
-const OBSTACLE_SPAWN_RATE: i32 = 40;
-const POINTS_PER_DISTANCE: i32 = 1;
-const MAX_LIVES: i32 = 3;
-const INVINCIBLE_FRAMES: i32 = 90;
+def GAME_WIDTH: i32 = 480;
+def GAME_HEIGHT: i32 = 720;
+def SURFER_WIDTH: i32 = 40;
+def SURFER_HEIGHT: i32 = 60;
+def OBSTACLE_SIZE: i32 = 30;
+def MAX_OBSTACLES: i32 = 15;
+def MAX_WAVES: i32 = 5;
+def INITIAL_SPEED: i32 = 4;
+def SPEED_INCREMENT: i32 = 1;
+def SURFER_SPEED: i32 = 8;
+def OBSTACLE_SPAWN_RATE: i32 = 40;
+def POINTS_PER_DISTANCE: i32 = 1;
+def MAX_LIVES: i32 = 3;
+def INVINCIBLE_FRAMES: i32 = 90;
 
 // ==================== 障碍物/收集物类型 ====================
 
@@ -100,23 +100,23 @@ fn rgb(r: u8, g: u8, b: u8) -> RGB {
 }
 
 // 游戏颜色
-const COLOR_SKY: RGB = rgb(135, 206, 235);           // 浅蓝色天空
-const COLOR_WATER_DEEP: RGB = rgb(0, 105, 148);      // 深海蓝
-const COLOR_WATER_LIGHT: RGB = rgb(0, 150, 209);     // 浅海蓝
-const COLOR_WAVE: RGB = rgb(255, 255, 255);          // 白色浪花
-const COLOR_WAVE_FOAM: RGB = rgb(240, 248, 255);     // 浪花白
-const COLOR_SURFER: RGB = rgb(255, 140, 0);          // 橙色冲浪服
-const COLOR_SURFER_SKIN: RGB = rgb(255, 218, 185);  // 肤色
-const COLOR_SURFBOARD: RGB = rgb(255, 255, 240);     // 白色冲浪板
-const COLOR_ROCK: RGB = rgb(105, 105, 105);         // 深灰色礁石
-const COLOR_BUOY_RED: RGB = rgb(255, 69, 0);        // 红色浮标
-const COLOR_BUOY_WHITE: RGB = rgb(255, 255, 255);    // 白色浮标
-const COLOR_SEA_URCHIN: RGB = rgb(139, 0, 0);       // 深红色海胆
-const COLOR_STARFISH: RGB = rgb(255, 165, 0);       // 橙色海星
-const COLOR_SHELL: RGB = rgb(255, 228, 196);        // 贝壳色
-const COLOR_UI_BG: RGB = rgb(0, 139, 139);           // 青色UI背景
-const COLOR_TEXT: RGB = rgb(255, 255, 255);          // 白色文字
-const COLOR_DANGER: RGB = rgb(255, 0, 0);           // 红色警告
+def COLOR_SKY: RGB = rgb(135, 206, 235);           // 浅蓝色天空
+def COLOR_WATER_DEEP: RGB = rgb(0, 105, 148);      // 深海蓝
+def COLOR_WATER_LIGHT: RGB = rgb(0, 150, 209);     // 浅海蓝
+def COLOR_WAVE: RGB = rgb(255, 255, 255);          // 白色浪花
+def COLOR_WAVE_FOAM: RGB = rgb(240, 248, 255);     // 浪花白
+def COLOR_SURFER: RGB = rgb(255, 140, 0);          // 橙色冲浪服
+def COLOR_SURFER_SKIN: RGB = rgb(255, 218, 185);  // 肤色
+def COLOR_SURFBOARD: RGB = rgb(255, 255, 240);     // 白色冲浪板
+def COLOR_ROCK: RGB = rgb(105, 105, 105);         // 深灰色礁石
+def COLOR_BUOY_RED: RGB = rgb(255, 69, 0);        // 红色浮标
+def COLOR_BUOY_WHITE: RGB = rgb(255, 255, 255);    // 白色浮标
+def COLOR_SEA_URCHIN: RGB = rgb(139, 0, 0);       // 深红色海胆
+def COLOR_STARFISH: RGB = rgb(255, 165, 0);       // 橙色海星
+def COLOR_SHELL: RGB = rgb(255, 228, 196);        // 贝壳色
+def COLOR_UI_BG: RGB = rgb(0, 139, 139);           // 青色UI背景
+def COLOR_TEXT: RGB = rgb(255, 255, 255);          // 白色文字
+def COLOR_DANGER: RGB = rgb(255, 0, 0);           // 红色警告
 
 // ==================== 游戏逻辑函数 ====================
 
@@ -163,11 +163,11 @@ fn init_game(game: &mut SurfingState) {
     for i in 0..MAX_WAVES {
         game.waves[i] = Wave {
             x: 0,
-            y: 200 + i * 100 as i32,
+            y: 200 + i * (i32)100,
             width: GAME_WIDTH + 100,
             height: 30,
-            offset: i * 50 as i32,
-            speed: INITIAL_SPEED + i * 2 as i32,
+            offset: i * (i32)50,
+            speed: INITIAL_SPEED + i * (i32)2,
         };
     }
 }
@@ -175,19 +175,19 @@ fn init_game(game: &mut SurfingState) {
 // 处理键盘输入
 fn handle_input(game: &mut SurfingState, key: VirtualKey) -> bool {
     match key {
-        VirtualKey.Left => {
+        VirtualKey::Left => {
             game.surfer.velocity_x = -SURFER_SPEED;
         },
-        VirtualKey.Right => {
+        VirtualKey::Right => {
             game.surfer.velocity_x = SURFER_SPEED;
         },
-        VirtualKey.Up => {
+        VirtualKey::Up => {
             game.surfer.velocity_y = -SURFER_SPEED;
         },
-        VirtualKey.Down => {
+        VirtualKey::Down => {
             game.surfer.velocity_y = SURFER_SPEED;
         },
-        VirtualKey.Space => {
+        VirtualKey::Space => {
             if game.status == GameStatus.Ready || game.status == GameStatus.GameOver {
                 game.status = GameStatus.Playing;
                 game.score = 0;
@@ -206,7 +206,7 @@ fn handle_input(game: &mut SurfingState, key: VirtualKey) -> bool {
                 game.status = GameStatus.Playing;
             }
         },
-        VirtualKey.KeyR => {
+        VirtualKey::KeyR => {
             if game.status == GameStatus.GameOver {
                 game.status = GameStatus.Playing;
                 game.score = 0;
@@ -224,7 +224,7 @@ fn handle_input(game: &mut SurfingState, key: VirtualKey) -> bool {
                 game.surfer.y = GAME_HEIGHT - 150;
             }
         },
-        VirtualKey.Escape => {
+        VirtualKey::Escape => {
             if game.status == GameStatus.Playing {
                 game.status = GameStatus.Paused;
             }
@@ -237,22 +237,22 @@ fn handle_input(game: &mut SurfingState, key: VirtualKey) -> bool {
 // 键盘释放
 fn handle_key_up(game: &mut SurfingState, key: VirtualKey) {
     match key {
-        VirtualKey.Left => {
+        VirtualKey::Left => {
             if game.surfer.velocity_x < 0 {
                 game.surfer.velocity_x = 0;
             }
         },
-        VirtualKey.Right => {
+        VirtualKey::Right => {
             if game.surfer.velocity_x > 0 {
                 game.surfer.velocity_x = 0;
             }
         },
-        VirtualKey.Up => {
+        VirtualKey::Up => {
             if game.surfer.velocity_y < 0 {
                 game.surfer.velocity_y = 0;
             }
         },
-        VirtualKey.Down => {
+        VirtualKey::Down => {
             if game.surfer.velocity_y > 0 {
                 game.surfer.velocity_y = 0;
             }
@@ -346,7 +346,7 @@ fn update_game(game: &mut SurfingState) -> bool {
 // 生成障碍物
 fn spawn_obstacle(game: &mut SurfingState) {
     // 找到空闲槽位
-    var slot = -1;
+    let slot = -1;
     for i in 0..MAX_OBSTACLES {
         if !game.obstacles[i].active {
             slot = i;
@@ -359,8 +359,8 @@ fn spawn_obstacle(game: &mut SurfingState) {
     }
 
     // 随机类型
-    var obs_type: ObstacleType;
-    var rand_val = (game.frame_count % 10) as i32;
+    let obs_type: ObstacleType;
+    let rand_val = (game.frame_count % 10) as i32;
     
     if rand_val < 2 {
         obs_type = ObstacleType.Starfish;  // 收集物
@@ -375,8 +375,8 @@ fn spawn_obstacle(game: &mut SurfingState) {
     }
 
     // 设置尺寸
-    var obs_w: i32 = OBSTACLE_SIZE;
-    var obs_h: i32 = OBSTACLE_SIZE;
+    let obs_w: i32 = OBSTACLE_SIZE;
+    let obs_h: i32 = OBSTACLE_SIZE;
     
     if obs_type == ObstacleType.Starfish {
         obs_w = 28;
@@ -390,7 +390,7 @@ fn spawn_obstacle(game: &mut SurfingState) {
     }
 
     game.obstacles[slot] = Obstacle {
-        x: randInt(20, GAME_WIDTH - 50) as i32,
+        x: randInt(i32)(20, GAME_WIDTH - 50),
         y: -OBSTACLE_SIZE,
         width: obs_w,
         height: obs_h,
@@ -411,7 +411,7 @@ fn check_collision(surfer: Surfer, obs: Obstacle) -> bool {
 
 // 处理碰撞
 fn handle_collision(game: &mut SurfingState, obs_idx: i32) {
-    var obs = game.obstacles[obs_idx];
+    let obs = game.obstacles[obs_idx];
 
     // 收集物
     if obs.type == ObstacleType.Starfish {
@@ -436,17 +436,17 @@ fn handle_collision(game: &mut SurfingState, obs_idx: i32) {
 }
 
 // 获取障碍物信息
-fn get_obstacle_info(game: &SurfingState, idx: i32) -> (i32, i32, i32, i32, ObstacleType) {
-    var obs = game.obstacles[idx];
+fn get_obstacle_info(game: SurfingState*, idx: i32) -> (i32, i32, i32, i32, ObstacleType) {
+    let obs = game.obstacles[idx];
     return (obs.x, obs.y, obs.width, obs.height, obs.type);
 }
 
 // 检查障碍物是否活跃
-fn is_obstacle_active(game: &SurfingState, idx: i32) -> bool {
+fn is_obstacle_active(game: SurfingState*, idx: i32) -> bool {
     return game.obstacles[idx].active;
 }
 
 // 获取浪花偏移
-fn get_wave_offset(game: &SurfingState) -> i32 {
+fn get_wave_offset(game: SurfingState*) -> i32 {
     return game.wave_offset;
 }

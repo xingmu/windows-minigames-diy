@@ -1,34 +1,34 @@
 // game_logic.zc - Badminton Game Logic
 // 088-Badminton 羽毛球游戏
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== Game Constants ====================
 
-const WINDOW_WIDTH: int = 800;
-const WINDOW_HEIGHT: int = 600;
+def WINDOW_WIDTH: int = 800;
+def WINDOW_HEIGHT: int = 600;
 
-const COURT_TOP: int = 50;
-const COURT_BOTTOM: int = 550;
-const COURT_LEFT: int = 50;
-const COURT_RIGHT: int = 750;
-const NET_Y: int = 300;
-const NET_HEIGHT: int = 5;
+def COURT_TOP: int = 50;
+def COURT_BOTTOM: int = 550;
+def COURT_LEFT: int = 50;
+def COURT_RIGHT: int = 750;
+def NET_Y: int = 300;
+def NET_HEIGHT: int = 5;
 
-const PLAYER_WIDTH: int = 60;
-const PLAYER_HEIGHT: int = 10;
-const PLAYER_SPEED: int = 8;
+def PLAYER_WIDTH: int = 60;
+def PLAYER_HEIGHT: int = 10;
+def PLAYER_SPEED: int = 8;
 
-const SHUTTLECOCK_SIZE: int = 8;
-const GRAVITY: float = 0.3;
-const BALL_DRAG: float = 0.99;
-const HIT_POWER: float = 12.0;
-const MAX_HIT_ANGLE: float = 60.0;
+def SHUTTLECOCK_SIZE: int = 8;
+def GRAVITY: float = 0.3;
+def BALL_DRAG: float = 0.99;
+def HIT_POWER: float = 12.0;
+def MAX_HIT_ANGLE: float = 60.0;
 
-const WINNING_SCORE: int = 11;
-const AI_REACTION_DELAY: int = 80;
-const AI_ERROR_RANGE: int = 25;
+def WINNING_SCORE: int = 11;
+def AI_REACTION_DELAY: int = 80;
+def AI_ERROR_RANGE: int = 25;
 
 // ==================== Player ====================
 
@@ -113,7 +113,7 @@ pub class BadmintonGame extends Game {
         self.rallyCount = 0;
 
         self.borderColor = Color.White();
-        self.courtColor = Color.RGB(50 as u8, 100 as u8, 50 as u8);
+        self.courtColor = Color.RGB((u8)50, (u8)100, (u8)50);
         self.netColor = Color.White();
 
         // Initialize player (left side)
@@ -207,7 +207,7 @@ pub class BadmintonGame extends Game {
 
         // Update swing animation
         if self.playerSwinging {
-            var elapsed = getTickCount() - self.playerSwingTime;
+            let elapsed = getTickCount() - self.playerSwingTime;
             if elapsed > 200 {
                 self.playerSwinging = false;
             }
@@ -217,8 +217,8 @@ pub class BadmintonGame extends Game {
     // Update AI
     private fn updateAI(dt: u32) {
         // Limit AI update frequency
-        var currentTime = getTickCount();
-        if currentTime - self.aiLastUpdate < AI_REACTION_DELAY as u32 {
+        let currentTime = getTickCount();
+        if currentTime - self.aiLastUpdate < (u32)AI_REACTION_DELAY {
             return;
         }
         self.aiLastUpdate = currentTime;
@@ -226,7 +226,7 @@ pub class BadmintonGame extends Game {
         // AI tracks shuttlecock when it's on the right side or coming towards AI
         if self.shuttleActive && self.shuttleX > WINDOW_WIDTH / 2 {
             // Predict where shuttlecock will be
-            var timeToReach = (self.aiX - self.shuttleX) / self.shuttleVX as float;
+            let timeToReach = (self.aiX - self.shuttleX) / self.shuttleVX as float;
             if timeToReach > 0.0 && timeToReach < 30.0 {
                 self.aiTargetY = self.shuttleY + self.shuttleVY * timeToReach as float;
             } else {
@@ -244,9 +244,9 @@ pub class BadmintonGame extends Game {
         }
 
         // Move AI towards target
-        var aiCenter = self.aiY + self.aiHeight / 2;
-        var diff = self.aiTargetY - aiCenter;
-        var aiSpeed = PLAYER_SPEED - 1;
+        let aiCenter = self.aiY + self.aiHeight / 2;
+        let diff = self.aiTargetY - aiCenter;
+        let aiSpeed = PLAYER_SPEED - 1;
 
         if diff > aiSpeed {
             self.aiY = self.aiY + aiSpeed;
@@ -260,7 +260,7 @@ pub class BadmintonGame extends Game {
             self.aiY = self.aiY - 2;
         } else {
             // Return to neutral
-            var targetY = NET_Y - 50;
+            let targetY = NET_Y - 50;
             if self.aiY < targetY - 10 {
                 self.aiY = self.aiY + 2;
             } else if self.aiY > targetY + 10 {
@@ -284,7 +284,7 @@ pub class BadmintonGame extends Game {
 
         // Update swing animation
         if self.aiSwinging {
-            var elapsed = getTickCount() - self.aiSwingTime;
+            let elapsed = getTickCount() - self.aiSwingTime;
             if elapsed > 200 {
                 self.aiSwinging = false;
             }
@@ -305,31 +305,31 @@ pub class BadmintonGame extends Game {
         self.shuttleY = self.shuttleY + self.shuttleVY;
 
         // Check ceiling bounce
-        if self.shuttleY <= COURT_TOP as float + SHUTTLECOCK_SIZE as float / 2.0 {
-            self.shuttleY = COURT_TOP as float + SHUTTLECOCK_SIZE as float / 2.0;
+        if self.shuttleY <= (float)COURT_TOP + (float)SHUTTLECOCK_SIZE / 2.0 {
+            self.shuttleY = (float)COURT_TOP + (float)SHUTTLECOCK_SIZE / 2.0;
             self.shuttleVY = -self.shuttleVY * 0.7;
         }
 
         // Check floor - score!
-        if self.shuttleY >= COURT_BOTTOM as float {
+        if self.shuttleY >= (float)COURT_BOTTOM {
             self.shuttleActive = false;
             return;
         }
 
         // Side walls
-        if self.shuttleX <= COURT_LEFT as float + SHUTTLECOCK_SIZE as float / 2.0 {
-            self.shuttleX = COURT_LEFT as float + SHUTTLECOCK_SIZE as float / 2.0;
+        if self.shuttleX <= (float)COURT_LEFT + (float)SHUTTLECOCK_SIZE / 2.0 {
+            self.shuttleX = (float)COURT_LEFT + (float)SHUTTLECOCK_SIZE / 2.0;
             self.shuttleVX = -self.shuttleVX * 0.8;
         }
-        if self.shuttleX >= COURT_RIGHT as float - SHUTTLECOCK_SIZE as float / 2.0 {
-            self.shuttleX = COURT_RIGHT as float - SHUTTLECOCK_SIZE as float / 2.0;
+        if self.shuttleX >= (float)COURT_RIGHT - (float)SHUTTLECOCK_SIZE / 2.0 {
+            self.shuttleX = (float)COURT_RIGHT - (float)SHUTTLECOCK_SIZE / 2.0;
             self.shuttleVX = -self.shuttleVX * 0.8;
         }
 
         // Net collision
-        if self.shuttleX >= NET_Y as float - SHUTTLECOCK_SIZE as float / 2.0 &&
-           self.shuttleX <= NET_Y as float + NET_HEIGHT as float + SHUTTLECOCK_SIZE as float / 2.0 {
-            if self.shuttleY >= NET_Y as float - SHUTTLECOCK_SIZE as float / 2.0 {
+        if self.shuttleX >= (float)NET_Y - (float)SHUTTLECOCK_SIZE / 2.0 &&
+           self.shuttleX <= (float)NET_Y + (float)NET_HEIGHT + (float)SHUTTLECOCK_SIZE / 2.0 {
+            if self.shuttleY >= (float)NET_Y - (float)SHUTTLECOCK_SIZE / 2.0 {
                 self.shuttleActive = false;
                 return;
             }
@@ -352,12 +352,12 @@ pub class BadmintonGame extends Game {
 
     // Check if shuttlecock hits a player's racket area
     private fn checkPlayerHit(px: int, py: int, pw: int, ph: int) -> bool {
-        var shuttleRadius = SHUTTLECOCK_SIZE as float / 2.0;
-        var closestX = self.maxFloat(px as float, self.minFloat(self.shuttleX, (px + pw) as float));
-        var closestY = self.maxFloat(py as float, self.minFloat(self.shuttleY, (py + ph) as float));
-        var distX = self.shuttleX - closestX;
-        var distY = self.shuttleY - closestY;
-        var distSq = distX * distX + distY * distY;
+        let shuttleRadius = (float)SHUTTLECOCK_SIZE / 2.0;
+        let closestX = self.maxFloat(float)((float)px, self.minFloat(self.shuttleX, (px + pw)));
+        let closestY = self.maxFloat(float)((float)py, self.minFloat(self.shuttleY, (py + ph)));
+        let distX = self.shuttleX - closestX;
+        let distY = self.shuttleY - closestY;
+        let distSq = distX * distX + distY * distY;
         return distSq < shuttleRadius * shuttleRadius;
     }
 
@@ -386,7 +386,7 @@ pub class BadmintonGame extends Game {
     private fn checkScore() {
         if !self.shuttleActive {
             // Shuttlecock landed
-            if self.shuttleY >= COURT_BOTTOM as float {
+            if self.shuttleY >= (float)COURT_BOTTOM {
                 // Determine which side it landed on
                 if self.lastHitBy == 0 {
                     // Player hit it last, AI's fault
@@ -455,14 +455,14 @@ pub class BadmintonGame extends Game {
 
     // Draw court lines
     private fn drawCourt(canvas: Canvas) {
-        var lineColor = Color.White();
+        let lineColor = Color.White();
 
         // Court boundary
         canvas.drawRect(COURT_LEFT, COURT_TOP, COURT_RIGHT - COURT_LEFT, COURT_BOTTOM - COURT_TOP, lineColor);
 
         // Service lines
-        var serviceLineLeft = COURT_LEFT + 100;
-        var serviceLineRight = COURT_RIGHT - 100;
+        let serviceLineLeft = COURT_LEFT + 100;
+        let serviceLineRight = COURT_RIGHT - 100;
         canvas.drawLine(serviceLineLeft, COURT_TOP, serviceLineLeft, COURT_BOTTOM, Color.Gray());
         canvas.drawLine(serviceLineRight, COURT_TOP, serviceLineRight, COURT_BOTTOM, Color.Gray());
     }
@@ -481,8 +481,8 @@ pub class BadmintonGame extends Game {
 
     // Draw players
     private fn drawPlayers(canvas: Canvas) {
-        var playerColor = Color.Blue();
-        var aiColor = Color.Red();
+        let playerColor = Color.Blue();
+        let aiColor = Color.Red();
 
         // Draw player racket
         self.drawRacket(canvas, self.playerX, self.playerY, self.playerWidth, self.playerHeight, playerColor, self.playerSwinging);
@@ -501,8 +501,8 @@ pub class BadmintonGame extends Game {
         }
 
         // Handle
-        var handleX = x + w / 2 - 3;
-        var handleY = y + h;
+        let handleX = x + w / 2 - 3;
+        let handleY = y + h;
         canvas.fillRect(handleX, handleY, 6, 15, Color.Brown());
     }
 
@@ -512,8 +512,8 @@ pub class BadmintonGame extends Game {
             return;
         }
 
-        var sx = self.shuttleX as int;
-        var sy = self.shuttleY as int;
+        let sx = self.shuttleX as int;
+        let sy = self.shuttleY as int;
 
         // Shuttlecock cork (white)
         canvas.fillCircle(sx, sy, SHUTTLECOCK_SIZE / 2, Color.White());
@@ -526,41 +526,41 @@ pub class BadmintonGame extends Game {
 
     // Draw score
     private fn drawScore(canvas: Canvas) {
-        var font = Font.("Arial", 36);
+        let font = Font("Arial", 36);
 
-        var playerText = self.intToString(self.playerScore);
+        let playerText = self.intToString(self.playerScore);
         canvas.drawText(WINDOW_WIDTH / 4 - 20, 15, playerText, Color.Blue(), font);
 
-        var aiText = self.intToString(self.aiScore);
+        let aiText = self.intToString(self.aiScore);
         canvas.drawText(WINDOW_WIDTH * 3 / 4 - 20, 15, aiText, Color.Red(), font);
 
         canvas.drawText(WINDOW_WIDTH / 2 - 10, 15, "-", Color.White(), font);
 
-        var smallFont = Font.("Arial", 14);
+        let smallFont = Font("Arial", 14);
         canvas.drawText(WINDOW_WIDTH / 4 - 35, 2, "Player", Color.Blue(), smallFont);
         canvas.drawText(WINDOW_WIDTH * 3 / 4 - 20, 2, "AI", Color.Red(), smallFont);
     }
 
     // Draw UI
     private fn drawUI(canvas: Canvas) {
-        var smallFont = Font.("Arial", 12);
+        let smallFont = Font("Arial", 12);
 
         // Rally count
-        var rallyText = "Rally: " ++ self.intToString(self.rallyCount);
+        let rallyText = "Rally: {self}".intToString(self.rallyCount);
         canvas.drawText(COURT_LEFT, 10, rallyText, Color.Yellow(), smallFont);
 
         // Serving indicator
-        var serveText = if self.servingPlayer == 0 { "Your Serve" } else { "AI Serve" };
+        let serveText = if self.servingPlayer == 0 { "Your Serve" } else { "AI Serve" };
         canvas.drawText(COURT_RIGHT - 80, 10, serveText, Color.Yellow(), smallFont);
     }
 
     // Draw start message
     private fn drawStartMessage(canvas: Canvas) {
-        var font = Font.("Arial", 20);
-        var text = "Press SPACE to serve";
+        let font = Font("Arial", 20);
+        let text = "Press SPACE to serve";
         canvas.drawText(WINDOW_WIDTH / 2 - 110, WINDOW_HEIGHT / 2, text, Color.Yellow(), font);
 
-        var controls = Font.("Arial", 14);
+        let controls = Font("Arial", 14);
         canvas.drawText(WINDOW_WIDTH / 2 - 150, WINDOW_HEIGHT / 2 + 40, "W/S: Move Up/Down  A/D: Move Left/Right", Color.White(), controls);
     }
 
@@ -568,16 +568,16 @@ pub class BadmintonGame extends Game {
     private fn drawGameOver(canvas: Canvas) {
         canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(180, 0, 0, 0));
 
-        var font = Font.("Arial", 48);
-        var text = self.winner ++ " Wins!";
-        var textColor = if self.winner == "Player" { Color.Blue() } else { Color.Red() };
+        let font = Font("Arial", 48);
+        let text = self."{winner} Wins!";
+        let textColor = if self.winner == "Player" { Color.Blue() } else { Color.Red() };
         canvas.drawText(WINDOW_WIDTH / 2 - 130, WINDOW_HEIGHT / 2 - 50, text, textColor, font);
 
-        var smallFont = Font.("Arial", 20);
-        var scoreText = self.intToString(self.playerScore) ++ " - " ++ self.intToString(self.aiScore);
+        let smallFont = Font("Arial", 20);
+        let scoreText = self.intToString(self.playerScore) ++ " - {self}".intToString(self.aiScore);
         canvas.drawText(WINDOW_WIDTH / 2 - 40, WINDOW_HEIGHT / 2, scoreText, Color.White(), smallFont);
 
-        var restartText = "Press R to restart";
+        let restartText = "Press R to restart";
         canvas.drawText(WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 + 40, restartText, Color.Yellow(), smallFont);
     }
 
@@ -596,7 +596,7 @@ pub class BadmintonGame extends Game {
             VirtualKey.S => {
                 self.keyDown = true;
             }
-            VirtualKey.Space => {
+            VirtualKey::Space => {
                 self.keySpace = true;
                 if !self.gameStarted && !self.gameOver && self.servingPlayer == 0 {
                     self.gameStarted = true;
@@ -611,7 +611,7 @@ pub class BadmintonGame extends Game {
                     self.onInit();
                 }
             }
-            VirtualKey.Escape => {
+            VirtualKey::Escape => {
                 self.running = false;
             }
             _ => {}
@@ -633,7 +633,7 @@ pub class BadmintonGame extends Game {
             VirtualKey.S => {
                 self.keyDown = false;
             }
-            VirtualKey.Space => {
+            VirtualKey::Space => {
                 self.keySpace = false;
             }
             _ => {}
@@ -666,18 +666,18 @@ pub class BadmintonGame extends Game {
         if n == 0 {
             return "0";
         }
-        var result = "";
-        var negative = false;
-        var num = n;
+        let result = "";
+        let negative = false;
+        let num = n;
         if num < 0 {
             negative = true;
             num = -num;
         }
         while num > 0 {
-            var digit = num % 10;
-            result = (digit as char + "") ++ result;
+            let digit = num % 10;
+            result = ((char)digit + "") ++ result;
             num = num / 10;
         }
-        return if negative { "-" ++ result } else { result };
+        return if negative { "-{result}" } else { result };
     }
 }

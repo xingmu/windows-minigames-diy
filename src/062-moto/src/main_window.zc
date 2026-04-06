@@ -1,8 +1,8 @@
 // main_window.zc - Zen-C 摩托车游戏 Windows 窗体版本
 // 所有平台使用同一份Zen-C代码，通过条件编译处理平台差异
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 
 // 导入游戏逻辑和平台API
 import "game_logic.zc";
@@ -10,34 +10,34 @@ import "platform_api.zc";
 
 // ==================== 常量定义 ====================
 
-const WINDOW_WIDTH: i32 = 450;
-const WINDOW_HEIGHT: i32 = 700;
+def WINDOW_WIDTH: i32 = 450;
+def WINDOW_HEIGHT: i32 = 700;
 
 // ==================== 颜色定义 ====================
 
-const COLOR_SKY = rgb(135, 206, 235);
-const COLOR_ROAD = rgb(60, 60, 60);
-const COLOR_ROAD_EDGE = rgb(255, 255, 255);
-const COLOR_LANE_MARK = rgb(255, 255, 255);
-const COLOR_BIKE_BODY = rgb(230, 30, 30);
-const COLOR_BIKE_ACCENT = rgb(50, 50, 50);
-const COLOR_BIKE_CHROME = rgb(200, 200, 200);
-const COLOR_BIKE_WHEEL = rgb(30, 30, 30);
-const COLOR_BIKE_LIGHT = rgb(255, 255, 150);
-const COLOR_BIKE_TAIL = rgb(255, 0, 0);
-const COLOR_BARRIER = rgb(255, 100, 100);
-const COLOR_BARRIER_STRIPE = rgb(255, 255, 255);
-const COLOR_CAR_BODY = rgb(70, 130, 180);
-const COLOR_CAR_WINDOW = rgb(100, 150, 200);
-const COLOR_TRUCK_BODY = rgb(100, 100, 100);
-const COLOR_COIN = rgb(255, 215, 0);
-const COLOR_COIN_SHINE = rgb(255, 255, 200);
-const COLOR_UI_BG = rgb(30, 30, 40);
-const COLOR_UI_TEXT = rgb(255, 255, 255);
-const COLOR_UI_ACCENT = rgb(255, 200, 0);
-const COLOR_GRASS = rgb(60, 140, 60);
-const COLOR_GAMEOVER_BG = rgb(80, 20, 20);
-const COLOR_PAUSED_BG = rgb(50, 50, 80);
+def COLOR_SKY = rgb(135, 206, 235);
+def COLOR_ROAD = rgb(60, 60, 60);
+def COLOR_ROAD_EDGE = rgb(255, 255, 255);
+def COLOR_LANE_MARK = rgb(255, 255, 255);
+def COLOR_BIKE_BODY = rgb(230, 30, 30);
+def COLOR_BIKE_ACCENT = rgb(50, 50, 50);
+def COLOR_BIKE_CHROME = rgb(200, 200, 200);
+def COLOR_BIKE_WHEEL = rgb(30, 30, 30);
+def COLOR_BIKE_LIGHT = rgb(255, 255, 150);
+def COLOR_BIKE_TAIL = rgb(255, 0, 0);
+def COLOR_BARRIER = rgb(255, 100, 100);
+def COLOR_BARRIER_STRIPE = rgb(255, 255, 255);
+def COLOR_CAR_BODY = rgb(70, 130, 180);
+def COLOR_CAR_WINDOW = rgb(100, 150, 200);
+def COLOR_TRUCK_BODY = rgb(100, 100, 100);
+def COLOR_COIN = rgb(255, 215, 0);
+def COLOR_COIN_SHINE = rgb(255, 255, 200);
+def COLOR_UI_BG = rgb(30, 30, 40);
+def COLOR_UI_TEXT = rgb(255, 255, 255);
+def COLOR_UI_ACCENT = rgb(255, 200, 0);
+def COLOR_GRASS = rgb(60, 140, 60);
+def COLOR_GAMEOVER_BG = rgb(80, 20, 20);
+def COLOR_PAUSED_BG = rgb(50, 50, 80);
 
 // ==================== 全局变量 ====================
 
@@ -54,7 +54,7 @@ fn format_int(n: i32) -> string {
     if n == 0 {
         return "0";
     }
-    let mut digits: [16]u8 = [0; 16];
+    let mut digits: [u8; 16] = [0; 16];
     let mut count = 0;
     let mut value = n;
     if value < 0 {
@@ -70,7 +70,7 @@ fn format_int(n: i32) -> string {
         result = string.from_char(digits[count - 1 - i] as i32) ++ result;
     }
     if n < 0 {
-        result = "-" ++ result;
+        result = "-{result}";
     }
     return result;
 }
@@ -330,16 +330,16 @@ fn on_paint_event(ctx: GraphicsContext, window_width: i32, window_height: i32) {
 // 处理键盘事件
 fn on_key_event(key_code: i32) -> bool {
     match key_code {
-        37 | 65 | 97 => {
+        37 || 65 || 97 => {
             move_left(&mut game);
         },
-        39 | 68 | 100 => {
+        39 || 68 || 100 => {
             move_right(&mut game);
         },
         32 => {
             toggle_pause(&mut game);
         },
-        82 | 114 => {
+        82 || 114 => {
             if is_game_over(&game) {
                 reset_game(&mut game);
             }
@@ -366,9 +366,9 @@ fn on_timer_event(current_time: u64) -> bool {
 extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
     match uMsg {
         WM_PAINT => {
-            let mut ps: [64]u8 = [0; 64];
+            let mut ps: [u8; 64] = [0; 64];
             let hdc = BeginPaint(hwnd, &ps);
-            let mut rect: [4]i32 = [0; 4];
+            let mut rect: [i32; 4] = [0; 4];
             GetClientRect(hwnd, &rect);
             let width = rect[2] - rect[0];
             let height = rect[3] - rect[1];
@@ -378,7 +378,7 @@ extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) ->
         },
 
         WM_KEYDOWN => {
-            let continue_game = on_key_event(wParam as i32);
+            let continue_game = on_key_event((i32)wParam);
             if !continue_game {
                 running = false;
                 PostQuitMessage(0);
@@ -389,7 +389,7 @@ extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) ->
         },
 
         WM_TIMER => {
-            let needs_redraw = on_timer_event(GetTickCount() as u64);
+            let needs_redraw = on_timer_event(u64)(GetTickCount());
             if needs_redraw {
                 InvalidateRect(hwnd, null, true);
             }
@@ -408,9 +408,9 @@ extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) ->
     }
 }
 
-extern "user32.dll" fn BeginPaint(hwnd: WindowHandle, lpPaint: *mut [64]u8) -> GraphicsContext;
-extern "user32.dll" fn EndPaint(hwnd: WindowHandle, lpPaint: *mut [64]u8);
-extern "user32.dll" fn GetClientRect(hwnd: WindowHandle, lpRect: *mut [4]i32) -> bool;
+extern "user32.dll" fn BeginPaint(hwnd: WindowHandle, lpPaint: *mut [u8; 64]) -> GraphicsContext;
+extern "user32.dll" fn EndPaint(hwnd: WindowHandle, lpPaint: *mut [u8; 64]);
+extern "user32.dll" fn GetClientRect(hwnd: WindowHandle, lpRect: *mut [i32; 4]) -> bool;
 extern "user32.dll" fn InvalidateRect(hwnd: WindowHandle, lpRect: *void, bErase: bool) -> bool;
 extern "user32.dll" fn PostQuitMessage(exitCode: i32);
 extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32;
@@ -432,9 +432,9 @@ fn draw_text(ctx: GraphicsContext, x: i32, y: i32, text: string, color: Color) {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 摩托车障碍躲避游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 摩托车障碍躲避游戏";
+    io.println "========================================";
 
     // 初始化游戏
     init_game(&mut game);
@@ -446,25 +446,25 @@ fn main() -> i32 {
     window = create_window(window_title, WINDOW_WIDTH, WINDOW_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
     show_window(window);
     set_game_timer(window, 16);
 
-    io.println("窗口创建成功!");
-    io.println("按 A/D 或 左右方向键 移动");
-    io.println("按 空格键 暂停");
-    io.println("按 ESC 退出游戏");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "按 A/D 或 左右方向键 移动";
+    io.println "按 空格键 暂停";
+    io.println "按 ESC 退出游戏";
+    io.println "========================================";
 
     run_event_loop(window);
 
-    io.println("游戏结束!");
+    io.println "游戏结束!";
     io.println("最终分数: {}", get_score(&game));
     io.println("行驶距离: {}", get_distance(&game));
-    io.println("谢谢游玩!");
+    io.println "谢谢游玩!";
 
     quit_application();
 

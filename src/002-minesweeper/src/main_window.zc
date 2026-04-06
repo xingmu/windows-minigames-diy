@@ -6,7 +6,7 @@ def N: i32 = 9
 
 struct Cell { m: bool, o: bool, f: bool, n: i32 }
 
-global b: [9][9]Cell
+global b: [9][Cell; 9]
 global over: bool = false
 global win: bool = false
 

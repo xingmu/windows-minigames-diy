@@ -1,3 +1,4 @@
+import "io.zc";
 // platform_api.zc - 跨平台API定义
 // 003-framework v1.0.0
 
@@ -13,22 +14,22 @@ pub type Color = struct {
 };
 
 impl Color {
-    pub fn Black() -> Color { return Color.{ r: 0, g: 0, b: 0, a: 255 }; }
-    pub fn White() -> Color { return Color.{ r: 255, g: 255, b: 255, a: 255 }; }
-    pub fn Red() -> Color { return Color.{ r: 255, g: 0, b: 0, a: 255 }; }
-    pub fn Green() -> Color { return Color.{ r: 0, g: 180, b: 0, a: 255 }; }
-    pub fn Blue() -> Color { return Color.{ r: 0, g: 0, b: 255, a: 255 }; }
-    pub fn Yellow() -> Color { return Color.{ r: 255, g: 255, b: 0, a: 255 }; }
-    pub fn Cyan() -> Color { return Color.{ r: 0, g: 255, b: 255, a: 255 }; }
-    pub fn Magenta() -> Color { return Color.{ r: 255, g: 0, b: 255, a: 255 }; }
-    pub fn Gray() -> Color { return Color.{ r: 128, g: 128, b: 128, a: 255 }; }
-    pub fn DarkGray() -> Color { return Color.{ r: 64, g: 64, b: 64, a: 255 }; }
-    pub fn Orange() -> Color { return Color.{ r: 255, g: 165, b: 0, a: 255 }; }
-    pub fn Purple() -> Color { return Color.{ r: 128, g: 0, b: 128, a: 255 }; }
-    pub fn Brown() -> Color { return Color.{ r: 139, g: 90, b: 43, a: 255 }; }
+    pub fn Black() -> Color { return Color { r: 0, g: 0, b: 0, a: 255 }; }
+    pub fn White() -> Color { return Color { r: 255, g: 255, b: 255, a: 255 }; }
+    pub fn Red() -> Color { return Color { r: 255, g: 0, b: 0, a: 255 }; }
+    pub fn Green() -> Color { return Color { r: 0, g: 180, b: 0, a: 255 }; }
+    pub fn Blue() -> Color { return Color { r: 0, g: 0, b: 255, a: 255 }; }
+    pub fn Yellow() -> Color { return Color { r: 255, g: 255, b: 0, a: 255 }; }
+    pub fn Cyan() -> Color { return Color { r: 0, g: 255, b: 255, a: 255 }; }
+    pub fn Magenta() -> Color { return Color { r: 255, g: 0, b: 255, a: 255 }; }
+    pub fn Gray() -> Color { return Color { r: 128, g: 128, b: 128, a: 255 }; }
+    pub fn DarkGray() -> Color { return Color { r: 64, g: 64, b: 64, a: 255 }; }
+    pub fn Orange() -> Color { return Color { r: 255, g: 165, b: 0, a: 255 }; }
+    pub fn Purple() -> Color { return Color { r: 128, g: 0, b: 128, a: 255 }; }
+    pub fn Brown() -> Color { return Color { r: 139, g: 90, b: 43, a: 255 }; }
     
-    pub fn RGB(r: u8, g: u8, b: u8) -> Color { return Color.{ r: r, g: g, b: b, a: 255 }; }
-    pub fn ARGB(a: u8, r: u8, g: u8, b: u8) -> Color { return Color.{ r: r, g: g, b: b, a: a }; }
+    pub fn RGB(r: u8, g: u8, b: u8) -> Color { return Color { r: r, g: g, b: b, a: 255 }; }
+    pub fn ARGB(a: u8, r: u8, g: u8, b: u8) -> Color { return Color { r: r, g: g, b: b, a: a }; }
 }
 
 // 矩形
@@ -40,7 +41,7 @@ pub type Rect = struct {
 };
 
 // 虚拟键码
-pub type VirtualKey = enum {
+enum VirtualKey {
     Unknown,
     Up,
     Down,
@@ -54,14 +55,14 @@ pub type VirtualKey = enum {
 };
 
 // 鼠标按钮
-pub type MouseButton = enum {
+enum MouseButton {
     Left,
     Right,
     Middle,
 };
 
 // 消息类型
-pub type MessageType = enum {
+enum MessageType {
     Quit,
     KeyDown,
     KeyUp,
@@ -114,7 +115,7 @@ pub type Font = struct {
 // 外部函数声明
 pub extern fn createWindow(title: str, width: int, height: int) -> WindowHandle;
 pub extern fn closeWindow(window: WindowHandle);
-pub extern fn pollEvent(window: WindowHandle, event: &Event) -> bool;
+pub extern fn pollEvent(window: WindowHandle, event: Event*) -> bool;
 pub extern fn getFrameBuffer(window: WindowHandle) -> rawptr;
 pub extern fn getFrameBufferPitch(window: WindowHandle) -> int;
 pub extern fn presentFrame(window: WindowHandle);

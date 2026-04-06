@@ -1,8 +1,8 @@
 // main_window.zc - 保龄球游戏入口
 // Zen-C 游戏框架 v1.0.0
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 
 // 导入游戏逻辑和平台API
 import "game_logic.zc";
@@ -11,22 +11,22 @@ import "platform_api.zc";
 // ==================== 游戏窗口 ====================
 
 // 窗口尺寸
-const WINDOW_WIDTH = 700;
-const WINDOW_HEIGHT = 550;
+def WINDOW_WIDTH = 700;
+def WINDOW_HEIGHT = 550;
 
 // 颜色定义
-const LANE_COLOR = Color.RGB(139, 119, 101);      // 球道棕色
-const APPROACH_COLOR = Color.RGB(101, 67, 33);   // 助跑道深棕
-const FOUL_LINE_COLOR = Color.Red();
-const PIN_DECK_COLOR = Color.RGB(0, 100, 0);     // 球瓶台绿色
-const PIN_COLOR = Color.White();
-const PIN_STRIPE_COLOR = Color.Red();
-const BALL_COLOR = Color.RGB(255, 0, 0);          // 红色保龄球
-const BALL_HOLE_COLOR = Color.Black();
-const BG_COLOR = Color.RGB(25, 25, 35);           // 深色背景
-const UI_PANEL_COLOR = Color.RGB(50, 50, 70);
-const TEXT_COLOR = Color.White();
-const HIGHLIGHT_COLOR = Color.Yellow();
+def LANE_COLOR = Color.RGB(139, 119, 101);      // 球道棕色
+def APPROACH_COLOR = Color.RGB(101, 67, 33);   // 助跑道深棕
+def FOUL_LINE_COLOR = Color.Red();
+def PIN_DECK_COLOR = Color.RGB(0, 100, 0);     // 球瓶台绿色
+def PIN_COLOR = Color.White();
+def PIN_STRIPE_COLOR = Color.Red();
+def BALL_COLOR = Color.RGB(255, 0, 0);          // 红色保龄球
+def BALL_HOLE_COLOR = Color.Black();
+def BG_COLOR = Color.RGB(25, 25, 35);           // 深色背景
+def UI_PANEL_COLOR = Color.RGB(50, 50, 70);
+def TEXT_COLOR = Color.White();
+def HIGHLIGHT_COLOR = Color.Yellow();
 
 // ==================== 全局变量 ====================
 
@@ -42,10 +42,10 @@ fn drawBackground(ctx: GraphicsContext) {
 
 // 绘制球道
 fn drawLane(ctx: GraphicsContext) {
-    var laneX = 200;
-    var laneY = 50;
-    var laneW = 300;
-    var laneH = 400;
+    let laneX = 200;
+    let laneY = 50;
+    let laneW = 300;
+    let laneH = 400;
     
     // 球瓶台区域
     draw_rect(ctx, laneX, laneY, laneW, 120, PIN_DECK_COLOR);
@@ -66,8 +66,8 @@ fn drawLane(ctx: GraphicsContext) {
 
 // 绘制单个球瓶
 fn drawPin(ctx: GraphicsContext, x: int, y: int, standing: bool) {
-    var color = if standing { PIN_COLOR } else { Color.Gray() };
-    var radius = PIN_RADIUS;
+    let color = if standing { PIN_COLOR } else { Color.Gray() };
+    let radius = PIN_RADIUS;
     
     // 绘制球瓶主体
     draw_circle(ctx, x, y, radius, color);
@@ -81,7 +81,7 @@ fn drawPin(ctx: GraphicsContext, x: int, y: int, standing: bool) {
 
 // 绘制所有球瓶
 fn drawPins(ctx: GraphicsContext) {
-    var pins = bowling.getPins();
+    let pins = bowling.getPins();
     
     for i in 0..TOTAL_PINS {
         drawPin(ctx, pins[i].x, pins[i].y, pins[i].standing);
@@ -90,9 +90,9 @@ fn drawPins(ctx: GraphicsContext) {
 
 // 绘制保龄球
 fn drawBall(ctx: GraphicsContext) {
-    var ball = bowling.getBall();
-    var x = ball.x as int;
-    var y = ball.y as int;
+    let ball = bowling.getBall();
+    let x = ball.x as int;
+    let y = ball.y as int;
     
     // 绘制球体
     draw_circle(ctx, x, y, BALL_RADIUS, BALL_COLOR);
@@ -117,38 +117,38 @@ fn drawAimArrow(ctx: GraphicsContext) {
         return;
     }
     
-    var angle = bowling.getAngle();
-    var power = bowling.getPower();
+    let angle = bowling.getAngle();
+    let power = bowling.getPower();
     
     // 计算箭头终点
-    var startX = THROW_X;
-    var startY = THROW_Y;
-    var endX = startX + (angle as int);
-    var endY = startY - 50 - (power as int) * 3;
+    let startX = THROW_X;
+    let startY = THROW_Y;
+    let endX = startX + ((int)angle);
+    let endY = startY - 50 - ((int)power) * 3;
     
     // 绘制虚线箭头
-    var steps = 5;
+    let steps = 5;
     for i in 0..steps {
-        var t = i as float / steps as float;
-        var px = startX + ((endX - startX) as float * t) as int;
-        var py = startY + ((endY - startY) as float * t) as int;
+        let t = (float)i / steps as float;
+        let px = startX + (float)((endX - startX) * t) as int;
+        let py = startY + (float)((endY - startY) * t) as int;
         draw_circle(ctx, px, py, 2, HIGHLIGHT_COLOR);
     }
 }
 
 // 绘制力量条
 fn drawPowerBar(ctx: GraphicsContext) {
-    var power = bowling.getPower();
-    var barX = 550;
-    var barY = 200;
-    var barW = 20;
-    var barH = 150;
+    let power = bowling.getPower();
+    let barX = 550;
+    let barY = 200;
+    let barW = 20;
+    let barH = 150;
     
     // 背景
     draw_rect(ctx, barX, barY, barW, barH, Color.DarkGray());
     
     // 填充条
-    var fillH = ((power - MIN_POWER) / (MAX_POWER - MIN_POWER) * barH as float) as int;
+    let fillH = ((power - MIN_POWER) / (MAX_POWER - MIN_POWER) * (float)barH) as int;
     draw_rect(ctx, barX, barY + barH - fillH, barW, fillH, Color.Green());
     
     // 边框
@@ -157,17 +157,17 @@ fn drawPowerBar(ctx: GraphicsContext) {
 
 // 绘制角度指示
 fn drawAngleIndicator(ctx: GraphicsContext) {
-    var angle = bowling.getAngle();
+    let angle = bowling.getAngle();
     
     // 绘制角度弧线
-    var centerX = 550;
-    var centerY = 380;
-    var radius = 40;
+    let centerX = 550;
+    let centerY = 380;
+    let radius = 40;
     
     // 绘制半圆弧
-    var angleRad = angle * 3.14159 / 180.0;
-    var endX = centerX + (radius * angleRad.sin()) as int;
-    var endY = centerY - (radius * angleRad.cos()) as int;
+    let angleRad = angle * 3.14159 / 180.0;
+    let endX = centerX + (radius * angleRad.sin()) as int;
+    let endY = centerY - (radius * angleRad.cos()) as int;
     
     // 绘制指示线
     draw_line(ctx, centerX, centerY, endX, endY, HIGHLIGHT_COLOR);
@@ -178,8 +178,8 @@ fn drawAngleIndicator(ctx: GraphicsContext) {
 
 // 绘制UI面板
 fn drawUIPanel(ctx: GraphicsContext) {
-    var panelY = 470;
-    var panelH = 80;
+    let panelY = 470;
+    let panelH = 80;
     
     // 面板背景
     draw_rect(ctx, 0, panelY, WINDOW_WIDTH, panelH, UI_PANEL_COLOR);
@@ -188,35 +188,35 @@ fn drawUIPanel(ctx: GraphicsContext) {
     draw_rect(ctx, 0, panelY, WINDOW_WIDTH, 2, Color.White());
     
     // 显示分数
-    draw_text(ctx, 20, panelY + 15, "Frame: " ++ intToString(bowling.getCurrentFrame()) ++ 
-              "  (" ++ intToString(bowling.getThrowNumber()) ++ "/2)", TEXT_COLOR);
+    draw_text(ctx, 20, panelY + 15, "Frame: {intToString}"(bowling.getCurrentFrame()) ++ 
+              "  ({intToString}"(bowling.getThrowNumber()) ++ "/2)", TEXT_COLOR);
     
-    var score = bowling.getScore();
-    draw_text(ctx, 20, panelY + 40, "Score: " ++ intToString(score), TEXT_COLOR);
+    let score = bowling.getScore();
+    draw_text(ctx, 20, panelY + 40, "Score: {intToString}"(score), TEXT_COLOR);
     
-    var pins = bowling.getStandingPins();
-    draw_text(ctx, 20, panelY + 65, "Standing: " ++ intToString(pins) ++ " pins", TEXT_COLOR);
+    let pins = bowling.getStandingPins();
+    draw_text(ctx, 20, panelY + 65, "Standing: {intToString}"(pins) ++ " pins", TEXT_COLOR);
 }
 
 // 绘制游戏状态提示
 fn drawGameHint(ctx: GraphicsContext) {
-    var phase = bowling.getPhase();
-    var hint = "";
+    let phase = bowling.getPhase();
+    let hint = "";
     
     match phase {
-        GamePhase.Aiming => {
+        GamePhase::Aiming => {
             hint = "Press SPACE to throw | Use LEFT/RIGHT to aim | Use UP/DOWN to adjust power";
         }
-        GamePhase.Rolling => {
+        GamePhase::Rolling => {
             hint = "Rolling...";
         }
-        GamePhase.Knocking => {
+        GamePhase::Knocking => {
             hint = "Knocking down pins...";
         }
-        GamePhase.Scoring => {
+        GamePhase::Scoring => {
             hint = "Calculating score...";
         }
-        GamePhase.GameOver => {
+        GamePhase::GameOver => {
             hint = "Game Over! Press R to restart.";
         }
         _ => {}
@@ -271,33 +271,33 @@ fn onKeyDown(keyCode: i32) -> bool {
 // ==================== 主函数 ====================
 
 fn main() {
-    println("===========================================");
-    println("  Zen-C Bowling Game");
-    println("  经典保龄球 v1.0.0");
-    println("===========================================");
+    println "===========================================";
+    println "  Zen-C Bowling Game";
+    println "  经典保龄球 v1.0.0";
+    println "===========================================";
     
     // 初始化游戏
     bowling = BowlingGame.create();
     
     // 显示操作说明
-    println("");
-    println("操作说明:");
-    println("  SPACE   - 投球");
-    println("  LEFT/RIGHT - 调整角度");
-    println("  UP/DOWN   - 调整力量");
-    println("  R       - 重新开始");
-    println("  ESC     - 退出");
-    println("");
+    println "";
+    println "操作说明:";
+    println "  SPACE   - 投球";
+    println "  LEFT/RIGHT - 调整角度";
+    println "  UP/DOWN   - 调整力量";
+    println "  R       - 重新开始";
+    println "  ESC     - 退出";
+    println "";
     
     // 游戏主循环 (简化版 - 实际需要图形环境)
-    println("游戏初始化完成...");
-    println("需要在图形环境中运行才能显示游戏画面");
+    println "游戏初始化完成...";
+    println "需要在图形环境中运行才能显示游戏画面";
     
     // 更新游戏逻辑
     bowling.update();
     
     // 清理
-    println("游戏结束");
+    println "游戏结束";
 }
 
 // ==================== 平台绑定 ====================
@@ -327,17 +327,17 @@ fn intToString(n: i32) -> str {
         return "0";
     }
     
-    var negative = n < 0;
-    var x = if negative { -n } else { n };
-    var result = "";
+    let negative = n < 0;
+    let x = if negative { -n } else { n };
+    let result = "";
     
     while x > 0 {
-        var digit = x % 10;
+        let digit = x % 10;
         result = chr(digit + 48) ++ result;
         x = x / 10;
     }
     
-    return if negative { "-" ++ result } else { result };
+    return if negative { "-{result}" } else { result };
 }
 
 fn chr(n: i32) -> str {

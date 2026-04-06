@@ -3,29 +3,29 @@
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 900;
-const GAME_HEIGHT: i32 = 550;
+def GAME_WIDTH: i32 = 900;
+def GAME_HEIGHT: i32 = 550;
 
 // 球半径
-const BALL_RADIUS: i32 = 6;
+def BALL_RADIUS: i32 = 6;
 
 // 洞的半径
-const HOLE_RADIUS: i32 = 10;
+def HOLE_RADIUS: i32 = 10;
 
 // 摩擦系数 (每帧速度衰减)
-const FRICTION: i32 = 3;
+def FRICTION: i32 = 3;
 
 // 最大击球力度
-const MAX_POWER: i32 = 25;
+def MAX_POWER: i32 = 25;
 
 // 最小速度阈值
-const MIN_VELOCITY: i32 = 1;
+def MIN_VELOCITY: i32 = 1;
 
 // 重力 (用于坡度)
-const GRAVITY: i32 = 0;
+def GRAVITY: i32 = 0;
 
 // 球的颜色
-const BALL_COLOR: Color = Color.White();
+def BALL_COLOR: Color = Color.White();
 
 // ==================== 地形类型 ====================
 
@@ -117,12 +117,12 @@ struct GolfState {
     width: i32,
     height: i32,
     wind: i32,          // 风力 (-5 到 5)
-    holes: [18]Hole,
-    obstacles: [30]Obstacle,
+    holes: [Hole; 18],
+    obstacles: [Obstacle; 30],
     obstacleCount: i32,
-    terrains: [20]TerrainZone,
+    terrains: [TerrainZone; 20],
     terrainCount: i32,
-    tees: [18]Tee,
+    tees: [Tee; 18],
     cameraX: i32,       // 摄像机X偏移 (用于球道滚动)
     courseWidth: i32,   // 球道总宽度
 }
@@ -191,16 +191,16 @@ fn sqrt_f(n: f32) -> f32 {
 
 // ==================== 获取地形摩擦系数 ====================
 
-fn getTerrainFriction(state: &GolfState, x: i32, y: i32) -> i32 {
+fn getTerrainFriction(state: GolfState*, x: i32, y: i32) -> i32 {
     for i in 0..state.terrainCount {
         let t = state.terrains[i];
         if x >= t.x && x < t.x + t.w && y >= t.y && y < t.y + t.h {
             match t.terrain {
-                TerrainType.Fairway => return 2,
-                TerrainType.Rough => return 5,
-                TerrainType.Sand => return 8,
-                TerrainType.Water => return 2,
-                TerrainType.Hole => return 1,
+                TerrainType::Fairway => return 2,
+                TerrainType::Rough => return 5,
+                TerrainType::Sand => return 8,
+                TerrainType::Water => return 2,
+                TerrainType::Hole => return 1,
                 _ => return FRICTION,
             }
         }
@@ -210,7 +210,7 @@ fn getTerrainFriction(state: &GolfState, x: i32, y: i32) -> i32 {
 
 // ==================== 检查障碍物碰撞 ====================
 
-fn checkObstacleCollision(state: &GolfState, x: f32, y: f32) -> bool {
+fn checkObstacleCollision(state: GolfState*, x: f32, y: f32) -> bool {
     for i in 0..state.obstacleCount {
         let obs = state.obstacles[i];
         let dx = x - obs.x as f32;
@@ -225,7 +225,7 @@ fn checkObstacleCollision(state: &GolfState, x: f32, y: f32) -> bool {
 
 // ==================== 球是否在水里 ====================
 
-fn isInWater(state: &GolfState, x: i32, y: i32) -> bool {
+fn isInWater(state: GolfState*, x: i32, y: i32) -> bool {
     for i in 0..state.terrainCount {
         let t = state.terrains[i];
         if t.terrain == TerrainType.Water {
@@ -239,7 +239,7 @@ fn isInWater(state: &GolfState, x: i32, y: i32) -> bool {
 
 // ==================== 球是否在洞里 ====================
 
-fn isInHole(state: &GolfState, x: f32, y: f32) -> bool {
+fn isInHole(state: GolfState*, x: f32, y: f32) -> bool {
     let hole = state.holes[state.currentHole];
     let dx = x - hole.x as f32;
     let dy = y - hole.y as f32;
@@ -276,45 +276,45 @@ fn initCourse(state: &mut GolfState) {
     state.courseWidth = 9000;
 
     // 发球台
-    state.tees[0] = Tee.{ x: 80, y: 275 };
+    state.tees[0] = Tee { x: 80, y: 275 };
 
     // 球洞位置 (沿球道排列)
     // 洞1: Par 3, 短洞
-    state.holes[0] = Hole.{ x: 600, y: 275, par: 3, name: "Short One" };
+    state.holes[0] = Hole { x: 600, y: 275, par: 3, name: "Short One" };
     // 洞2: Par 4
-    state.holes[1] = Hole.{ x: 1100, y: 275, par: 4, name: "Fairway" };
+    state.holes[1] = Hole { x: 1100, y: 275, par: 4, name: "Fairway" };
     // 洞3: Par 4
-    state.holes[2] = Hole.{ x: 1600, y: 275, par: 4, name: "Bunker Bay" };
+    state.holes[2] = Hole { x: 1600, y: 275, par: 4, name: "Bunker Bay" };
     // 洞4: Par 3
-    state.holes[3] = Hole.{ x: 2000, y: 275, par: 3, name: "Water Hole" };
+    state.holes[3] = Hole { x: 2000, y: 275, par: 3, name: "Water Hole" };
     // 洞5: Par 5
-    state.holes[4] = Hole.{ x: 2600, y: 275, par: 5, name: "Long Drive" };
+    state.holes[4] = Hole { x: 2600, y: 275, par: 5, name: "Long Drive" };
     // 洞6: Par 4
-    state.holes[5] = Hole.{ x: 3100, y: 275, par: 4, name: "Dogleg" };
+    state.holes[5] = Hole { x: 3100, y: 275, par: 4, name: "Dogleg" };
     // 洞7: Par 3
-    state.holes[6] = Hole.{ x: 3500, y: 275, par: 3, name: "Sand Trap" };
+    state.holes[6] = Hole { x: 3500, y: 275, par: 3, name: "Sand Trap" };
     // 洞8: Par 4
-    state.holes[7] = Hole.{ x: 4000, y: 275, par: 4, name: "Tree Line" };
+    state.holes[7] = Hole { x: 4000, y: 275, par: 4, name: "Tree Line" };
     // 洞9: Par 5
-    state.holes[8] = Hole.{ x: 4600, y: 275, par: 5, name: "The Lake" };
+    state.holes[8] = Hole { x: 4600, y: 275, par: 5, name: "The Lake" };
     // 洞10: Par 4
-    state.holes[9] = Hole.{ x: 5100, y: 275, par: 4, name: "Back Nine" };
+    state.holes[9] = Hole { x: 5100, y: 275, par: 4, name: "Back Nine" };
     // 洞11: Par 3
-    state.holes[10] = Hole.{ x: 5450, y: 275, par: 3, name: "Island Green" };
+    state.holes[10] = Hole { x: 5450, y: 275, par: 3, name: "Island Green" };
     // 洞12: Par 4
-    state.holes[11] = Hole.{ x: 5900, y: 275, par: 4, name: "Narrow" };
+    state.holes[11] = Hole { x: 5900, y: 275, par: 4, name: "Narrow" };
     // 洞13: Par 5
-    state.holes[13] = Hole.{ x: 6500, y: 275, par: 5, name: "Final Push" };
+    state.holes[13] = Hole { x: 6500, y: 275, par: 5, name: "Final Push" };
     // 洞14: Par 4
-    state.holes[14] = Hole.{ x: 7000, y: 275, par: 4, name: "Cliff Edge" };
+    state.holes[14] = Hole { x: 7000, y: 275, par: 4, name: "Cliff Edge" };
     // 洞15: Par 3
-    state.holes[15] = Hole.{ x: 7300, y: 275, par: 3, name: "Quick Three" };
+    state.holes[15] = Hole { x: 7300, y: 275, par: 3, name: "Quick Three" };
     // 洞16: Par 4
-    state.holes[16] = Hole.{ x: 7800, y: 275, par: 4, name: "Home Stretch" };
+    state.holes[16] = Hole { x: 7800, y: 275, par: 4, name: "Home Stretch" };
     // 洞17: Par 5
-    state.holes[17] = Hole.{ x: 8400, y: 275, par: 5, name: "Finale" };
+    state.holes[17] = Hole { x: 8400, y: 275, par: 5, name: "Finale" };
     // 洞18: Par 3 (最后一洞)
-    state.holes[12] = Hole.{ x: 8800, y: 275, par: 3, name: "Club House" };
+    state.holes[12] = Hole { x: 8800, y: 275, par: 3, name: "Club House" };
 
     // 地形区域
     state.terrainCount = 0;
@@ -329,14 +329,14 @@ fn initCourse(state: &mut GolfState) {
         let endX = hole.x;
 
         // 球道 (中间80像素宽)
-        state.terrains[state.terrainCount] = TerrainZone.{
+        state.terrains[state.terrainCount] = TerrainZone {
             x: startX, y: 200, w: endX - startX, h: 150,
             terrain: TerrainType.Fairway
         };
         state.terrainCount = state.terrainCount + 1;
 
         // 果岭 (洞周围20像素)
-        state.terrains[state.terrainCount] = TerrainZone.{
+        state.terrains[state.terrainCount] = TerrainZone {
             x: hole.x - 60, y: hole.y - 60, w: 120, h: 120,
             terrain: TerrainType.Hole
         };
@@ -345,30 +345,30 @@ fn initCourse(state: &mut GolfState) {
 
     // 沙坑 (在一些洞旁边)
     // 洞3沙坑
-    state.terrains[state.terrainCount] = TerrainZone.{
+    state.terrains[state.terrainCount] = TerrainZone {
         x: 1550, y: 220, w: 80, h: 50, terrain: TerrainType.Sand
     };
     state.terrainCount = state.terrainCount + 1;
 
     // 洞7沙坑
-    state.terrains[state.terrainCount] = TerrainZone.{
+    state.terrains[state.terrainCount] = TerrainZone {
         x: 3450, y: 320, w: 80, h: 60, terrain: TerrainType.Sand
     };
     state.terrainCount = state.terrainCount + 1;
 
     // 水障碍 (洞4和洞9)
-    state.terrains[state.terrainCount] = TerrainZone.{
+    state.terrains[state.terrainCount] = TerrainZone {
         x: 1850, y: 350, w: 150, h: 80, terrain: TerrainType.Water
     };
     state.terrainCount = state.terrainCount + 1;
 
-    state.terrains[state.terrainCount] = TerrainZone.{
+    state.terrains[state.terrainCount] = TerrainZone {
         x: 4450, y: 180, w: 200, h: 60, terrain: TerrainType.Water
     };
     state.terrainCount = state.terrainCount + 1;
 
     // 洞11果岭是岛型(周围有水)
-    state.terrains[state.terrainCount] = TerrainZone.{
+    state.terrains[state.terrainCount] = TerrainZone {
         x: 5400, y: 220, w: 100, h: 110, terrain: TerrainType.Water
     };
     state.terrainCount = state.terrainCount + 1;
@@ -377,30 +377,30 @@ fn initCourse(state: &mut GolfState) {
     state.obstacleCount = 0;
 
     // 洞2旁的大树
-    state.obstacles[state.obstacleCount] = Obstacle.{ x: 1000, y: 200, radius: 25, type: ObstacleType.Tree };
+    state.obstacles[state.obstacleCount] = Obstacle { x: 1000, y: 200, radius: 25, type: ObstacleType.Tree };
     state.obstacleCount = state.obstacleCount + 1;
-    state.obstacles[state.obstacleCount] = Obstacle.{ x: 1050, y: 340, radius: 25, type: ObstacleType.Tree };
+    state.obstacles[state.obstacleCount] = Obstacle { x: 1050, y: 340, radius: 25, type: ObstacleType.Tree };
     state.obstacleCount = state.obstacleCount + 1;
 
     // 洞6狗腿处的树
-    state.obstacles[state.obstacleCount] = Obstacle.{ x: 3000, y: 200, radius: 30, type: ObstacleType.Tree };
+    state.obstacles[state.obstacleCount] = Obstacle { x: 3000, y: 200, radius: 30, type: ObstacleType.Tree };
     state.obstacleCount = state.obstacleCount + 1;
-    state.obstacles[state.obstacleCount] = Obstacle.{ x: 3050, y: 350, radius: 25, type: ObstacleType.Tree };
+    state.obstacles[state.obstacleCount] = Obstacle { x: 3050, y: 350, radius: 25, type: ObstacleType.Tree };
     state.obstacleCount = state.obstacleCount + 1;
 
     // 洞8树线
     for i in 0..5 {
-        state.obstacles[state.obstacleCount] = Obstacle.{ x: 3900 + i * 40, y: 180, radius: 20, type: ObstacleType.Tree };
+        state.obstacles[state.obstacleCount] = Obstacle { x: 3900 + i * 40, y: 180, radius: 20, type: ObstacleType.Tree };
         state.obstacleCount = state.obstacleCount + 1;
-        state.obstacles[state.obstacleCount] = Obstacle.{ x: 3900 + i * 40, y: 370, radius: 20, type: ObstacleType.Tree };
+        state.obstacles[state.obstacleCount] = Obstacle { x: 3900 + i * 40, y: 370, radius: 20, type: ObstacleType.Tree };
         state.obstacleCount = state.obstacleCount + 1;
     }
 
     // 洞12窄洞的树
     for i in 0..3 {
-        state.obstacles[state.obstacleCount] = Obstacle.{ x: 5800 + i * 50, y: 180, radius: 22, type: ObstacleType.Tree };
+        state.obstacles[state.obstacleCount] = Obstacle { x: 5800 + i * 50, y: 180, radius: 22, type: ObstacleType.Tree };
         state.obstacleCount = state.obstacleCount + 1;
-        state.obstacles[state.obstacleCount] = Obstacle.{ x: 5800 + i * 50, y: 370, radius: 22, type: ObstacleType.Tree };
+        state.obstacles[state.obstacleCount] = Obstacle { x: 5800 + i * 50, y: 370, radius: 22, type: ObstacleType.Tree };
         state.obstacleCount = state.obstacleCount + 1;
     }
 }
@@ -444,7 +444,7 @@ fn resetBall(state: &mut GolfState) {
 
 // ==================== 随机数 ====================
 
-private var rng_seed: u32 = 1;
+private let rng_seed: u32 = 1;
 
 pub fn setRandomSeed(seed: u32) {
     rng_seed = seed;
@@ -453,7 +453,7 @@ pub fn setRandomSeed(seed: u32) {
 pub fn randInt(min: i32, max: i32) -> i32 {
     rng_seed = rng_seed * 1103515245 + 12345;
     let r = rng_seed as i32;
-    var result = r % (max - min + 1);
+    let result = r % (max - min + 1);
     if result < 0 {
         result = result + max - min + 1;
     }
@@ -494,7 +494,7 @@ fn updateBall(state: &mut GolfState) -> bool {
     }
 
     let mut ball = state.ball;
-    var stillMoving = false;
+    let stillMoving = false;
 
     // 应用风力
     ball.vx = ball.vx + state.wind as f32 * 0.01;
@@ -593,7 +593,7 @@ fn updateBall(state: &mut GolfState) -> bool {
 
 // 更新摄像机 (让球保持在屏幕中间)
 fn updateCamera(state: &mut GolfState) {
-    let targetX = state.ball.x as i32 - GAME_WIDTH / 2;
+    let targetX = state.ball.(i32)x - GAME_WIDTH / 2;
     let targetX = clamp(targetX, 0, state.courseWidth - GAME_WIDTH);
 
     // 平滑滚动
@@ -666,20 +666,20 @@ fn onMouseUp(state: &mut GolfState, x: i32, y: i32) {
 
 // ==================== 状态查询 ====================
 
-fn getStatusText(state: &GolfState) -> string {
+fn getStatusText(state: GolfState*) -> string {
     match state.status {
-        GameStatus.Ready => return "点击并拖拽击球",
-        GameStatus.Aiming => return "瞄准中...",
-        GameStatus.Dragging => return "蓄力: " ++ state.power.toString() ++ "  按住越久力度越大",
-        GameStatus.Moving => return "球运动中...",
-        GameStatus.HoleComplete => return "进洞! 第" ++ state.holeStrokes.toString() ++ "杆 | 点击进入下一洞",
-        GameStatus.GameOver => return "游戏结束! 总杆数: " ++ state.totalStrokes.toString() ++ " 点击重新开始",
+        GameStatus::Ready => return "点击并拖拽击球",
+        GameStatus::Aiming => return "瞄准中...",
+        GameStatus::Dragging => return "蓄力: {state}"."{power}  按住越久力度越大",
+        GameStatus::Moving => return "球运动中...",
+        GameStatus::HoleComplete => return "进洞! 第{state}"."{holeStrokes}杆 | 点击进入下一洞",
+        GameStatus::GameOver => return "游戏结束! 总杆数: {state}"."{totalStrokes} 点击重新开始",
     }
 }
 
-fn getHoleInfo(state: &GolfState) -> string {
+fn getHoleInfo(state: GolfState*) -> string {
     let hole = state.holes[state.currentHole];
-    return "第" ++ (state.currentHole + 1).toString() ++ "洞: " ++ hole.name ++ " | Par " ++ hole.par.toString()
+    return "第" ++ (state.currentHole + 1).toString() ++ "洞: {hole}"."{name} | Par {hole}".par.toString()
 }
 
 fn getControlsText() -> string {

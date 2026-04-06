@@ -1,8 +1,8 @@
 // main_window.zc - Zen-C窗体版本主程序
 // 汉诺塔游戏 - 所有平台使用同一份Zen-C代码
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 
 // 导入游戏逻辑和平台API
 import "game_logic.zc";
@@ -10,18 +10,18 @@ import "platform_api.zc";
 
 // ==================== 常量 ====================
 
-const WINDOW_WIDTH: i32 = 800;
-const WINDOW_HEIGHT: i32 = 600;
-const PEG_COUNT: i32 = 3;
-const BASE_Y: i32 = 450;        // 底座Y位置
-const PEG_HEIGHT: i32 = 200;    // 杆子高度
-const DISK_HEIGHT: i32 = 30;     // 盘子高度
-const MIN_DISK_WIDTH: i32 = 50;  // 最小盘子宽度
-const MAX_DISK_WIDTH: i32 = 180; // 最大盘子宽度
+def WINDOW_WIDTH: i32 = 800;
+def WINDOW_HEIGHT: i32 = 600;
+def PEG_COUNT: i32 = 3;
+def BASE_Y: i32 = 450;        // 底座Y位置
+def PEG_HEIGHT: i32 = 200;    // 杆子高度
+def DISK_HEIGHT: i32 = 30;     // 盘子高度
+def MIN_DISK_WIDTH: i32 = 50;  // 最小盘子宽度
+def MAX_DISK_WIDTH: i32 = 180; // 最大盘子宽度
 
 // ==================== 颜色定义 ====================
 
-const DISK_COLORS: [8]Color = [
+def DISK_COLORS: [Color; 8] = [
     rgb(231, 76, 60),   // 红色
     rgb(230, 126, 34),  // 橙色
     rgb(241, 196, 15),  // 黄色
@@ -32,11 +32,11 @@ const DISK_COLORS: [8]Color = [
     rgb(212, 80, 80)    // 深红色
 ];
 
-const PEG_COLOR = rgb(139, 90, 43);      // 木头棕色
-const BASE_COLOR = rgb(101, 67, 33);    // 深棕色
-const BACKGROUND_COLOR = rgb(44, 62, 80); // 深蓝色背景
-const SELECTED_COLOR = rgb(255, 215, 0); // 金色选中
-const TEXT_COLOR = rgb(236, 240, 241);   // 浅灰色
+def PEG_COLOR = rgb(139, 90, 43);      // 木头棕色
+def BASE_COLOR = rgb(101, 67, 33);    // 深棕色
+def BACKGROUND_COLOR = rgb(44, 62, 80); // 深蓝色背景
+def SELECTED_COLOR = rgb(255, 215, 0); // 金色选中
+def TEXT_COLOR = rgb(236, 240, 241);   // 浅灰色
 
 // ==================== 全局变量 ====================
 
@@ -86,7 +86,7 @@ fn draw_disk(ctx: GraphicsContext, x: i32, y: i32, disk_size: i32, disk_index: i
     let disk_height = DISK_HEIGHT;
     
     // 获取颜色
-    let color = DISK_COLORS[(disk_index - 1) as i32 % 8];
+    let color = DISK_COLORS[(i32)(disk_index - 1) % 8];
     
     // 绘制盘子主体 (圆角矩形效果用普通矩形模拟)
     draw_rect(ctx, x - disk_width / 2, y, disk_width, disk_height, color);
@@ -163,11 +163,11 @@ fn draw_game(ctx: GraphicsContext) {
     draw_status(ctx);
     
     // 输出信息到控制台（调试用）
-    io.println("----------------------------------------");
+    io.println "----------------------------------------";
     io.println(get_score_text(&game));
     io.println(get_game_status_text(&game));
     io.println(get_controls_text());
-    io.println("----------------------------------------");
+    io.println "----------------------------------------";
 }
 
 // ==================== 事件处理 ====================
@@ -192,10 +192,10 @@ fn on_timer_event() -> bool {
 #if IS_WINDOWS
 
 // Windows常量
-const WM_PAINT: u32 = 0x000F;
-const WM_KEYDOWN: u32 = 0x0100;
-const WM_TIMER: u32 = 0x0113;
-const WM_DESTROY: u32 = 0x0002;
+def WM_PAINT: u32 = 0x000F;
+def WM_KEYDOWN: u32 = 0x0100;
+def WM_TIMER: u32 = 0x0113;
+def WM_DESTROY: u32 = 0x0002;
 
 extern "user32.dll" fn BeginPaint(hwnd: WindowHandle, lpPaint: *void) -> GraphicsContext;
 extern "user32.dll" fn EndPaint(hwnd: WindowHandle, lpPaint: *void);
@@ -211,7 +211,7 @@ static mut running: bool = true;
 fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
     match uMsg {
         WM_PAINT => {
-            let mut ps: [64]u8 = [0; 64];
+            let mut ps: [u8; 64] = [0; 64];
             let hdc = BeginPaint(hwnd, &ps);
             on_paint_event(hdc);
             EndPaint(hwnd, &ps);
@@ -219,7 +219,7 @@ fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
         },
         
         WM_KEYDOWN => {
-            let continue_game = on_key_event(wParam as i32);
+            let continue_game = on_key_event((i32)wParam);
             if !continue_game {
                 running = false;
                 PostQuitMessage(0);
@@ -258,9 +258,9 @@ fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 汉诺塔游戏 - Tower of Hanoi");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 汉诺塔游戏 - Tower of Hanoi";
+    io.println "========================================";
     io.println("平台: {}", 
         #if IS_WINDOWS
             "Windows"
@@ -272,7 +272,7 @@ fn main() -> i32 {
             "未知"
         #endif
     );
-    io.println("========================================");
+    io.println "========================================";
     
     // 初始化游戏
     game = GameState {
@@ -298,7 +298,7 @@ fn main() -> i32 {
     window = create_window(window_title, WINDOW_WIDTH, WINDOW_HEIGHT);
     
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
     
@@ -308,21 +308,21 @@ fn main() -> i32 {
     // 设置游戏定时器
     set_game_timer(window, 16);  // ~60fps
     
-    io.println("窗口创建成功!");
+    io.println "窗口创建成功!";
     io.println("游戏已初始化，盘子数: {}", game.disk_count);
     io.println("目标移动次数: {}", game.min_moves);
-    io.println("使用 1/2/3 或 A/D 选择杆子");
-    io.println("使用 上箭头/W/空格 移动盘子");
-    io.println("按 ESC 退出游戏");
-    io.println("========================================");
+    io.println "使用 1/2/3 或 A/D 选择杆子";
+    io.println "使用 上箭头/W/空格 移动盘子";
+    io.println "按 ESC 退出游戏";
+    io.println "========================================";
     
     // 运行事件循环
     run_event_loop(window);
     
-    io.println("游戏结束!");
+    io.println "游戏结束!";
     io.println("总移动次数: {}", game.move_count);
-    io.println("谢谢游玩 Zen-C 汉诺塔游戏!");
-    io.println("========================================");
+    io.println "谢谢游玩 Zen-C 汉诺塔游戏!";
+    io.println "========================================";
     
     // 退出应用程序
     quit_application();

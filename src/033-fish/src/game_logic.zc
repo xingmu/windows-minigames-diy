@@ -1,20 +1,20 @@
 // game_logic.zc - 捕鱼达人游戏逻辑
 // Zen-C 游戏框架
 
-import std.io;
+import "io.zc";
 import "fish_render.zc";
 
 // ==================== 常量 ====================
 
-const WINDOW_WIDTH = 900;
-const WINDOW_HEIGHT = 650;
-const MAX_FISH = 30;
-const MAX_BULLETS = 15;
-const FISH_SPAWN_INTERVAL = 500;  // 毫秒
-const CANNON_COOLDOWN = 200;       // 毫秒
+def WINDOW_WIDTH = 900;
+def WINDOW_HEIGHT = 650;
+def MAX_FISH = 30;
+def MAX_BULLETS = 15;
+def FISH_SPAWN_INTERVAL = 500;  // 毫秒
+def CANNON_COOLDOWN = 200;       // 毫秒
 
 // 游戏状态
-pub type GameStatus = enum {
+enum GameStatus {
     Ready,      // 等待开始
     Playing,    // 游戏中
     Paused,     // 暂停
@@ -106,7 +106,7 @@ pub fn init_game(state: &mut FishGameState, width: i32, height: i32) {
     state.lastCannonShot = 0;
     state.gameTime = 0;
     
-    io.println("FishGame 初始化完成");
+    io.println "FishGame 初始化完成";
 }
 
 // ==================== 游戏逻辑更新 ====================
@@ -147,8 +147,8 @@ pub fn update_game(state: &mut FishGameState, dt: i32) -> bool {
 
 // 更新炮台角度
 fn update_cannon_angle(state: &mut FishGameState) {
-    var dx = state.mouseX - state.cannon.x;
-    var dy = state.mouseY - state.cannon.y;
+    let dx = state.mouseX - state.cannon.x;
+    let dy = state.mouseY - state.cannon.y;
     
     // 计算角度 (朝向鼠标)
     state.cannon.angle = atan2f(dy as f32, dx as f32);
@@ -176,7 +176,7 @@ fn update_fish_spawn(state: &mut FishGameState, dt: i32) {
 // 生成一条鱼
 fn spawn_fish(state: &mut FishGameState) {
     // 找到空闲的鱼槽
-    var slot = -1;
+    let slot = -1;
     for i in 0..MAX_FISH {
         if !state.fishes[i].alive {
             slot = i;
@@ -187,8 +187,8 @@ fn spawn_fish(state: &mut FishGameState) {
     if slot < 0 { return; }
     
     // 随机决定鱼类型 (加权概率)
-    var rand = (state.gameTime % 100) as i32;
-    var fishType: FishType;
+    let rand = (state.gameTime % 100) as i32;
+    let fishType: FishType;
     
     if rand < 40 {
         fishType = FishType.SmallFish;
@@ -203,7 +203,7 @@ fn spawn_fish(state: &mut FishGameState) {
     }
     
     // 设置鱼的初始位置 (从屏幕边缘)
-    var fish = &state.fishes[slot];
+    let fish = &state.fishes[slot];
     fish.fishType = fishType;
     fish.size = get_fish_size(fishType);
     fish.alive = true;
@@ -211,10 +211,10 @@ fn spawn_fish(state: &mut FishGameState) {
     fish.wobble = 0.0;
     
     // 速度
-    var speed = get_fish_speed(fishType);
+    let speed = get_fish_speed(fishType);
     
     // 随机出生边: 0=左边, 1=右边, 2=下边
-    var side = state.gameTime % 3;
+    let side = state.gameTime % 3;
     
     if side == 0 {
         // 从左边出生
@@ -245,7 +245,7 @@ fn spawn_fish(state: &mut FishGameState) {
 // 更新所有鱼
 fn update_fishes(state: &mut FishGameState, dt: i32) {
     for i in 0..MAX_FISH {
-        var fish = &state.fishes[i];
+        let fish = &state.fishes[i];
         if !fish.alive { continue; }
         
         // 更新位置
@@ -274,7 +274,7 @@ fn update_fishes(state: &mut FishGameState, dt: i32) {
 // 更新炮弹
 fn update_bullets(state: &mut FishGameState, dt: i32) {
     for i in 0..MAX_BULLETS {
-        var bullet = &state.bullets[i];
+        let bullet = &state.bullets[i];
         if !bullet.active { continue; }
         
         // 更新位置
@@ -296,17 +296,17 @@ fn update_bullets(state: &mut FishGameState, dt: i32) {
 // 碰撞检测
 fn check_collisions(state: &mut FishGameState) {
     for i in 0..MAX_BULLETS {
-        var bullet = &state.bullets[i];
+        let bullet = &state.bullets[i];
         if !bullet.active { continue; }
         
         for j in 0..MAX_FISH {
-            var fish = &state.fishes[j];
+            let fish = &state.fishes[j];
             if !fish.alive { continue; }
             
             // 圆形碰撞检测
-            var dx = (bullet.x - fish.x) as i32;
-            var dy = (bullet.y - fish.y) as i32;
-            var dist = sqrti(dx * dx + dy * dy);
+            let dx = (bullet.x - fish.x) as i32;
+            let dy = (bullet.y - fish.y) as i32;
+            let dist = sqrti(dx * dx + dy * dy);
             
             if dist < fish.size + 5 {
                 // 击中!
@@ -315,11 +315,11 @@ fn check_collisions(state: &mut FishGameState) {
                 state.fishCount = state.fishCount - 1;
                 
                 // 加分
-                var score = get_fish_score(fish.fishType);
+                let score = get_fish_score(fish.fishType);
                 state.score = state.score + score;
                 
                 // 添加击中效果
-                add_hit_effect(state, fish.x as i32, fish.y as i32, score);
+                add_hit_effect(state, fish.(i32)x, fish.(i32)y, score);
                 
                 // 增加金币
                 state.coins = state.coins + score / 2;
@@ -375,7 +375,7 @@ pub fn shoot(state: &mut FishGameState) {
     if state.cannon.cooldown > 0 { return; }
     
     // 找到空闲的炮弹槽
-    var slot = -1;
+    let slot = -1;
     for i in 0..MAX_BULLETS {
         if !state.bullets[i].active {
             slot = i;
@@ -385,13 +385,13 @@ pub fn shoot(state: &mut FishGameState) {
     
     if slot < 0 { return; }
     
-    var bullet = &state.bullets[slot];
+    let bullet = &state.bullets[slot];
     bullet.active = true;
     bullet.x = state.cannon.x as f32;
     bullet.y = state.cannon.y as f32;
     
     // 根据炮台等级调整速度和威力
-    var speed = 12.0 + state.cannon.level as f32 * 2.0;
+    let speed = 12.0 + state.cannon.level as f32 * 2.0;
     bullet.vx = cosi(state.cannon.angle) * speed;
     bullet.vy = sini(state.cannon.angle) * speed;
     bullet.power = state.cannon.level;
@@ -427,7 +427,7 @@ pub fn start_game(state: &mut FishGameState) {
         state.bulletCount = 0;
         state.cannon.level = 1;
         
-        io.println("游戏开始!");
+        io.println "游戏开始!";
     }
 }
 

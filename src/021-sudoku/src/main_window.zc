@@ -1,8 +1,8 @@
 // main_window.zc - Zen-C数独游戏主程序
 // 所有平台使用同一份Zen-C代码
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 
 // 导入游戏逻辑和平台API
 import "game_logic.zc";
@@ -10,22 +10,22 @@ import "platform_api.zc";
 
 // ==================== 常量 ====================
 
-const WINDOW_WIDTH = 620;
-const WINDOW_HEIGHT = 750;
+def WINDOW_WIDTH = 620;
+def WINDOW_HEIGHT = 750;
 
 // 游戏颜色
-const BG_COLOR = rgb(30, 30, 40);
-const BOARD_BG = rgb(255, 255, 255);
-const CELL_FIXED_BG = rgb(240, 240, 240);
-const CELL_SELECTED_BG = rgb(100, 149, 237);
-const CELL_ERROR_BG = rgb(255, 200, 200);
-const LINE_THIN = rgb(180, 180, 180);
-const LINE_THICK = rgb(40, 40, 40);
-const TEXT_DARK = rgb(20, 20, 20);
-const TEXT_BLUE = rgb(50, 50, 150);
-const HIGHLIGHT_SAME = rgb(230, 230, 255);
-const BUTTON_BG = rgb(70, 130, 180);
-const BUTTON_HOVER = rgb(100, 160, 210);
+def BG_COLOR = rgb(30, 30, 40);
+def BOARD_BG = rgb(255, 255, 255);
+def CELL_FIXED_BG = rgb(240, 240, 240);
+def CELL_SELECTED_BG = rgb(100, 149, 237);
+def CELL_ERROR_BG = rgb(255, 200, 200);
+def LINE_THIN = rgb(180, 180, 180);
+def LINE_THICK = rgb(40, 40, 40);
+def TEXT_DARK = rgb(20, 20, 20);
+def TEXT_BLUE = rgb(50, 50, 150);
+def HIGHLIGHT_SAME = rgb(230, 230, 255);
+def BUTTON_BG = rgb(70, 130, 180);
+def BUTTON_HOVER = rgb(100, 160, 210);
 
 // ==================== 全局变量 ====================
 
@@ -44,7 +44,7 @@ struct Button {
     action: i32,  // 0=newgame, 1=hint, 2=check
 }
 
-static mut buttons: [3]Button;
+static mut buttons: [Button; 3];
 
 // ==================== 按钮初始化 ====================
 
@@ -85,12 +85,12 @@ fn initButtons() {
 // ==================== 绘图函数 ====================
 
 // 绘制背景
-fn drawBackground(canvas: &Canvas) {
+fn drawBackground(canvas: Canvas*) {
     canvas.clear(BG_COLOR);
 }
 
 // 绘制数字（简化实现）
-fn drawDigit(canvas: &Canvas, x: i32, y: i32, size: i32, digit: i32, color: Color, bold: bool) {
+fn drawDigit(canvas: Canvas*, x: i32, y: i32, size: i32, digit: i32, color: Color, bold: bool) {
     // 绘制一个简化的数字
     // 实际游戏中应该使用位图字体
     let cx = x + size / 2;
@@ -106,7 +106,7 @@ fn drawDigit(canvas: &Canvas, x: i32, y: i32, size: i32, digit: i32, color: Colo
 }
 
 // 绘制数独网格
-fn drawGrid(canvas: &Canvas, offset_x: i32, offset_y: i32) {
+fn drawGrid(canvas: Canvas*, offset_x: i32, offset_y: i32) {
     // 绘制背景
     canvas.fillRect(offset_x, offset_y, BOARD_SIZE, BOARD_SIZE, BOARD_BG);
     
@@ -184,7 +184,7 @@ fn drawGrid(canvas: &Canvas, offset_x: i32, offset_y: i32) {
 }
 
 // 绘制按钮
-fn drawButton(canvas: &Canvas, btn: &Button, hovered: bool) {
+fn drawButton(canvas: Canvas*, btn: Button*, hovered: bool) {
     let bg = if hovered { BUTTON_HOVER } else { BUTTON_BG };
     canvas.fillRect(btn.x, btn.y, btn.width, btn.height, bg);
     
@@ -194,7 +194,7 @@ fn drawButton(canvas: &Canvas, btn: &Button, hovered: bool) {
 }
 
 // 绘制按钮文字（简化）
-fn drawButtonText(canvas: &Canvas, x: i32, y: i32, text: string, color: Color) {
+fn drawButtonText(canvas: Canvas*, x: i32, y: i32, text: string, color: Color) {
     // 简化实现：使用圆形组成文字
     let cx = x;
     let cy = y + 20;
@@ -202,7 +202,7 @@ fn drawButtonText(canvas: &Canvas, x: i32, y: i32, text: string, color: Color) {
 }
 
 // 绘制UI信息
-fn drawUI(canvas: &Canvas) {
+fn drawUI(canvas: Canvas*) {
     // 计算游戏区域位置
     let mut game_offset_x: i32 = 0;
     let mut game_offset_y: i32 = 0;
@@ -212,9 +212,9 @@ fn drawUI(canvas: &Canvas) {
     let info_y = 20;
     
     // 难度
-    let difficulty_text = "难度: " ++ getDifficultyName(game.difficulty);
-    let timer_text = "时间: " ++ getTimerText(&game);
-    let mistakes_text = "错误: " ++ format("{}", game.mistakes);
+    let difficulty_text = "难度: {getDifficultyName}"(game.difficulty);
+    let timer_text = "时间: {getTimerText}"(&game);
+    let mistakes_text = "错误: {format}"("{}", game.mistakes);
     
     // 绘制按钮
     for i in 0..3 {
@@ -224,7 +224,7 @@ fn drawUI(canvas: &Canvas) {
 }
 
 // 绘制胜利画面
-fn drawWinScreen(canvas: &Canvas) {
+fn drawWinScreen(canvas: Canvas*) {
     // 半透明遮罩
     let mut info_offset_x: i32 = 0;
     let mut info_offset_y: i32 = 0;
@@ -274,72 +274,72 @@ fn handleMouseClick(x: i32, y: i32) {
 fn handleKeyInput(key: VirtualKey) -> bool {
     // 数字键 1-9
     match key {
-        VirtualKey.Key1 | VirtualKey.Numpad1 => {
+        VirtualKey.Key1 | VirtualKey::Numpad1 => {
             let _ = inputNumber(&mut game, 1);
         },
-        VirtualKey.Key2 | VirtualKey.Numpad2 => {
+        VirtualKey.Key2 | VirtualKey::Numpad2 => {
             let _ = inputNumber(&mut game, 2);
         },
-        VirtualKey.Key3 | VirtualKey.Numpad3 => {
+        VirtualKey.Key3 | VirtualKey::Numpad3 => {
             let _ = inputNumber(&mut game, 3);
         },
-        VirtualKey.Key4 | VirtualKey.Numpad4 => {
+        VirtualKey.Key4 | VirtualKey::Numpad4 => {
             let _ = inputNumber(&mut game, 4);
         },
-        VirtualKey.Key5 | VirtualKey.Numpad5 => {
+        VirtualKey.Key5 | VirtualKey::Numpad5 => {
             let _ = inputNumber(&mut game, 5);
         },
-        VirtualKey.Key6 | VirtualKey.Numpad6 => {
+        VirtualKey.Key6 | VirtualKey::Numpad6 => {
             let _ = inputNumber(&mut game, 6);
         },
-        VirtualKey.Key7 | VirtualKey.Numpad7 => {
+        VirtualKey.Key7 | VirtualKey::Numpad7 => {
             let _ = inputNumber(&mut game, 7);
         },
-        VirtualKey.Key8 | VirtualKey.Numpad8 => {
+        VirtualKey.Key8 | VirtualKey::Numpad8 => {
             let _ = inputNumber(&mut game, 8);
         },
-        VirtualKey.Key9 | VirtualKey.Numpad9 => {
+        VirtualKey.Key9 | VirtualKey::Numpad9 => {
             let _ = inputNumber(&mut game, 9);
         },
         // 0 或 Backspace 清除
-        VirtualKey.Key0 | VirtualKey.Numpad0 | VirtualKey.Backspace => {
+        VirtualKey.Key0 | VirtualKey.Numpad0 | VirtualKey::Backspace => {
             let _ = clearSelectedCell(&mut game);
         },
         // 方向键移动选择
-        VirtualKey.Up => {
+        VirtualKey::Up => {
             if game.selected_row > 0 {
                 game.selected_row -= 1;
             }
         },
-        VirtualKey.Down => {
+        VirtualKey::Down => {
             if game.selected_row < GRID_SIZE - 1 {
                 game.selected_row += 1;
             }
         },
-        VirtualKey.Left => {
+        VirtualKey::Left => {
             if game.selected_col > 0 {
                 game.selected_col -= 1;
             }
         },
-        VirtualKey.Right => {
+        VirtualKey::Right => {
             if game.selected_col < GRID_SIZE - 1 {
                 game.selected_col += 1;
             }
         },
         // H 键提示
-        VirtualKey.KeyH => {
+        VirtualKey::KeyH => {
             let _ = useHint(&mut game);
         },
         // N 键新游戏
-        VirtualKey.KeyN => {
+        VirtualKey::KeyN => {
             init_game(&mut game, Difficulty::Medium);
         },
         // C 键检查
-        VirtualKey.KeyC => {
+        VirtualKey::KeyC => {
             checkErrors(&mut game);
         },
         // ESC 退出
-        VirtualKey.Escape => {
+        VirtualKey::Escape => {
             return false;
         },
         _ => {}
@@ -348,7 +348,7 @@ fn handleKeyInput(key: VirtualKey) -> bool {
 }
 
 // 绘制主界面
-fn drawMain(canvas: &Canvas, window_width: i32, window_height: i32) {
+fn drawMain(canvas: Canvas*, window_width: i32, window_height: i32) {
     drawBackground(canvas);
     
     let mut game_offset_x: i32 = 0;
@@ -366,9 +366,9 @@ fn drawMain(canvas: &Canvas, window_width: i32, window_height: i32) {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 数独游戏 v1.0");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 数独游戏 v1.0";
+    io.println "========================================";
     
     // 初始化游戏
     game.window_width = WINDOW_WIDTH;
@@ -382,28 +382,28 @@ fn main() -> i32 {
     window = create_window("Zen-C 数独游戏", WINDOW_WIDTH, WINDOW_HEIGHT);
     
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
     
-    io.println("窗口创建成功!");
-    io.println("控制说明:");
-    io.println("  鼠标点击: 选择单元格");
-    io.println("  数字键 1-9: 填入数字");
-    io.println("  0/Backspace: 清除");
-    io.println("  方向键: 移动选择");
-    io.println("  H: 提示");
-    io.println("  N: 新游戏");
-    io.println("  C: 检查错误");
-    io.println("  ESC: 退出");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "控制说明:";
+    io.println "  鼠标点击: 选择单元格";
+    io.println "  数字键 1-9: 填入数字";
+    io.println "  0/Backspace: 清除";
+    io.println "  方向键: 移动选择";
+    io.println "  H: 提示";
+    io.println "  N: 新游戏";
+    io.println "  C: 检查错误";
+    io.println "  ESC: 退出";
+    io.println "========================================";
     
     // 运行事件循环
     runEventLoop(window);
     
-    io.println("游戏结束!");
-    io.println("谢谢游玩 Zen-C 数独游戏!");
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println "谢谢游玩 Zen-C 数独游戏!";
+    io.println "========================================";
     
     0
 }
@@ -414,17 +414,17 @@ fn runEventLoop(win: WindowHandle) {
     running = true;
     
     while running {
-        var event = Event.{};
+        let event = Event{};
         
         while pollEvent(win, &event) {
             match event.msg {
-                MessageType.Quit => {
+                MessageType::Quit => {
                     running = false;
                 },
-                MessageType.MouseDown => {
+                MessageType::MouseDown => {
                     handleMouseClick(event.mouse.x, event.mouse.y);
                 },
-                MessageType.KeyDown => {
+                MessageType::KeyDown => {
                     let continue_game = handleKeyInput(event.key.key);
                     if !continue_game {
                         running = false;
@@ -435,11 +435,11 @@ fn runEventLoop(win: WindowHandle) {
         }
         
         // 简单渲染
-        var fb = getFrameBuffer(win);
-        var pitch = getFrameBufferPitch(win);
+        let fb = getFrameBuffer(win);
+        let pitch = getFrameBufferPitch(win);
         
         // 创建画布
-        var canvas = SimpleCanvas.{
+        let canvas = SimpleCanvas {
             width: WINDOW_WIDTH,
             height: WINDOW_HEIGHT,
             pitch: pitch,
@@ -470,8 +470,8 @@ private struct SimpleCanvas {
 
 impl Canvas for SimpleCanvas {
     fn clear(color: Color) {
-        var pixels = self.buffer as u32 mut;
-        var count = (self.pitch * self.height) / 4;
+        let pixels = (u32)(self.buffer) mut;
+        let count = (self.pitch * self.height) / 4;
         
         for i in 0..count {
             pixels[i] = color;
@@ -483,8 +483,8 @@ impl Canvas for SimpleCanvas {
             return;
         }
         
-        var offset = y * (self.pitch / 4) + x;
-        var pixels = self.buffer as u32 mut;
+        let offset = y * (self.pitch / 4) + x;
+        let pixels = (u32)(self.buffer) mut;
         pixels[offset] = color;
     }
     
@@ -493,18 +493,18 @@ impl Canvas for SimpleCanvas {
             return Color.Black();
         }
         
-        var offset = y * (self.pitch / 4) + x;
-        var pixels = self.buffer as u32;
+        let offset = y * (self.pitch / 4) + x;
+        let pixels = self.buffer as u32;
         return pixels[offset];
     }
     
     fn drawLine(x1: int, y1: int, x2: int, y2: int, color: Color) {
         // Bresenham 算法
-        var dx = abs(x2 - x1);
-        var dy = abs(y2 - y1);
-        var sx = if x1 < x2 { 1 } else { -1 };
-        var sy = if y1 < y2 { 1 } else { -1 };
-        var err = dx - dy;
+        let dx = abs(x2 - x1);
+        let dy = abs(y2 - y1);
+        let sx = if x1 < x2 { 1 } else { -1 };
+        let sy = if y1 < y2 { 1 } else { -1 };
+        let err = dx - dy;
         
         loop {
             self.setPixel(x1, y1, color);
@@ -513,7 +513,7 @@ impl Canvas for SimpleCanvas {
                 break;
             }
             
-            var e2 = 2 * err;
+            let e2 = 2 * err;
             if e2 > -dy {
                 err = err - dy;
                 x1 = x1 + sx;
@@ -541,9 +541,9 @@ impl Canvas for SimpleCanvas {
     }
     
     fn drawCircle(cx: int, cy: int, radius: int, color: Color) {
-        var d = 3 - 2 * radius;
-        var x = 0;
-        var y = radius;
+        let d = 3 - 2 * radius;
+        let x = 0;
+        let y = radius;
         
         loop {
             self.setPixel(cx + x, cy + y, color);

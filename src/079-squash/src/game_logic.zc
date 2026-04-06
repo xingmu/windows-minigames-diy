@@ -1,43 +1,43 @@
 // game_logic.zc - Squash壁球游戏逻辑
 // 079-Squash 壁球游戏 - 玩家vs电脑，鼠标控制球拍
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
-const WINDOW_WIDTH: int = 600;
-const WINDOW_HEIGHT: int = 800;
+def WINDOW_WIDTH: int = 600;
+def WINDOW_HEIGHT: int = 800;
 
-const COURT_MARGIN: int = 40;
+def COURT_MARGIN: int = 40;
 
 // 场地分区
-const FRONT_WALL_Y: int = COURT_MARGIN + 50;      // 前墙
-const BACK_WALL_Y: int = WINDOW_HEIGHT - COURT_MARGIN - 20;  // 后墙（发球线）
-const SERVICE_LINE_Y: int = WINDOW_HEIGHT - COURT_MARGIN - 100; // 发球区
-const LEFT_WALL_X: int = COURT_MARGIN;
-const RIGHT_WALL_X: int = WINDOW_WIDTH - COURT_MARGIN;
+def FRONT_WALL_Y: int = COURT_MARGIN + 50;      // 前墙
+def BACK_WALL_Y: int = WINDOW_HEIGHT - COURT_MARGIN - 20;  // 后墙（发球线）
+def SERVICE_LINE_Y: int = WINDOW_HEIGHT - COURT_MARGIN - 100; // 发球区
+def LEFT_WALL_X: int = COURT_MARGIN;
+def RIGHT_WALL_X: int = WINDOW_WIDTH - COURT_MARGIN;
 
 // 球拍
-const RACKET_WIDTH: int = 100;
-const RACKET_HEIGHT: int = 14;
-const RACKET_MARGIN: int = 80;  // 球拍离后墙的距离
+def RACKET_WIDTH: int = 100;
+def RACKET_HEIGHT: int = 14;
+def RACKET_MARGIN: int = 80;  // 球拍离后墙的距离
 
 // 球
-const BALL_RADIUS: int = 7;
-const BALL_INITIAL_SPEED: int = 6;
-const BALL_MAX_SPEED: int = 14;
-const BALL_SPEED_INCREMENT: float = 0.3;
+def BALL_RADIUS: int = 7;
+def BALL_INITIAL_SPEED: int = 6;
+def BALL_MAX_SPEED: int = 14;
+def BALL_SPEED_INCREMENT: float = 0.3;
 
 // 物理
-const GRAVITY: float = 0.12;
-const WALL_BOUNCE: float = 0.85;
-const FLOOR_BOUNCE: float = 0.75;
-const CEILING_BOUNCE: float = 0.80;
+def GRAVITY: float = 0.12;
+def WALL_BOUNCE: float = 0.85;
+def FLOOR_BOUNCE: float = 0.75;
+def CEILING_BOUNCE: float = 0.80;
 
 // 游戏规则
-const WINNING_SCORE: int = 9;
-const LIVES: int = 3;  // 每局3条命
+def WINNING_SCORE: int = 9;
+def LIVES: int = 3;  // 每局3条命
 
 // ==================== SquashGame游戏类 ====================
 
@@ -176,11 +176,11 @@ pub class SquashGame extends Game {
     // 更新玩家球拍
     private fn updatePlayerRacket() {
         // 球拍跟随鼠标X位置(左右移动)
-        var targetX = self.mouseX - self.playerRacketWidth / 2;
+        let targetX = self.mouseX - self.playerRacketWidth / 2;
         
         // 平滑移动
-        var diff = targetX - self.playerRacketX;
-        var speed = 12;
+        let diff = targetX - self.playerRacketX;
+        let speed = 12;
         if diff > speed {
             self.playerRacketX = self.playerRacketX + speed;
         } else if diff < -speed {
@@ -198,7 +198,7 @@ pub class SquashGame extends Game {
         }
         
         // 前后微调(根据鼠标Y)
-        var targetY = self.mouseY;
+        let targetY = self.mouseY;
         if targetY > BACK_WALL_Y - RACKET_MARGIN - 50 {
             targetY = BACK_WALL_Y - RACKET_MARGIN;
         }
@@ -206,7 +206,7 @@ pub class SquashGame extends Game {
             targetY = FRONT_WALL_Y + 150;
         }
         
-        var diffY = targetY - self.playerRacketY;
+        let diffY = targetY - self.playerRacketY;
         if diffY > 8 {
             self.playerRacketY = self.playerRacketY + 8;
         } else if diffY < -8 {
@@ -218,8 +218,8 @@ pub class SquashGame extends Game {
     
     // 更新CPU AI
     private fn updateCPU(dt: u32) {
-        var currentTime = getTickCount();
-        if currentTime - self.aiLastUpdate < 30 as u32 {
+        let currentTime = getTickCount();
+        if currentTime - self.aiLastUpdate < (u32)30 {
             return;
         }
         self.aiLastUpdate = currentTime;
@@ -227,15 +227,15 @@ pub class SquashGame extends Game {
         // 预测球的落点
         if self.ballVY < 0.0 && self.ballActive {
             // 球正在飞向CPU
-            var timeToReach = (self.cpuRacketY - self.ballY) / (-self.ballVY);
+            let timeToReach = (self.cpuRacketY - self.ballY) / (-self.ballVY);
             if timeToReach > 0.0 && timeToReach < 100.0 {
-                var predictedX = self.ballX + self.ballVX * timeToReach;
+                let predictedX = self.ballX + self.ballVX * timeToReach;
                 
                 // 添加误差和延迟
                 if self.rand() % 8 == 0 {
                     self.aiError = self.rand() % 50 - 25;
                 }
-                self.aiTargetX = predictedX as int + self.aiError;
+                self.aiTargetX = (int)predictedX + self.aiError;
             } else {
                 self.aiTargetX = WINDOW_WIDTH / 2;
             }
@@ -245,9 +245,9 @@ pub class SquashGame extends Game {
         }
         
         // CPU球拍移动
-        var cpuCenter = self.cpuRacketX + RACKET_WIDTH / 2;
-        var diff = self.aiTargetX - cpuCenter;
-        var cpuSpeed = 7;
+        let cpuCenter = self.cpuRacketX + RACKET_WIDTH / 2;
+        let diff = self.aiTargetX - cpuCenter;
+        let cpuSpeed = 7;
         
         if diff > cpuSpeed {
             self.cpuRacketX = self.cpuRacketX + cpuSpeed;
@@ -256,13 +256,13 @@ pub class SquashGame extends Game {
         }
         
         // CPU前后位置调整
-        var targetCpuY = FRONT_WALL_Y + 80;
+        let targetCpuY = FRONT_WALL_Y + 80;
         if self.ballVY < 0.0 && self.ballActive {
             // 球飞向CPU，提前迎前
             targetCpuY = FRONT_WALL_Y + 50;
         }
         
-        var diffY = targetCpuY - self.cpuRacketY;
+        let diffY = targetCpuY - self.cpuRacketY;
         if diffY > 5 {
             self.cpuRacketY = self.cpuRacketY + 5;
         } else if diffY < -5 {
@@ -299,33 +299,33 @@ pub class SquashGame extends Game {
         self.ballY = self.ballY + self.ballVY;
         
         // 前墙碰撞(最重要)
-        if self.ballY <= FRONT_WALL_Y as float + BALL_RADIUS as float {
-            self.ballY = FRONT_WALL_Y as float + BALL_RADIUS as float + 1.0;
+        if self.ballY <= (float)FRONT_WALL_Y + (float)BALL_RADIUS {
+            self.ballY = (float)FRONT_WALL_Y + (float)BALL_RADIUS + 1.0;
             self.ballVY = -self.ballVY * WALL_BOUNCE;
             self.floorBounceCount = 0;  // 碰到前墙重置地板弹跳计数
             self.lastBounceSide = 2;    // 标记为前墙
         }
         
         // 左墙碰撞
-        if self.ballX <= LEFT_WALL_X as float + BALL_RADIUS as float {
-            self.ballX = LEFT_WALL_X as float + BALL_RADIUS as float + 1.0;
+        if self.ballX <= (float)LEFT_WALL_X + (float)BALL_RADIUS {
+            self.ballX = (float)LEFT_WALL_X + (float)BALL_RADIUS + 1.0;
             self.ballVX = -self.ballVX * WALL_BOUNCE;
             self.floorBounceCount = 0;
             self.lastBounceSide = 0;
         }
         
         // 右墙碰撞
-        if self.ballX >= RIGHT_WALL_X as float - BALL_RADIUS as float {
-            self.ballX = RIGHT_WALL_X as float - BALL_RADIUS as float - 1.0;
+        if self.ballX >= (float)RIGHT_WALL_X - (float)BALL_RADIUS {
+            self.ballX = (float)RIGHT_WALL_X - (float)BALL_RADIUS - 1.0;
             self.ballVX = -self.ballVX * WALL_BOUNCE;
             self.floorBounceCount = 0;
             self.lastBounceSide = 1;
         }
         
         // 地板碰撞(后墙区)
-        if self.ballY >= BACK_WALL_Y as float - BALL_RADIUS as float {
+        if self.ballY >= (float)BACK_WALL_Y - (float)BALL_RADIUS {
             // 地板反弹
-            self.ballY = BACK_WALL_Y as float - BALL_RADIUS as float - 1.0;
+            self.ballY = (float)BACK_WALL_Y - (float)BALL_RADIUS - 1.0;
             self.ballVY = -self.ballVY * FLOOR_BOUNCE;
             self.floorBounceCount = self.floorBounceCount + 1;
             self.lastBounceSide = 3;
@@ -341,8 +341,8 @@ pub class SquashGame extends Game {
         }
         
         // 天花板碰撞(如果有的话，在中前区)
-        if self.ballY <= FRONT_WALL_Y as float + 100.0 && 
-           self.ballY >= FRONT_WALL_Y as float {
+        if self.ballY <= (float)FRONT_WALL_Y + 100.0 && 
+           self.ballY >= (float)FRONT_WALL_Y {
             if self.ballVY < 0.0 {
                 self.ballVY = -self.ballVY * CEILING_BOUNCE;
             }
@@ -353,8 +353,8 @@ pub class SquashGame extends Game {
             self.ballVY = self.absFloat(self.ballVY);
             
             // 根据击中位置调整角度
-            var racketCenter = self.cpuRacketX as float + RACKET_WIDTH as float / 2.0;
-            var hitPos = self.ballX - racketCenter;
+            let racketCenter = (float)(self.cpuRacketX) + (float)RACKET_WIDTH / 2.0;
+            let hitPos = self.ballX - racketCenter;
             self.ballVX = self.ballVX + hitPos * 0.08;
             
             // 增加速度
@@ -363,7 +363,7 @@ pub class SquashGame extends Game {
                 self.ballSpeed = BALL_MAX_SPEED;
             }
             
-            var currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
+            let currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
             if currentSpeed > 0.0 {
                 self.ballVX = self.ballVX / currentSpeed * self.ballSpeed as float;
                 self.ballVY = self.ballVY / currentSpeed * self.ballSpeed as float;
@@ -381,8 +381,8 @@ pub class SquashGame extends Game {
             self.ballVY = -self.absFloat(self.ballVY);
             
             // 根据击中位置调整角度
-            var racketCenter = self.playerRacketX as float + RACKET_WIDTH as float / 2.0;
-            var hitPos = self.ballX - racketCenter;
+            let racketCenter = (float)(self.playerRacketX) + (float)RACKET_WIDTH / 2.0;
+            let hitPos = self.ballX - racketCenter;
             self.ballVX = self.ballVX + hitPos * 0.1;
             
             // 增加速度
@@ -391,7 +391,7 @@ pub class SquashGame extends Game {
                 self.ballSpeed = BALL_MAX_SPEED;
             }
             
-            var currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
+            let currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
             if currentSpeed > 0.0 {
                 self.ballVX = self.ballVX / currentSpeed * self.ballSpeed as float;
                 self.ballVY = self.ballVY / currentSpeed * self.ballSpeed as float;
@@ -405,9 +405,9 @@ pub class SquashGame extends Game {
         }
         
         // 出界检测(飞过前墙且高度过低)
-        if self.ballY < FRONT_WALL_Y as float - 50.0 && self.ballVY < 0.0 {
+        if self.ballY < (float)FRONT_WALL_Y - 50.0 && self.ballVY < 0.0 {
             // 球从侧面飞走
-            if self.ballX < LEFT_WALL_X as float || self.ballX > RIGHT_WALL_X as float {
+            if self.ballX < (float)LEFT_WALL_X || self.ballX > (float)RIGHT_WALL_X {
                 self.cpuWinsPoint();
                 return;
             }
@@ -416,15 +416,15 @@ pub class SquashGame extends Game {
     
     // 检查球拍碰撞
     private fn checkRacketCollision(rx: int, ry: int, rw: int, rh: int) -> bool {
-        var ballLeft = self.ballX - BALL_RADIUS as float;
-        var ballRight = self.ballX + BALL_RADIUS as float;
-        var ballTop = self.ballY - BALL_RADIUS as float;
-        var ballBottom = self.ballY + BALL_RADIUS as float;
+        let ballLeft = self.ballX - BALL_RADIUS as float;
+        let ballRight = self.ballX + BALL_RADIUS as float;
+        let ballTop = self.ballY - BALL_RADIUS as float;
+        let ballBottom = self.ballY + BALL_RADIUS as float;
         
-        var racketLeft = rx as float;
-        var racketRight = (rx + rw) as float;
-        var racketTop = ry as float;
-        var racketBottom = (ry + rh) as float;
+        let racketLeft = rx as float;
+        let racketRight = (rx + rw) as float;
+        let racketTop = ry as float;
+        let racketBottom = (ry + rh) as float;
         
         return ballRight >= racketLeft && ballLeft <= racketRight &&
                ballBottom >= racketTop && ballTop <= racketBottom;
@@ -470,8 +470,8 @@ pub class SquashGame extends Game {
     
     // 重置球
     private fn resetBall() {
-        self.ballX = WINDOW_WIDTH as float / 2.0;
-        self.ballY = BACK_WALL_Y as float - 100.0;
+        self.ballX = (float)WINDOW_WIDTH / 2.0;
+        self.ballY = (float)BACK_WALL_Y - 100.0;
         self.ballVX = 0.0;
         self.ballVY = 0.0;
         self.ballSpeed = BALL_INITIAL_SPEED;
@@ -493,20 +493,20 @@ pub class SquashGame extends Game {
         self.serveTimer = 0;
         
         // 发球速度
-        var angle = (self.rand() % 40 - 20) as float;
+        let angle = (self.rand() % 40 - 20) as float;
         
         if self.isPlayerServing {
             // 玩家发球，球向上(前)飞
-            self.ballX = self.playerRacketX as float + RACKET_WIDTH as float / 2.0;
-            self.ballY = self.playerRacketY as float - BALL_RADIUS as float - 5.0;
+            self.ballX = (float)(self.playerRacketX) + (float)RACKET_WIDTH / 2.0;
+            self.ballY = (float)(self.playerRacketY) - (float)BALL_RADIUS - 5.0;
             self.ballVX = self.sin(angle) * 2.0;
-            self.ballVY = -(self.ballSpeed as float);
+            self.ballVY = -((float)(self.ballSpeed));
         } else {
             // CPU发球，球向下(后)飞
-            self.ballX = self.cpuRacketX as float + RACKET_WIDTH as float / 2.0;
-            self.ballY = self.cpuRacketY as float + self.cpuRacketHeight as float + BALL_RADIUS as float + 5.0;
+            self.ballX = (float)(self.cpuRacketX) + (float)RACKET_WIDTH / 2.0;
+            self.ballY = (float)(self.cpuRacketY) + (float)(self.cpuRacketHeight) + (float)BALL_RADIUS + 5.0;
             self.ballVX = self.sin(angle) * 2.0;
-            self.ballVY = self.ballSpeed as float * 0.8;
+            self.ballVY = (float)(self.ballSpeed) * 0.8;
         }
         
         self.floorBounceCount = 0;
@@ -534,9 +534,9 @@ pub class SquashGame extends Game {
     
     // 绘制球场
     private fn drawCourt(canvas: Canvas) {
-        var wallColor = Color.White();
-        var lineColor = Color.ARGB(200, 255, 255, 255);
-        var floorColor = Color.ARGB(255, 139, 90, 43);
+        let wallColor = Color.White();
+        let lineColor = Color.ARGB(200, 255, 255, 255);
+        let floorColor = Color.ARGB(255, 139, 90, 43);
         
         // 地板(木质)
         canvas.fillRect(LEFT_WALL_X, BACK_WALL_Y, RIGHT_WALL_X - LEFT_WALL_X, WINDOW_HEIGHT - BACK_WALL_Y, floorColor);
@@ -555,7 +555,7 @@ pub class SquashGame extends Game {
         
         // 前墙装饰线
         for i in 0..5 {
-            var y = FRONT_WALL_Y + 20 + i * 20;
+            let y = FRONT_WALL_Y + 20 + i * 20;
             canvas.drawLine(LEFT_WALL_X + 5, y, RIGHT_WALL_X - 5, y, Color.ARGB(100, 255, 255, 255));
         }
         
@@ -583,9 +583,9 @@ pub class SquashGame extends Game {
     
     // 绘制球
     private fn drawBall(canvas: Canvas) {
-        var ballColor = Color.Yellow();
-        var bx = self.ballX as int;
-        var by = self.ballY as int;
+        let ballColor = Color.Yellow();
+        let bx = self.ballX as int;
+        let by = self.ballY as int;
         
         // 阴影
         canvas.fillCircle(bx + 4, by + 4, BALL_RADIUS + 1, Color.ARGB(80, 0, 0, 0));
@@ -600,49 +600,49 @@ pub class SquashGame extends Game {
     
     // 绘制分数
     private fn drawScore(canvas: Canvas) {
-        var bigFont = Font.("Arial", 36);
-        var smallFont = Font.("Arial", 16);
-        var mediumFont = Font.("Arial", 20);
+        let bigFont = Font("Arial", 36);
+        let smallFont = Font("Arial", 16);
+        let mediumFont = Font("Arial", 20);
         
         // 玩家分数(底部)
-        var scoreText = self.intToString(self.playerScore);
+        let scoreText = self.intToString(self.playerScore);
         canvas.drawText(WINDOW_WIDTH / 2 - 20, BACK_WALL_Y + 30, "玩家", Color.White(), smallFont);
         canvas.drawText(WINDOW_WIDTH / 2 - 15, BACK_WALL_Y + 55, scoreText, Color.Yellow(), bigFont);
         
         // CPU分数(顶部)
-        var cpuText = self.intToString(self.cpuScore);
+        let cpuText = self.intToString(self.cpuScore);
         canvas.drawText(WINDOW_WIDTH / 2 - 20, FRONT_WALL_Y - 5, "电脑", Color.White(), smallFont);
         canvas.drawText(WINDOW_WIDTH / 2 - 15, FRONT_WALL_Y + 20, cpuText, Color.Yellow(), bigFont);
         
         // 生命值
-        var livesText = "";
+        let livesText = "";
         for i in 0..LIVES {
             if i < self.playerLives {
-                livesText = livesText ++ "●";
+                livesText = "{livesText}●";
             } else {
-                livesText = livesText ++ "○";
+                livesText = "{livesText}○";
             }
         }
         canvas.drawText(WINDOW_WIDTH - COURT_MARGIN - 80, BACK_WALL_Y + 10, livesText, Color.Red(), mediumFont);
         
         // 发球方指示
         if self.canServe && !self.gameOver {
-            var serveText = if self.isPlayerServing { "玩家发球" } else { "电脑发球" };
+            let serveText = if self.isPlayerServing { "玩家发球" } else { "电脑发球" };
             canvas.drawText(WINDOW_WIDTH / 2 - 40, WINDOW_HEIGHT / 2, serveText, Color.ARGB(200, 255, 255, 0), smallFont);
         }
     }
     
     // 绘制提示
     private fn drawInstructions(canvas: Canvas) {
-        var font = Font.("Arial", 14);
+        let font = Font("Arial", 14);
         
         if !self.ballActive && self.canServe && !self.gameOver {
-            var text = "点击鼠标发球";
+            let text = "点击鼠标发球";
             canvas.drawText(WINDOW_WIDTH / 2 - 50, WINDOW_HEIGHT / 2 - 30, text, Color.Yellow(), font);
         }
         
         // 控制提示
-        var tip1 = "鼠标左右移动控制球拍";
+        let tip1 = "鼠标左右移动控制球拍";
         canvas.drawText(COURT_MARGIN + 5, WINDOW_HEIGHT - 15, tip1, Color.ARGB(120, 255, 255, 255), font);
     }
     
@@ -650,22 +650,22 @@ pub class SquashGame extends Game {
     private fn drawGameOver(canvas: Canvas) {
         canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(180, 0, 0, 0));
         
-        var font = Font.("Arial", 48);
-        var text = self.winner ++ " 获胜!";
+        let font = Font("Arial", 48);
+        let text = self."{winner} 获胜!";
         canvas.drawText(WINDOW_WIDTH / 2 - 130, WINDOW_HEIGHT / 2 - 50, text, Color.Yellow(), font);
         
-        var smallFont = Font.("Arial", 20);
-        var scoreText = "最终比分: " ++ self.intToString(self.playerScore) ++ " - " ++ self.intToString(self.cpuScore);
+        let smallFont = Font("Arial", 20);
+        let scoreText = "最终比分: {self}".intToString(self.playerScore) ++ " - {self}".intToString(self.cpuScore);
         canvas.drawText(WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 + 10, scoreText, Color.White(), smallFont);
         
-        var restartText = "按 R 键重新开始";
+        let restartText = "按 R 键重新开始";
         canvas.drawText(WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 + 50, restartText, Color.White(), smallFont);
     }
     
     // onKeyDown - 键盘按下
     pub fn onKeyDown(key: VirtualKey) {
         match key {
-            VirtualKey.KeyR => {
+            VirtualKey::KeyR => {
                 if self.gameOver {
                     self.onInit();
                 }
@@ -709,8 +709,8 @@ pub class SquashGame extends Game {
         if n < 0.0 {
             return 0.0;
         }
-        var x = n;
-        var y = 1.0;
+        let x = n;
+        let y = 1.0;
         while y < x {
             x = (x + y) / 2.0;
             y = n / x;
@@ -719,9 +719,9 @@ pub class SquashGame extends Game {
     }
     
     fn sin(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = rad;
-        var term = rad;
+        let rad = x * 3.14159 / 180.0;
+        let result = rad;
+        let term = rad;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
             result = result + term;
@@ -730,9 +730,9 @@ pub class SquashGame extends Game {
     }
     
     fn cos(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = 1.0;
-        var term = 1.0;
+        let rad = x * 3.14159 / 180.0;
+        let result = 1.0;
+        let term = 1.0;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
             result = result + term;
@@ -748,11 +748,11 @@ pub class SquashGame extends Game {
         if n == 0 {
             return "0";
         }
-        var result = "";
-        var num = n;
+        let result = "";
+        let num = n;
         while num > 0 {
-            var digit = num % 10;
-            result = (digit as char + "") ++ result;
+            let digit = num % 10;
+            result = ((char)digit + "") ++ result;
             num = num / 10;
         }
         return result;

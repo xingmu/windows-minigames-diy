@@ -1,6 +1,6 @@
 // main_window.zc - Zen-C Surfing（冲浪）游戏主程序
 
-import std.io;
+import "io.zc";
 
 // 导入游戏逻辑
 import "platform_api.zc";
@@ -11,7 +11,7 @@ import "game_logic.zc";
 static mut game: SurfingState;
 static mut window: WindowHandle;
 static mut running: bool = true;
-static mut key_states: [4]bool = [false, false, false, false];
+static mut key_states: [bool; 4] = [false, false, false, false];
 
 // ==================== 颜色转换 ====================
 
@@ -23,19 +23,19 @@ fn toColor(c: RGB) -> Color {
 
 fn on_key(key: VirtualKey) -> bool {
     match key {
-        VirtualKey.KeyLeft => {
+        VirtualKey::KeyLeft => {
             key_states[0] = true;
             handle_input(&mut game, key);
         },
-        VirtualKey.KeyRight => {
+        VirtualKey::KeyRight => {
             key_states[1] = true;
             handle_input(&mut game, key);
         },
-        VirtualKey.KeyUp => {
+        VirtualKey::KeyUp => {
             key_states[2] = true;
             handle_input(&mut game, key);
         },
-        VirtualKey.KeyDown => {
+        VirtualKey::KeyDown => {
             key_states[3] = true;
             handle_input(&mut game, key);
         },
@@ -48,16 +48,16 @@ fn on_key(key: VirtualKey) -> bool {
 
 fn on_key_up(key: VirtualKey) {
     match key {
-        VirtualKey.KeyLeft => {
+        VirtualKey::KeyLeft => {
             key_states[0] = false;
         },
-        VirtualKey.KeyRight => {
+        VirtualKey::KeyRight => {
             key_states[1] = false;
         },
-        VirtualKey.KeyUp => {
+        VirtualKey::KeyUp => {
             key_states[2] = false;
         },
-        VirtualKey.KeyDown => {
+        VirtualKey::KeyDown => {
             key_states[3] = false;
         },
         _ => {}
@@ -75,48 +75,48 @@ fn on_paint(w: i32, h: i32) {
     }
 
     // 获取帧缓冲
-    var fb = getFrameBuffer(window);
-    var pitch = getFrameBufferPitch(window);
-    var pixels = fb as u32 mut;
-    var screen_w = w;
-    var screen_h = h;
+    let fb = getFrameBuffer(window);
+    let pitch = getFrameBufferPitch(window);
+    let pixels = (u32)fb mut;
+    let screen_w = w;
+    let screen_h = h;
 
     // 清屏 - 绘制天空渐变
     for y in 0..screen_h {
-        var ratio = y as f32 / screen_h as f32;
-        var sky_r: u8 = 135 as u8 - (ratio * 30.0) as u8;
-        var sky_g: u8 = 206 as u8 - (ratio * 40.0) as u8;
-        var sky_b: u8 = 235 as u8 - (ratio * 30.0) as u8;
+        let ratio = y as f32 / screen_h as f32;
+        let sky_r: u8 = (u8)135 - (ratio * 30.0) as u8;
+        let sky_g: u8 = (u8)206 - (ratio * 40.0) as u8;
+        let sky_b: u8 = (u8)235 - (ratio * 30.0) as u8;
         
         for x in 0..screen_w {
-            var offset = y * (pitch / 4) + x;
+            let offset = y * (pitch / 4) + x;
             pixels[offset] = Color.RGB(sky_r, sky_g, sky_b);
         }
     }
 
     // 绘制海洋 - 渐变蓝色
-    var ocean_top = (screen_h as f32 * 0.25) as i32;
+    let ocean_top = (screen_h as f32 * 0.25) as i32;
     for y in ocean_top..screen_h {
-        var depth_ratio = (y - ocean_top) as f32 / (screen_h - ocean_top) as f32;
-        var water_r: u8 = 0 as u8 + (depth_ratio * 20.0) as u8;
-        var water_g: u8 = (105 + depth_ratio * 45.0) as u8;
-        var water_b: u8 = (148 + depth_ratio * 61.0) as u8;
+        let depth_ratio = (y - ocean_top) as f32 / (screen_h - ocean_top) as f32;
+        let water_r: u8 = (u8)0 + (depth_ratio * 20.0) as u8;
+        let water_g: u8 = (105 + depth_ratio * 45.0) as u8;
+        let water_b: u8 = (148 + depth_ratio * 61.0) as u8;
         
         for x in 0..screen_w {
-            var offset = y * (pitch / 4) + x;
+            let offset = y * (pitch / 4) + x;
             pixels[offset] = Color.RGB(water_r, water_g, water_b);
         }
     }
 
     // 绘制波浪效果
-    var wave_offset = get_wave_offset(&game);
+    let wave_offset = get_wave_offset(&game);
     for wx in 0..screen_w {
-        var wave_y = ocean_top + 30 + ((wx as i32 + wave_offset / 2) % 40) as i32 - 20;
+        let wave_y = ocean_top + 30 + (((i32)wx + wave_offset / 2) % 40) as i32 - 20;
         if wave_y > ocean_top && wave_y < screen_h {
             for wy in 0..3 {
-                var actual_y = wave_y + wy;
+                let actual_y = wave_y + wy;
                 if actual_y < screen_h {
-                    var offset = actual_y * (pitch / 4) + wx;
+                    let offset = actual_y * (pitch / 4) + wx;
                     pixels[offset] = Color.RGB(255, 255, 255);
                 }
             }
@@ -125,18 +125,18 @@ fn on_paint(w: i32, h: i32) {
 
     // 绘制波浪条纹
     for wi in 0..5 {
-        var wave_base_y = ocean_top + 80 + wi * 100 - (wave_offset % 100);
+        let wave_base_y = ocean_top + 80 + wi * 100 - (wave_offset % 100);
         if wave_base_y > screen_h {
             wave_base_y = wave_base_y - screen_h + ocean_top;
         }
         
         for x in 0..screen_w {
-            var foam = ((x as i32 + wave_offset) % 30) as i32;
+            let foam = (((i32)x + wave_offset) % 30) as i32;
             if foam < 5 {
                 for wy in 0..2 {
-                    var actual_y = wave_base_y + wy;
+                    let actual_y = wave_base_y + wy;
                     if actual_y > ocean_top && actual_y < screen_h {
-                        var offset = actual_y * (pitch / 4) + x;
+                        let offset = actual_y * (pitch / 4) + x;
                         pixels[offset] = Color.RGB(240, 248, 255);
                     }
                 }
@@ -147,24 +147,24 @@ fn on_paint(w: i32, h: i32) {
     // 绘制冲浪者
     if game.status == GameStatus.Playing || game.status == GameStatus.Ready {
         // 无敌闪烁效果
-        var draw_surfer = true;
+        let draw_surfer = true;
         if game.invincible_timer > 0 {
             draw_surfer = (game.invincible_timer % 10) < 5;
         }
         
         if draw_surfer {
-            var sx = game.surfer.x;
-            var sy = game.surfer.y;
-            var sw = game.surfer.width;
-            var sh = game.surfer.height;
+            let sx = game.surfer.x;
+            let sy = game.surfer.y;
+            let sw = game.surfer.width;
+            let sh = game.surfer.height;
 
             // 冲浪板 (底部)
             for py in 0..8 {
                 for px in 0..sw {
-                    var actual_x = sx + px;
-                    var actual_y = sy + sh - 8 + py;
+                    let actual_x = sx + px;
+                    let actual_y = sy + sh - 8 + py;
                     if actual_x >= 0 && actual_x < screen_w && actual_y >= 0 && actual_y < screen_h {
-                        var offset = actual_y * (pitch / 4) + actual_x;
+                        let offset = actual_y * (pitch / 4) + actual_x;
                         pixels[offset] = Color.RGB(255, 255, 240); // 白色冲浪板
                     }
                 }
@@ -173,10 +173,10 @@ fn on_paint(w: i32, h: i32) {
             // 冲浪者身体
             for py in 8..(sh - 5) {
                 for px in 5..(sw - 5) {
-                    var actual_x = sx + px;
-                    var actual_y = sy + py;
+                    let actual_x = sx + px;
+                    let actual_y = sy + py;
                     if actual_x >= 0 && actual_x < screen_w && actual_y >= 0 && actual_y < screen_h {
-                        var offset = actual_y * (pitch / 4) + actual_x;
+                        let offset = actual_y * (pitch / 4) + actual_x;
                         pixels[offset] = Color.RGB(255, 140, 0); // 橙色冲浪服
                     }
                 }
@@ -185,24 +185,24 @@ fn on_paint(w: i32, h: i32) {
             // 头部
             for py in 0..12 {
                 for px in 10..30 {
-                    var actual_x = sx + px;
-                    var actual_y = sy + py;
+                    let actual_x = sx + px;
+                    let actual_y = sy + py;
                     if actual_x >= 0 && actual_x < screen_w && actual_y >= 0 && actual_y < screen_h {
-                        var offset = actual_y * (pitch / 4) + actual_x;
+                        let offset = actual_y * (pitch / 4) + actual_x;
                         pixels[offset] = Color.RGB(255, 218, 185); // 肤色
                     }
                 }
             }
 
             // 手臂 (根据动画帧摆动)
-            var arm_offset = (game.surfer.frame % 2) * 3;
+            let arm_offset = (game.surfer.frame % 2) * 3;
             // 左臂
             for py in 10..18 {
                 for px in 0..6 {
-                    var actual_x = sx + px + arm_offset;
-                    var actual_y = sy + py;
+                    let actual_x = sx + px + arm_offset;
+                    let actual_y = sy + py;
                     if actual_x >= 0 && actual_x < screen_w && actual_y >= 0 && actual_y < screen_h {
-                        var offset = actual_y * (pitch / 4) + actual_x;
+                        let offset = actual_y * (pitch / 4) + actual_x;
                         pixels[offset] = Color.RGB(255, 140, 0);
                     }
                 }
@@ -210,10 +210,10 @@ fn on_paint(w: i32, h: i32) {
             // 右臂
             for py in 10..18 {
                 for px in (sw - 6)..sw {
-                    var actual_x = sx + px - arm_offset;
-                    var actual_y = sy + py;
+                    let actual_x = sx + px - arm_offset;
+                    let actual_y = sy + py;
                     if actual_x >= 0 && actual_x < screen_w && actual_y >= 0 && actual_y < screen_h {
-                        var offset = actual_y * (pitch / 4) + actual_x;
+                        let offset = actual_y * (pitch / 4) + actual_x;
                         pixels[offset] = Color.RGB(255, 140, 0);
                     }
                 }
@@ -224,33 +224,33 @@ fn on_paint(w: i32, h: i32) {
     // 绘制障碍物
     for i in 0..MAX_OBSTACLES {
         if is_obstacle_active(&game, i) {
-            var (obs_x, obs_y, obs_w, obs_h, obs_type) = get_obstacle_info(&game, i);
+            let (obs_x, obs_y, obs_w, obs_h, obs_type) = get_obstacle_info(&game, i);
             
             match obs_type {
-                ObstacleType.Rock => {
+                ObstacleType::Rock => {
                     // 礁石 - 深灰色不规则形状
                     for py in 0..obs_h {
                         for px in 0..obs_w {
-                            var dist = sqrt((obs_w/2 - px)*(obs_w/2 - px) + (obs_h/2 - py)*(obs_h/2 - py)) as i32;
+                            let dist = sqrt((obs_w/2 - px)*(obs_w/2 - px) + (obs_h/2 - py)*(obs_h/2 - py)) as i32;
                             if dist < obs_w/2 {
-                                var ax = obs_x + px;
-                                var ay = obs_y + py;
+                                let ax = obs_x + px;
+                                let ay = obs_y + py;
                                 if ax >= 0 && ax < screen_w && ay >= 0 && ay < screen_h {
-                                    var offset = ay * (pitch / 4) + ax;
+                                    let offset = ay * (pitch / 4) + ax;
                                     pixels[offset] = Color.RGB(105, 105, 105);
                                 }
                             }
                         }
                     }
                 },
-                ObstacleType.Buoy => {
+                ObstacleType::Buoy => {
                     // 浮标 - 红白相间
                     for py in 0..obs_h {
                         for px in 0..obs_w {
-                            var ax = obs_x + px;
-                            var ay = obs_y + py;
+                            let ax = obs_x + px;
+                            let ay = obs_y + py;
                             if ax >= 0 && ax < screen_w && ay >= 0 && ay < screen_h {
-                                var offset = ay * (pitch / 4) + ax;
+                                let offset = ay * (pitch / 4) + ax;
                                 if py % 7 < 3 {
                                     pixels[offset] = Color.RGB(255, 69, 0); // 红色
                                 } else {
@@ -260,59 +260,59 @@ fn on_paint(w: i32, h: i32) {
                         }
                     }
                 },
-                ObstacleType.SeaUrchin => {
+                ObstacleType::SeaUrchin => {
                     // 海胆 - 深红色圆形带刺
                     for py in 0..obs_h {
                         for px in 0..obs_w {
-                            var dx = px - obs_w/2;
-                            var dy = py - obs_h/2;
-                            var dist = sqrt(dx*dx + dy*dy) as i32;
+                            let dx = px - obs_w/2;
+                            let dy = py - obs_h/2;
+                            let dist = sqrt(dx*dx + dy*dy) as i32;
                             if dist < obs_h/2 {
-                                var ax = obs_x + px;
-                                var ay = obs_y + py;
+                                let ax = obs_x + px;
+                                let ay = obs_y + py;
                                 if ax >= 0 && ax < screen_w && ay >= 0 && ay < screen_h {
-                                    var offset = ay * (pitch / 4) + ax;
+                                    let offset = ay * (pitch / 4) + ax;
                                     pixels[offset] = Color.RGB(139, 0, 0);
                                 }
                             }
                         }
                     }
                 },
-                ObstacleType.Starfish => {
+                ObstacleType::Starfish => {
                     // 海星 - 橙色五角星形状
-                    var cx = obs_x + obs_w/2;
-                    var cy = obs_y + obs_h/2;
-                    var r = obs_w/2;
+                    let cx = obs_x + obs_w/2;
+                    let cy = obs_y + obs_h/2;
+                    let r = obs_w/2;
                     for py in 0..obs_h {
                         for px in 0..obs_w {
-                            var dx = px - obs_w/2;
-                            var dy = py - obs_h/2;
-                            var angle = atan2(dy as f32, dx as f32);
-                            var dist = sqrt(dx*dx + dy*dy) as i32;
-                            var star_radius = (r as f32 * (0.5 + 0.3 * cos(angle * 5.0))) as i32;
+                            let dx = px - obs_w/2;
+                            let dy = py - obs_h/2;
+                            let angle = atan2(dy as f32, dx as f32);
+                            let dist = sqrt(dx*dx + dy*dy) as i32;
+                            let star_radius = (r as f32 * (0.5 + 0.3 * cos(angle * 5.0))) as i32;
                             if dist < star_radius {
-                                var ax = obs_x + px;
-                                var ay = obs_y + py;
+                                let ax = obs_x + px;
+                                let ay = obs_y + py;
                                 if ax >= 0 && ax < screen_w && ay >= 0 && ay < screen_h {
-                                    var offset = ay * (pitch / 4) + ax;
+                                    let offset = ay * (pitch / 4) + ax;
                                     pixels[offset] = Color.RGB(255, 165, 0);
                                 }
                             }
                         }
                     }
                 },
-                ObstacleType.Shell => {
+                ObstacleType::Shell => {
                     // 贝壳 - 贝壳色椭圆形
                     for py in 0..obs_h {
                         for px in 0..obs_w {
-                            var dx = px - obs_w/2;
-                            var dy = py - obs_h/2;
-                            var dist = sqrt(dx*dx*4 + dy*dy*9) as i32;
+                            let dx = px - obs_w/2;
+                            let dy = py - obs_h/2;
+                            let dist = sqrt(dx*dx*4 + dy*dy*9) as i32;
                             if dist < obs_h/2 {
-                                var ax = obs_x + px;
-                                var ay = obs_y + py;
+                                let ax = obs_x + px;
+                                let ay = obs_y + py;
                                 if ax >= 0 && ax < screen_w && ay >= 0 && ay < screen_h {
-                                    var offset = ay * (pitch / 4) + ax;
+                                    let offset = ay * (pitch / 4) + ax;
                                     pixels[offset] = Color.RGB(255, 228, 196);
                                 }
                             }
@@ -335,7 +335,7 @@ fn draw_ui(pixels: &u32 mut, pitch: &i32, w: i32, h: i32) {
     for py in 10..45 {
         for px in 10..180 {
             if px < w && py < h {
-                var offset = py * (pitch / 4) + px;
+                let offset = py * (pitch / 4) + px;
                 pixels[offset] = Color.RGB(0, 139, 139);
             }
         }
@@ -346,7 +346,7 @@ fn draw_ui(pixels: &u32 mut, pitch: &i32, w: i32, h: i32) {
 
     // 生命显示
     for li in 0..game.lives {
-        var heart_x = w - 40 - li * 35;
+        let heart_x = w - 40 - li * 35;
         draw_heart(pixels, pitch, heart_x, 18, Color.RGB(255, 0, 0), w, h);
     }
 
@@ -356,12 +356,12 @@ fn draw_ui(pixels: &u32 mut, pitch: &i32, w: i32, h: i32) {
         for py in (h/2 - 80)..(h/2 + 80) {
             for px in (w/2 - 200)..(w/2 + 200) {
                 if px >= 0 && px < w && py >= 0 && py < h {
-                    var offset = py * (pitch / 4) + px;
-                    var alpha: u8 = 150;
-                    var existing = pixels[offset];
-                    var er = (existing >> 16) & 0xFF;
-                    var eg = (existing >> 8) & 0xFF;
-                    var eb = existing & 0xFF;
+                    let offset = py * (pitch / 4) + px;
+                    let alpha: u8 = 150;
+                    let existing = pixels[offset];
+                    let er = (existing >> 16) & 0xFF;
+                    let eg = (existing >> 8) & 0xFF;
+                    let eb = existing & 0xFF;
                     pixels[offset] = Color.ARGB(alpha, er, eg, eb);
                 }
             }
@@ -378,7 +378,7 @@ fn draw_ui(pixels: &u32 mut, pitch: &i32, w: i32, h: i32) {
         for py in (h/2 - 60)..(h/2 + 60) {
             for px in (w/2 - 150)..(w/2 + 150) {
                 if px >= 0 && px < w && py >= 0 && py < h {
-                    var offset = py * (pitch / 4) + px;
+                    let offset = py * (pitch / 4) + px;
                     pixels[offset] = Color.ARGB(180, 0, 0, 0);
                 }
             }
@@ -392,7 +392,7 @@ fn draw_ui(pixels: &u32 mut, pitch: &i32, w: i32, h: i32) {
         for py in (h/2 - 80)..(h/2 + 80) {
             for px in (w/2 - 200)..(w/2 + 200) {
                 if px >= 0 && px < w && py >= 0 && py < h {
-                    var offset = py * (pitch / 4) + px;
+                    let offset = py * (pitch / 4) + px;
                     pixels[offset] = Color.ARGB(200, 139, 0, 0);
                 }
             }
@@ -406,25 +406,25 @@ fn draw_ui(pixels: &u32 mut, pitch: &i32, w: i32, h: i32) {
 
 fn draw_text_str(pixels: &u32 mut, pitch: &i32, x: i32, y: i32, text: str, color: Color, w: i32, h: i32) {
     // 简化文字绘制 - 用小方块代替像素字体
-    var char_w = 8;
-    var char_h = 12;
-    var px_pos = x;
+    let char_w = 8;
+    let char_h = 12;
+    let px_pos = x;
     
     for i in 0..len(text) {
-        var ch = text[i];
+        let ch = text[i];
         // 绘制简单的字符矩形
         for cy in 0..char_h {
             for cx in 0..char_w {
-                var ax = px_pos + cx;
-                var ay = y + cy;
+                let ax = px_pos + cx;
+                let ay = y + cy;
                 if ax >= 0 && ax < w && ay >= 0 && ay < h {
                     // 简单的字符渲染 - 这里用亮度表示
-                    var offset = ay * (pitch / 4) + ax;
-                    var char_pattern: u8 = 0;
+                    let offset = ay * (pitch / 4) + ax;
+                    let char_pattern: u8 = 0;
                     // 简单的5x7字符位图
                     if ch >= 0x41 && ch <= 0x7E {
                         // 使用简单的模式
-                        char_pattern = ((ch as u8 + cy as u8 * 3) % 17) as u8;
+                        char_pattern = (((u8)ch + (u8)cy * 3) % 17) as u8;
                     }
                     if char_pattern > 5 {
                         pixels[offset] = color;
@@ -442,9 +442,9 @@ fn draw_number(pixels: &u32 mut, pitch: &i32, x: i32, y: i32, num: i32, color: C
         return;
     }
     
-    var digits: [10]i32 = [0,0,0,0,0,0,0,0,0,0];
-    var count = 0;
-    var n = num;
+    let digits: [i32; 10] = [0,0,0,0,0,0,0,0,0,0];
+    let count = 0;
+    let n = num;
     
     if n == 0 {
         digits[0] = 0;
@@ -457,21 +457,21 @@ fn draw_number(pixels: &u32 mut, pitch: &i32, x: i32, y: i32, num: i32, color: C
         }
     }
     
-    var digit_w = 10;
-    var digit_h = 14;
-    var px_pos = x;
+    let digit_w = 10;
+    let digit_h = 14;
+    let px_pos = x;
     
     for di in 0..count {
-        var d = digits[count - 1 - di];
+        let d = digits[count - 1 - di];
         // 绘制数字
         for cy in 0..digit_h {
             for cx in 0..digit_w {
-                var ax = px_pos + cx;
-                var ay = y + cy;
+                let ax = px_pos + cx;
+                let ay = y + cy;
                 if ax >= 0 && ax < w && ay >= 0 && ay < h {
-                    var offset = ay * (pitch / 4) + ax;
+                    let offset = ay * (pitch / 4) + ax;
                     // 简单的数字渲染
-                    var filled = false;
+                    let filled = false;
                     // 简化：中间区域填充
                     if cx > 1 && cx < digit_w - 1 && cy > 1 && cy < digit_h - 1 {
                         filled = true;
@@ -488,42 +488,42 @@ fn draw_number(pixels: &u32 mut, pitch: &i32, x: i32, y: i32, num: i32, color: C
 
 fn draw_heart(pixels: &u32 mut, pitch: &i32, x: i32, y: i32, color: Color, w: i32, h: i32) {
     // 绘制心形
-    var heart_w = 24;
-    var heart_h = 20;
+    let heart_w = 24;
+    let heart_h = 20;
     
     for py in 0..heart_h {
         for px in 0..heart_w {
             // 心形公式
-            var dx = px as f32 - heart_w as f32 / 2.0;
-            var dy = py as f32 - heart_h as f32 / 2.0;
-            var dist = sqrt(dx*dx + dy*dy) as f32;
+            let dx = px as f32 - heart_w as f32 / 2.0;
+            let dy = py as f32 - heart_h as f32 / 2.0;
+            let dist = sqrt(dx*dx + dy*dy) as f32;
             
             // 上半部分两个圆
-            var in_heart = false;
-            var cx1 = heart_w as f32 * 0.25;
-            var cx2 = heart_w as f32 * 0.75;
-            var cy = heart_h as f32 * 0.35;
-            var cr = heart_h as f32 * 0.3;
+            let in_heart = false;
+            let cx1 = heart_w as f32 * 0.25;
+            let cx2 = heart_w as f32 * 0.75;
+            let cy = heart_h as f32 * 0.35;
+            let cr = heart_h as f32 * 0.3;
             
-            var d1 = sqrt((px as f32 - cx1)*(px as f32 - cx1) + (py as f32 - cy)*(py as f32 - cy));
-            var d2 = sqrt((px as f32 - cx2)*(px as f32 - cx2) + (py as f32 - cy)*(py as f32 - cy));
+            let d1 = sqrt((px as f32 - cx1)*(px as f32 - cx1) + (py as f32 - cy)*(py as f32 - cy));
+            let d2 = sqrt((px as f32 - cx2)*(px as f32 - cx2) + (py as f32 - cy)*(py as f32 - cy));
             
             if d1 < cr || d2 < cr {
                 in_heart = true;
             }
             // 下半部分三角形
             if py > heart_h / 2 {
-                var expected_width = (heart_w as f32 * (1.0 - (py as f32 - heart_h as f32 / 2.0) / (heart_h as f32 / 2.0))) / 2.0;
+                let expected_width = (heart_w as f32 * (1.0 - (py as f32 - heart_h as f32 / 2.0) / (heart_h as f32 / 2.0))) / 2.0;
                 if (px as f32 - heart_w as f32 / 2.0).abs() < expected_width {
                     in_heart = true;
                 }
             }
             
             if in_heart {
-                var ax = x + px;
-                var ay = y + py;
+                let ax = x + px;
+                let ay = y + py;
                 if ax >= 0 && ax < w && ay >= 0 && ay < h {
-                    var offset = ay * (pitch / 4) + ax;
+                    let offset = ay * (pitch / 4) + ax;
                     pixels[offset] = color;
                 }
             }
@@ -542,41 +542,41 @@ fn main() {
     // 创建窗口
     window = createWindow("Surfing - Zen-C Game", GAME_WIDTH, GAME_HEIGHT);
     if window == nil {
-        println("错误: 无法创建窗口");
+        println "错误: 无法创建窗口";
         return;
     }
     
-    println("冲浪游戏启动成功!");
-    println("按空格开始游戏，方向键移动冲浪者");
+    println "冲浪游戏启动成功!";
+    println "按空格开始游戏，方向键移动冲浪者";
     
     // 初始化帧缓冲
-    var event = Event.{};
+    let event = Event{};
     
     // 主消息循环
     while running {
         // 处理事件
         while pollEvent(window, &event) {
             match event.msg {
-                MessageType.Quit => {
+                MessageType::Quit => {
                     running = false;
                 },
-                MessageType.KeyDown => {
+                MessageType::KeyDown => {
                     if event.key.key == VirtualKey.Escape {
                         running = false;
                     } else {
                         on_key(event.key.key);
                     }
                 },
-                MessageType.KeyUp => {
+                MessageType::KeyUp => {
                     on_key_up(event.key.key);
                 },
-                MessageType.MouseDown => {
+                MessageType::MouseDown => {
                     // 鼠标点击开始游戏
                     if game.status == GameStatus.Ready {
                         game.status = GameStatus.Playing;
                     }
                 },
-                MessageType.Resize => {
+                MessageType::Resize => {
                     // 窗口大小改变
                 },
                 _ => {}
@@ -613,5 +613,5 @@ fn main() {
     
     // 清理
     closeWindow(window);
-    println("游戏已退出");
+    println "游戏已退出";
 }

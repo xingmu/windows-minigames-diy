@@ -71,7 +71,7 @@ private struct WinData {
     lastKey: VirtualKey,
 }
 
-private var mut winData: WinData;
+private let mut winData: WinData;
 
 fn windowProc(hwnd: rawptr, msg: u32, wParam: rawptr, lParam: rawptr) -> rawptr {
     match msg {
@@ -83,8 +83,8 @@ fn windowProc(hwnd: rawptr, msg: u32, wParam: rawptr, lParam: rawptr) -> rawptr 
             return nil; 
         }
         WM_MOUSEMOVE => {
-            winData.mouseX = (lParam as i32) & 0xFFFF;
-            winData.mouseY = ((lParam as i32) >> 16) & 0xFFFF;
+            winData.mouseX = ((i32)lParam) & 0xFFFF;
+            winData.mouseY = (((i32)lParam) >> 16) & 0xFFFF;
         }
         WM_LBUTTONDOWN => {
             winData.mouseDown = true;
@@ -139,7 +139,7 @@ fn getWindowSize(handle: WindowHandle) -> (int, int) {
     return (winData.width, winData.height);
 }
 
-fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
+fn pollEvent(handle: WindowHandle, event: Event*) -> bool {
     event.msg = MessageType.None;
     event.mouse.x = winData.mouseX;
     event.mouse.y = winData.mouseY;
@@ -177,7 +177,7 @@ fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
     return false;
 }
 
-fn waitEvent(handle: WindowHandle, event: &Event) {
+fn waitEvent(handle: WindowHandle, event: Event*) {
     pollEvent(handle, event);
 }
 
@@ -193,10 +193,10 @@ fn sleep(ms: u32) {
 }
 
 // Framebuffer data for direct pixel access
-private var mut fbWidth: int = 800;
-private var mut fbHeight: int = 600;
-private var mut fbBuffer: [800 * 600]u32;
-private var mut fbValid: bool = false;
+private let mut fbWidth: int = 800;
+private let mut fbHeight: int = 600;
+private let mut fbBuffer: [800 * 600]u32;
+private let mut fbValid: bool = false;
 
 pub fn fb_init(handle: WindowHandle, width: int, height: int) -> bool {
     fbWidth = width;
@@ -228,7 +228,7 @@ pub fn fb_draw_rect(x: int, y: int, w: int, h: int, color: Color) {
     
     for py in y..(y + h) {
         for px in x..(x + w) {
-            var idx = py * fbWidth + px;
+            let idx = py * fbWidth + px;
             if idx >= 0 && idx < fbWidth * fbHeight {
                 fbBuffer[idx] = color;
             }
@@ -245,23 +245,23 @@ pub fn fb_draw_pixel(x: int, y: int, color: Color) {
 pub fn fb_draw_line(x1: int, y1: int, x2: int, y2: int, color: Color) {
     if !fbValid return;
     
-    var dx = x2 - x1;
-    var dy = y2 - y1;
-    var steps = if abs(dx) > abs(dy) { abs(dx) } else { abs(dy) };
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    let steps = if abs(dx) > abs(dy) { abs(dx) } else { abs(dy) };
     
     if steps == 0 {
         fb_draw_pixel(x1, y1, color);
         return;
     }
     
-    var fx = dx as float / steps as float;
-    var fy = dy as float / steps as float;
+    let fx = (float)dx / steps as float;
+    let fy = (float)dy / steps as float;
     
-    var cx = x1 as float;
-    var cy = y1 as float;
+    let cx = x1 as float;
+    let cy = y1 as float;
     
     for i in 0..steps {
-        fb_draw_pixel(cx as int, cy as int, color);
+        fb_draw_pixel((int)cx, (int)cy, color);
         cx = cx + fx;
         cy = cy + fy;
     }
@@ -269,9 +269,9 @@ pub fn fb_draw_line(x1: int, y1: int, x2: int, y2: int, color: Color) {
 
 pub fn fb_draw_circle(cx: int, cy: int, radius: int, color: Color) {
     if !fbValid return;
-    var d = 3 - 2 * radius;
-    var x = 0;
-    var y = radius;
+    let d = 3 - 2 * radius;
+    let x = 0;
+    let y = radius;
     
     loop {
         fb_draw_pixel(cx + x, cy + y, color);
@@ -318,9 +318,9 @@ private fn float absF(x: float) -> float {
 
 pub fn fb_draw_text_size(x: int, y: int, text: str, color: Color, size: int) {
     // Simplified text - draw as colored rectangles for now
-    var px = x;
+    let px = x;
     for i in 0..len(text) {
-        var c = text[i];
+        let c = text[i];
         if c == 0 break;
         // Skip null chars
         if c > 0 {

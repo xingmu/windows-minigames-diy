@@ -2,70 +2,70 @@
 // 使用 003-framework 框架
 // 增强特性: 12种形状, 幽灵方块, 连击系统, 更快速度
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 import "platform_api.zc";
 import "game.zc";
 
 // ==================== 常量 ====================
-const BOARD_WIDTH: int = 10;
-const BOARD_HEIGHT: int = 20;
-const CELL_SIZE: int = 28;
-const GAME_AREA_X: int = 20;
-const GAME_AREA_Y: int = 20;
-const SIDE_PANEL_X: int = 320;
-const WINDOW_WIDTH: int = 530;
-const WINDOW_HEIGHT: int = 620;
-const SHAPE_COUNT: int = 12;
+def BOARD_WIDTH: int = 10;
+def BOARD_HEIGHT: int = 20;
+def CELL_SIZE: int = 28;
+def GAME_AREA_X: int = 20;
+def GAME_AREA_Y: int = 20;
+def SIDE_PANEL_X: int = 320;
+def WINDOW_WIDTH: int = 530;
+def WINDOW_HEIGHT: int = 620;
+def SHAPE_COUNT: int = 12;
 
 // ==================== 12种方块定义 ====================
 // [col, row] 格式, 每种4个旋转状态
-const I_SHAPE: [[int; 4]; 4] = [
+def I_SHAPE: [[int; 4]; 4] = [
     [[0,1],[1,1],[2,1],[3,1]], [[2,0],[2,1],[2,2],[2,3]],
     [[0,2],[1,2],[2,2],[3,2]], [[1,0],[1,1],[1,2],[1,3]]
 ];
-const O_SHAPE: [[int; 4]; 4] = [
+def O_SHAPE: [[int; 4]; 4] = [
     [[1,0],[2,0],[1,1],[2,1]], [[1,0],[2,0],[1,1],[2,1]],
     [[1,0],[2,0],[1,1],[2,1]], [[1,0],[2,0],[1,1],[2,1]]
 ];
-const T_SHAPE: [[int; 4]; 4] = [
+def T_SHAPE: [[int; 4]; 4] = [
     [[1,0],[0,1],[1,1],[2,1]], [[1,0],[1,1],[2,1],[1,2]],
     [[0,1],[1,1],[2,1],[1,2]], [[1,0],[0,1],[1,1],[1,2]]
 ];
-const S_SHAPE: [[int; 4]; 4] = [
+def S_SHAPE: [[int; 4]; 4] = [
     [[1,0],[2,0],[0,1],[1,1]], [[1,0],[1,1],[2,1],[2,2]],
     [[1,1],[2,1],[0,2],[1,2]], [[0,0],[0,1],[1,1],[1,2]]
 ];
-const Z_SHAPE: [[int; 4]; 4] = [
+def Z_SHAPE: [[int; 4]; 4] = [
     [[0,0],[1,0],[1,1],[2,1]], [[2,0],[1,1],[2,1],[1,2]],
     [[0,1],[1,1],[1,2],[2,2]], [[1,0],[0,1],[1,1],[0,2]]
 ];
-const J_SHAPE: [[int; 4]; 4] = [
+def J_SHAPE: [[int; 4]; 4] = [
     [[0,0],[0,1],[1,1],[2,1]], [[1,0],[2,0],[1,1],[1,2]],
     [[0,1],[1,1],[2,1],[2,2]], [[1,0],[1,1],[0,2],[1,2]]
 ];
-const L_SHAPE: [[int; 4]; 4] = [
+def L_SHAPE: [[int; 4]; 4] = [
     [[2,0],[0,1],[1,1],[2,1]], [[1,0],[1,1],[1,2],[2,2]],
     [[0,1],[1,1],[2,1],[0,2]], [[0,0],[1,0],[1,1],[1,2]]
 ];
 // 增强形状
-const BI_SHAPE: [[int; 4]; 4] = [  // Big-I (5格)
+def BI_SHAPE: [[int; 4]; 4] = [  // Big-I (5格)
     [[0,2],[1,2],[2,2],[3,2]], [[2,0],[2,1],[2,2],[2,3]],
     [[0,1],[1,1],[2,1],[3,1]], [[1,0],[1,1],[1,2],[1,3]]
 ];
-const SS_SHAPE: [[int; 4]; 4] = [  // Small 2x2
+def SS_SHAPE: [[int; 4]; 4] = [  // Small 2x2
     [[1,0],[2,0],[1,1],[2,1]], [[1,0],[2,0],[1,1],[2,1]],
     [[1,0],[2,0],[1,1],[2,1]], [[1,0],[2,0],[1,1],[2,1]]
 ];
-const P_SHAPE: [[int; 4]; 4] = [  // Plus (5格)
+def P_SHAPE: [[int; 4]; 4] = [  // Plus (5格)
     [[1,0],[0,1],[1,1],[2,1],[1,2]], [[1,0],[0,1],[1,1],[2,1],[1,2]],
     [[1,0],[0,1],[1,1],[2,1],[1,2]], [[1,0],[0,1],[1,1],[2,1],[1,2]]
 ];
-const BL_SHAPE: [[int; 4]; 4] = [ // Big-L
+def BL_SHAPE: [[int; 4]; 4] = [ // Big-L
     [[0,0],[0,1],[1,1],[2,1]], [[1,0],[2,0],[1,1],[1,2]],
     [[0,1],[1,1],[2,1],[2,2]], [[1,0],[1,1],[0,2],[1,2]]
 ];
-const S3_SHAPE: [[int; 4]; 4] = [  // Small-3
+def S3_SHAPE: [[int; 4]; 4] = [  // Small-3
     [[1,0],[2,0],[1,1]], [[1,0],[1,1],[2,1]],
     [[1,0],[2,0],[1,1]], [[1,0],[1,1],[2,1]]
 ];
@@ -74,44 +74,44 @@ enum TetrominoType { TypeI, TypeO, TypeT, TypeS, TypeZ, TypeJ, TypeL, TypeBI, Ty
 
 fn getTetrominoColor(t: TetrominoType) -> Color {
     match t {
-        TetrominoType.TypeI => Color.RGB(0, 255, 255),
-        TetrominoType.TypeO => Color.RGB(255, 255, 0),
-        TetrominoType.TypeT => Color.RGB(180, 0, 200),
-        TetrominoType.TypeS => Color.RGB(0, 255, 0),
-        TetrominoType.TypeZ => Color.RGB(255, 50, 50),
-        TetrominoType.TypeJ => Color.RGB(50, 100, 255),
-        TetrominoType.TypeL => Color.RGB(255, 150, 0),
-        TetrominoType.TypeBI => Color.RGB(0, 240, 240),
-        TetrominoType.TypeSS => Color.RGB(255, 215, 0),
-        TetrominoType.TypeP => Color.RGB(255, 100, 200),
-        TetrominoType.TypeBL => Color.RGB(30, 60, 200),
-        TetrominoType.TypeS3 => Color.RGB(100, 255, 100),
+        TetrominoType::TypeI => Color.RGB(0, 255, 255),
+        TetrominoType::TypeO => Color.RGB(255, 255, 0),
+        TetrominoType::TypeT => Color.RGB(180, 0, 200),
+        TetrominoType::TypeS => Color.RGB(0, 255, 0),
+        TetrominoType::TypeZ => Color.RGB(255, 50, 50),
+        TetrominoType::TypeJ => Color.RGB(50, 100, 255),
+        TetrominoType::TypeL => Color.RGB(255, 150, 0),
+        TetrominoType::TypeBI => Color.RGB(0, 240, 240),
+        TetrominoType::TypeSS => Color.RGB(255, 215, 0),
+        TetrominoType::TypeP => Color.RGB(255, 100, 200),
+        TetrominoType::TypeBL => Color.RGB(30, 60, 200),
+        TetrominoType::TypeS3 => Color.RGB(100, 255, 100),
     }
 }
 
 fn getTetrominoSize(t: TetrominoType) -> int {
     match t {
-        TetrominoType.TypeP => 5,
-        TetrominoType.TypeS3 => 3,
+        TetrominoType::TypeP => 5,
+        TetrominoType::TypeS3 => 3,
         _ => 4,
     }
 }
 
 fn getTetrominoShape(t: TetrominoType, rotation: int) -> [int; 4] {
-    var rot = rotation % 4;
+    let rot = rotation % 4;
     match t {
-        TetrominoType.TypeI => I_SHAPE[rot],
-        TetrominoType.TypeO => O_SHAPE[rot],
-        TetrominoType.TypeT => T_SHAPE[rot],
-        TetrominoType.TypeS => S_SHAPE[rot],
-        TetrominoType.TypeZ => Z_SHAPE[rot],
-        TetrominoType.TypeJ => J_SHAPE[rot],
-        TetrominoType.TypeL => L_SHAPE[rot],
-        TetrominoType.TypeBI => BI_SHAPE[rot],
-        TetrominoType.TypeSS => SS_SHAPE[rot],
-        TetrominoType.TypeP => P_SHAPE[rot],
-        TetrominoType.TypeBL => BL_SHAPE[rot],
-        TetrominoType.TypeS3 => S3_SHAPE[rot],
+        TetrominoType::TypeI => I_SHAPE[rot],
+        TetrominoType::TypeO => O_SHAPE[rot],
+        TetrominoType::TypeT => T_SHAPE[rot],
+        TetrominoType::TypeS => S_SHAPE[rot],
+        TetrominoType::TypeZ => Z_SHAPE[rot],
+        TetrominoType::TypeJ => J_SHAPE[rot],
+        TetrominoType::TypeL => L_SHAPE[rot],
+        TetrominoType::TypeBI => BI_SHAPE[rot],
+        TetrominoType::TypeSS => SS_SHAPE[rot],
+        TetrominoType::TypeP => P_SHAPE[rot],
+        TetrominoType::TypeBL => BL_SHAPE[rot],
+        TetrominoType::TypeS3 => S3_SHAPE[rot],
     }
 }
 
@@ -152,7 +152,7 @@ class TetrisPlusGame extends Game {
         
         self.window = createWindow(title, width, height);
         if self.window == nil {
-            println("错误: 无法创建窗口");
+            println "错误: 无法创建窗口";
             return;
         }
         
@@ -180,18 +180,18 @@ class TetrisPlusGame extends Game {
         self.spawnNewPiece();
         self.state = GameState.Playing;
         
-        println("TetrisPlus 俄罗斯方块增强版创建成功!");
-        println("增强: 12种形状, 幽灵方块, 连击系统, 更快速度");
+        println "TetrisPlus 俄罗斯方块增强版创建成功!";
+        println "增强: 12种形状, 幽灵方块, 连击系统, 更快速度";
     }
     
     fn calcDropInterval() -> u32 {
-        var interval = 600 - (self.speedLevel * 40);
+        let interval = 600 - (self.speedLevel * 40);
         if interval < 50 { interval = 50; }
         return interval as u32;
     }
     
     fn randomPieceType() -> TetrominoType {
-        var r = rand() % SHAPE_COUNT;
+        let r = rand() % SHAPE_COUNT;
         match r {
             0 => TetrominoType.TypeI, 1 => TetrominoType.TypeO,
             2 => TetrominoType.TypeT, 3 => TetrominoType.TypeS,
@@ -217,12 +217,12 @@ class TetrisPlusGame extends Game {
     }
     
     fn checkCollision(pieceX: int, pieceY: int, rotation: int) -> bool {
-        var shape = getTetrominoShape(self.currentPiece.pieceType, rotation);
-        var size = getTetrominoSize(self.currentPiece.pieceType);
+        let shape = getTetrominoShape(self.currentPiece.pieceType, rotation);
+        let size = getTetrominoSize(self.currentPiece.pieceType);
         
         for i in 0..size {
-            var bx = pieceX + shape[i * 2];
-            var by = pieceY + shape[i * 2 + 1];
+            let bx = pieceX + shape[i * 2];
+            let by = pieceY + shape[i * 2 + 1];
             if bx < 0 || bx >= BOARD_WIDTH || by >= BOARD_HEIGHT { return true; }
             if by >= 0 && self.board[by][bx] != 0 { return true; }
         }
@@ -230,13 +230,13 @@ class TetrisPlusGame extends Game {
     }
     
     fn lockPiece() {
-        var shape = getTetrominoShape(self.currentPiece.pieceType, self.currentPiece.rotation);
-        var size = getTetrominoSize(self.currentPiece.pieceType);
-        var colorIdx = (self.currentPiece.pieceType as int) + 1;
+        let shape = getTetrominoShape(self.currentPiece.pieceType, self.currentPiece.rotation);
+        let size = getTetrominoSize(self.currentPiece.pieceType);
+        let colorIdx = (self.currentPiece(int)pieceType) + 1;
         
         for i in 0..size {
-            var bx = self.currentPiece.x + shape[i * 2];
-            var by = self.currentPiece.y + shape[i * 2 + 1];
+            let bx = self.currentPiece.x + shape[i * 2];
+            let by = self.currentPiece.y + shape[i * 2 + 1];
             if by >= 0 && by < BOARD_HEIGHT && bx >= 0 && bx < BOARD_WIDTH {
                 self.board[by][bx] = colorIdx;
             }
@@ -247,10 +247,10 @@ class TetrisPlusGame extends Game {
     }
     
     fn clearLines() {
-        var linesCleared = 0;
+        let linesCleared = 0;
         
         for y in 0..BOARD_HEIGHT {
-            var full = true;
+            let full = true;
             for x in 0..BOARD_WIDTH {
                 if self.board[y][x] == 0 { full = false; break; }
             }
@@ -268,7 +268,7 @@ class TetrisPlusGame extends Game {
         }
         
         if linesCleared > 0 {
-            var baseScore = match linesCleared {
+            let baseScore = match linesCleared {
                 1 => 100, 2 => 300, 3 => 500, 4 => 800, _ => linesCleared * 200,
             };
             
@@ -283,7 +283,7 @@ class TetrisPlusGame extends Game {
             self.score = self.score + baseScore * self.level;
             self.lines = self.lines + linesCleared;
             
-            var newSpeedLevel = self.lines / 10;
+            let newSpeedLevel = self.lines / 10;
             if newSpeedLevel > self.speedLevel {
                 self.speedLevel = newSpeedLevel;
                 self.level = self.speedLevel + 1;
@@ -293,8 +293,8 @@ class TetrisPlusGame extends Game {
     }
     
     fn movePiece(dx: int, dy: int) -> bool {
-        var newX = self.currentPiece.x + dx;
-        var newY = self.currentPiece.y + dy;
+        let newX = self.currentPiece.x + dx;
+        let newY = self.currentPiece.y + dy;
         if !self.checkCollision(newX, newY, self.currentPiece.rotation) {
             self.currentPiece.x = newX;
             self.currentPiece.y = newY;
@@ -304,12 +304,12 @@ class TetrisPlusGame extends Game {
     }
     
     fn rotatePiece() {
-        var newRotation = (self.currentPiece.rotation + 1) % 4;
+        let newRotation = (self.currentPiece.rotation + 1) % 4;
         if !self.checkCollision(self.currentPiece.x, self.currentPiece.y, newRotation) {
             self.currentPiece.rotation = newRotation;
             return;
         }
-        var kicks: [int; 4] = [1, -1, 2, -2];
+        let kicks: [int; 4] = [1, -1, 2, -2];
         for i in 0..4 {
             if !self.checkCollision(self.currentPiece.x + kicks[i], self.currentPiece.y, newRotation) {
                 self.currentPiece.x = self.currentPiece.x + kicks[i];
@@ -325,7 +325,7 @@ class TetrisPlusGame extends Game {
     }
     
     fn getGhostY() -> int {
-        var ghostY = self.currentPiece.y;
+        let ghostY = self.currentPiece.y;
         while !self.checkCollision(self.currentPiece.x, ghostY + 1, self.currentPiece.rotation) {
             ghostY = ghostY + 1;
         }
@@ -334,31 +334,31 @@ class TetrisPlusGame extends Game {
     
     fn getCellColor(colorIdx: int) -> Color {
         if colorIdx == 0 { return Color.RGB(25, 25, 40); }
-        var types: [TetrominoType; 12] = [
+        let types: [TetrominoType; 12] = [
             TetrominoType.TypeI, TetrominoType.TypeO, TetrominoType.TypeT,
             TetrominoType.TypeS, TetrominoType.TypeZ, TetrominoType.TypeJ,
             TetrominoType.TypeL, TetrominoType.TypeBI, TetrominoType.TypeSS,
             TetrominoType.TypeP, TetrominoType.TypeBL, TetrominoType.TypeS3
         ];
-        var color = getTetrominoColor(types[colorIdx - 1]);
+        let color = getTetrominoColor(types[colorIdx - 1]);
         return Color.RGB(
             ((color >> 16) & 0xFF) as u8 * 3 / 4,
             ((color >> 8) & 0xFF) as u8 * 3 / 4,
-            (color & 0xFF) as u8 * 3 / 4
+            (u8)(color & 0xFF) * 3 / 4
         );
     }
     
     pub fn onInit() {
-        println("TetrisPlus 游戏初始化!");
+        println "TetrisPlus 游戏初始化!";
         self.dropTimer = getTickCount();
     }
     
-    pub fn onShutdown() { println("TetrisPlus 游戏关闭"); }
+    pub fn onShutdown() { println "TetrisPlus 游戏关闭"; }
     
     pub fn onUpdate(dt: u32) {
         if self.gameOver { return; }
         
-        var interval = self.dropInterval;
+        let interval = self.dropInterval;
         if isKeyDown(VirtualKey.Down) { interval = self.softDropInterval; }
         
         if !self.checkCollision(self.currentPiece.x, self.currentPiece.y + 1, self.currentPiece.rotation) {
@@ -391,13 +391,13 @@ class TetrisPlusGame extends Game {
         
         // 幽灵方块
         if self.showGhost && !self.gameOver {
-            var ghostY = self.getGhostY();
+            let ghostY = self.getGhostY();
             if ghostY != self.currentPiece.y {
-                var shape = getTetrominoShape(self.currentPiece.pieceType, self.currentPiece.rotation);
-                var size = getTetrominoSize(self.currentPiece.pieceType);
+                let shape = getTetrominoShape(self.currentPiece.pieceType, self.currentPiece.rotation);
+                let size = getTetrominoSize(self.currentPiece.pieceType);
                 for i in 0..size {
-                    var bx = self.currentPiece.x + shape[i * 2];
-                    var by = ghostY + shape[i * 2 + 1];
+                    let bx = self.currentPiece.x + shape[i * 2];
+                    let by = ghostY + shape[i * 2 + 1];
                     if by >= 0 && by < BOARD_HEIGHT && bx >= 0 && bx < BOARD_WIDTH {
                         canvas.drawRect(GAME_AREA_X + bx * CELL_SIZE + 2, GAME_AREA_Y + by * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4, Color.RGB(100, 100, 120));
                     }
@@ -409,8 +409,8 @@ class TetrisPlusGame extends Game {
         for y in 0..BOARD_HEIGHT {
             for x in 0..BOARD_WIDTH {
                 if self.board[y][x] != 0 {
-                    var cellX = GAME_AREA_X + x * CELL_SIZE;
-                    var cellY = GAME_AREA_Y + y * CELL_SIZE;
+                    let cellX = GAME_AREA_X + x * CELL_SIZE;
+                    let cellY = GAME_AREA_Y + y * CELL_SIZE;
                     canvas.fillRect(cellX + 1, cellY + 1, CELL_SIZE - 2, CELL_SIZE - 2, self.getCellColor(self.board[y][x]));
                     canvas.drawLine(cellX + 1, cellY + 1, cellX + CELL_SIZE - 2, cellY + 1, Color.RGB(100, 100, 120));
                     canvas.drawLine(cellX + 1, cellY + 1, cellX + 1, cellY + CELL_SIZE - 2, Color.RGB(100, 100, 120));
@@ -420,15 +420,15 @@ class TetrisPlusGame extends Game {
         
         // 当前方块
         if !self.gameOver {
-            var shape = getTetrominoShape(self.currentPiece.pieceType, self.currentPiece.rotation);
-            var size = getTetrominoSize(self.currentPiece.pieceType);
-            var pieceColor = getTetrominoColor(self.currentPiece.pieceType);
+            let shape = getTetrominoShape(self.currentPiece.pieceType, self.currentPiece.rotation);
+            let size = getTetrominoSize(self.currentPiece.pieceType);
+            let pieceColor = getTetrominoColor(self.currentPiece.pieceType);
             for i in 0..size {
-                var bx = self.currentPiece.x + shape[i * 2];
-                var by = self.currentPiece.y + shape[i * 2 + 1];
+                let bx = self.currentPiece.x + shape[i * 2];
+                let by = self.currentPiece.y + shape[i * 2 + 1];
                 if by >= 0 && by < BOARD_HEIGHT && bx >= 0 && bx < BOARD_WIDTH {
-                    var cellX = GAME_AREA_X + bx * CELL_SIZE;
-                    var cellY = GAME_AREA_Y + by * CELL_SIZE;
+                    let cellX = GAME_AREA_X + bx * CELL_SIZE;
+                    let cellY = GAME_AREA_Y + by * CELL_SIZE;
                     canvas.fillRect(cellX + 1, cellY + 1, CELL_SIZE - 2, CELL_SIZE - 2, pieceColor);
                     canvas.drawLine(cellX + 1, cellY + 1, cellX + CELL_SIZE - 2, cellY + 1, Color.White());
                     canvas.drawLine(cellX + 1, cellY + 1, cellX + 1, cellY + CELL_SIZE - 2, Color.White());
@@ -442,67 +442,67 @@ class TetrisPlusGame extends Game {
         canvas.fillRect(SIDE_PANEL_X, GAME_AREA_Y, 190, BOARD_HEIGHT * CELL_SIZE, Color.RGB(20, 20, 35));
         canvas.drawRect(SIDE_PANEL_X - 1, GAME_AREA_Y - 1, 192, BOARD_HEIGHT * CELL_SIZE + 2, Color.RGB(70, 70, 120));
         
-        canvas.drawText(SIDE_PANEL_X + 35, GAME_AREA_Y + 15, "TETRIS+", Color.RGB(255, 100, 100), Font.("Arial", 20));
+        canvas.drawText(SIDE_PANEL_X + 35, GAME_AREA_Y + 15, "TETRIS+", Color.RGB(255, 100, 100), Font("Arial", 20));
         
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 55, "SCORE", Color.RGB(150, 150, 180), Font.("Arial", 12));
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 75, self.score.toString(), Color.White(), Font.("Arial", 24));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 55, "SCORE", Color.RGB(150, 150, 180), Font("Arial", 12));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 75, self.score.toString(), Color.White(), Font("Arial", 24));
         
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 125, "LEVEL", Color.RGB(150, 150, 180), Font.("Arial", 12));
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 145, self.level.toString(), Color.RGB(255, 200, 100), Font.("Arial", 24));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 125, "LEVEL", Color.RGB(150, 150, 180), Font("Arial", 12));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 145, self.level.toString(), Color.RGB(255, 200, 100), Font("Arial", 24));
         
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 195, "LINES", Color.RGB(150, 150, 180), Font.("Arial", 12));
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 215, self.lines.toString(), Color.White(), Font.("Arial", 24));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 195, "LINES", Color.RGB(150, 150, 180), Font("Arial", 12));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 215, self.lines.toString(), Color.White(), Font("Arial", 24));
         
         if self.combo > 1 {
-            canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 265, "COMBO x" ++ self.combo.toString(), Color.RGB(255, 100, 255), Font.("Arial", 18));
+            canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 265, "COMBO x{self}".combo.toString(), Color.RGB(255, 100, 255), Font("Arial", 18));
         }
         
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 305, "NEXT", Color.RGB(150, 150, 180), Font.("Arial", 12));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 305, "NEXT", Color.RGB(150, 150, 180), Font("Arial", 12));
         self.drawNextPiecePreview(canvas, SIDE_PANEL_X + 30, GAME_AREA_Y + 330);
         
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 430, "SHAPES: 12", Color.RGB(100, 200, 100), Font.("Arial", 11));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 430, "SHAPES: 12", Color.RGB(100, 200, 100), Font("Arial", 11));
         
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 460, "CONTROLS", Color.RGB(150, 150, 180), Font.("Arial", 12));
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 485, "< >  Move", Color.RGB(200, 200, 200), Font.("Arial", 11));
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 505, "^   Rotate", Color.RGB(200, 200, 200), Font.("Arial", 11));
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 525, "v   Soft Drop", Color.RGB(200, 200, 200), Font.("Arial", 11));
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 545, "SPC Hard Drop", Color.RGB(200, 200, 200), Font.("Arial", 11));
-        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 565, "ESC Quit", Color.RGB(200, 200, 200), Font.("Arial", 11));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 460, "CONTROLS", Color.RGB(150, 150, 180), Font("Arial", 12));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 485, "< >  Move", Color.RGB(200, 200, 200), Font("Arial", 11));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 505, "^   Rotate", Color.RGB(200, 200, 200), Font("Arial", 11));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 525, "v   Soft Drop", Color.RGB(200, 200, 200), Font("Arial", 11));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 545, "SPC Hard Drop", Color.RGB(200, 200, 200), Font("Arial", 11));
+        canvas.drawText(SIDE_PANEL_X + 20, GAME_AREA_Y + 565, "ESC Quit", Color.RGB(200, 200, 200), Font("Arial", 11));
         
         if self.gameOver {
             canvas.fillRect(GAME_AREA_X, GAME_AREA_Y, BOARD_WIDTH * CELL_SIZE, BOARD_HEIGHT * CELL_SIZE, Color.RGB(0, 0, 0, 200));
-            canvas.drawText(GAME_AREA_X + 30, GAME_AREA_Y + 180, "GAME OVER", Color.RGB(255, 80, 80), Font.("Arial", 30));
-            canvas.drawText(GAME_AREA_X + 55, GAME_AREA_Y + 250, "Press ESC", Color.RGB(200, 200, 200), Font.("Arial", 18));
-            canvas.drawText(GAME_AREA_X + 60, GAME_AREA_Y + 280, "to quit", Color.RGB(200, 200, 200), Font.("Arial", 18));
-            canvas.drawText(GAME_AREA_X + 35, GAME_AREA_Y + 330, "Score: " ++ self.score.toString(), Color.RGB(255, 200, 100), Font.("Arial", 20));
+            canvas.drawText(GAME_AREA_X + 30, GAME_AREA_Y + 180, "GAME OVER", Color.RGB(255, 80, 80), Font("Arial", 30));
+            canvas.drawText(GAME_AREA_X + 55, GAME_AREA_Y + 250, "Press ESC", Color.RGB(200, 200, 200), Font("Arial", 18));
+            canvas.drawText(GAME_AREA_X + 60, GAME_AREA_Y + 280, "to quit", Color.RGB(200, 200, 200), Font("Arial", 18));
+            canvas.drawText(GAME_AREA_X + 35, GAME_AREA_Y + 330, "Score: {self}".score.toString(), Color.RGB(255, 200, 100), Font("Arial", 20));
         }
     }
     
     fn drawNextPiecePreview(canvas: Canvas, startX: int, startY: int) {
-        var shape = getTetrominoShape(self.nextPieceType, 0);
-        var size = getTetrominoSize(self.nextPieceType);
-        var pieceColor = getTetrominoColor(self.nextPieceType);
-        var previewCellSize = 22;
+        let shape = getTetrominoShape(self.nextPieceType, 0);
+        let size = getTetrominoSize(self.nextPieceType);
+        let pieceColor = getTetrominoColor(self.nextPieceType);
+        let previewCellSize = 22;
         
-        var minX = 4, maxX = 0, minY = 4, maxY = 0;
+        let minX = 4, maxX = 0, minY = 4, maxY = 0;
         for i in 0..size {
-            var sx = shape[i * 2];
-            var sy = shape[i * 2 + 1];
+            let sx = shape[i * 2];
+            let sy = shape[i * 2 + 1];
             if sx < minX { minX = sx; }
             if sx > maxX { maxX = sx; }
             if sy < minY { minY = sy; }
             if sy > maxY { maxY = sy; }
         }
         
-        var pieceWidth = (maxX - minX + 1) * previewCellSize;
-        var offsetX = startX + (4 * previewCellSize - pieceWidth) / 2;
-        var offsetY = startY;
+        let pieceWidth = (maxX - minX + 1) * previewCellSize;
+        let offsetX = startX + (4 * previewCellSize - pieceWidth) / 2;
+        let offsetY = startY;
         
         canvas.fillRect(startX - 5, startY - 5, 4 * previewCellSize + 10, 4 * previewCellSize + 10, Color.RGB(20, 20, 35));
         
         for i in 0..size {
-            var px = offsetX + (shape[i * 2] - minX) * previewCellSize;
-            var py = offsetY + (shape[i * 2 + 1] - minY) * previewCellSize;
+            let px = offsetX + (shape[i * 2] - minX) * previewCellSize;
+            let py = offsetY + (shape[i * 2 + 1] - minY) * previewCellSize;
             canvas.fillRect(px + 1, py + 1, previewCellSize - 2, previewCellSize - 2, pieceColor);
         }
     }
@@ -510,10 +510,10 @@ class TetrisPlusGame extends Game {
     pub fn onKeyDown(key: VirtualKey) {
         if self.gameOver { return; }
         match key {
-            VirtualKey.Left => self.movePiece(-1, 0),
-            VirtualKey.Right => self.movePiece(1, 0),
-            VirtualKey.Up => self.rotatePiece(),
-            VirtualKey.Space => self.hardDrop(),
+            VirtualKey::Left => self.movePiece(-1, 0),
+            VirtualKey::Right => self.movePiece(1, 0),
+            VirtualKey::Up => self.rotatePiece(),
+            VirtualKey::Space => self.hardDrop(),
             _ => {}
         }
     }
@@ -525,16 +525,16 @@ class TetrisPlusGame extends Game {
 
 // ==================== 主函数 ====================
 fn main() {
-    println("===========================================");
-    println("  Zen-C TetrisPlus 俄罗斯方块增强版");
-    println("  使用 003-framework 框架");
-    println("  增强: 12种形状, 幽灵方块, 连击系统");
-    println("===========================================");
+    println "===========================================";
+    println "  Zen-C TetrisPlus 俄罗斯方块增强版";
+    println "  使用 003-framework 框架";
+    println "  增强: 12种形状, 幽灵方块, 连击系统";
+    println "===========================================";
     
     initPlatform();
-    var game = TetrisPlusGame.("TetrisPlus - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    let game = TetrisPlusGame("TetrisPlus - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
     game.run();
     game.destroy();
     shutdownPlatform();
-    println("游戏退出!");
+    println "游戏退出!";
 }

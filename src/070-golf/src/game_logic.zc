@@ -6,44 +6,44 @@ import "game.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 800;
-const GAME_HEIGHT: i32 = 600;
+def GAME_WIDTH: i32 = 800;
+def GAME_HEIGHT: i32 = 600;
 
 // 球半径
-const BALL_RADIUS: i32 = 8;
+def BALL_RADIUS: i32 = 8;
 
 // 球洞半径
-const HOLE_RADIUS: i32 = 14;
+def HOLE_RADIUS: i32 = 14;
 
 // 摩擦系数 (每帧速度衰减)
-const FRICTION: i32 = 3;
+def FRICTION: i32 = 3;
 
 // 最大击球力度
-const MAX_POWER: i32 = 20;
+def MAX_POWER: i32 = 20;
 
 // 最小速度阈值
-const MIN_VELOCITY: i32 = 1;
+def MIN_VELOCITY: i32 = 1;
 
 // 场地边界
-const FIELD_LEFT: i32 = 50;
-const FIELD_TOP: i32 = 80;
-const FIELD_RIGHT: i32 = 750;
-const FIELD_BOTTOM: i32 = 550;
+def FIELD_LEFT: i32 = 50;
+def FIELD_TOP: i32 = 80;
+def FIELD_RIGHT: i32 = 750;
+def FIELD_BOTTOM: i32 = 550;
 
 // ==================== 颜色定义 ====================
 
-const GREEN_COLOR: Color = Color.RGB(34, 139, 34);       // 草地绿
-const DARK_GREEN_COLOR: Color = Color.RGB(0, 100, 0);   // 深绿
-const FAIRWAY_COLOR: Color = Color.RGB(60, 140, 60);    // 球道绿
-const ROUGH_COLOR: Color = Color.RGB(80, 160, 40);      // 长草区
-const SAND_COLOR: Color = Color.RGB(237, 201, 175);     // 沙坑
-const WATER_COLOR: Color = Color.RGB(30, 120, 200);     // 水障碍
-const BALL_COLOR: Color = Color.White();
-const HOLE_COLOR: Color = Color.Black();
-const FLAG_COLOR: Color = Color.Red();
-const AIM_LINE_COLOR: Color = Color.RGB(255, 255, 0, 150);
-const POWER_BAR_BG: Color = Color.RGB(50, 50, 50);
-const POWER_BAR_FILL: Color = Color.RGB(0, 200, 0);
+def GREEN_COLOR: Color = Color.RGB(34, 139, 34);       // 草地绿
+def DARK_GREEN_COLOR: Color = Color.RGB(0, 100, 0);   // 深绿
+def FAIRWAY_COLOR: Color = Color.RGB(60, 140, 60);    // 球道绿
+def ROUGH_COLOR: Color = Color.RGB(80, 160, 40);      // 长草区
+def SAND_COLOR: Color = Color.RGB(237, 201, 175);     // 沙坑
+def WATER_COLOR: Color = Color.RGB(30, 120, 200);     // 水障碍
+def BALL_COLOR: Color = Color.White();
+def HOLE_COLOR: Color = Color.Black();
+def FLAG_COLOR: Color = Color.Red();
+def AIM_LINE_COLOR: Color = Color.RGB(255, 255, 0, 150);
+def POWER_BAR_BG: Color = Color.RGB(50, 50, 50);
+def POWER_BAR_FILL: Color = Color.RGB(0, 200, 0);
 
 // ==================== 游戏状态 ====================
 
@@ -68,7 +68,7 @@ struct Hole {
     x: i32,
     y: i32,
     par: i32,
-    obstacles: [8]Obstacle,
+    obstacles: [Obstacle; 8],
     obstacleCount: i32,
     name: str,
 }
@@ -145,11 +145,11 @@ fn sqrt_int(n: i32) -> i32 {
 fn getHoleData(holeIndex: i32) -> Hole {
     if holeIndex == 0 {
         // 第一洞: 简单直洞
-        return Hole.{
+        return Hole {
             x: 680,
             y: 300,
             par: 3,
-            obstacles: [Obstacle.{
+            obstacles: [Obstacle {
                 x: 0, y: 0, width: 0, height: 0, type: 0
             }],
             obstacleCount: 0,
@@ -157,9 +157,9 @@ fn getHoleData(holeIndex: i32) -> Hole {
         };
     } else if holeIndex == 1 {
         // 第二洞: 带沙坑
-        var obs = [8]Obstacle.{};
-        obs[0] = Obstacle.{ x: 400, y: 250, width: 80, height: 100, type: 1 };
-        return Hole.{
+        let obs = [Obstacle; 8].{};
+        obs[0] = Obstacle { x: 400, y: 250, width: 80, height: 100, type: 1 };
+        return Hole {
             x: 680,
             y: 400,
             par: 4,
@@ -169,9 +169,9 @@ fn getHoleData(holeIndex: i32) -> Hole {
         };
     } else if holeIndex == 2 {
         // 第三洞: 水障碍
-        var obs = [8]Obstacle.{};
-        obs[0] = Obstacle.{ x: 350, y: 200, width: 100, height: 200, type: 2 };
-        return Hole.{
+        let obs = [Obstacle; 8].{};
+        obs[0] = Obstacle { x: 350, y: 200, width: 100, height: 200, type: 2 };
+        return Hole {
             x: 680,
             y: 300,
             par: 4,
@@ -181,11 +181,11 @@ fn getHoleData(holeIndex: i32) -> Hole {
         };
     } else {
         // 第四洞: 复杂障碍
-        var obs = [8]Obstacle.{};
-        obs[0] = Obstacle.{ x: 300, y: 150, width: 60, height: 80, type: 1 };
-        obs[1] = Obstacle.{ x: 450, y: 350, width: 80, height: 100, type: 1 };
-        obs[2] = Obstacle.{ x: 500, y: 200, width: 100, height: 60, type: 2 };
-        return Hole.{
+        let obs = [Obstacle; 8].{};
+        obs[0] = Obstacle { x: 300, y: 150, width: 60, height: 80, type: 1 };
+        obs[1] = Obstacle { x: 450, y: 350, width: 80, height: 100, type: 1 };
+        obs[2] = Obstacle { x: 500, y: 200, width: 100, height: 60, type: 2 };
+        return Hole {
             x: 700,
             y: 450,
             par: 5,
@@ -221,7 +221,7 @@ fn golfInit(game: &mut GolfGame) {
 
 // ==================== 物理更新 ====================
 
-fn getObstacleAt(ball: &GolfBall, hole: &Hole) -> Obstacle {
+fn getObstacleAt(ball: GolfBall*, hole: Hole*) -> Obstacle {
     for i in 0..hole.obstacleCount {
         let obs = hole.obstacles[i];
         if ball.x >= obs.x && ball.x <= obs.x + obs.width &&
@@ -229,7 +229,7 @@ fn getObstacleAt(ball: &GolfBall, hole: &Hole) -> Obstacle {
             return obs;
         }
     }
-    return Obstacle.{ x: -1, y: -1, width: 0, height: 0, type: -1 };
+    return Obstacle { x: -1, y: -1, width: 0, height: 0, type: -1 };
 }
 
 fn updateBall(game: &mut GolfGame) -> bool {
@@ -267,7 +267,7 @@ fn updateBall(game: &mut GolfGame) -> bool {
     }
     
     // 应用摩擦力
-    var friction = FRICTION;
+    let friction = FRICTION;
     if obs.type == 1 {
         friction = FRICTION * 3;  // 沙坑减速更多
     }
@@ -312,7 +312,7 @@ fn updateBall(game: &mut GolfGame) -> bool {
     return ball.vx != 0 || ball.vy != 0;
 }
 
-fn allBallsStopped(game: &GolfGame) -> bool {
+fn allBallsStopped(game: GolfGame*) -> bool {
     return game.ball.vx == 0 && game.ball.vy == 0;
 }
 
@@ -397,7 +397,7 @@ fn golfOnMouseUp(game: &mut GolfGame, x: i32, y: i32) {
 
 // ==================== 渲染 ====================
 
-fn drawField(canvas: &Canvas, game: &GolfGame) {
+fn drawField(canvas: Canvas*, game: GolfGame*) {
     // 背景 - 草地
     canvas.clear(GREEN_COLOR);
     
@@ -422,7 +422,7 @@ fn drawField(canvas: &Canvas, game: &GolfGame) {
     }
 }
 
-fn drawHole(canvas: &Canvas, game: &GolfGame) {
+fn drawHole(canvas: Canvas*, game: GolfGame*) {
     // 绘制球洞
     canvas.fillCircle(game.hole.x, game.hole.y, HOLE_RADIUS, HOLE_COLOR);
     
@@ -433,7 +433,7 @@ fn drawHole(canvas: &Canvas, game: &GolfGame) {
     canvas.fillRect(game.hole.x + 1, game.hole.y - 50, 15, 10, FLAG_COLOR);
 }
 
-fn drawBall(canvas: &Canvas, game: &GolfGame) {
+fn drawBall(canvas: Canvas*, game: GolfGame*) {
     if !game.ball.active {
         return;
     }
@@ -448,7 +448,7 @@ fn drawBall(canvas: &Canvas, game: &GolfGame) {
     canvas.fillCircle(game.ball.x - 2, game.ball.y - 2, BALL_RADIUS / 2, Color.RGB(255, 255, 255, 200));
 }
 
-fn drawAimingLine(canvas: &Canvas, game: &GolfGame) {
+fn drawAimingLine(canvas: Canvas*, game: GolfGame*) {
     if game.gameStatus != GolfState.Dragging {
         return;
     }
@@ -474,8 +474,8 @@ fn drawAimingLine(canvas: &Canvas, game: &GolfGame) {
         // 绘制虚线
         let steps = 10;
         for i in 0..steps {
-            let t1 = i as i32 * lineLen / steps;
-            let t2 = (i + 1) as i32 * lineLen / steps;
+            let t1 = (i32)i * lineLen / steps;
+            let t2 = (i32)(i + 1) * lineLen / steps;
             
             let x1 = game.ball.x + nx * t1 / 100;
             let y1 = game.ball.y + ny * t1 / 100;
@@ -496,12 +496,12 @@ fn drawAimingLine(canvas: &Canvas, game: &GolfGame) {
         let ax2 = endX - nx * arrowSize / 100 + ny * arrowSize / 100 * arrowAngle / 45;
         let ay2 = endY - ny * arrowSize / 100 - nx * arrowSize / 100 * arrowAngle / 45;
         
-        canvas.drawLine(endX, endY, ax1 as i32, ay1 as i32, AIM_LINE_COLOR);
-        canvas.drawLine(endX, endY, ax2 as i32, ay2 as i32, AIM_LINE_COLOR);
+        canvas.drawLine(endX, endY, (i32)ax1, (i32)ay1, AIM_LINE_COLOR);
+        canvas.drawLine(endX, endY, (i32)ax2, (i32)ay2, AIM_LINE_COLOR);
     }
 }
 
-fn drawPowerBar(canvas: &Canvas, game: &GolfGame) {
+fn drawPowerBar(canvas: Canvas*, game: GolfGame*) {
     if !game.showPowerBar || game.gameStatus != GolfState.Dragging {
         return;
     }
@@ -515,7 +515,7 @@ fn drawPowerBar(canvas: &Canvas, game: &GolfGame) {
     canvas.fillRect(barX, barY, barWidth, barHeight, POWER_BAR_BG);
     
     // 填充
-    let fillWidth = (game.power as i32 * barWidth) / MAX_POWER;
+    let fillWidth = (game.(i32)power * barWidth) / MAX_POWER;
     let powerColor = POWER_BAR_FILL;
     canvas.fillRect(barX, barY, fillWidth, barHeight, powerColor);
     
@@ -523,10 +523,10 @@ fn drawPowerBar(canvas: &Canvas, game: &GolfGame) {
     canvas.drawRect(barX, barY, barWidth, barHeight, Color.White());
     
     // 文字
-    // canvas.drawText(barX + 5, barY + 3, "力度: " ++ game.power.toString(), Color.White(), Font.new("Arial", 12));
+    // canvas.drawText(barX + 5, barY + 3, "力度: {game}".power.toString(), Color.White(), Font.new("Arial", 12));
 }
 
-fn drawUI(canvas: &Canvas, game: &GolfGame) {
+fn drawUI(canvas: Canvas*, game: GolfGame*) {
     // 绘制标题栏背景
     canvas.fillRect(0, 0, GAME_WIDTH, 50, Color.RGB(20, 60, 20));
     
@@ -534,13 +534,13 @@ fn drawUI(canvas: &Canvas, game: &GolfGame) {
     // canvas.drawText(10, 10, game.hole.name, Color.White(), Font.new("Arial", 14));
     
     // 杆数
-    // canvas.drawText(300, 10, "杆数: " ++ game.strokes.toString() ++ " (Par " ++ game.hole.par.toString() ++ ")", Color.White(), Font.new("Arial", 14));
+    // canvas.drawText(300, 10, "杆数: {game}"."{strokes} (Par {game}".hole."{par})", Color.White(), Font.new("Arial", 14));
     
     // 总杆数
-    // canvas.drawText(550, 10, "总杆数: " ++ game.totalStrokes.toString(), Color.White(), Font.new("Arial", 14));
+    // canvas.drawText(550, 10, "总杆数: {game}".totalStrokes.toString(), Color.White(), Font.new("Arial", 14));
 }
 
-fn drawStatus(canvas: &Canvas, game: &GolfGame) {
+fn drawStatus(canvas: Canvas*, game: GolfGame*) {
     if game.gameStatus == GolfState.HoleComplete {
         // 显示完成信息
         canvas.fillRect(300, 250, 200, 100, Color.RGB(0, 100, 0));
@@ -552,7 +552,7 @@ fn drawStatus(canvas: &Canvas, game: &GolfGame) {
         canvas.fillRect(250, 200, 300, 150, Color.RGB(0, 100, 0));
         canvas.drawRect(250, 200, 300, 150, Color.White());
         // canvas.drawText(280, 240, "恭喜完成所有洞!", Color.Yellow(), Font.new("Arial", 20));
-        // canvas.drawText(280, 280, "总杆数: " ++ game.totalStrokes.toString(), Color.White(), Font.new("Arial", 16));
+        // canvas.drawText(280, 280, "总杆数: {game}".totalStrokes.toString(), Color.White(), Font.new("Arial", 16));
         // canvas.drawText(280, 310, "点击重新开始", Color.White(), Font.new("Arial", 14));
     } else if game.gameStatus == GolfState.Ready || game.gameStatus == GolfState.Dragging {
         // 显示提示
@@ -560,7 +560,7 @@ fn drawStatus(canvas: &Canvas, game: &GolfGame) {
     }
 }
 
-fn golfRender(canvas: &Canvas, game: &GolfGame) {
+fn golfRender(canvas: Canvas*, game: GolfGame*) {
     drawField(canvas, game);
     drawHole(canvas, game);
     drawBall(canvas, game);
@@ -574,7 +574,7 @@ fn golfRender(canvas: &Canvas, game: &GolfGame) {
 
 impl GolfGame {
     pub fn create(title: str, width: i32, height: i32, fps: i32) -> GolfGame {
-        var game: GolfGame;
+        let game: GolfGame;
         game.width = width;
         game.height = height;
         game.targetFPS = fps;
@@ -585,9 +585,9 @@ impl GolfGame {
         
         game.window = createWindow(title, width, height);
         if game.window == nil {
-            println("错误: 无法创建窗口");
+            println "错误: 无法创建窗口";
         } else {
-            println("游戏窗口创建成功: " ++ title);
+            println "游戏窗口创建成功: {title}";
         }
         
         return game;
@@ -623,25 +623,25 @@ impl GolfGame {
     }
     
     fn processEvents(mut self) {
-        var event = Event.{};
+        let event = Event{};
         
         while pollEvent(self.window, &event) {
             match event.msg {
-                MessageType.Quit => {
+                MessageType::Quit => {
                     self.running = false;
                 }
-                MessageType.KeyDown => {
+                MessageType::KeyDown => {
                     if event.key.key == VirtualKey.Escape {
                         self.running = false;
                     }
                 }
-                MessageType.MouseDown => {
+                MessageType::MouseDown => {
                     golfOnMouseDown(&mut self, event.mouse.x, event.mouse.y);
                 }
-                MessageType.MouseMove => {
+                MessageType::MouseMove => {
                     golfOnMouseMove(&mut self, event.mouse.x, event.mouse.y);
                 }
-                MessageType.MouseUp => {
+                MessageType::MouseUp => {
                     golfOnMouseUp(&mut self, event.mouse.x, event.mouse.y);
                 }
                 _ => {}
@@ -665,10 +665,10 @@ impl GolfGame {
     }
     
     fn render(self) {
-        var fb = getFrameBuffer(self.window);
-        var pitch = getFrameBufferPitch(self.window);
+        let fb = getFrameBuffer(self.window);
+        let pitch = getFrameBufferPitch(self.window);
         
-        var canvas = FrameBufferCanvas.{
+        let canvas = FrameBufferCanvas {
             width: self.width,
             height: self.height,
             pitch: pitch,
@@ -683,7 +683,7 @@ impl GolfGame {
     }
     
     fn frameLimit(self) {
-        var elapsed = getTickCount() - self.lastFrame;
+        let elapsed = getTickCount() - self.lastFrame;
         if elapsed < self.frameTime {
             sleep(self.frameTime - elapsed);
         }
@@ -700,8 +700,8 @@ private class FrameBufferCanvas {
 
 impl Canvas for FrameBufferCanvas {
     fn clear(color: Color) {
-        var pixels = self.buffer as u32 mut;
-        var count = (self.pitch * self.height) / 4;
+        let pixels = (u32)(self.buffer) mut;
+        let count = (self.pitch * self.height) / 4;
         
         for i in 0..count {
             pixels[i] = color;
@@ -714,7 +714,7 @@ impl Canvas for FrameBufferCanvas {
         }
         
         let offset = y * (self.pitch / 4) + x;
-        let pixels = self.buffer as u32 mut;
+        let pixels = (u32)(self.buffer) mut;
         pixels[offset] = color;
     }
     
@@ -729,11 +729,11 @@ impl Canvas for FrameBufferCanvas {
     }
     
     fn drawLine(x1: i32, y1: i32, x2: i32, y2: i32, color: Color) {
-        var dx = abs(x2 - x1);
-        var dy = abs(y2 - y1);
-        var sx = if x1 < x2 { 1 } else { -1 };
-        var sy = if y1 < y2 { 1 } else { -1 };
-        var err = dx - dy;
+        let dx = abs(x2 - x1);
+        let dy = abs(y2 - y1);
+        let sx = if x1 < x2 { 1 } else { -1 };
+        let sy = if y1 < y2 { 1 } else { -1 };
+        let err = dx - dy;
         
         loop {
             self.setPixel(x1, y1, color);
@@ -770,9 +770,9 @@ impl Canvas for FrameBufferCanvas {
     }
     
     fn drawCircle(cx: i32, cy: i32, radius: i32, color: Color) {
-        var d = 3 - 2 * radius;
-        var x = 0;
-        var y = radius;
+        let d = 3 - 2 * radius;
+        let x = 0;
+        let y = radius;
         
         loop {
             self.setPixel(cx + x, cy + y, color);

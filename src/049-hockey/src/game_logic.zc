@@ -1,29 +1,29 @@
 // game_logic.zc - Hockey 冰球守门员游戏逻辑
 // 049-Hockey 冰球游戏 - 玩家扮演守门员，鼠标控制手套扑救
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const WINDOW_WIDTH: int = 600;
-const WINDOW_HEIGHT: int = 800;
+def WINDOW_WIDTH: int = 600;
+def WINDOW_HEIGHT: int = 800;
 
-const GOAL_WIDTH: int = 300;
-const GOAL_HEIGHT: int = 40;
-const GOAL_Y: int = WINDOW_HEIGHT - 120;
+def GOAL_WIDTH: int = 300;
+def GOAL_HEIGHT: int = 40;
+def GOAL_Y: int = WINDOW_HEIGHT - 120;
 
-const GOALIE_WIDTH: int = 200;
-const GOALIE_HEIGHT: int = 30;
-const GOALIE_Y: int = GOAL_Y - GOALIE_HEIGHT;
+def GOALIE_WIDTH: int = 200;
+def GOALIE_HEIGHT: int = 30;
+def GOALIE_Y: int = GOAL_Y - GOALIE_HEIGHT;
 
-const PUCK_RADIUS: int = 12;
-const PUCK_INITIAL_SPEED: int = 4;
-const PUCK_MAX_SPEED: int = 10;
-const GRAVITY: float = 0.05;
+def PUCK_RADIUS: int = 12;
+def PUCK_INITIAL_SPEED: int = 4;
+def PUCK_MAX_SPEED: int = 10;
+def GRAVITY: float = 0.05;
 
-const MAX_PUCKS: int = 10;
-const INITIAL_LIVES: int = 3;
-const WINNING_SCORE: int = 30;
+def MAX_PUCKS: int = 10;
+def INITIAL_LIVES: int = 3;
+def WINNING_SCORE: int = 30;
 
 // ==================== HockeyGame游戏类 ====================
 
@@ -174,11 +174,11 @@ pub class HockeyGame extends Game {
     
     // 更新守门员位置 - 跟随鼠标X
     private fn updateGoalie() {
-        var targetX = self.mouseX - GOALIE_WIDTH / 2;
+        let targetX = self.mouseX - GOALIE_WIDTH / 2;
         
         // 平滑移动
-        var diff = targetX - self.goalieX;
-        var speed = 12;
+        let diff = targetX - self.goalieX;
+        let speed = 12;
         if diff > speed {
             self.goalieX = self.goalieX + speed;
         } else if diff < -speed {
@@ -188,8 +188,8 @@ pub class HockeyGame extends Game {
         }
         
         // 确保在球门范围内
-        var goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
-        var goalRight = goalLeft + GOAL_WIDTH;
+        let goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
+        let goalRight = goalLeft + GOAL_WIDTH;
         
         if self.goalieX < goalLeft {
             self.goalieX = goalLeft;
@@ -208,7 +208,7 @@ pub class HockeyGame extends Game {
     // 更新手套
     private fn updateGlove() {
         // 手套跟随鼠标稍微倾斜
-        var gloveOffsetY = (self.mouseY - GOALIE_Y) as float * 0.1;
+        let gloveOffsetY = (float)(self.mouseY - GOALIE_Y) * 0.1;
         if gloveOffsetY > 20.0 {
             gloveOffsetY = 20.0;
         }
@@ -231,18 +231,18 @@ pub class HockeyGame extends Game {
         self.puckSpawnTimer = self.puckSpawnTimer + dt;
         
         // 根据等级调整生成间隔
-        var spawnInterval = 2000 - self.level * 150;
+        let spawnInterval = 2000 - self.level * 150;
         if spawnInterval < 500 {
             spawnInterval = 500;
         }
         
         // 最多同时存在的冰球数
-        var maxActive = 3 + self.level / 3;
+        let maxActive = 3 + self.level / 3;
         if maxActive > MAX_PUCKS {
             maxActive = MAX_PUCKS;
         }
         
-        var activeCount = 0;
+        let activeCount = 0;
         for i in 0..MAX_PUCKS {
             if self.puckActive[i] {
                 activeCount = activeCount + 1;
@@ -258,26 +258,26 @@ pub class HockeyGame extends Game {
                     self.puckActive[i] = true;
                     
                     // 从球门上方随机位置发射
-                    var goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
-                    var spawnX = goalLeft + 30 + (rand() % (GOAL_WIDTH - 60)) as u32;
+                    let goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
+                    let spawnX = goalLeft + 30 + (rand() % (GOAL_WIDTH - 60)) as u32;
                     self.puckX[i] = spawnX as float;
                     self.puckY[i] = 60.0;
                     
                     // 目标方向（朝向球门）
-                    var targetX = goalLeft + GOAL_WIDTH / 2 + (rand() % 100 - 50) as u32;
-                    var dx = targetX - spawnX;
-                    var dy = GOAL_Y - 60;
+                    let targetX = goalLeft + GOAL_WIDTH / 2 + (rand() % 100 - 50) as u32;
+                    let dx = targetX - spawnX;
+                    let dy = GOAL_Y - 60;
                     
                     // 速度和方向
-                    var speed = PUCK_INITIAL_SPEED + self.level / 2;
+                    let speed = PUCK_INITIAL_SPEED + self.level / 2;
                     if speed > PUCK_MAX_SPEED {
                         speed = PUCK_MAX_SPEED;
                     }
                     
-                    var dist = self.sqrtFloat(dx * dx + dy * dy) as float;
+                    let dist = self.sqrtFloat(dx * dx + dy * dy) as float;
                     if dist > 0.0 {
-                        self.puckVX[i] = dx as float / dist * speed as float;
-                        self.puckVY[i] = dy as float / dist * speed as float;
+                        self.puckVX[i] = (float)dx / dist * speed as float;
+                        self.puckVY[i] = (float)dy / dist * speed as float;
                     }
                     
                     // 添加一些随机性
@@ -294,8 +294,8 @@ pub class HockeyGame extends Game {
     
     // 更新冰球
     private fn updatePucks(dt: u32) {
-        var goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
-        var goalRight = goalLeft + GOAL_WIDTH;
+        let goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
+        let goalRight = goalLeft + GOAL_WIDTH;
         
         for i in 0..MAX_PUCKS {
             if !self.puckActive[i] {
@@ -313,17 +313,17 @@ pub class HockeyGame extends Game {
             self.puckSpin[i] = self.puckSpin[i] + 0.05;
             
             // 左右边界碰撞
-            if self.puckX[i] <= PUCK_RADIUS as float {
+            if self.puckX[i] <= (float)PUCK_RADIUS {
                 self.puckX[i] = PUCK_RADIUS as float;
                 self.puckVX[i] = -self.puckVX[i] * 0.8;
             }
-            if self.puckX[i] >= WINDOW_WIDTH as float - PUCK_RADIUS as float {
-                self.puckX[i] = WINDOW_WIDTH as float - PUCK_RADIUS as float;
+            if self.puckX[i] >= (float)WINDOW_WIDTH - (float)PUCK_RADIUS {
+                self.puckX[i] = (float)WINDOW_WIDTH - PUCK_RADIUS as float;
                 self.puckVX[i] = -self.puckVX[i] * 0.8;
             }
             
             // 顶部边界
-            if self.puckY[i] <= PUCK_RADIUS as float {
+            if self.puckY[i] <= (float)PUCK_RADIUS {
                 self.puckY[i] = PUCK_RADIUS as float;
                 self.puckVY[i] = -self.puckVY[i] * 0.5;
             }
@@ -344,7 +344,7 @@ pub class HockeyGame extends Game {
             }
             
             // 进球检测
-            if self.puckY[i] >= GOAL_Y as float - PUCK_RADIUS as float {
+            if self.puckY[i] >= (float)GOAL_Y - (float)PUCK_RADIUS {
                 // 进了！
                 self.goalEffectX = self.puckX[i] as int;
                 self.goalEffectY = GOAL_Y;
@@ -363,7 +363,7 @@ pub class HockeyGame extends Game {
             }
             
             // 底部出界
-            if self.puckY[i] >= WINDOW_HEIGHT as float + 50.0 {
+            if self.puckY[i] >= (float)WINDOW_HEIGHT + 50.0 {
                 self.puckActive[i] = false;
             }
         }
@@ -371,13 +371,13 @@ pub class HockeyGame extends Game {
     
     // 守门员身体扑救
     private fn checkGoalieSave(i: int) -> bool {
-        var puckLeft = self.puckX[i] - PUCK_RADIUS as float;
-        var puckRight = self.puckX[i] + PUCK_RADIUS as float;
-        var puckTop = self.puckY[i] - PUCK_RADIUS as float;
-        var puckBottom = self.puckY[i] + PUCK_RADIUS as float;
+        let puckLeft = self.puckX[i] - PUCK_RADIUS as float;
+        let puckRight = self.puckX[i] + PUCK_RADIUS as float;
+        let puckTop = self.puckY[i] - PUCK_RADIUS as float;
+        let puckBottom = self.puckY[i] + PUCK_RADIUS as float;
         
-        if puckRight >= self.goalieX as float && puckLeft <= (self.goalieX + self.goalieWidth) as float &&
-           puckBottom >= self.goalieY as float && puckTop <= (self.goalieY + self.goalieHeight) as float {
+        if puckRight >= (float)(self.goalieX) && puckLeft <= (float)(self.goalieX + self.goalieWidth) &&
+           puckBottom >= (float)(self.goalieY) && puckTop <= (float)(self.goalieY + self.goalieHeight) {
             // 扑救了！
             self.triggerSaveEffect(i);
             self.puckActive[i] = false;
@@ -388,13 +388,13 @@ pub class HockeyGame extends Game {
     
     // 手套扑救
     private fn checkBlockerSave(i: int) -> bool {
-        var puckLeft = self.puckX[i] - PUCK_RADIUS as float;
-        var puckRight = self.puckX[i] + PUCK_RADIUS as float;
-        var puckTop = self.puckY[i] - PUCK_RADIUS as float;
-        var puckBottom = self.puckY[i] + PUCK_RADIUS as float;
+        let puckLeft = self.puckX[i] - PUCK_RADIUS as float;
+        let puckRight = self.puckX[i] + PUCK_RADIUS as float;
+        let puckTop = self.puckY[i] - PUCK_RADIUS as float;
+        let puckBottom = self.puckY[i] + PUCK_RADIUS as float;
         
-        if puckRight >= self.blockerX as float && puckLeft <= (self.blockerX + self.blockerWidth) as float &&
-           puckBottom >= self.blockerY as float && puckTop <= (self.blockerY + self.blockerHeight) as float {
+        if puckRight >= (float)(self.blockerX) && puckLeft <= (float)(self.blockerX + self.blockerWidth) &&
+           puckBottom >= (float)(self.blockerY) && puckTop <= (float)(self.blockerY + self.blockerHeight) {
             // 扑救了！
             self.triggerSaveEffect(i);
             self.puckActive[i] = false;
@@ -405,13 +405,13 @@ pub class HockeyGame extends Game {
     
     // 球杆扑救
     private fn checkStickSave(i: int) -> bool {
-        var puckLeft = self.puckX[i] - PUCK_RADIUS as float;
-        var puckRight = self.puckX[i] + PUCK_RADIUS as float;
-        var puckTop = self.puckY[i] - PUCK_RADIUS as float;
-        var puckBottom = self.puckY[i] + PUCK_RADIUS as float;
+        let puckLeft = self.puckX[i] - PUCK_RADIUS as float;
+        let puckRight = self.puckX[i] + PUCK_RADIUS as float;
+        let puckTop = self.puckY[i] - PUCK_RADIUS as float;
+        let puckBottom = self.puckY[i] + PUCK_RADIUS as float;
         
-        if puckRight >= self.stickX as float && puckLeft <= (self.stickX + self.stickWidth) as float &&
-           puckBottom >= self.stickY as float && puckTop <= (self.stickY + self.stickHeight) as float {
+        if puckRight >= (float)(self.stickX) && puckLeft <= (float)(self.stickX + self.stickWidth) &&
+           puckBottom >= (float)(self.stickY) && puckTop <= (float)(self.stickY + self.stickHeight) {
             // 扑救了！
             self.triggerSaveEffect(i);
             self.puckActive[i] = false;
@@ -445,7 +445,7 @@ pub class HockeyGame extends Game {
     
     // 检查升级
     private fn checkLevelUp() {
-        var newLevel = self.score / 10 + 1;
+        let newLevel = self.score / 10 + 1;
         if newLevel > self.level {
             self.level = newLevel;
         }
@@ -491,18 +491,18 @@ pub class HockeyGame extends Game {
     // 绘制冰场
     private fn drawIceRink(canvas: Canvas) {
         // 冰面纹理
-        var iceColor = Color.ARGB(255, 220, 240, 255);
+        let iceColor = Color.ARGB(255, 220, 240, 255);
         canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, iceColor);
         
         // 冰场线条
-        var lineColor = Color.ARGB(100, 100, 150, 200);
+        let lineColor = Color.ARGB(100, 100, 150, 200);
         
         // 中线和圆
         canvas.drawLine(WINDOW_WIDTH / 2, 0, WINDOW_WIDTH / 2, WINDOW_HEIGHT, lineColor);
         canvas.drawCircle(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2, 80, lineColor);
         
         // 球门区线
-        var goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
+        let goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
         canvas.drawRect(goalLeft - 20, GOAL_Y - 60, GOAL_WIDTH + 40, 80, lineColor);
         
         // 守门员站位点
@@ -513,19 +513,19 @@ pub class HockeyGame extends Game {
             self.iceCrackTimer = 5;
         }
         if self.iceCrackTimer > 0 {
-            var cx = self.rand() % WINDOW_WIDTH;
-            var cy = 100 + self.rand() % (WINDOW_HEIGHT - 200);
+            let cx = self.rand() % WINDOW_WIDTH;
+            let cy = 100 + self.rand() % (WINDOW_HEIGHT - 200);
             canvas.drawLine(cx - 20, cy, cx + 20, cy, Color.ARGB(50, 150, 180, 210));
         }
     }
     
     // 绘制球门
     private fn drawGoal(canvas: Canvas) {
-        var goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
-        var goalRight = goalLeft + GOAL_WIDTH;
+        let goalLeft = (WINDOW_WIDTH - GOAL_WIDTH) / 2;
+        let goalRight = goalLeft + GOAL_WIDTH;
         
         // 球门框架
-        var frameColor = Color.Red();
+        let frameColor = Color.Red();
         
         // 门柱
         canvas.fillRect(goalLeft - 8, GOAL_Y - GOAL_HEIGHT, 8, GOAL_HEIGHT + 10, frameColor);
@@ -535,13 +535,13 @@ pub class HockeyGame extends Game {
         canvas.fillRect(goalLeft - 8, GOAL_Y - GOAL_HEIGHT - 8, GOAL_WIDTH + 16, 8, frameColor);
         
         // 球门网（斜线）
-        var netColor = Color.ARGB(150, 200, 200, 200);
+        let netColor = Color.ARGB(150, 200, 200, 200);
         for i in 0..15 {
-            var y1 = GOAL_Y - GOAL_HEIGHT + i * 3;
+            let y1 = GOAL_Y - GOAL_HEIGHT + i * 3;
             canvas.drawLine(goalLeft, y1, goalRight, y1, netColor);
         }
         for i in 0..20 {
-            var x1 = goalLeft + i * (GOAL_WIDTH / 20);
+            let x1 = goalLeft + i * (GOAL_WIDTH / 20);
             canvas.drawLine(x1, GOAL_Y - GOAL_HEIGHT, goalRight - (i * GOAL_WIDTH / 20), GOAL_Y, netColor);
         }
         
@@ -552,7 +552,7 @@ pub class HockeyGame extends Game {
     // 绘制守门员
     private fn drawGoalie(canvas: Canvas) {
         // 身体
-        var bodyColor = Color.ARGB(255, 80, 80, 120); // 守门员球衣
+        let bodyColor = Color.ARGB(255, 80, 80, 120); // 守门员球衣
         canvas.fillRect(self.goalieX, self.goalieY, self.goalieWidth, self.goalieHeight, bodyColor);
         
         // 身体轮廓
@@ -572,14 +572,14 @@ pub class HockeyGame extends Game {
     // 绘制手套(左手)
     private fn drawGlove(canvas: Canvas) {
         // 手套主体
-        var gloveColor = Color.ARGB(255, 200, 150, 100);
+        let gloveColor = Color.ARGB(255, 200, 150, 100);
         canvas.fillRect(self.blockerX, self.blockerY, self.blockerWidth, self.blockerHeight, gloveColor);
         
         // 手套轮廓
         canvas.drawRect(self.blockerX, self.blockerY, self.blockerWidth, self.blockerHeight, Color.DarkGray());
         
         // 手套手指分隔
-        var fingerColor = Color.ARGB(180, 220, 180, 130);
+        let fingerColor = Color.ARGB(180, 220, 180, 130);
         canvas.drawLine(self.blockerX + 12, self.blockerY, self.blockerX + 12, self.blockerY + self.blockerHeight, fingerColor);
         canvas.drawLine(self.blockerX + 24, self.blockerY, self.blockerX + 24, self.blockerY + self.blockerHeight, fingerColor);
         canvas.drawLine(self.blockerX + 36, self.blockerY, self.blockerX + 36, self.blockerY + self.blockerHeight, fingerColor);
@@ -591,11 +591,11 @@ pub class HockeyGame extends Game {
     // 绘制球杆(右手)
     private fn drawStick(canvas: Canvas) {
         // 球杆柄
-        var stickColor = Color.ARGB(255, 180, 120, 80);
+        let stickColor = Color.ARGB(255, 180, 120, 80);
         canvas.fillRect(self.stickX + 5, self.stickY, self.stickWidth - 10, self.stickHeight - 10, stickColor);
         
         // 球杆 blade
-        var bladeColor = Color.ARGB(255, 200, 180, 150);
+        let bladeColor = Color.ARGB(255, 200, 180, 150);
         canvas.fillRect(self.stickX, self.stickY + self.stickHeight - 15, self.stickWidth, 15, bladeColor);
         
         // 球杆轮廓
@@ -609,8 +609,8 @@ pub class HockeyGame extends Game {
                 continue;
             }
             
-            var px = self.puckX[i] as int;
-            var py = self.puckY[i] as int;
+            let px = self.puckX[i] as int;
+            let py = self.puckY[i] as int;
             
             // 阴影
             canvas.fillCircle(px + 3, py + 3, PUCK_RADIUS, Color.ARGB(80, 0, 0, 0));
@@ -619,7 +619,7 @@ pub class HockeyGame extends Game {
             canvas.fillCircle(px, py, PUCK_RADIUS, Color.ARGB(255, 30, 30, 30));
             
             // 冰球纹理线
-            var spinOffset = (self.puckSpin[i] * 10.0) as int;
+            let spinOffset = (self.puckSpin[i] * 10.0) as int;
             canvas.drawLine(px - 6 + spinOffset, py, px + 6 + spinOffset, py, Color.ARGB(150, 80, 80, 80));
             canvas.drawLine(px, py - 6 + spinOffset, px, py + 6 + spinOffset, Color.ARGB(150, 80, 80, 80));
             
@@ -632,28 +632,28 @@ pub class HockeyGame extends Game {
     private fn drawEffects(canvas: Canvas) {
         // 扑救特效
         if self.saveEffectTimer > 0 {
-            var alpha = (self.saveEffectTimer * 10) as u8;
-            var radius = (20 - self.saveEffectTimer) * 3;
+            let alpha = (self.saveEffectTimer * 10) as u8;
+            let radius = (20 - self.saveEffectTimer) * 3;
             canvas.drawCircle(self.saveEffectX, self.saveEffectY, radius, Color.ARGB(alpha, 255, 255, 100));
             canvas.drawCircle(self.saveEffectX, self.saveEffectY, radius / 2, Color.ARGB(alpha, 255, 200, 50));
             
             // 粒子
             for j in 0..6 {
-                var angle = j as float * 60.0 + self.saveEffectTimer as float * 10.0;
-                var dist = (20 - self.saveEffectTimer) as float * 3.0;
-                var sx = self.saveEffectX + (self.cos(angle) * dist) as int;
-                var sy = self.saveEffectY + (self.sin(angle) * dist) as int;
+                let angle = (float)j * 60.0 + (float)(self.saveEffectTimer) * 10.0;
+                let dist = (float)(20 - self.saveEffectTimer) * 3.0;
+                let sx = self.saveEffectX + (self.cos(angle) * dist) as int;
+                let sy = self.saveEffectY + (self.sin(angle) * dist) as int;
                 canvas.fillCircle(sx, sy, 4, Color.ARGB(alpha, 255, 255, 200));
             }
         }
         
         // 进球特效
         if self.goalEffectTimer > 0 {
-            var alpha = (self.goalEffectTimer * 8) as u8;
+            let alpha = (self.goalEffectTimer * 8) as u8;
             
             // 红色闪烁
             for j in 0..5 {
-                var y = GOAL_Y - j * 15;
+                let y = GOAL_Y - j * 15;
                 canvas.drawLine(self.goalEffectX - 60 + j * 10, y, self.goalEffectX + 60 - j * 10, y, Color.ARGB(alpha, 255, 50, 50));
             }
         }
@@ -661,31 +661,31 @@ pub class HockeyGame extends Game {
     
     // 绘制HUD
     private fn drawHUD(canvas: Canvas) {
-        var font = Font.("Arial", 16);
-        var bigFont = Font.("Arial", 24);
+        let font = Font("Arial", 16);
+        let bigFont = Font("Arial", 24);
         
         // 分数
-        canvas.drawText(20, 20, "分数: " ++ self.intToString(self.score), Color.DarkGray(), font);
+        canvas.drawText(20, 20, "分数: {self}".intToString(self.score), Color.DarkGray(), font);
         
         // 生命
-        var livesText = "生命: ";
+        let livesText = "生命: ";
         for li in 0..self.lives {
-            livesText = livesText ++ "♥";
+            livesText = "{livesText}♥";
         }
         for li in self.lives..INITIAL_LIVES {
-            livesText = livesText ++ "♡";
+            livesText = "{livesText}♡";
         }
         canvas.drawText(20, 40, livesText, Color.Red(), bigFont);
         
         // 关卡
-        canvas.drawText(WINDOW_WIDTH - 100, 20, "关卡: " ++ self.intToString(self.level), Color.DarkGray(), font);
+        canvas.drawText(WINDOW_WIDTH - 100, 20, "关卡: {self}".intToString(self.level), Color.DarkGray(), font);
         
         // 目标
-        canvas.drawText(WINDOW_WIDTH - 150, 40, "目标: " ++ self.intToString(WINNING_SCORE), Color.DarkGray(), font);
+        canvas.drawText(WINDOW_WIDTH - 150, 40, "目标: {self}".intToString(WINNING_SCORE), Color.DarkGray(), font);
         
         // 提示
         if self.gameStarted && !self.gameOver && self.score == 0 {
-            var hintFont = Font.("Arial", 14);
+            let hintFont = Font("Arial", 14);
             canvas.drawText(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT - 50, "← → 移动守门员扑救", Color.ARGB(150, 100, 100, 100), hintFont);
         }
     }
@@ -694,8 +694,8 @@ pub class HockeyGame extends Game {
     private fn drawGameOver(canvas: Canvas) {
         canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(180, 0, 0, 0));
         
-        var font = Font.("Arial", 48);
-        var smallFont = Font.("Arial", 20);
+        let font = Font("Arial", 48);
+        let smallFont = Font("Arial", 20);
         
         if self.winner == "玩家" {
             canvas.drawText(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 - 50, "胜利!", Color.Yellow(), font);
@@ -703,22 +703,22 @@ pub class HockeyGame extends Game {
             canvas.drawText(WINDOW_WIDTH / 2 - 150, WINDOW_HEIGHT / 2 - 50, "游戏结束", Color.Red(), font);
         }
         
-        canvas.drawText(WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 10, "最终分数: " ++ self.intToString(self.score), Color.White(), smallFont);
+        canvas.drawText(WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 10, "最终分数: {self}".intToString(self.score), Color.White(), smallFont);
         canvas.drawText(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 + 40, "按 R 键重新开始", Color.White(), smallFont);
     }
     
     // onKeyDown - 键盘按下
     pub fn onKeyDown(key: VirtualKey) {
         match key {
-            VirtualKey.KeyR => {
+            VirtualKey::KeyR => {
                 if self.gameOver {
                     self.onInit();
                 }
             }
-            VirtualKey.Left => {
+            VirtualKey::Left => {
                 self.mouseX = self.mouseX - 20;
             }
-            VirtualKey.Right => {
+            VirtualKey::Right => {
                 self.mouseX = self.mouseX + 20;
             }
             _ => {}
@@ -744,9 +744,9 @@ pub class HockeyGame extends Game {
     // ============ 辅助函数 ============
     
     fn sin(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = rad;
-        var term = rad;
+        let rad = x * 3.14159 / 180.0;
+        let result = rad;
+        let term = rad;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
             result = result + term;
@@ -755,9 +755,9 @@ pub class HockeyGame extends Game {
     }
     
     fn cos(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = 1.0;
-        var term = 1.0;
+        let rad = x * 3.14159 / 180.0;
+        let result = 1.0;
+        let term = 1.0;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
             result = result + term;
@@ -769,8 +769,8 @@ pub class HockeyGame extends Game {
         if n < 0.0 {
             return 0.0;
         }
-        var x = n;
-        var y = 1.0;
+        let x = n;
+        let y = 1.0;
         while y < x {
             x = (x + y) / 2.0;
             y = n / x;
@@ -780,7 +780,7 @@ pub class HockeyGame extends Game {
     
     fn rand() -> u32 {
         // 线性同余生成器
-        static var rng_seed: u32 = 12345;
+        static let rng_seed: u32 = 12345;
         rng_seed = rng_seed * 1103515245 + 12345;
         return rng_seed;
     }
@@ -789,11 +789,11 @@ pub class HockeyGame extends Game {
         if n == 0 {
             return "0";
         }
-        var result = "";
-        var num = n;
+        let result = "";
+        let num = n;
         while num > 0 {
-            var digit = num % 10;
-            result = (digit as char + "") ++ result;
+            let digit = num % 10;
+            result = ((char)digit + "") ++ result;
             num = num / 10;
         }
         return result;

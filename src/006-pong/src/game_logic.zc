@@ -1,27 +1,27 @@
 // game_logic.zc - Pong游戏逻辑
 // 006-Pong 乒乓球游戏
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
-const WINDOW_WIDTH: int = 800;
-const WINDOW_HEIGHT: int = 600;
+def WINDOW_WIDTH: int = 800;
+def WINDOW_HEIGHT: int = 600;
 
-const PADDLE_WIDTH: int = 10;
-const PADDLE_HEIGHT: int = 80;
-const PADDLE_SPEED: int = 8;
-const PADDLE_MARGIN: int = 30;
+def PADDLE_WIDTH: int = 10;
+def PADDLE_HEIGHT: int = 80;
+def PADDLE_SPEED: int = 8;
+def PADDLE_MARGIN: int = 30;
 
-const BALL_SIZE: int = 10;
-const BALL_SPEED: int = 6;
-const BALL_MAX_SPEED: int = 12;
+def BALL_SIZE: int = 10;
+def BALL_SPEED: int = 6;
+def BALL_MAX_SPEED: int = 12;
 
-const WINNING_SCORE: int = 11;
+def WINNING_SCORE: int = 11;
 
-const AI_REACTION_DELAY: int = 100;
-const AI_ERROR_RANGE: int = 30;
+def AI_REACTION_DELAY: int = 100;
+def AI_ERROR_RANGE: int = 30;
 
 // ==================== 数据结构 ====================
 
@@ -165,30 +165,30 @@ pub class PongGame extends Game {
     // 更新电脑AI
     private fn updateCPU(dt: u32) {
         // 限制AI更新频率
-        var currentTime = getTickCount();
-        if currentTime - self.aiLastUpdate < AI_REACTION_DELAY as u32 {
+        let currentTime = getTickCount();
+        if currentTime - self.aiLastUpdate < (u32)AI_REACTION_DELAY {
             return;
         }
         self.aiLastUpdate = currentTime;
         
         // 预测球的位置
         if self.ballVX > 0.0 {
-            var predictedY = self.ballY + self.ballVY * 10.0;
+            let predictedY = self.ballY + self.ballVY * 10.0;
             
             // 添加失误
             if math.rand() % 3 == 0 {
                 self.aiError = math.rand() % (AI_ERROR_RANGE * 2) - AI_ERROR_RANGE;
             }
             
-            self.aiTargetY = predictedY as int + self.aiError + PADDLE_HEIGHT / 2;
+            self.aiTargetY = (int)predictedY + self.aiError + PADDLE_HEIGHT / 2;
         }
         
         // 让AI挡板移向目标位置
-        var cpuCenter = self.cpuPaddleY + PADDLE_HEIGHT / 2;
-        var diff = self.aiTargetY - cpuCenter;
+        let cpuCenter = self.cpuPaddleY + PADDLE_HEIGHT / 2;
+        let diff = self.aiTargetY - cpuCenter;
         
         // AI移动速度
-        var aiSpeed = PADDLE_SPEED - 2;
+        let aiSpeed = PADDLE_SPEED - 2;
         
         if diff > aiSpeed {
             self.cpuPaddleY = self.cpuPaddleY + aiSpeed;
@@ -212,12 +212,12 @@ pub class PongGame extends Game {
         self.ballY = self.ballY + self.ballVY;
         
         // 上下边界碰撞
-        if self.ballY <= 50.0 + BALL_SIZE as float / 2.0 {
-            self.ballY = 50.0 + BALL_SIZE as float / 2.0;
+        if self.ballY <= 50.0 + (float)BALL_SIZE / 2.0 {
+            self.ballY = 50.0 + (float)BALL_SIZE / 2.0;
             self.ballVY = -self.ballVY;
         }
-        if self.ballY >= self.height as float - 10.0 - BALL_SIZE as float / 2.0 {
-            self.ballY = self.height as float - 10.0 - BALL_SIZE as float / 2.0;
+        if self.ballY >= (float)(self.height) - 10.0 - (float)BALL_SIZE / 2.0 {
+            self.ballY = (float)(self.height) - 10.0 - (float)BALL_SIZE / 2.0;
             self.ballVY = -self.ballVY;
         }
         
@@ -225,14 +225,14 @@ pub class PongGame extends Game {
         if self.checkPaddleCollision(self.playerPaddleX, self.playerPaddleY, self.playerPaddleWidth, self.playerPaddleHeight) {
             self.ballVX = self.absFloat(self.ballVX);
             
-            var paddleCenter = self.playerPaddleY as float + PADDLE_HEIGHT as float / 2.0;
-            var hitPos = self.ballY - paddleCenter;
-            self.ballVY = hitPos / (PADDLE_HEIGHT as float / 2.0) * self.ballSpeed as float;
+            let paddleCenter = (float)(self.playerPaddleY) + (float)PADDLE_HEIGHT / 2.0;
+            let hitPos = self.ballY - paddleCenter;
+            self.ballVY = hitPos / ((float)PADDLE_HEIGHT / 2.0) * self.ballSpeed as float;
             
             // 增加速度
             if self.ballSpeed < BALL_MAX_SPEED {
                 self.ballSpeed = self.ballSpeed + 1;
-                var currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
+                let currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
                 self.ballVX = self.ballVX / currentSpeed * self.ballSpeed as float;
                 self.ballVY = self.ballVY / currentSpeed * self.ballSpeed as float;
             }
@@ -242,14 +242,14 @@ pub class PongGame extends Game {
         if self.checkPaddleCollision(self.cpuPaddleX, self.cpuPaddleY, self.cpuPaddleWidth, self.cpuPaddleHeight) {
             self.ballVX = -self.absFloat(self.ballVX);
             
-            var paddleCenter = self.cpuPaddleY as float + PADDLE_HEIGHT as float / 2.0;
-            var hitPos = self.ballY - paddleCenter;
-            self.ballVY = hitPos / (PADDLE_HEIGHT as float / 2.0) * self.ballSpeed as float;
+            let paddleCenter = (float)(self.cpuPaddleY) + (float)PADDLE_HEIGHT / 2.0;
+            let hitPos = self.ballY - paddleCenter;
+            self.ballVY = hitPos / ((float)PADDLE_HEIGHT / 2.0) * self.ballSpeed as float;
             
             // 增加速度
             if self.ballSpeed < BALL_MAX_SPEED {
                 self.ballSpeed = self.ballSpeed + 1;
-                var currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
+                let currentSpeed = self.sqrtFloat(self.ballVX * self.ballVX + self.ballVY * self.ballVY);
                 self.ballVX = self.ballVX / currentSpeed * self.ballSpeed as float;
                 self.ballVY = self.ballVY / currentSpeed * self.ballSpeed as float;
             }
@@ -261,7 +261,7 @@ pub class PongGame extends Game {
             self.resetBall(true);
         }
         
-        if self.ballX > self.width as float {
+        if self.ballX > (float)(self.width) {
             self.playerPaddleScore = self.playerPaddleScore + 1;
             self.resetBall(false);
         }
@@ -269,15 +269,15 @@ pub class PongGame extends Game {
     
     // 检查挡板碰撞
     private fn checkPaddleCollision(px: int, py: int, pw: int, ph: int) -> bool {
-        var ballLeft = self.ballX - BALL_SIZE as float / 2.0;
-        var ballRight = self.ballX + BALL_SIZE as float / 2.0;
-        var ballTop = self.ballY - BALL_SIZE as float / 2.0;
-        var ballBottom = self.ballY + BALL_SIZE as float / 2.0;
+        let ballLeft = self.ballX - (float)BALL_SIZE / 2.0;
+        let ballRight = self.ballX + (float)BALL_SIZE / 2.0;
+        let ballTop = self.ballY - (float)BALL_SIZE / 2.0;
+        let ballBottom = self.ballY + (float)BALL_SIZE / 2.0;
         
-        var paddleLeft = px as float;
-        var paddleRight = (px + pw) as float;
-        var paddleTop = py as float;
-        var paddleBottom = (py + ph) as float;
+        let paddleLeft = px as float;
+        let paddleRight = (px + pw) as float;
+        let paddleTop = py as float;
+        let paddleBottom = (py + ph) as float;
         
         return ballRight >= paddleLeft && ballLeft <= paddleRight &&
                ballBottom >= paddleTop && ballTop <= paddleBottom;
@@ -285,8 +285,8 @@ pub class PongGame extends Game {
     
     // 重置球
     private fn resetBall(toPlayer: bool) {
-        self.ballX = self.width as float / 2.0;
-        self.ballY = self.height as float / 2.0;
+        self.ballX = (float)(self.width) / 2.0;
+        self.ballY = (float)(self.height) / 2.0;
         self.ballSpeed = BALL_SPEED;
         self.ballVX = 0.0;
         self.ballVY = 0.0;
@@ -336,10 +336,10 @@ pub class PongGame extends Game {
     
     // 绘制中线
     private fn drawCenterLine(canvas: Canvas) {
-        var centerX = self.width / 2;
-        var dashHeight = 20;
-        var gapHeight = 10;
-        var y = 60;
+        let centerX = self.width / 2;
+        let dashHeight = 20;
+        let gapHeight = 10;
+        let y = 60;
         
         while y < self.height - 20 {
             canvas.drawLine(centerX, y, centerX, y + dashHeight, Color.Gray());
@@ -349,17 +349,17 @@ pub class PongGame extends Game {
     
     // 绘制分数
     private fn drawScore(canvas: Canvas) {
-        var font = Font.("Arial", 36);
+        let font = Font("Arial", 36);
         
-        var playerText = self.intToString(self.playerPaddleScore);
+        let playerText = self.intToString(self.playerPaddleScore);
         canvas.drawText(self.width / 4, 15, playerText, Color.White(), font);
         
-        var cpuText = self.intToString(self.cpuPaddleScore);
+        let cpuText = self.intToString(self.cpuPaddleScore);
         canvas.drawText(self.width * 3 / 4 - 30, 15, cpuText, Color.White(), font);
         
         canvas.drawText(self.width / 2 - 10, 15, "-", Color.Gray(), font);
         
-        var smallFont = Font.("Arial", 14);
+        let smallFont = Font("Arial", 14);
         canvas.drawText(self.width / 4 - 20, 2, "玩家", Color.LightGray(), smallFont);
         canvas.drawText(self.width * 3 / 4 - 30, 2, "电脑", Color.LightGray(), smallFont);
     }
@@ -371,13 +371,13 @@ pub class PongGame extends Game {
     
     // 绘制球
     private fn drawBall(canvas: Canvas) {
-        canvas.fillCircle(self.ballX as int, self.ballY as int, BALL_SIZE / 2, Color.White());
+        canvas.fillCircle((int)(self.ballX), (int)(self.ballY), BALL_SIZE / 2, Color.White());
     }
     
     // 绘制开始提示
     private fn drawStartMessage(canvas: Canvas) {
-        var font = Font.("Arial", 20);
-        var text = "按 空格键 开始发球";
+        let font = Font("Arial", 20);
+        let text = "按 空格键 开始发球";
         canvas.drawText(self.width / 2 - 120, self.height / 2, text, Color.Yellow(), font);
     }
     
@@ -385,34 +385,34 @@ pub class PongGame extends Game {
     private fn drawGameOver(canvas: Canvas) {
         canvas.fillRect(0, 0, self.width, self.height, Color.ARGB(180, 0, 0, 0));
         
-        var font = Font.("Arial", 48);
-        var text = self.winner ++ " 获胜!";
+        let font = Font("Arial", 48);
+        let text = self."{winner} 获胜!";
         canvas.drawText(self.width / 2 - 140, self.height / 2 - 50, text, Color.Yellow(), font);
         
-        var smallFont = Font.("Arial", 20);
-        var restartText = "按 R 键重新开始";
+        let smallFont = Font("Arial", 20);
+        let restartText = "按 R 键重新开始";
         canvas.drawText(self.width / 2 - 100, self.height / 2 + 20, restartText, Color.White(), smallFont);
     }
     
     // onKeyDown - 键盘按下
     pub fn onKeyDown(key: VirtualKey) {
         match key {
-            VirtualKey.Up | VirtualKey.KeyW => {
+            VirtualKey.Up | VirtualKey::KeyW => {
                 self.keyUp = true;
             }
-            VirtualKey.Down | VirtualKey.KeyS => {
+            VirtualKey.Down | VirtualKey::KeyS => {
                 self.keyDown = true;
             }
-            VirtualKey.Space => {
+            VirtualKey::Space => {
                 if !self.gameStarted && !self.gameOver {
                     self.gameStarted = true;
-                    var angle = (math.rand() % 60 - 30) as float;
-                    var direction: float = if math.rand() % 2 == 0 { 1.0 } else { -1.0 };
-                    self.ballVX = (self.ballSpeed as float) * self.cos(angle) * direction;
-                    self.ballVY = (self.ballSpeed as float) * self.sin(angle);
+                    let angle = (math.rand() % 60 - 30) as float;
+                    let direction: float = if math.rand() % 2 == 0 { 1.0 } else { -1.0 };
+                    self.ballVX = ((float)(self.ballSpeed)) * self.cos(angle) * direction;
+                    self.ballVY = ((float)(self.ballSpeed)) * self.sin(angle);
                 }
             }
-            VirtualKey.KeyR => {
+            VirtualKey::KeyR => {
                 if self.gameOver {
                     self.onInit();
                 }
@@ -424,10 +424,10 @@ pub class PongGame extends Game {
     // onKeyUp - 键盘释放
     pub fn onKeyUp(key: VirtualKey) {
         match key {
-            VirtualKey.Up | VirtualKey.KeyW => {
+            VirtualKey.Up | VirtualKey::KeyW => {
                 self.keyUp = false;
             }
-            VirtualKey.Down | VirtualKey.KeyS => {
+            VirtualKey.Down | VirtualKey::KeyS => {
                 self.keyDown = false;
             }
             _ => {}
@@ -438,10 +438,10 @@ pub class PongGame extends Game {
     pub fn onMouseDown(x: int, y: int, button: MouseButton) {
         if !self.gameStarted && !self.gameOver {
             self.gameStarted = true;
-            var angle = (math.rand() % 60 - 30) as float;
-            var direction: float = if math.rand() % 2 == 0 { 1.0 } else { -1.0 };
-            self.ballVX = (self.ballSpeed as float) * self.cos(angle) * direction;
-            self.ballVY = (self.ballSpeed as float) * self.sin(angle);
+            let angle = (math.rand() % 60 - 30) as float;
+            let direction: float = if math.rand() % 2 == 0 { 1.0 } else { -1.0 };
+            self.ballVX = ((float)(self.ballSpeed)) * self.cos(angle) * direction;
+            self.ballVY = ((float)(self.ballSpeed)) * self.sin(angle);
         }
     }
     
@@ -459,8 +459,8 @@ pub class PongGame extends Game {
         if n < 0.0 {
             return 0.0;
         }
-        var x = n;
-        var y = 1.0;
+        let x = n;
+        let y = 1.0;
         while y < x {
             x = (x + y) / 2.0;
             y = n / x;
@@ -469,9 +469,9 @@ pub class PongGame extends Game {
     }
     
     fn cos(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = 1.0;
-        var term = 1.0;
+        let rad = x * 3.14159 / 180.0;
+        let result = 1.0;
+        let term = 1.0;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
             result = result + term;
@@ -480,9 +480,9 @@ pub class PongGame extends Game {
     }
     
     fn sin(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = rad;
-        var term = rad;
+        let rad = x * 3.14159 / 180.0;
+        let result = rad;
+        let term = rad;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
             result = result + term;
@@ -494,18 +494,18 @@ pub class PongGame extends Game {
         if n == 0 {
             return "0";
         }
-        var result = "";
-        var negative = false;
-        var num = n;
+        let result = "";
+        let negative = false;
+        let num = n;
         if num < 0 {
             negative = true;
             num = -num;
         }
         while num > 0 {
-            var digit = num % 10;
-            result = (digit as char + "") ++ result;
+            let digit = num % 10;
+            result = ((char)digit + "") ++ result;
             num = num / 10;
         }
-        return if negative { "-" ++ result } else { result };
+        return if negative { "-{result}" } else { result };
     }
 }

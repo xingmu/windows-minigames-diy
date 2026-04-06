@@ -1,50 +1,50 @@
 // game_logic.zc - Zen-C 保龄球游戏核心逻辑
 // 鼠标蓄力投球，瓶靶碰撞
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 500;
-const GAME_HEIGHT: i32 = 700;
+def GAME_WIDTH: i32 = 500;
+def GAME_HEIGHT: i32 = 700;
 
 // 球道尺寸
-const LANE_LEFT: i32 = 100;
-const LANE_RIGHT: i32 = 400;
-const LANE_TOP: i32 = 80;
-const LANE_BOTTOM: i32 = 650;
-const LANE_WIDTH: i32 = LANE_RIGHT - LANE_LEFT;
-const LANE_HEIGHT: i32 = LANE_BOTTOM - LANE_TOP;
+def LANE_LEFT: i32 = 100;
+def LANE_RIGHT: i32 = 400;
+def LANE_TOP: i32 = 80;
+def LANE_BOTTOM: i32 = 650;
+def LANE_WIDTH: i32 = LANE_RIGHT - LANE_LEFT;
+def LANE_HEIGHT: i32 = LANE_BOTTOM - LANE_TOP;
 
 // 瓶靶区起始Y
-const PIN_AREA_Y: i32 = 120;
-const PIN_ROW_HEIGHT: i32 = 30;
+def PIN_AREA_Y: i32 = 120;
+def PIN_ROW_HEIGHT: i32 = 30;
 
 // 保龄球
-const BALL_RADIUS: i32 = 18;
-const BALL_START_X: i32 = (LANE_LEFT + LANE_RIGHT) / 2;
-const BALL_START_Y: i32 = LANE_BOTTOM - 60;
+def BALL_RADIUS: i32 = 18;
+def BALL_START_X: i32 = (LANE_LEFT + LANE_RIGHT) / 2;
+def BALL_START_Y: i32 = LANE_BOTTOM - 60;
 
 // 最大投球力度
-const MAX_POWER: i32 = 25;
-const MIN_POWER: i32 = 3;
-const FRICTION: i32 = 1;
+def MAX_POWER: i32 = 25;
+def MIN_POWER: i32 = 3;
+def FRICTION: i32 = 1;
 
 // 瓶靶
-const PIN_RADIUS: i32 = 10;
-const PIN_BASE_Y: i32 = PIN_AREA_Y + 120;
+def PIN_RADIUS: i32 = 10;
+def PIN_BASE_Y: i32 = PIN_AREA_Y + 120;
 
 // 每局投球次数
-const THROWS_PER_FRAME: i32 = 2;
+def THROWS_PER_FRAME: i32 = 2;
 
 // ==================== 颜色定义 ====================
 
-const LANE_COLOR: Color = Color.{ r: 210, g: 180, b: 140 };      // 木质球道
-const LANE_EDGE_COLOR: Color = Color.{ r: 101, g: 67, b: 33 };  // 球道边缘
-const BALL_COLOR: Color = Color.{ r: 20, g: 20, b: 20 };          // 深色保龄球
-const PIN_COLOR: Color = Color.{ r: 240, g: 240, b: 240 };        // 白色瓶靶
-const PIN_STRIKE_COLOR: Color = Color.{ r: 255, g: 50, b: 50 };   // 被击倒红色
-const GUTTER_COLOR: Color = Color.{ r: 60, g: 60, b: 60 };        // 沟渠
+def LANE_COLOR: Color = Color { r: 210, g: 180, b: 140 };      // 木质球道
+def LANE_EDGE_COLOR: Color = Color { r: 101, g: 67, b: 33 };  // 球道边缘
+def BALL_COLOR: Color = Color { r: 20, g: 20, b: 20 };          // 深色保龄球
+def PIN_COLOR: Color = Color { r: 240, g: 240, b: 240 };        // 白色瓶靶
+def PIN_STRIKE_COLOR: Color = Color { r: 255, g: 50, b: 50 };   // 被击倒红色
+def GUTTER_COLOR: Color = Color { r: 60, g: 60, b: 60 };        // 沟渠
 
 // ==================== 数据结构 ====================
 
@@ -95,7 +95,7 @@ struct FrameScore {
 // 游戏全局状态
 struct BowlingState {
     ball: Ball,
-    pins: [10]Pin,
+    pins: [Pin; 10],
     pinCount: i32,
     standingPins: i32,
     status: GameStatus,
@@ -110,7 +110,7 @@ struct BowlingState {
     aimAngle: i32,       // 瞄准角度 (-30 to 30 degrees)
     width: i32,
     height: i32,
-    frameScores: [10]FrameScore,
+    frameScores: [FrameScore; 10],
     gutterTriggered: bool,
 }
 
@@ -170,7 +170,7 @@ fn initPins(state: &mut BowlingState) {
     let baseY = PIN_BASE_Y;
 
     // 第1行: 1个瓶 (顶部)
-    state.pins[0] = Pin.{
+    state.pins[0] = Pin {
         x: baseX,
         y: baseY,
         vx: 0, vy: 0,
@@ -182,8 +182,8 @@ fn initPins(state: &mut BowlingState) {
 
     // 第2行: 2个瓶
     for i in 0..2 {
-        state.pins[pinIndex] = Pin.{
-            x: baseX + (i as i32 - 1) * spacing,
+        state.pins[pinIndex] = Pin {
+            x: baseX + ((i32)i - 1) * spacing,
             y: baseY + spacing,
             vx: 0, vy: 0,
             standing: true,
@@ -195,8 +195,8 @@ fn initPins(state: &mut BowlingState) {
 
     // 第3行: 3个瓶
     for i in 0..3 {
-        state.pins[pinIndex] = Pin.{
-            x: baseX + (i as i32 - 1) * spacing - spacing / 2,
+        state.pins[pinIndex] = Pin {
+            x: baseX + ((i32)i - 1) * spacing - spacing / 2,
             y: baseY + spacing * 2,
             vx: 0, vy: 0,
             standing: true,
@@ -208,8 +208,8 @@ fn initPins(state: &mut BowlingState) {
 
     // 第4行: 4个瓶
     for i in 0..4 {
-        state.pins[pinIndex] = Pin.{
-            x: baseX + (i as i32 - 2) * spacing,
+        state.pins[pinIndex] = Pin {
+            x: baseX + ((i32)i - 2) * spacing,
             y: baseY + spacing * 3,
             vx: 0, vy: 0,
             standing: true,
@@ -249,7 +249,7 @@ fn initGame(state: &mut BowlingState) {
 
     // 初始化所有帧得分
     for i in 0..10 {
-        state.frameScores[i] = FrameScore.{
+        state.frameScores[i] = FrameScore {
             firstThrow: 0,
             secondThrow: -1,
             thirdThrow: -1,
@@ -345,7 +345,7 @@ fn updateBall(state: &mut BowlingState) -> bool {
 
 // 更新瓶靶物理
 fn updatePins(state: &mut BowlingState) -> bool {
-    var anyMoving = false;
+    let anyMoving = false;
 
     for i in 0..state.pinCount {
         let pin = &mut state.pins[i];
@@ -484,7 +484,7 @@ fn checkPinPinCollision(state: &mut BowlingState) {
 }
 
 // 检查所有瓶靶是否稳定
-fn pinsSettled(state: &BowlingState) -> bool {
+fn pinsSettled(state: BowlingState*) -> bool {
     for i in 0..state.pinCount {
         if state.pins[i].fallen {
             if state.pins[i].vx != 0 || state.pins[i].vy != 0 {
@@ -550,14 +550,14 @@ fn recordFrameScore(state: &mut BowlingState, knockedDown: i32) {
     // 普通: 直接累加
 
     // 计算当前总分
-    var total = 0;
+    let total = 0;
     for i in 0..10 {
         let f = &state.frameScores[i];
         if f.firstThrow == 0 && f.secondThrow < 0 && f.thirdThrow < 0 {
             continue;
         }
 
-        var frameTotal = 0;
+        let frameTotal = 0;
         if f.strike {
             frameTotal = 10;
             // 需要下两球奖励
@@ -654,7 +654,7 @@ fn advanceGame(state: &mut BowlingState) {
 
 fn updateGame(state: &mut BowlingState) -> bool {
     match state.status {
-        GameStatus.Rolling => {
+        GameStatus::Rolling => {
             let ballMoving = updateBall(state);
             checkBallPinCollision(state);
             let pinsMoving = updatePins(state);
@@ -665,7 +665,7 @@ fn updateGame(state: &mut BowlingState) -> bool {
             }
             return true;
         },
-        GameStatus.Settling => {
+        GameStatus::Settling => {
             updatePins(state);
             checkPinPinCollision(state);
 
@@ -731,18 +731,18 @@ fn onMouseUp(state: &mut BowlingState, x: i32, y: i32) {
 
 // ==================== 状态查询 ====================
 
-fn getStatusText(state: &BowlingState) -> string {
+fn getStatusText(state: BowlingState*) -> string {
     match state.status {
-        GameStatus.Ready => {
+        GameStatus::Ready => {
             if state.frame == 10 {
-                return "第10局 | 第" ++ state.throwNum.toString() ++ "球 | 点击拖拽投球";
+                return "第10局 | 第{state}"."{throwNum}球 | 点击拖拽投球";
             }
-            return "第" ++ state.frame.toString() ++ "局 | 第" ++ state.throwNum.toString() ++ "球 | 点击拖拽投球";
+            return "第{state}"."{frame}局 | 第{state}"."{throwNum}球 | 点击拖拽投球";
         },
-        GameStatus.Charging => return "蓄力中: " ++ state.power.toString() ++ " | 角度: " ++ state.aimAngle.toString() ++ "°",
-        GameStatus.Rolling => return "球滚动中...",
-        GameStatus.Settling => return "等待瓶靶稳定...",
-        GameStatus.GameOver => return "游戏结束! 点击重新开始",
+        GameStatus::Charging => return "蓄力中: {state}"."{power} | 角度: {state}"."{aimAngle}°",
+        GameStatus::Rolling => return "球滚动中...",
+        GameStatus::Settling => return "等待瓶靶稳定...",
+        GameStatus::GameOver => return "游戏结束! 点击重新开始",
         _ => return "",
     }
 }

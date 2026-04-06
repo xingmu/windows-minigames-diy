@@ -1,44 +1,44 @@
 // game_logic.zc - Zen-C Boxing（拳击）游戏核心逻辑
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 800;
-const GAME_HEIGHT: i32 = 600;
+def GAME_WIDTH: i32 = 800;
+def GAME_HEIGHT: i32 = 600;
 
 // 擂台尺寸
-const RING_LEFT: i32 = 50;
-const RING_RIGHT: i32 = 750;
-const RING_TOP: i32 = 150;
-const RING_BOTTOM: i32 = 500;
+def RING_LEFT: i32 = 50;
+def RING_RIGHT: i32 = 750;
+def RING_TOP: i32 = 150;
+def RING_BOTTOM: i32 = 500;
 
 // 拳击手属性
-const BOXER_WIDTH: i32 = 60;
-const BOXER_HEIGHT: i32 = 80;
-const MOVE_SPEED: i32 = 4;
-const PUNCH_RANGE: i32 = 80;
-const JAB_DAMAGE: i32 = 5;
-const HOOK_DAMAGE: i32 = 12;
-const JAB_COOLDOWN: i32 = 300;   // 毫秒
-const HOOK_COOLDOWN: i32 = 800;   // 毫秒
-const MAX_HEALTH: i32 = 100;
+def BOXER_WIDTH: i32 = 60;
+def BOXER_HEIGHT: i32 = 80;
+def MOVE_SPEED: i32 = 4;
+def PUNCH_RANGE: i32 = 80;
+def JAB_DAMAGE: i32 = 5;
+def HOOK_DAMAGE: i32 = 12;
+def JAB_COOLDOWN: i32 = 300;   // 毫秒
+def HOOK_COOLDOWN: i32 = 800;   // 毫秒
+def MAX_HEALTH: i32 = 100;
 
 // AI属性
-const AI_REACTION_TIME: i32 = 400;
-const AI_PUNCH_CHANCE: i32 = 30;  // 百分比
+def AI_REACTION_TIME: i32 = 400;
+def AI_PUNCH_CHANCE: i32 = 30;  // 百分比
 
 // ==================== 颜色定义 ====================
 
-const RING_COLOR = Color { r: 200, g: 150, b: 100 };
-const ROPE_COLOR = Color { r: 139, g: 69, b: 19 };
-const PLAYER_COLOR = Color { r: 220, g: 80, b: 60 };   // 红色拳手
-const AI_COLOR = Color { r: 80, g: 120, b: 220 };       // 蓝色拳手
-const HEALTH_GREEN = Color { r: 80, g: 200, b: 80 };
-const HEALTH_RED = Color { r: 220, g: 60, b: 60 };
-const BACKGROUND_COLOR = Color { r: 30, g: 30, b: 30 };
-const TEXT_COLOR = Color { r: 240, g: 240, b: 240 };
-const CORNER_COLOR = Color { r: 60, g: 60, b: 100 };
+def RING_COLOR = Color { r: 200, g: 150, b: 100 };
+def ROPE_COLOR = Color { r: 139, g: 69, b: 19 };
+def PLAYER_COLOR = Color { r: 220, g: 80, b: 60 };   // 红色拳手
+def AI_COLOR = Color { r: 80, g: 120, b: 220 };       // 蓝色拳手
+def HEALTH_GREEN = Color { r: 80, g: 200, b: 80 };
+def HEALTH_RED = Color { r: 220, g: 60, b: 60 };
+def BACKGROUND_COLOR = Color { r: 30, g: 30, b: 30 };
+def TEXT_COLOR = Color { r: 240, g: 240, b: 240 };
+def CORNER_COLOR = Color { r: 60, g: 60, b: 100 };
 
 // ==================== 动作枚举 ====================
 
@@ -105,15 +105,15 @@ struct Color {
 
 impl Color {
     pub static fn fromRGB(r: u8, g: u8, b: u8) -> Color {
-        return Color.{ r: r, g: g, b: b };
+        return Color { r: r, g: g, b: b };
     }
 }
 
 // ==================== 工具函数 ====================
 
 fn distance(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
-    var dx = x2 - x1;
-    var dy = y2 - y1;
+    let dx = x2 - x1;
+    let dy = y2 - y1;
     return sqrt(x2 - x1) + sqrt(y2 - y1);
 }
 
@@ -192,7 +192,7 @@ fn updateBoxer(boxer: &mut Boxer, dt: i32) {
     }
 }
 
-fn boxerCanPunch(boxer: &Boxer) -> bool {
+fn boxerCanPunch(boxer: Boxer*) -> bool {
     return boxer.action == BoxerAction.Idle && !boxer.isHit;
 }
 
@@ -240,14 +240,14 @@ fn boxerGetHit(boxer: &mut Boxer, damage: i32) {
     boxer.actionTimer = 150;
 }
 
-fn boxerInRange(attacker: &Boxer, defender: &Boxer) -> bool {
-    var dist = abs(attacker.x - defender.x);
+fn boxerInRange(attacker: Boxer*, defender: Boxer*) -> bool {
+    let dist = abs(attacker.x - defender.x);
     return dist <= PUNCH_RANGE;
 }
 
 // ==================== AI逻辑 ====================
 
-fn updateAI(ai: &mut Boxer, player: &Boxer, dt: i32) {
+fn updateAI(ai: &mut Boxer, player: Boxer*, dt: i32) {
     // 如果正在执行动作，不做决策
     if ai.action != BoxerAction.Idle {
         updateBoxer(ai, dt);
@@ -255,8 +255,8 @@ fn updateAI(ai: &mut Boxer, player: &Boxer, dt: i32) {
     }
     
     // 随机性移动
-    var decision = randInt(0, 100);
-    var dist = abs(ai.x - player.x);
+    let decision = randInt(0, 100);
+    let dist = abs(ai.x - player.x);
     
     // 距离太远，靠近
     if dist > PUNCH_RANGE + 20 {
@@ -296,7 +296,7 @@ fn updateAI(ai: &mut Boxer, player: &Boxer, dt: i32) {
     
     // 小幅左右移动
     if decision < 50 {
-        var offset = randInt(1, 3) * MOVE_SPEED / 2;
+        let offset = randInt(1, 3) * MOVE_SPEED / 2;
         if randInt(0, 1) == 0 {
             ai.x = ai.x - offset;
         } else {
@@ -325,7 +325,7 @@ fn initRound(game: &mut BoxingState) {
     game.ai = createBoxer(550, 340, AI_COLOR, "CPU", false);
     game.roundTime = 99000;
     game.status = GameStatus.RoundStart;
-    game.message = "ROUND " ++ intToString(game.round);
+    game.message = "ROUND {intToString}"(game.round);
     game.messageTimer = 2000;
 }
 
@@ -354,13 +354,13 @@ fn updateGame(game: &mut BoxingState, dt: i32) {
     
     // 根据状态更新
     match game.status {
-        GameStatus.Ready => {
+        GameStatus::Ready => {
             // 等待开始
         },
-        GameStatus.RoundStart => {
+        GameStatus::RoundStart => {
             // 回合开始倒计时
         },
-        GameStatus.Playing => {
+        GameStatus::Playing => {
             // 更新回合时间
             game.roundTime = game.roundTime - dt;
             if game.roundTime <= 0 {
@@ -413,7 +413,7 @@ fn updateGame(game: &mut BoxingState, dt: i32) {
                 game.ai.action = BoxerAction.KO;
             }
         },
-        GameStatus.RoundEnd => {
+        GameStatus::RoundEnd => {
             // 回合结束，等待继续或重新开始
             if game.messageTimer <= 0 {
                 // 自动开始下一回合
@@ -425,7 +425,7 @@ fn updateGame(game: &mut BoxingState, dt: i32) {
                 }
             }
         },
-        GameStatus.GameOver => {
+        GameStatus::GameOver => {
             // 游戏结束
         },
     }
@@ -462,7 +462,7 @@ fn constrainBoxerPosition(boxer: &mut Boxer) {
 fn handleInput(game: &mut BoxingState, key: VirtualKey) {
     if game.status == GameStatus.Ready {
         game.status = GameStatus.RoundStart;
-        game.message = "ROUND " ++ intToString(game.round);
+        game.message = "ROUND {intToString}"(game.round);
         game.messageTimer = 2000;
         return;
     }
@@ -478,30 +478,30 @@ fn handleInput(game: &mut BoxingState, key: VirtualKey) {
     }
     
     match key {
-        VirtualKey.KeyA, VirtualKey.Left => {
+        VirtualKey.KeyA, VirtualKey::Left => {
             if game.player.x > RING_LEFT + BOXER_WIDTH/2 {
                 game.player.x = game.player.x - MOVE_SPEED;
             }
         },
-        VirtualKey.KeyD, VirtualKey.Right => {
+        VirtualKey.KeyD, VirtualKey::Right => {
             if game.player.x < RING_RIGHT - BOXER_WIDTH/2 {
                 game.player.x = game.player.x + MOVE_SPEED;
             }
         },
-        VirtualKey.KeyW, VirtualKey.Up => {
+        VirtualKey.KeyW, VirtualKey::Up => {
             if game.player.y > RING_TOP + BOXER_HEIGHT/2 {
                 game.player.y = game.player.y - MOVE_SPEED;
             }
         },
-        VirtualKey.KeyS, VirtualKey.Down => {
+        VirtualKey.KeyS, VirtualKey::Down => {
             if game.player.y < RING_BOTTOM - BOXER_HEIGHT/2 {
                 game.player.y = game.player.y + MOVE_SPEED;
             }
         },
-        VirtualKey.KeyJ, VirtualKey.Space => {
+        VirtualKey.KeyJ, VirtualKey::Space => {
             boxerPerformJab(&mut game.player);
         },
-        VirtualKey.KeyK, VirtualKey.Enter => {
+        VirtualKey.KeyK, VirtualKey::Enter => {
             boxerPerformHook(&mut game.player);
         },
         _ => {}
@@ -512,31 +512,31 @@ fn handleInput(game: &mut BoxingState, key: VirtualKey) {
 
 fn intToString(n: i32) -> str {
     if n == 0 { return "0"; }
-    var result = "";
-    var negative = false;
-    var num = n;
+    let result = "";
+    let negative = false;
+    let num = n;
     if num < 0 {
         negative = true;
         num = -num;
     }
     while num > 0 {
-        var digit = num % 10;
+        let digit = num % 10;
         result = chr(digit + 48) ++ result;
         num = num / 10;
     }
     if negative {
-        result = "-" ++ result;
+        result = "-{result}";
     }
     return result;
 }
 
 fn chr(n: i32) -> str {
     if n == 0 { return "\0"; }
-    return str(n as u8);
+    return str((u8)n);
 }
 
 // 随机数函数
-private var rng_seed: u32 = 12345;
+private let rng_seed: u32 = 12345;
 
 pub fn setRandomSeed(seed: u32) {
     rng_seed = seed;
@@ -544,6 +544,6 @@ pub fn setRandomSeed(seed: u32) {
 
 pub fn randInt(min: i32, max: i32) -> i32 {
     rng_seed = rng_seed * 1103515245 + 12345;
-    var r = (rng_seed / 65536) % 32768;
-    return min + (r as i32) % (max - min + 1);
+    let r = (rng_seed / 65536) % 32768;
+    return min + ((i32)r) % (max - min + 1);
 }

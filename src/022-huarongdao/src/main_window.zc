@@ -1,8 +1,8 @@
 // main_window.zc - 华容道游戏主窗口
 // 继承自Game类，框架版本: 1.0.0
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 
 // 导入框架和游戏逻辑
 import "platform_api.zc";
@@ -12,26 +12,26 @@ import "game_huarongdao.zc";
 // ==================== 常量定义 ====================
 
 // 窗口尺寸
-const WINDOW_WIDTH = 440;
-const WINDOW_HEIGHT = 420;
+def WINDOW_WIDTH = 440;
+def WINDOW_HEIGHT = 420;
 
 // 棋盘区域
-const BOARD_X = 20;
-const BOARD_Y = 80;
-const CELL_SIZE = 80;
-const CELL_GAP = 0;
+def BOARD_X = 20;
+def BOARD_Y = 80;
+def CELL_SIZE = 80;
+def CELL_GAP = 0;
 
 // 棋盘尺寸
-const BOARD_ROWS = 4;
-const BOARD_COLS = 5;
+def BOARD_ROWS = 4;
+def BOARD_COLS = 5;
 
 // 颜色定义
-const BG_COLOR = 0xFF2C3E50;        // 深蓝灰背景
-const BOARD_BG = 0xFF34495E;        // 棋盘背景
-const CELL_EMPTY = 0xFF3D566E;      // 空单元格
-const EXIT_COLOR = 0xFF27AE60;      // 出口颜色
-const TEXT_COLOR = 0xFFECF0F1;      // 文字颜色
-const HIGHLIGHT_COLOR = 0x80FFFFFF; // 选中高亮
+def BG_COLOR = 0xFF2C3E50;        // 深蓝灰背景
+def BOARD_BG = 0xFF34495E;        // 棋盘背景
+def CELL_EMPTY = 0xFF3D566E;      // 空单元格
+def EXIT_COLOR = 0xFF27AE60;      // 出口颜色
+def TEXT_COLOR = 0xFFECF0F1;      // 文字颜色
+def HIGHLIGHT_COLOR = 0x80FFFFFF; // 选中高亮
 
 // ==================== 游戏类 ====================
 
@@ -40,7 +40,7 @@ class HuarongDao extends Game {
     board: [BOARD_ROWS * BOARD_COLS]i32;
     
     // 方块列表
-    blocks: [10]Block;
+    blocks: [Block; 10];
     
     // 拖拽状态
     dragging: bool;
@@ -69,7 +69,7 @@ class HuarongDao extends Game {
             self.board[i] = -1;
         }
         for i in 0..10 {
-            self.blocks[i] = Block.{ id: 0, type: 0, row: 0, col: 0, width: 0, height: 0, color: 0 };
+            self.blocks[i] = Block { id: 0, type: 0, row: 0, col: 0, width: 0, height: 0, color: 0 };
         }
         
         self.dragging = false;
@@ -91,14 +91,14 @@ class HuarongDao extends Game {
         self.won = false;
         self.dragging = false;
         
-        io.println("[华容道] 游戏初始化!");
-        io.println("[华容道] 使用鼠标拖拽移动方块");
-        io.println("[华容道] 目标: 让红色大方块到达底部出口");
-        io.println("[华容道] 按R键重新开始, ESC退出");
+        io.println "[华容道] 游戏初始化!";
+        io.println "[华容道] 使用鼠标拖拽移动方块";
+        io.println "[华容道] 目标: 让红色大方块到达底部出口";
+        io.println "[华容道] 按R键重新开始, ESC退出";
     }
     
     fn onShutdown() {
-        io.println("[华容道] 游戏退出!");
+        io.println "[华容道] 游戏退出!";
     }
     
     fn onUpdate(dt: u32) {
@@ -114,7 +114,7 @@ class HuarongDao extends Game {
         }
     }
     
-    fn onRender(canvas: &Canvas) {
+    fn onRender(canvas: Canvas*) {
         // 绘制背景
         canvas.clear(BG_COLOR);
         
@@ -252,7 +252,7 @@ class HuarongDao extends Game {
 
 // ==================== 绘图函数 ====================
 
-fn draw_title(canvas: &Canvas) {
+fn draw_title(canvas: Canvas*) {
     // 标题背景
     canvas.fillRect(0, 0, WINDOW_WIDTH, 60, 0xFF1A252F);
     
@@ -294,7 +294,7 @@ fn draw_title(canvas: &Canvas) {
     draw_text_simple(canvas, en_x, title_y + 5, "KLOTSKI", 0xFF95E1D3, 10);
 }
 
-fn draw_char_5x5(canvas: &Canvas, x: i32, y: i32, color: u32, data: [][]i32) {
+fn draw_char_5x5(canvas: Canvas*, x: i32, y: i32, color: u32, data: [][]i32) {
     let pixel_size = 8;
     for row in 0..5 {
         for col in 0..5 {
@@ -305,7 +305,7 @@ fn draw_char_5x5(canvas: &Canvas, x: i32, y: i32, color: u32, data: [][]i32) {
     }
 }
 
-fn draw_text_simple(canvas: &Canvas, x: i32, y: i32, text: str, color: u32, size: i32) {
+fn draw_text_simple(canvas: Canvas*, x: i32, y: i32, text: str, color: u32, size: i32) {
     // 简化文字绘制 - 用矩形条模拟
     let char_width = size;
     let char_height = size * 2;
@@ -317,7 +317,7 @@ fn draw_text_simple(canvas: &Canvas, x: i32, y: i32, text: str, color: u32, size
     }
 }
 
-fn draw_board(canvas: &Canvas) {
+fn draw_board(canvas: Canvas*) {
     // 棋盘背景
     let board_w = BOARD_COLS * CELL_SIZE + (BOARD_COLS - 1) * CELL_GAP;
     let board_h = BOARD_ROWS * CELL_SIZE + (BOARD_ROWS - 1) * CELL_GAP;
@@ -344,7 +344,7 @@ fn draw_board(canvas: &Canvas) {
     canvas.fillRect(exit_x, exit_y, 20, 15, BG_COLOR);
 }
 
-fn draw_blocks(canvas: &Canvas) {
+fn draw_blocks(canvas: Canvas*) {
     for i in 0..10 {
         let block = self.blocks[i];
         let x = BOARD_X + block.col * (CELL_SIZE + CELL_GAP);
@@ -378,7 +378,7 @@ fn draw_blocks(canvas: &Canvas) {
     }
 }
 
-fn draw_block_label(canvas: &Canvas, block: &Block, x: i32, y: i32, w: i32, h: i32) {
+fn draw_block_label(canvas: Canvas*, block: Block*, x: i32, y: i32, w: i32, h: i32) {
     // 根据方块类型绘制标签
     let label = "";
     let text_color = 0xFF2C3E50;
@@ -405,7 +405,7 @@ fn draw_block_label(canvas: &Canvas, block: &Block, x: i32, y: i32, w: i32, h: i
     }
 }
 
-fn draw_stats(canvas: &Canvas) {
+fn draw_stats(canvas: Canvas*) {
     // 移动次数
     let stats_x = BOARD_X;
     let stats_y = BOARD_Y + BOARD_ROWS * (CELL_SIZE + CELL_GAP) + 10;
@@ -462,7 +462,7 @@ fn draw_stats(canvas: &Canvas) {
     draw_text_simple(canvas, exit_label_x, label_y, "EXIT ->", EXIT_COLOR, 8);
 }
 
-fn draw_char_3x5(canvas: &Canvas, x: i32, y: i32, color: u32, data: [][]i32) {
+fn draw_char_3x5(canvas: Canvas*, x: i32, y: i32, color: u32, data: [][]i32) {
     let pixel_size = 4;
     for row in 0..5 {
         for col in 0..3 {
@@ -473,15 +473,15 @@ fn draw_char_3x5(canvas: &Canvas, x: i32, y: i32, color: u32, data: [][]i32) {
     }
 }
 
-fn draw_number(canvas: &Canvas, x: i32, y: i32, n: i32, color: u32) {
+fn draw_number(canvas: Canvas*, x: i32, y: i32, n: i32, color: u32) {
     // 绘制数字
     if n < 0 {
         n = 0;
     }
     
-    var digits: [10]i32;
-    var count = 0;
-    var num = n;
+    let digits: [i32; 10];
+    let count = 0;
+    let num = n;
     
     if num == 0 {
         digits[0] = 0;
@@ -502,7 +502,7 @@ fn draw_number(canvas: &Canvas, x: i32, y: i32, n: i32, color: u32) {
     }
 }
 
-fn draw_digit_3x5(canvas: &Canvas, x: i32, y: i32, d: i32, color: u32) {
+fn draw_digit_3x5(canvas: Canvas*, x: i32, y: i32, d: i32, color: u32) {
     let patterns: [10][][]i32 = [
         // 0
         [[1,1,1],[1,0,1],[1,0,1],[1,0,1],[1,1,1]],
@@ -530,7 +530,7 @@ fn draw_digit_3x5(canvas: &Canvas, x: i32, y: i32, d: i32, color: u32) {
     draw_char_3x5(canvas, x, y, color, data);
 }
 
-fn draw_hints(canvas: &Canvas) {
+fn draw_hints(canvas: Canvas*) {
     // 底部提示
     let hint_y = WINDOW_HEIGHT - 25;
     
@@ -542,7 +542,7 @@ fn draw_hints(canvas: &Canvas) {
     draw_text_simple(canvas, 315, hint_y, "ESC: EXIT", 0xFF7F8C8D, 8);
 }
 
-fn draw_win_message(canvas: &Canvas) {
+fn draw_win_message(canvas: Canvas*) {
     // 半透明覆盖
     for py in 0..WINDOW_HEIGHT {
         for px in 0..WINDOW_WIDTH {
@@ -587,15 +587,15 @@ fn draw_win_message(canvas: &Canvas) {
 // ==================== 主函数入口 ====================
 
 pub fn main() {
-    io.println("===========================================");
-    io.println("  Zen-C 华容道 Klotski Game");
-    io.println("  Framework v1.0.0");
-    io.println("===========================================");
+    io.println "===========================================";
+    io.println "  Zen-C 华容道 Klotski Game";
+    io.println "  Framework v1.0.0";
+    io.println "===========================================";
     
     // 创建并运行游戏
-    var game = HuarongDao.("华容道 Klotski", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    let game = HuarongDao("华容道 Klotski", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
     game.run();
     game.destroy();
     
-    io.println("Goodbye!");
+    io.println "Goodbye!";
 }

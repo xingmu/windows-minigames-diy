@@ -3,70 +3,70 @@
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 500;
-const GAME_HEIGHT: i32 = 700;
+def GAME_WIDTH: i32 = 500;
+def GAME_HEIGHT: i32 = 700;
 
 // 球道尺寸
-const LANE_LEFT: i32 = 100;
-const LANE_RIGHT: i32 = 400;
-const LANE_TOP: i32 = 80;
-const LANE_BOTTOM: i32 = 600;
-const LANE_WIDTH: i32 = LANE_RIGHT - LANE_LEFT;
-const LANE_HEIGHT: i32 = LANE_BOTTOM - LANE_TOP;
+def LANE_LEFT: i32 = 100;
+def LANE_RIGHT: i32 = 400;
+def LANE_TOP: i32 = 80;
+def LANE_BOTTOM: i32 = 600;
+def LANE_WIDTH: i32 = LANE_RIGHT - LANE_LEFT;
+def LANE_HEIGHT: i32 = LANE_BOTTOM - LANE_TOP;
 
 // 发射区 (底部)
-const SHOOT_ZONE_Y: i32 = 620;
-const SHOOT_ZONE_HEIGHT: i32 = 60;
+def SHOOT_ZONE_Y: i32 = 620;
+def SHOOT_ZONE_HEIGHT: i32 = 60;
 
 // 缓冲区顶部 (球不能越过)
-const BUZZER_LINE: i32 = 100;
+def BUZZER_LINE: i32 = 100;
 
 // 计分区
-const ZONE_10_Y: i32 = 120;    // 10分区 (最近)
-const ZONE_8_Y: i32 = 180;     // 8分区
-const ZONE_7_Y: i32 = 240;     // 7分区
-const ZONE_6_Y: i32 = 300;     // 6分区
-const ZONE_5_Y: i32 = 360;     // 5分区
-const ZONE_4_Y: i32 = 420;     // 4分区
-const ZONE_3_Y: i32 = 480;     // 3分区
-const ZONE_2_Y: i32 = 540;     // 2分区
-const ZONE_1_Y: i32 = 600;     // 1分区 (最远)
+def ZONE_10_Y: i32 = 120;    // 10分区 (最近)
+def ZONE_8_Y: i32 = 180;     // 8分区
+def ZONE_7_Y: i32 = 240;     // 7分区
+def ZONE_6_Y: i32 = 300;     // 6分区
+def ZONE_5_Y: i32 = 360;     // 5分区
+def ZONE_4_Y: i32 = 420;     // 4分区
+def ZONE_3_Y: i32 = 480;     // 3分区
+def ZONE_2_Y: i32 = 540;     // 2分区
+def ZONE_1_Y: i32 = 600;     // 1分区 (最远)
 
 // 球的半径
-const PUCK_RADIUS: i32 = 18;
+def PUCK_RADIUS: i32 = 18;
 
 // 最大球数
-const MAX_PUCKS: i32 = 16;
+def MAX_PUCKS: i32 = 16;
 
 // 摩擦系数
-const FRICTION: i32 = 3;
+def FRICTION: i32 = 3;
 
 // 最大发射力度
-const MAX_POWER: i32 = 25;
+def MAX_POWER: i32 = 25;
 
 // 最小速度阈值
-const MIN_VELOCITY: i32 = 1;
+def MIN_VELOCITY: i32 = 1;
 
 // 出界高度 (球道顶部以上)
-const OUT_OF_BOUNDS_Y: i32 = BUZZER_LINE - PUCK_RADIUS - 5;
+def OUT_OF_BOUNDS_Y: i32 = BUZZER_LINE - PUCK_RADIUS - 5;
 
 // ==================== 计分区颜色 ====================
 
-const ZONE_10_COLOR: Color = Color.RGB(255, 215, 0);   // 金色
-const ZONE_8_COLOR: Color = Color.RGB(192, 192, 192);  // 银色
-const ZONE_7_COLOR: Color = Color.RGB(205, 127, 50);   // 青铜
-const ZONE_6_COLOR: Color = Color.RGB(220, 20, 60);    // 深红
-const ZONE_5_COLOR: Color = Color.RGB(30, 144, 255);   // 道奇蓝
-const ZONE_4_COLOR: Color = Color.RGB(50, 205, 50);    // 草绿
-const ZONE_3_COLOR: Color = Color.RGB(255, 182, 193); // 粉红
-const ZONE_2_COLOR: Color = Color.RGB(138, 43, 226);   // 蓝紫
-const ZONE_1_COLOR: Color = Color.RGB(255, 228, 181);  // 玉米丝
+def ZONE_10_COLOR: Color = Color.RGB(255, 215, 0);   // 金色
+def ZONE_8_COLOR: Color = Color.RGB(192, 192, 192);  // 银色
+def ZONE_7_COLOR: Color = Color.RGB(205, 127, 50);   // 青铜
+def ZONE_6_COLOR: Color = Color.RGB(220, 20, 60);    // 深红
+def ZONE_5_COLOR: Color = Color.RGB(30, 144, 255);   // 道奇蓝
+def ZONE_4_COLOR: Color = Color.RGB(50, 205, 50);    // 草绿
+def ZONE_3_COLOR: Color = Color.RGB(255, 182, 193); // 粉红
+def ZONE_2_COLOR: Color = Color.RGB(138, 43, 226);   // 蓝紫
+def ZONE_1_COLOR: Color = Color.RGB(255, 228, 181);  // 玉米丝
 
 // 玩家球颜色
-const PUCK_RED: Color = Color.RGB(220, 30, 30);
-const PUCK_BLUE: Color = Color.RGB(30, 30, 220);
-const PUCK_YELLOW: Color = Color.RGB(220, 220, 30);
-const PUCK_GREEN: Color = Color.RGB(30, 180, 30);
+def PUCK_RED: Color = Color.RGB(220, 30, 30);
+def PUCK_BLUE: Color = Color.RGB(30, 30, 220);
+def PUCK_YELLOW: Color = Color.RGB(220, 220, 30);
+def PUCK_GREEN: Color = Color.RGB(30, 180, 30);
 
 // ==================== 数据结构 ====================
 
@@ -150,7 +150,7 @@ fn dist2(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
 }
 
 // 两球是否碰撞
-fn pucksColliding(p1: &Puck, p2: &Puck) -> bool {
+fn pucksColliding(p1: Puck*, p2: Puck*) -> bool {
     if !p1.active || !p2.active {
         return false;
     }
@@ -256,7 +256,7 @@ fn getZoneScore(y: i32) -> i32 {
     return 0;
 }
 
-const ZONE_9_Y: i32 = 150; // 9分区 (10和8之间)
+def ZONE_9_Y: i32 = 150; // 9分区 (10和8之间)
 
 // 计算并显示分数
 fn calculateScores(state: &mut ShuffleboardState) {
@@ -304,7 +304,7 @@ fn init_game(state: &mut ShuffleboardState) {
     
     // 清空所有球
     for i in 0..MAX_PUCKS {
-        state.pucks[i] = Puck.{
+        state.pucks[i] = Puck {
             x: 0, y: 0, vx: 0, vy: 0,
             radius: PUCK_RADIUS,
             color: PUCK_RED,
@@ -323,7 +323,7 @@ fn resetRound(state: &mut ShuffleboardState) {
         state.pucks[i].scored = false;
     }
     state.status = GameStatus.Ready;
-    state.message = "玩家" ++ state.currentPlayer.toString() ++ ": 点击并向上拖拽发射!";
+    state.message = "玩家{state}"."{currentPlayer}: 点击并向上拖拽发射!";
 }
 
 // 添加一个球
@@ -334,7 +334,7 @@ fn addPuck(state: &mut ShuffleboardState, x: i32, y: i32, player: i32) -> i32 {
     
     let color = if player == 1 { PUCK_RED } else { PUCK_BLUE };
     
-    state.pucks[state.puckCount] = Puck.{
+    state.pucks[state.puckCount] = Puck {
         x: x,
         y: y,
         vx: 0,
@@ -376,7 +376,7 @@ fn shoot(state: &mut ShuffleboardState, x: i32, power: i32) {
 
 // 更新所有球的物理状态
 fn updatePucks(state: &mut ShuffleboardState) -> bool {
-    var anyMoving = false;
+    let anyMoving = false;
 
     for i in 0..state.puckCount {
         if !state.pucks[i].active {
@@ -425,7 +425,7 @@ fn updatePucks(state: &mut ShuffleboardState) -> bool {
 }
 
 // 检查所有球是否静止
-fn allPucksStopped(state: &ShuffleboardState) -> bool {
+fn allPucksStopped(state: ShuffleboardState*) -> bool {
     for i in 0..state.puckCount {
         if state.pucks[i].active {
             if state.pucks[i].vx != 0 || state.pucks[i].vy != 0 {
@@ -483,14 +483,14 @@ fn onMouseUp(state: &mut ShuffleboardState, x: i32, y: i32) {
 
 // ==================== 状态查询 ====================
 
-fn getStatusText(state: &ShuffleboardState) -> string {
+fn getStatusText(state: ShuffleboardState*) -> string {
     match state.status {
-        GameStatus.Ready => return state.message,
-        GameStatus.Aiming => return "瞄准中...",
-        GameStatus.Charging => return "蓄力中: " ++ state.power.toString() ++ "  松开发射!",
-        GameStatus.Moving => return "球运动中...",
-        GameStatus.Scoring => return "计分中...",
-        GameStatus.GameOver => return "游戏结束! 点击重新开始",
+        GameStatus::Ready => return state.message,
+        GameStatus::Aiming => return "瞄准中...",
+        GameStatus::Charging => return "蓄力中: {state}"."{power}  松开发射!",
+        GameStatus::Moving => return "球运动中...",
+        GameStatus::Scoring => return "计分中...",
+        GameStatus::GameOver => return "游戏结束! 点击重新开始",
     }
 }
 

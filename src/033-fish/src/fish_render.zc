@@ -1,10 +1,10 @@
 // fish_render.zc - 鱼的绘制函数
 // 捕鱼达人游戏 - Zen-C
 
-import std.io;
+import "io.zc";
 
 // 鱼类型枚举
-pub type FishType = enum {
+enum FishType {
     SmallFish,    // 小鱼 - 绿色 - 10分
     MediumFish,   // 中鱼 - 蓝色 - 25分
     LargeFish,    // 大鱼 - 金色 - 50分
@@ -49,11 +49,11 @@ pub struct Cannon {
 // 根据鱼类型获取分数
 pub fn get_fish_score(fishType: FishType) -> i32 {
     match fishType {
-        FishType.SmallFish => return 10;
-        FishType.MediumFish => return 25;
-        FishType.LargeFish => return 50;
-        FishType.Shark => return 100;
-        FishType.GoldFish => return 200;
+        FishType::SmallFish => return 10;
+        FishType::MediumFish => return 25;
+        FishType::LargeFish => return 50;
+        FishType::Shark => return 100;
+        FishType::GoldFish => return 200;
         _ => return 0;
     }
 }
@@ -61,11 +61,11 @@ pub fn get_fish_score(fishType: FishType) -> i32 {
 // 根据鱼类型获取大小
 pub fn get_fish_size(fishType: FishType) -> i32 {
     match fishType {
-        FishType.SmallFish => return 20;
-        FishType.MediumFish => return 35;
-        FishType.LargeFish => return 50;
-        FishType.Shark => return 70;
-        FishType.GoldFish => return 25;
+        FishType::SmallFish => return 20;
+        FishType::MediumFish => return 35;
+        FishType::LargeFish => return 50;
+        FishType::Shark => return 70;
+        FishType::GoldFish => return 25;
         _ => return 30;
     }
 }
@@ -73,11 +73,11 @@ pub fn get_fish_size(fishType: FishType) -> i32 {
 // 根据鱼类型获取速度
 pub fn get_fish_speed(fishType: FishType) -> f32 {
     match fishType {
-        FishType.SmallFish => return 3.0;
-        FishType.MediumFish => return 2.0;
-        FishType.LargeFish => return 1.2;
-        FishType.Shark => return 1.8;
-        FishType.GoldFish => return 4.0;
+        FishType::SmallFish => return 3.0;
+        FishType::MediumFish => return 2.0;
+        FishType::LargeFish => return 1.2;
+        FishType::Shark => return 1.8;
+        FishType::GoldFish => return 4.0;
         _ => return 2.0;
     }
 }
@@ -85,185 +85,185 @@ pub fn get_fish_speed(fishType: FishType) -> f32 {
 // 绘制鱼身体
 fn draw_fish_body(x: i32, y: i32, size: i32, angle: f32, bodyColor: Color, finColor: Color) {
     // 根据角度计算鱼头朝向
-    var dirX = cosi(angle);
-    var dirY = sini(angle);
+    let dirX = cosi(angle);
+    let dirY = sini(angle);
     
     // 鱼身主体 (椭圆形)
-    var bodyW = size;
-    var bodyH = size / 2;
+    let bodyW = size;
+    let bodyH = size / 2;
     
     // 绘制鱼身
     fb_draw_ellipse(x, y, bodyW, bodyH, bodyColor);
     
     // 绘制鱼头
-    var headX = x + dirX * bodyW / 2;
-    var headY = y + dirY * bodyW / 2;
+    let headX = x + dirX * bodyW / 2;
+    let headY = y + dirY * bodyW / 2;
     fb_draw_circle(headX, headY, size / 3, bodyColor);
     
     // 绘制鱼鳍
-    var finX = x - dirX * bodyW / 4;
-    var finY = y - dirY * bodyH;
+    let finX = x - dirX * bodyW / 4;
+    let finY = y - dirY * bodyH;
     fb_draw_triangle(finX, finY, finX - bodyW / 3, finY, finX, finY + bodyH / 2, finColor);
     
     // 绘制鱼尾
-    var tailX = x - dirX * bodyW / 2;
-    var tailY = y - dirY * bodyW / 2;
-    var tailW = bodyW / 3;
+    let tailX = x - dirX * bodyW / 2;
+    let tailY = y - dirY * bodyW / 2;
+    let tailW = bodyW / 3;
     fb_draw_triangle(tailX, tailY, tailX - dirX * tailW - dirY * tailW / 2, tailY - dirY * tailW + dirX * tailW / 2, 
                      tailX - dirX * tailW + dirY * tailW / 2, tailY - dirY * tailW - dirX * tailW / 2, finColor);
     
     // 绘制鱼眼
-    var eyeX = headX + dirX * size / 5 + dirY * size / 6;
-    var eyeY = headY + dirY * size / 5 - dirX * size / 6;
-    fb_draw_circle(eyeX, eyeY, size / 10, Color.{r: 255 as u8, g: 255 as u8, b: 255 as u8});
-    fb_draw_circle(eyeX + dirX * 2, eyeY + dirY * 2, size / 20, Color.{r: 0 as u8, g: 0 as u8, b: 0 as u8});
+    let eyeX = headX + dirX * size / 5 + dirY * size / 6;
+    let eyeY = headY + dirY * size / 5 - dirX * size / 6;
+    fb_draw_circle(eyeX, eyeY, size / 10, Color {r: (u8)255, g: (u8)255, b: (u8)255});
+    fb_draw_circle(eyeX + dirX * 2, eyeY + dirY * 2, size / 20, Color {r: (u8)0, g: (u8)0, b: (u8)0});
 }
 
 // 绘制小鱼 (绿色)
-pub fn draw_small_fish(fish: &Fish) {
-    var color = Color.{r: 80 as u8, g: 200 as u8, b: 80 as u8};
-    var finColor = Color.{r: 60 as u8, g: 160 as u8, b: 60 as u8};
-    draw_fish_body(fish.x as i32, fish.y as i32, fish.size, fish.angle, color, finColor);
+pub fn draw_small_fish(fish: Fish*) {
+    let color = Color {r: (u8)80, g: (u8)200, b: (u8)80};
+    let finColor = Color {r: (u8)60, g: (u8)160, b: (u8)60};
+    draw_fish_body(fish.(i32)x, fish.(i32)y, fish.size, fish.angle, color, finColor);
 }
 
 // 绘制中鱼 (蓝色)
-pub fn draw_medium_fish(fish: &Fish) {
-    var color = Color.{r: 60 as u8, g: 140 as u8, b: 220 as u8};
-    var finColor = Color.{r: 40 as u8, g: 100 as u8, b: 180 as u8};
-    draw_fish_body(fish.x as i32, fish.y as i32, fish.size, fish.angle, color, finColor);
+pub fn draw_medium_fish(fish: Fish*) {
+    let color = Color {r: (u8)60, g: (u8)140, b: (u8)220};
+    let finColor = Color {r: (u8)40, g: (u8)100, b: (u8)180};
+    draw_fish_body(fish.(i32)x, fish.(i32)y, fish.size, fish.angle, color, finColor);
 }
 
 // 绘制大鱼 (金色)
-pub fn draw_large_fish(fish: &Fish) {
-    var color = Color.{r: 255 as u8, g: 215 as u8, b: 0 as u8};
-    var finColor = Color.{r: 200 as u8, g: 170 as u8, b: 0 as u8};
-    draw_fish_body(fish.x as i32, fish.y as i32, fish.size, fish.angle, color, finColor);
+pub fn draw_large_fish(fish: Fish*) {
+    let color = Color {r: (u8)255, g: (u8)215, b: (u8)0};
+    let finColor = Color {r: (u8)200, g: (u8)170, b: (u8)0};
+    draw_fish_body(fish.(i32)x, fish.(i32)y, fish.size, fish.angle, color, finColor);
 }
 
 // 绘制鲨鱼 (红色)
-pub fn draw_shark(fish: &Fish) {
-    var color = Color.{r: 200 as u8, g: 60 as u8, b: 60 as u8};
-    var finColor = Color.{r: 150 as u8, g: 40 as u8, b: 40 as u8};
-    draw_fish_body(fish.x as i32, fish.y as i32, fish.size, fish.angle, color, finColor);
+pub fn draw_shark(fish: Fish*) {
+    let color = Color {r: (u8)200, g: (u8)60, b: (u8)60};
+    let finColor = Color {r: (u8)150, g: (u8)40, b: (u8)40};
+    draw_fish_body(fish.(i32)x, fish.(i32)y, fish.size, fish.angle, color, finColor);
     
     // 鲨鱼背鳍
-    var dirX = cosi(fish.angle);
-    var dirY = sini(fish.angle);
-    var finX = fish.x as i32 - dirY * fish.size / 3;
-    var finY = fish.y as i32 + dirX * fish.size / 3;
+    let dirX = cosi(fish.angle);
+    let dirY = sini(fish.angle);
+    let finX = fish.(i32)x - dirY * fish.size / 3;
+    let finY = fish.(i32)y + dirX * fish.size / 3;
     fb_draw_triangle(finX, finY, finX - fish.size / 2, finY, finX, finY - fish.size / 2, finColor);
 }
 
 // 绘制金鱼 (彩虹)
-pub fn draw_goldfish(fish: &Fish) {
+pub fn draw_goldfish(fish: Fish*) {
     // 彩虹效果 - 根据动画帧改变颜色
-    var frame = fish.animFrame;
-    var r: u8 = ((frame * 17) % 200 + 55) as u8;
-    var g: u8 = ((frame * 23 + 100) % 200 + 55) as u8;
-    var b: u8 = ((frame * 31 + 200) % 200 + 55) as u8;
+    let frame = fish.animFrame;
+    let r: u8 = ((frame * 17) % 200 + 55) as u8;
+    let g: u8 = ((frame * 23 + 100) % 200 + 55) as u8;
+    let b: u8 = ((frame * 31 + 200) % 200 + 55) as u8;
     
-    var color = Color.{r: r, g: g, b: b};
-    var finColor = Color.{r: (r as i32 - 30) as u8, g: (g as i32 - 30) as u8, b: (b as i32 - 30) as u8};
-    draw_fish_body(fish.x as i32, fish.y as i32, fish.size, fish.angle, color, finColor);
+    let color = Color {r: r, g: g, b: b};
+    let finColor = Color {r: (u8)((i32)r - 30), g: (u8)((i32)g - 30), b: (u8)((i32)b - 30)};
+    draw_fish_body(fish.(i32)x, fish.(i32)y, fish.size, fish.angle, color, finColor);
     
     // 金鱼发光效果
-    fb_draw_circle(fish.x as i32, fish.y as i32, fish.size / 2 + 5, Color.{r: 255 as u8, g: 255 as u8, b: 100 as u8});
+    fb_draw_circle(fish.(i32)x, fish.(i32)y, fish.size / 2 + 5, Color {r: (u8)255, g: (u8)255, b: (u8)100});
 }
 
 // 根据类型绘制鱼
-pub fn draw_fish(fish: &Fish) {
+pub fn draw_fish(fish: Fish*) {
     if !fish.alive {
         return;
     }
     
     match fish.fishType {
-        FishType.SmallFish => draw_small_fish(fish);
-        FishType.MediumFish => draw_medium_fish(fish);
-        FishType.LargeFish => draw_large_fish(fish);
-        FishType.Shark => draw_shark(fish);
-        FishType.GoldFish => draw_goldfish(fish);
+        FishType::SmallFish => draw_small_fish(fish);
+        FishType::MediumFish => draw_medium_fish(fish);
+        FishType::LargeFish => draw_large_fish(fish);
+        FishType::Shark => draw_shark(fish);
+        FishType::GoldFish => draw_goldfish(fish);
         _ => draw_small_fish(fish);
     }
 }
 
 // 绘制炮弹
-pub fn draw_bullet(bullet: &Bullet) {
+pub fn draw_bullet(bullet: Bullet*) {
     if !bullet.active {
         return;
     }
     
-    var x = bullet.x as i32;
-    var y = bullet.y as i32;
+    let x = bullet.x as i32;
+    let y = bullet.y as i32;
     
     // 炮弹发光效果
-    fb_draw_circle(x, y, 8 + bullet.power, Color.{r: 255 as u8, g: 200 as u8, b: 50 as u8});
-    fb_draw_circle(x, y, 5 + bullet.power, Color.{r: 255 as u8, g: 150 as u8, b: 0 as u8});
-    fb_draw_circle(x, y, 3 + bullet.power / 2, Color.{r: 255 as u8, g: 255 as u8, b: 200 as u8});
+    fb_draw_circle(x, y, 8 + bullet.power, Color {r: (u8)255, g: (u8)200, b: (u8)50});
+    fb_draw_circle(x, y, 5 + bullet.power, Color {r: (u8)255, g: (u8)150, b: (u8)0});
+    fb_draw_circle(x, y, 3 + bullet.power / 2, Color {r: (u8)255, g: (u8)255, b: (u8)200});
     
     // 拖尾效果
     for i in 1..bullet.trail {
-        var tx = (bullet.x - bullet.vx * i as f32 * 0.5) as i32;
-        var ty = (bullet.y - bullet.vy * i as f32 * 0.5) as i32;
-        var alpha = 255 - i * 30;
+        let tx = (bullet.x - bullet.vx * i as f32 * 0.5) as i32;
+        let ty = (bullet.y - bullet.vy * i as f32 * 0.5) as i32;
+        let alpha = 255 - i * 30;
         if alpha < 0 { alpha = 0; }
-        fb_draw_circle(tx, ty, 4 - i / 2, Color.{r: 255 as u8, g: 180 as u8, b: 50 as u8});
+        fb_draw_circle(tx, ty, 4 - i / 2, Color {r: (u8)255, g: (u8)180, b: (u8)50});
     }
 }
 
 // 绘制炮台
-pub fn draw_cannon(cannon: &Cannon) {
-    var x = cannon.x;
-    var y = cannon.y;
-    var angle = cannon.angle;
+pub fn draw_cannon(cannon: Cannon*) {
+    let x = cannon.x;
+    let y = cannon.y;
+    let angle = cannon.angle;
     
     // 炮台底座
-    fb_draw_circle(x, y, 30, Color.{r: 139 as u8, g: 90 as u8, b: 43 as u8});
-    fb_draw_circle(x, y, 25, Color.{r: 160 as u8, g: 110 as u8, b: 60 as u8});
+    fb_draw_circle(x, y, 30, Color {r: (u8)139, g: (u8)90, b: (u8)43});
+    fb_draw_circle(x, y, 25, Color {r: (u8)160, g: (u8)110, b: (u8)60});
     
     // 炮管
-    var dirX = cosi(angle);
-    var dirY = sini(angle);
-    var barrelLen = 35 + cannon.level * 5;
+    let dirX = cosi(angle);
+    let dirY = sini(angle);
+    let barrelLen = 35 + cannon.level * 5;
     
     // 炮管矩形
-    var barrelW = 12 + cannon.level * 2;
-    var endX = x + dirX * barrelLen;
-    var endY = y + dirY * barrelLen;
+    let barrelW = 12 + cannon.level * 2;
+    let endX = x + dirX * barrelLen;
+    let endY = y + dirY * barrelLen;
     
-    fb_draw_line(x, y, endX as i32, endY as i32, Color.{r: 100 as u8, g: 100 as u8, b: 100 as u8}, barrelW);
+    fb_draw_line(x, y, (i32)endX, (i32)endY, Color {r: (u8)100, g: (u8)100, b: (u8)100}, barrelW);
     
     // 炮管口
-    fb_draw_circle(endX as i32, endY as i32, barrelW / 2 + 2, Color.{r: 80 as u8, g: 80 as u8, b: 80 as u8});
+    fb_draw_circle((i32)endX, (i32)endY, barrelW / 2 + 2, Color {r: (u8)80, g: (u8)80, b: (u8)80});
     
     // 装饰环
-    fb_draw_circle(x, y, 20, Color.{r: 180 as u8, g: 130 as u8, b: 80 as u8});
+    fb_draw_circle(x, y, 20, Color {r: (u8)180, g: (u8)130, b: (u8)80});
     
     // 等级显示
-    var levelStr = cannon.level.toString();
-    fb_draw_text_size(x - 4, y - 6, levelStr, Color.{r: 255 as u8, g: 255 as u8, b: 0 as u8}, 14);
+    let levelStr = cannon.level.toString();
+    fb_draw_text_size(x - 4, y - 6, levelStr, Color {r: (u8)255, g: (u8)255, b: (u8)0}, 14);
 }
 
 // 绘制瞄准线
-pub fn draw_aim_line(cannon: &Cannon, mouseX: i32, mouseY: i32) {
-    var dx = mouseX - cannon.x;
-    var dy = mouseY - cannon.y;
-    var dist = sqrti(dx * dx + dy * dy);
+pub fn draw_aim_line(cannon: Cannon*, mouseX: i32, mouseY: i32) {
+    let dx = mouseX - cannon.x;
+    let dy = mouseY - cannon.y;
+    let dist = sqrti(dx * dx + dy * dy);
     
     if dist == 0 { dist = 1; }
     
-    var dirX = dx * 1000 / dist;
-    var dirY = dy * 1000 / dist;
+    let dirX = dx * 1000 / dist;
+    let dirY = dy * 1000 / dist;
     
     // 绘制虚线瞄准
     for i in 0..10 {
-        var t = i * 80;
-        var x1 = cannon.x + dirX * t / 1000;
-        var y1 = cannon.y + dirY * t / 1000;
-        var x2 = cannon.x + dirX * (t + 40) / 1000;
-        var y2 = cannon.y + dirY * (t + 40) / 1000;
+        let t = i * 80;
+        let x1 = cannon.x + dirX * t / 1000;
+        let y1 = cannon.y + dirY * t / 1000;
+        let x2 = cannon.x + dirX * (t + 40) / 1000;
+        let y2 = cannon.y + dirY * (t + 40) / 1000;
         
         if i % 2 == 0 {
-            fb_draw_rect(x1 as i32 - 2, y1 as i32 - 2, 4, 4, Color.{r: 255 as u8, g: 255 as u8, b: 0 as u8});
+            fb_draw_rect((i32)x1 - 2, (i32)y1 - 2, 4, 4, Color {r: (u8)255, g: (u8)255, b: (u8)0});
         }
     }
 }
@@ -271,16 +271,16 @@ pub fn draw_aim_line(cannon: &Cannon, mouseX: i32, mouseY: i32) {
 // 数学辅助函数
 fn cosi(angle: f32) -> f32 {
     // 简化的cos近似
-    var a = angle % (2.0 * 3.14159);
+    let a = angle % (2.0 * 3.14159);
     if a < 0.0 { a = a + 2.0 * 3.14159; }
     
     // 使用查找表近似
-    var idx = ((a / (2.0 * 3.14159)) * 360.0) as i32;
+    let idx = ((a / (2.0 * 3.14159)) * 360.0) as i32;
     idx = idx % 360;
     if idx < 0 { idx = idx + 360; }
     
     // 简化的cos计算
-    var result = 1.0 - (a * a) / 2.0 + (a * a * a * a) / 24.0 - (a * a * a * a * a * a) / 720.0;
+    let result = 1.0 - (a * a) / 2.0 + (a * a * a * a) / 24.0 - (a * a * a * a * a * a) / 720.0;
     
     // 确保在[-1, 1]范围内
     if result > 1.0 { result = 1.0; }
@@ -297,8 +297,8 @@ fn sqrti(n: i32) -> i32 {
     if n < 0 { return 0; }
     if n == 0 { return 0; }
     
-    var x = n;
-    var y = 1;
+    let x = n;
+    let y = 1;
     
     while (y < x) {
         x = (x + y) / 2;

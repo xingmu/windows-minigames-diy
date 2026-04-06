@@ -1,51 +1,51 @@
 // game_logic.zc - Zen-C Pachinko（弹珠台）游戏核心逻辑
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 480;
-const GAME_HEIGHT: i32 = 640;
-const BALL_RADIUS: i32 = 8;
-const PEG_RADIUS: i32 = 6;
-const LAUNCHER_WIDTH: i32 = 60;
-const LAUNCHER_HEIGHT: i32 = 12;
-const FLIPPER_LENGTH: i32 = 60;
-const FLIPPER_WIDTH: i32 = 10;
-const GRAVITY: i32 = 2;
-const BOUNCE: f32 = 0.75;
-const MAX_BALLS: i32 = 5;
+def GAME_WIDTH: i32 = 480;
+def GAME_HEIGHT: i32 = 640;
+def BALL_RADIUS: i32 = 8;
+def PEG_RADIUS: i32 = 6;
+def LAUNCHER_WIDTH: i32 = 60;
+def LAUNCHER_HEIGHT: i32 = 12;
+def FLIPPER_LENGTH: i32 = 60;
+def FLIPPER_WIDTH: i32 = 10;
+def GRAVITY: i32 = 2;
+def BOUNCE: f32 = 0.75;
+def MAX_BALLS: i32 = 5;
 
 // 弹珠发射器位置
-const LAUNCHER_X: i32 = (GAME_WIDTH - LAUNCHER_WIDTH) / 2;
-const LAUNCHER_Y: i32 = GAME_HEIGHT - 50;
+def LAUNCHER_X: i32 = (GAME_WIDTH - LAUNCHER_WIDTH) / 2;
+def LAUNCHER_Y: i32 = GAME_HEIGHT - 50;
 
 // 弹珠发射力度
-const LAUNCH_POWER_MIN: i32 = 12;
-const LAUNCH_POWER_MAX: i32 = 20;
+def LAUNCH_POWER_MIN: i32 = 12;
+def LAUNCH_POWER_MAX: i32 = 20;
 
 // 钉子网格
-const PEG_ROWS: i32 = 8;
-const PEG_COLS: i32 = 9;
-const PEG_SPACING_X: i32 = 50;
-const PEG_SPACING_Y: i32 = 55;
-const PEG_START_X: i32 = 40;
-const PEG_START_Y: i32 = 120;
+def PEG_ROWS: i32 = 8;
+def PEG_COLS: i32 = 9;
+def PEG_SPACING_X: i32 = 50;
+def PEG_SPACING_Y: i32 = 55;
+def PEG_START_X: i32 = 40;
+def PEG_START_Y: i32 = 120;
 
 // 得分区域
-const SCORE_ZONE_HEIGHT: i32 = 30;
-const SCORE_ZONE_Y: i32 = GAME_HEIGHT - SCORE_ZONE_HEIGHT;
+def SCORE_ZONE_HEIGHT: i32 = 30;
+def SCORE_ZONE_Y: i32 = GAME_HEIGHT - SCORE_ZONE_HEIGHT;
 
 // 翻转器
-const FLIPPER_Y: i32 = GAME_HEIGHT - 90;
-const FLIPPER_PIVOT_LEFT: i32 = 70;
-const FLIPPER_PIVOT_RIGHT: i32 = GAME_WIDTH - 70;
-const FLIPPER_ANGLE_SPEED: f32 = 0.15;
-const FLIPPER_MAX_ANGLE: f32 = 0.6;
+def FLIPPER_Y: i32 = GAME_HEIGHT - 90;
+def FLIPPER_PIVOT_LEFT: i32 = 70;
+def FLIPPER_PIVOT_RIGHT: i32 = GAME_WIDTH - 70;
+def FLIPPER_ANGLE_SPEED: f32 = 0.15;
+def FLIPPER_MAX_ANGLE: f32 = 0.6;
 
 // ==================== 得分区域 ====================
 
-const SCORE_ZONE_VALUES: [5]i32 = [500, 200, 100, 50, 10];
+def SCORE_ZONE_VALUES: [i32; 5] = [500, 200, 100, 50, 10];
 
 // ==================== 游戏状态 ====================
 
@@ -107,9 +107,9 @@ struct ScoreZone {
 struct PachinkoState {
     balls: [MAX_BALLS]Ball,
     pegs: [PEG_ROWS * PEG_COLS]Peg,
-    flippers: [2]Flipper,
+    flippers: [Flipper; 2],
     launcher: Launcher,
-    zones: [5]ScoreZone,
+    zones: [ScoreZone; 5],
     score: i32,
     balls_remaining: i32,
     status: GameStatus,
@@ -211,7 +211,7 @@ fn init_pegs(game: &mut PachinkoState) {
 // 初始化得分区域
 fn init_zones(game: &mut PachinkoState) {
     let zone_width = GAME_WIDTH / 5;
-    let colors: [5]Color = [
+    let colors: [Color; 5] = [
         rgb(255, 215, 0),   // 金色 - 500分
         rgb(255, 69, 0),    // 橙红 - 200分
         rgb(255, 165, 0),   // 橙色 - 100分
@@ -231,7 +231,7 @@ fn init_zones(game: &mut PachinkoState) {
 }
 
 // 获取空闲弹珠
-fn get_free_ball(game: &PachinkoState) -> i32 {
+fn get_free_ball(game: PachinkoState*) -> i32 {
     for i in 0..MAX_BALLS {
         if !game.balls[i].active {
             return i;
@@ -276,26 +276,26 @@ fn update_aiming(game: &mut PachinkoState, delta_power: i32) {
 // 处理键盘输入
 fn handle_input(game: &mut PachinkoState, key: KeyCode) -> bool {
     match key {
-        KeyCode.KeySpace => {
+        KeyCode::KeySpace => {
             if game.status == GameStatus.GameOver {
                 init_game(game);
             } else {
                 launch_ball(game);
             }
         },
-        KeyCode.KeyUp => {
+        KeyCode::KeyUp => {
             update_aiming(game, 1);
         },
-        KeyCode.KeyDown => {
+        KeyCode::KeyDown => {
             update_aiming(game, -1);
         },
-        KeyCode.KeyLeft => {
+        KeyCode::KeyLeft => {
             game.flippers[0].target_angle = FLIPPER_MAX_ANGLE;
         },
-        KeyCode.KeyRight => {
+        KeyCode::KeyRight => {
             game.flippers[1].target_angle = 3.14 - FLIPPER_MAX_ANGLE;
         },
-        KeyCode.KeyEscape => {
+        KeyCode::KeyEscape => {
             return false;
         },
         _ => {}
@@ -306,10 +306,10 @@ fn handle_input(game: &mut PachinkoState, key: KeyCode) -> bool {
 // 释放翻转器
 fn handle_key_up(game: &mut PachinkoState, key: KeyCode) {
     match key {
-        KeyCode.KeyLeft => {
+        KeyCode::KeyLeft => {
             game.flippers[0].target_angle = 0.3;
         },
-        KeyCode.KeyRight => {
+        KeyCode::KeyRight => {
             game.flippers[1].target_angle = 3.14 - 0.3;
         },
         _ => {}
@@ -317,7 +317,7 @@ fn handle_key_up(game: &mut PachinkoState, key: KeyCode) {
 }
 
 // 球与钉子碰撞
-fn ball_peg_collision(ball: &mut Ball, peg: &Peg) {
+fn ball_peg_collision(ball: &mut Ball, peg: Peg*) {
     let dx = ball.x - peg.x as f32;
     let dy = ball.y - peg.y as f32;
     let dist_sq = dx * dx + dy * dy;
@@ -350,7 +350,7 @@ fn ball_peg_collision(ball: &mut Ball, peg: &Peg) {
 }
 
 // 球与翻转器碰撞
-fn ball_flipper_collision(ball: &mut Ball, flipper: &Flipper) {
+fn ball_flipper_collision(ball: &mut Ball, flipper: Flipper*) {
     let end_x = flipper.x as f32 + math.cos(flipper.angle) * flipper.length as f32;
     let end_y = flipper.y as f32 + math.sin(flipper.angle) * flipper.length as f32;
 
@@ -443,7 +443,7 @@ fn check_score_zone(game: &mut PachinkoState, ball: &mut Ball) -> bool {
 fn update_flippers(game: &mut PachinkoState) {
     for i in 0..2 {
         let diff = game.flippers[i].target_angle - game.flippers[i].angle;
-        if abs_i(diff as i32) > 1 {
+        if abs_i((i32)diff) > 1 {
             if diff > 0.0 {
                 game.flippers[i].angle = game.flippers[i].angle + FLIPPER_ANGLE_SPEED;
             } else {
@@ -533,22 +533,22 @@ fn update_game(game: &mut PachinkoState) -> bool {
 }
 
 // 获取分数
-fn get_score(game: &PachinkoState) -> i32 {
+fn get_score(game: PachinkoState*) -> i32 {
     game.score
 }
 
 // 获取剩余球数
-fn get_balls_remaining(game: &PachinkoState) -> i32 {
+fn get_balls_remaining(game: PachinkoState*) -> i32 {
     game.balls_remaining
 }
 
 // 获取状态文本
-fn get_status_text(game: &PachinkoState) -> string {
+fn get_status_text(game: PachinkoState*) -> string {
     match game.status {
-        GameStatus.Ready => return "按空格发射弹珠  ↑↓调整力度",
-        GameStatus.Aiming => return "按空格发射弹珠  力度: " ++ game.launcher.power.toString(),
-        GameStatus.Playing => return "游戏中...",
-        GameStatus.GameOver => return "游戏结束! 按空格重新开始",
+        GameStatus::Ready => return "按空格发射弹珠  ↑↓调整力度",
+        GameStatus::Aiming => return "按空格发射弹珠  力度: {game}".launcher.power.toString(),
+        GameStatus::Playing => return "游戏中...",
+        GameStatus::GameOver => return "游戏结束! 按空格重新开始",
     }
 }
 

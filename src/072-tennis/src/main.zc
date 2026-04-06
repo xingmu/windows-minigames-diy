@@ -6,17 +6,17 @@ import "game.zc";
 import "game_logic.zc";
 
 pub fn main() {
-    println("===========================================");
-    println("  🎾 Tennis 网球游戏");
-    println("  Zen-C + 003-framework");
-    println("===========================================");
-    println("");
+    println "===========================================";
+    println "  🎾 Tennis 网球游戏";
+    println "  Zen-C + 003-framework";
+    println "===========================================";
+    println "";
     
     // 初始化平台
     initPlatform();
     
     // 创建网球游戏
-    var game = TennisGame.("Tennis - 网球", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    let game = TennisGame("Tennis - 网球", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
     game.run();
     game.destroy();
     

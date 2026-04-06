@@ -1,7 +1,7 @@
 // main_window.zc - 飞行棋 (Ludo) 游戏主程序
 // Zen-C 飞行棋游戏
 
-import std.io;
+import "io.zc";
 import "platform_api.zc";
 import "ludo_logic.zc";
 
@@ -9,12 +9,12 @@ import "ludo_logic.zc";
 // 常量
 // ============================================================================
 
-const WINDOW_WIDTH: int = 450;
-const WINDOW_HEIGHT: int = 530;
-const TARGET_FPS: int = 60;
-const FRAME_TIME: u32 = 1000 / TARGET_FPS;
+def WINDOW_WIDTH: int = 450;
+def WINDOW_HEIGHT: int = 530;
+def TARGET_FPS: int = 60;
+def FRAME_TIME: u32 = 1000 / TARGET_FPS;
 
-const PIECE_RADIUS: int = 10;
+def PIECE_RADIUS: int = 10;
 
 // ============================================================================
 // 全局游戏数据
@@ -32,44 +32,44 @@ static mut cpuThinkTimer: u32 = 0;
 
 fn getPieceClickArea(pieceIndex: int, player: int) -> (int, int, int, int) {
     // 返回棋子的矩形区域 (x, y, w, h)
-    var homeOffsets: [(int, int)] = [
+    let homeOffsets: [(int, int)] = [
         (-72, -72),
         (72, 72),
     ];
-    var off = homeOffsets[player];
-    var col = pieceIndex % 2;
-    var row = pieceIndex / 2;
-    var hx = off.0 + col * 20 + WINDOW_WIDTH / 2 - BOARD_SIZE / 2;
-    var hy = off.1 + row * 20 + WINDOW_HEIGHT / 2 - BOARD_SIZE / 2;
+    let off = homeOffsets[player];
+    let col = pieceIndex % 2;
+    let row = pieceIndex / 2;
+    let hx = off.0 + col * 20 + WINDOW_WIDTH / 2 - BOARD_SIZE / 2;
+    let hy = off.1 + row * 20 + WINDOW_HEIGHT / 2 - BOARD_SIZE / 2;
     return (hx - 15, hy - 15, 30, 30);
 }
 
 fn getTrackPieceClickArea(pieceIndex: int, player: int) -> (int, int, int, int) {
-    var px = game.players[player].pieces[pieceIndex].pixelX;
-    var py = game.players[player].pieces[pieceIndex].pixelY;
-    var bx = WINDOW_WIDTH / 2 - BOARD_SIZE / 2;
-    var by = WINDOW_HEIGHT / 2 - BOARD_SIZE / 2;
+    let px = game.players[player].pieces[pieceIndex].pixelX;
+    let py = game.players[player].pieces[pieceIndex].pixelY;
+    let bx = WINDOW_WIDTH / 2 - BOARD_SIZE / 2;
+    let by = WINDOW_HEIGHT / 2 - BOARD_SIZE / 2;
     return (bx + px - 15, by + py - 15, 30, 30);
 }
 
 fn hitTestPiece(mx: int, my: int) -> (bool, int, int) {
     // 检查是否点击了某个棋子
     // 返回 (是否命中, 玩家索引, 棋子索引)
-    var current = game.currentPlayer;
+    let current = game.currentPlayer;
     if !game.players[current].isHuman {
         return (false, -1, -1);
     }
 
     for i in 0..PIECES_PER_PLAYER {
-        var piece = &game.players[current].pieces[i];
+        let piece = &game.players[current].pieces[i];
 
         if piece.state == PieceState.InHome {
-            var area = getPieceClickArea(i, current);
+            let area = getPieceClickArea(i, current);
             if mx >= area.0 && mx <= area.0 + area.2 && my >= area.1 && my <= area.1 + area.3 {
                 return (true, current, i);
             }
         } else if piece.state == PieceState.OnTrack {
-            var area = getTrackPieceClickArea(i, current);
+            let area = getTrackPieceClickArea(i, current);
             if mx >= area.0 && mx <= area.0 + area.2 && my >= area.1 && my <= area.1 + area.3 {
                 return (true, current, i);
             }
@@ -84,15 +84,15 @@ fn hitTestPiece(mx: int, my: int) -> (bool, int, int) {
 // ============================================================================
 
 fn render() {
-    var fb = getFrameBuffer(window);
-    var pitch = getFrameBufferPitch(window);
+    let fb = getFrameBuffer(window);
+    let pitch = getFrameBufferPitch(window);
 
     // 清屏
     clearScreen(pitch, fb, Color.RGB(50, 50, 50));
 
     // 绘制棋盘 (居中)
-    var boardX = WINDOW_WIDTH / 2 - BOARD_SIZE / 2;
-    var boardY = WINDOW_HEIGHT / 2 - BOARD_SIZE / 2;
+    let boardX = WINDOW_WIDTH / 2 - BOARD_SIZE / 2;
+    let boardY = WINDOW_HEIGHT / 2 - BOARD_SIZE / 2;
 
     // 临时创建离屏缓冲用于棋盘
     // 直接在主缓冲上绘制, 通过坐标偏移
@@ -101,16 +101,16 @@ fn render() {
     // 绘制所有棋子
     for p in 0..PLAYER_COUNT {
         for i in 0..PIECES_PER_PLAYER {
-            var piece = &game.players[p].pieces[i];
+            let piece = &game.players[p].pieces[i];
             if piece.state == PieceState.InGoal {
                 continue;
             }
 
-            var px: int;
-            var py: int;
+            let px: int;
+            let py: int;
 
             if piece.state == PieceState.InHome {
-                var area = getPieceClickArea(i, p);
+                let area = getPieceClickArea(i, p);
                 px = area.0 + 15;
                 py = area.1 + 15;
             } else {
@@ -118,7 +118,7 @@ fn render() {
                 py = boardY + piece.pixelY + 15;
             }
 
-            var color = game.players[p].color;
+            let color = game.players[p].color;
             drawPieceAt(window, pitch, fb, px, py, color);
 
             // 在轨迹上的棋子标号
@@ -141,10 +141,10 @@ fn render() {
 }
 
 fn drawBoardAt(ctx: rawptr, pitch: int, buffer: rawptr, offsetX: int, offsetY: int) {
-    var cx = offsetX + BOARD_SIZE / 2;
-    var cy = offsetY + BOARD_SIZE / 2;
-    var half = 6;
-    var CELL = CELL_SIZE;
+    let cx = offsetX + BOARD_SIZE / 2;
+    let cy = offsetY + BOARD_SIZE / 2;
+    let half = 6;
+    let CELL = CELL_SIZE;
 
     // 上边
     fillRectOffset(ctx, offsetX, offsetY + cy - half * CELL - CELL, cx + 6*CELL - (cx - half*CELL), CELL, pitch, buffer, TRACK_COLOR);
@@ -168,8 +168,8 @@ fn drawBoardAt(ctx: rawptr, pitch: int, buffer: rawptr, offsetX: int, offsetY: i
     // 轨迹格子边框
     // 上边
     for i in 0..7 {
-        var x = cx - half*CELL + i*CELL;
-        var y = cy - half*CELL;
+        let x = cx - half*CELL + i*CELL;
+        let y = cy - half*CELL;
         fillRectOffset(ctx, x, y, CELL, CELL, pitch, buffer, TRACK_BORDER_COLOR);
         if i == 6 {
             fillRectOffset(ctx, x+2, y+2, CELL-4, CELL-4, pitch, buffer, HUMAN_COLOR);
@@ -177,8 +177,8 @@ fn drawBoardAt(ctx: rawptr, pitch: int, buffer: rawptr, offsetX: int, offsetY: i
     }
     // 右边
     for i in 7..13 {
-        var x = cx + half*CELL - CELL;
-        var y = cy - half*CELL + (i-6)*CELL;
+        let x = cx + half*CELL - CELL;
+        let y = cy - half*CELL + (i-6)*CELL;
         fillRectOffset(ctx, x, y, CELL, CELL, pitch, buffer, TRACK_BORDER_COLOR);
         if i == 13 {
             fillRectOffset(ctx, x+2, y+2, CELL-4, CELL-4, pitch, buffer, CPU_COLOR);
@@ -186,36 +186,36 @@ fn drawBoardAt(ctx: rawptr, pitch: int, buffer: rawptr, offsetX: int, offsetY: i
     }
     // 下边
     for i in 0..6 {
-        var x = cx + half*CELL - i*CELL;
-        var y = cy + half*CELL - CELL;
+        let x = cx + half*CELL - i*CELL;
+        let y = cy + half*CELL - CELL;
         fillRectOffset(ctx, x, y, CELL, CELL, pitch, buffer, TRACK_BORDER_COLOR);
     }
     // 左边
     for i in 0..6 {
-        var x = cx - half*CELL;
-        var y = cy + half*CELL - i*CELL;
+        let x = cx - half*CELL;
+        let y = cy + half*CELL - i*CELL;
         fillRectOffset(ctx, x, y, CELL, CELL, pitch, buffer, TRACK_BORDER_COLOR);
     }
 }
 
 fn drawStatusAt(ctx: rawptr, pitch: int, buffer: rawptr) {
-    var statusY = BOARD_SIZE + 10;
+    let statusY = BOARD_SIZE + 10;
 
-    var currentText = "当前: " ++ game.players[game.currentPlayer].name;
+    let currentText = "当前: {game}".players[game.currentPlayer].name;
     if game.players[game.currentPlayer].isHuman {
-        currentText = currentText ++ " (你)";
+        currentText = "{currentText} (你)";
     }
     drawTextSimpleOffset(ctx, 10, statusY, currentText, pitch, buffer, game.players[game.currentPlayer].color);
 
-    var turnText = "回合: " ++ game.turnCount.toString();
+    let turnText = "回合: {game}".turnCount.toString();
     drawTextSimpleOffset(ctx, 160, statusY, turnText, pitch, buffer, Color.Gray());
 
-    var humanHome = "红: " ++ game.players[PLAYER_HUMAN].piecesInGoal.toString() ++ "/4";
-    var cpuHome = "蓝: " ++ game.players[PLAYER_CPU].piecesInGoal.toString() ++ "/4";
+    let humanHome = "红: {game}".players[PLAYER_HUMAN]."{piecesInGoal}/4";
+    let cpuHome = "蓝: {game}".players[PLAYER_CPU]."{piecesInGoal}/4";
     drawTextSimpleOffset(ctx, 10, statusY + 20, humanHome, pitch, buffer, HUMAN_COLOR);
     drawTextSimpleOffset(ctx, 100, statusY + 20, cpuHome, pitch, buffer, CPU_COLOR);
 
-    var hint = "";
+    let hint = "";
     if !game.diceRolled && game.canRoll {
         hint = "按 空格键 掷骰子";
     } else if game.waitingForPiece {
@@ -234,14 +234,14 @@ fn drawStatusAt(ctx: rawptr, pitch: int, buffer: rawptr) {
 
 fn drawGameOverAt(ctx: rawptr, pitch: int, buffer: rawptr) {
     fillRectOffset(ctx, 0, 0, WINDOW_WIDTH, BOARD_SIZE, pitch, buffer, Color.ARGB(180, 0, 0, 0));
-    var winnerName = game.players[game.winner].name;
-    var winText = winnerName ++ " 胜利!";
+    let winnerName = game.players[game.winner].name;
+    let winText = "{winnerName} 胜利!";
     drawTextSimpleOffset(ctx, WINDOW_WIDTH/2 - 50, BOARD_SIZE/2 - 20, winText, pitch, buffer, game.players[game.winner].color);
     drawTextSimpleOffset(ctx, WINDOW_WIDTH/2 - 70, BOARD_SIZE/2 + 20, "按 ESC 退出", pitch, buffer, Color.White());
 }
 
 fn drawPieceAt(ctx: rawptr, pitch: int, buffer: rawptr, x: int, y: int, color: Color) {
-    var r = PIECE_RADIUS;
+    let r = PIECE_RADIUS;
     // 阴影
     fillCircleOffset(ctx, x+2, y+2, r, pitch, buffer, Color.ARGB(100, 0, 0, 0));
     // 主体
@@ -251,14 +251,14 @@ fn drawPieceAt(ctx: rawptr, pitch: int, buffer: rawptr, x: int, y: int, color: C
 }
 
 fn drawDiceOffset(ctx: rawptr, pitch: int, buffer: rawptr, value: int, x: int, y: int) {
-    var size = 40;
+    let size = 40;
     fillRectOffset(ctx, x, y, size, size, pitch, buffer, Color.White());
     fillRectOffset(ctx, x, y, size, size, pitch, buffer, Color.ARGB(255, 0, 0, 0));
     // 重新填充白色背景
     fillRectOffset(ctx, x+1, y+1, size-2, size-2, pitch, buffer, Color.White());
 
-    var dotR = 4;
-    var dx = [int].[
+    let dotR = 4;
+    let dx = [int].[
         1, 0, 0, 0, 0, 0,
         0, 0, 1, 1, 0, 0,
         0, 1, 0, 0, 1, 0,
@@ -302,8 +302,8 @@ fn setPixelRaw(ctx: rawptr, pitch: int, buffer: rawptr, x: int, y: int, color: C
     if x < 0 || x >= WINDOW_WIDTH || y < 0 || y >= WINDOW_HEIGHT + 80 {
         return;
     }
-    var offset = y * (pitch / 4) + x;
-    var pixels = buffer as u32 mut;
+    let offset = y * (pitch / 4) + x;
+    let pixels = (u32)buffer mut;
     pixels[offset] = color;
 }
 
@@ -326,10 +326,10 @@ fn fillCircleOffset(ctx: rawptr, cx: int, cy: int, radius: int, pitch: int, buff
 }
 
 fn drawTextSimpleOffset(ctx: rawptr, x: int, y: int, text: str, pitch: int, buffer: rawptr, color: Color) {
-    var charW = 8;
-    var charH = 8;
-    var px = x;
-    var py = y;
+    let charW = 8;
+    let charH = 8;
+    let px = x;
+    let py = y;
     for i in 0..len(text) {
         if text[i] == '\n' {
             py = py + charH;
@@ -338,9 +338,9 @@ fn drawTextSimpleOffset(ctx: rawptr, x: int, y: int, text: str, pitch: int, buff
         }
         for cy in 0..charH {
             for cx in 0..charW {
-                var charCode = text[i] as u32;
+                let charCode = text[i] as u32;
                 if charCode > 32 {
-                    var isFilled = ((charCode + cx * 3 + cy * 7) % 5) != 0;
+                    let isFilled = ((charCode + cx * 3 + cy * 7) % 5) != 0;
                     if isFilled {
                         setPixelRaw(ctx, pitch, buffer, px + cx, py + cy, color);
                     }
@@ -356,8 +356,8 @@ fn drawTextSimpleOffset(ctx: rawptr, x: int, y: int, text: str, pitch: int, buff
 }
 
 fn clearScreen(pitch: int, buffer: rawptr, color: Color) {
-    var pixels = buffer as u32 mut;
-    var count = (pitch * (WINDOW_HEIGHT + 80)) / 4;
+    let pixels = (u32)buffer mut;
+    let count = (pitch * (WINDOW_HEIGHT + 80)) / 4;
     for i in 0..count {
         pixels[i] = color;
     }
@@ -368,17 +368,17 @@ fn clearScreen(pitch: int, buffer: rawptr, color: Color) {
 // ============================================================================
 
 fn processEvents() {
-    var event = Event.{};
+    let event = Event{};
 
     while pollEvent(window, &event) {
         match event.msg {
-            MessageType.Quit => {
+            MessageType::Quit => {
                 running = false;
             },
-            MessageType.KeyDown => {
+            MessageType::KeyDown => {
                 handleKeyDown(event.key.key);
             },
-            MessageType.MouseDown => {
+            MessageType::MouseDown => {
                 handleMouseDown(event.mouse.x, event.mouse.y, event.mouse.button);
             },
             _ => {}
@@ -388,12 +388,12 @@ fn processEvents() {
 
 fn handleKeyDown(key: VirtualKey) {
     match key {
-        VirtualKey.Space => {
+        VirtualKey::Space => {
             if !game.gameOver {
                 rollDice(&game);
             }
         },
-        VirtualKey.Escape => {
+        VirtualKey::Escape => {
             running = false;
         },
         _ => {}
@@ -405,7 +405,7 @@ fn handleMouseDown(x: int, y: int, button: MouseButton) {
         return;
     }
     if button == MouseButton.Left && game.waitingForPiece {
-        var hit = hitTestPiece(x, y);
+        let hit = hitTestPiece(x, y);
         if hit.0 {
             selectPiece(&game, hit.2);
         }
@@ -417,13 +417,13 @@ fn handleMouseDown(x: int, y: int, button: MouseButton) {
 // ============================================================================
 
 fn gameLoop() {
-    var lastFrame = getTickCount();
+    let lastFrame = getTickCount();
 
     while running {
         processEvents();
 
-        var current = getTickCount();
-        var dt = current - lastFrame;
+        let current = getTickCount();
+        let dt = current - lastFrame;
 
         // 电脑AI延迟
         if cpuThinking {
@@ -446,7 +446,7 @@ fn gameLoop() {
 
         lastFrame = current;
 
-        var elapsed = getTickCount() - lastFrame;
+        let elapsed = getTickCount() - lastFrame;
         if elapsed < FRAME_TIME {
             sleep(FRAME_TIME - elapsed);
         }
@@ -458,30 +458,30 @@ fn gameLoop() {
 // ============================================================================
 
 fn main() {
-    io.println("===========================================");
-    io.println("  飞行棋 Ludo - Zen-C");
-    io.println("  版本: 1.0.0");
-    io.println("===========================================");
+    io.println "===========================================";
+    io.println "  飞行棋 Ludo - Zen-C";
+    io.println "  版本: 1.0.0";
+    io.println "===========================================";
 
     initPlatform();
 
     window = createWindow("飞行棋 Ludo - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT);
 
     if window == nil {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return;
     }
 
-    io.println("窗口创建成功!");
+    io.println "窗口创建成功!";
 
     initGame(&game);
-    io.println("按 空格键 掷骰子");
-    io.println("用鼠标点击棋子移动");
-    io.println("按 ESC 退出");
+    io.println "按 空格键 掷骰子";
+    io.println "用鼠标点击棋子移动";
+    io.println "按 ESC 退出";
 
     gameLoop();
 
     shutdownPlatform();
 
-    io.println("游戏结束!");
+    io.println "游戏结束!";
 }

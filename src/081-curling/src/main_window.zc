@@ -1,7 +1,7 @@
 // main_window.zc - Zen-C 冰壶游戏主程序
 
-import std.io;
-import std.math;
+import "io.zc";
+import "math.zc";
 
 // 导入游戏逻辑
 import "platform_api.zc";
@@ -40,10 +40,10 @@ static mut game_speed: u32 = 16;  // ~60 FPS
 
 fn on_key(key: KeyCode) -> bool {
     match key {
-        KeyCode.KeyR => {
+        KeyCode::KeyR => {
             initGame(&mut game);
         },
-        KeyCode.KeyEscape => {
+        KeyCode::KeyEscape => {
             running = false;
             return false;
         },
@@ -322,8 +322,8 @@ fn drawUI() {
     fb_draw_text_size(10, 8, "冰壶 - Curling", rgb(200, 240, 255), 20);
 
     // 分数
-    let redScore = "红队: " ++ game.score1.toString();
-    let yellowScore = "黄队: " ++ game.score2.toString();
+    let redScore = "红队: {game}".score1.toString();
+    let yellowScore = "黄队: {game}".score2.toString();
     fb_draw_text_size(GAME_WIDTH - 130, 8, redScore, rgb(255, 150, 150), 18);
     fb_draw_text_size(GAME_WIDTH - 130, 28, yellowScore, rgb(255, 220, 100), 18);
 
@@ -338,7 +338,7 @@ fn drawUI() {
 
     // 剩余石头
     let remaining = STONES_PER_END - game.stonesThisEnd;
-    let remText = "剩余: " ++ remaining.toString() ++ " 球";
+    let remText = "剩余: {remaining}" ++ " 球";
     fb_draw_text_size(GAME_WIDTH - 100, GAME_HEIGHT - 35, remText, rgb(180, 180, 180), 14);
 
     // 控制说明
@@ -385,9 +385,9 @@ fn drawScoreBoard() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 冰壶游戏 - Curling");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 冰壶游戏 - Curling";
+    io.println "========================================";
 
     // 初始化游戏状态
     initGame(&mut game);
@@ -397,7 +397,7 @@ fn main() -> i32 {
     window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
@@ -426,11 +426,11 @@ fn main() -> i32 {
     // 设置游戏定时器
     set_game_timer(window, game_speed);
 
-    io.println("窗口创建成功!");
-    io.println("点击并向上拖拽蓄力投球");
-    io.println("滑行时按住可以清扫(减少摩擦)");
-    io.println("按 R 重新开始, ESC 退出");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "点击并向上拖拽蓄力投球";
+    io.println "滑行时按住可以清扫(减少摩擦)";
+    io.println "按 R 重新开始, ESC 退出";
+    io.println "========================================";
 
     // 初始绘制
     redraw_window(window);
@@ -438,9 +438,9 @@ fn main() -> i32 {
     // 运行事件循环
     run_event_loop(window);
 
-    io.println("游戏结束!");
-    io.println("最终得分 - 红队: " ++ game.score1.toString() ++ " | 黄队: " ++ game.score2.toString());
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println("最终得分 - 红队: {game}"."{score1} | 黄队: {game}".score2.toString());
+    io.println "========================================";
 
     0
 }

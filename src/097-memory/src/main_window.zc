@@ -1,7 +1,7 @@
 // main_window.zc - Zen-C Memory 记忆翻牌游戏主程序
 // 097-Memory - 增强版记忆翻牌 (5x4 网格, 10对)
 
-import std.io;
+import "io.zc";
 
 // 导入游戏逻辑
 import "platform_api.zc";
@@ -9,9 +9,9 @@ import "game_logic.zc";
 
 // ==================== 常量 ====================
 
-const WINDOW_WIDTH = 400;
-const WINDOW_HEIGHT = 500;
-const HEADER_HEIGHT = 80;
+def WINDOW_WIDTH = 400;
+def WINDOW_HEIGHT = 500;
+def HEADER_HEIGHT = 80;
 
 // ==================== 全局变量 ====================
 
@@ -33,8 +33,8 @@ fn fb_init(w: WindowHandle, width: int, height: int) {
 
 fn fb_clear(color: u32) {
     if !fb_valid || fb_buffer == null { return; }
-    var pixels = fb_buffer as u32 mut;
-    var count = (fb_pitch * WINDOW_HEIGHT) / 4;
+    let pixels = (u32)fb_buffer mut;
+    let count = (fb_pitch * WINDOW_HEIGHT) / 4;
     for i in 0..count {
         pixels[i] = color;
     }
@@ -49,22 +49,22 @@ fn fb_present() {
 fn fb_draw_pixel(x: int, y: int, color: u32) {
     if !fb_valid || fb_buffer == null { return; }
     if x < 0 || x >= WINDOW_WIDTH || y < 0 || y >= WINDOW_HEIGHT { return; }
-    var pixels = fb_buffer as u32 mut;
+    let pixels = (u32)fb_buffer mut;
     let offset = y * (fb_pitch / 4) + x;
     pixels[offset] = color;
 }
 
 fn fb_draw_line(x1: int, y1: int, x2: int, y2: int, color: u32) {
-    var dx = abs(x2 - x1);
-    var dy = abs(y2 - y1);
-    var sx = if x1 < x2 { 1 } else { -1 };
-    var sy = if y1 < y2 { 1 } else { -1 };
-    var err = dx - dy;
+    let dx = abs(x2 - x1);
+    let dy = abs(y2 - y1);
+    let sx = if x1 < x2 { 1 } else { -1 };
+    let sy = if y1 < y2 { 1 } else { -1 };
+    let err = dx - dy;
     
     loop {
         fb_draw_pixel(x1, y1, color);
         if x1 == x2 && y1 == y2 { break; }
-        var e2 = 2 * err;
+        let e2 = 2 * err;
         if e2 > -dy { err = err - dy; x1 = x1 + sx; }
         if e2 < dx { err = err + dx; y1 = y1 + sy; }
     }
@@ -87,9 +87,9 @@ fn fb_draw_fill_rect(x: int, y: int, w: int, h: int, color: u32) {
 
 fn fb_draw_circle(cx: int, cy: int, radius: int, color: u32) {
     if radius <= 0 { return; }
-    var d = 3 - 2 * radius;
-    var x = 0;
-    var y = radius;
+    let d = 3 - 2 * radius;
+    let x = 0;
+    let y = radius;
     
     loop {
         fb_draw_pixel(cx + x, cy + y, color);
@@ -127,8 +127,8 @@ fn fb_draw_fill_circle(cx: int, cy: int, radius: int, color: u32) {
 fn fb_draw_text_size(x: int, y: int, text: str, color: u32, size: int) {
     let charW = size / 2;
     let charH = size;
-    var px = x;
-    var py = y;
+    let px = x;
+    let py = y;
     
     for i in 0..len(text) {
         if text[i] == '\n' {
@@ -250,7 +250,7 @@ fn on_paint() {
         
         fb_draw_text_size(WINDOW_WIDTH/2 - 50, WINDOW_HEIGHT/2 - 55, "🎉 恭喜通关! 🎉", GOLD_COLOR, 18);
         
-        let finalInfo = "得分: " ++ game.score.toString() ++ " 步数: " ++ game.moves.toString();
+        let finalInfo = "得分: {game}"."{score} 步数: {game}".moves.toString();
         fb_draw_text_size(WINDOW_WIDTH/2 - 65, WINDOW_HEIGHT/2 - 20, finalInfo, TEXT_COLOR, 15);
         
         let avgStr = "平均 " ++ (game.moves / TOTAL_PAIRS).toString() ++ " 步/对";
@@ -344,15 +344,15 @@ fn sin_val(v: f32) -> f32 { return 0.0; }
 
 fn on_key(key: VirtualKey) -> bool {
     match key {
-        VirtualKey.Escape => {
+        VirtualKey::Escape => {
             running = false;
             return false;
         },
-        VirtualKey.KeyR => {
+        VirtualKey::KeyR => {
             restart_game(&mut game);
             return true;
         },
-        VirtualKey.KeyH => {
+        VirtualKey::KeyH => {
             let currentTime = getTickCount();
             use_hint(&mut game, currentTime);
             return true;
@@ -386,13 +386,13 @@ fn on_timer(currentTime: u32) {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 097 Memory 记忆翻牌游戏");
-    io.println("增强版 - 5x4 网格, 10对卡牌");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 097 Memory 记忆翻牌游戏";
+    io.println "增强版 - 5x4 网格, 10对卡牌";
+    io.println "========================================";
 
     // 初始化随机种子
-    setRandomSeed(getTickCount() as u32);
+    setRandomSeed(u32)(getTickCount());
 
     // 初始化游戏状态
     init_game(&mut game);
@@ -402,23 +402,23 @@ fn main() -> i32 {
     window = createWindow(title, WINDOW_WIDTH, WINDOW_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
     // 消息循环
-    var event = Event.{};
+    let event = Event{};
     running = true;
-    var lastTimer: u32 = 0;
+    let lastTimer: u32 = 0;
     let timerInterval: u32 = 100;
 
-    io.println("窗口创建成功!");
-    io.println("游戏规则:");
-    io.println("  - 点击卡牌翻转，查看图案");
-    io.println("  - 找出相同的图案配对");
-    io.println("  - 找到所有配对即可通关!");
-    io.println("  - 按 H 键使用提示(会扣10分)");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "游戏规则:";
+    io.println "  - 点击卡牌翻转，查看图案";
+    io.println "  - 找出相同的图案配对";
+    io.println "  - 找到所有配对即可通关!";
+    io.println "  - 按 H 键使用提示(会扣10分)";
+    io.println "========================================";
 
     // 初始绘制
     on_paint();
@@ -428,10 +428,10 @@ fn main() -> i32 {
         // 处理事件
         while pollEvent(window, &event) {
             match event.msg {
-                MessageType.Quit => {
+                MessageType::Quit => {
                     running = false;
                 },
-                MessageType.KeyDown => {
+                MessageType::KeyDown => {
                     if event.key.key == VirtualKey.Escape {
                         running = false;
                     } else if event.key.key == VirtualKey.KeyR {
@@ -444,11 +444,11 @@ fn main() -> i32 {
                         }
                     }
                 },
-                MessageType.MouseDown => {
+                MessageType::MouseDown => {
                     on_mouse(event.mouse.x, event.mouse.y, event.mouse.button);
                     on_paint();
                 },
-                MessageType.Paint => {
+                MessageType::Paint => {
                     on_paint();
                 },
                 _ => {}
@@ -470,10 +470,10 @@ fn main() -> i32 {
     // 清理
     closeWindow(window);
 
-    io.println("游戏结束!");
-    io.println("最终得分: " ++ game.score.toString());
-    io.println("总步数: " ++ game.moves.toString());
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println("最终得分: {game}".score.toString());
+    io.println("总步数: {game}".moves.toString());
+    io.println "========================================";
 
     0
 }

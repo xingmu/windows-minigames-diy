@@ -1,8 +1,8 @@
 // main_window.zc - Space Invaders 太空侵略者游戏
 // Zen-C 游戏框架 v1.0.0
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 
 import "platform_api.zc";
 import "game.zc";
@@ -10,38 +10,38 @@ import "game.zc";
 // ==================== 常量定义 ====================
 
 // 窗口尺寸
-const WINDOW_WIDTH = 640;
-const WINDOW_HEIGHT = 700;
+def WINDOW_WIDTH = 640;
+def WINDOW_HEIGHT = 700;
 
 // 游戏区域
-const GAME_HEIGHT = 640;
-const UI_HEIGHT = 60;
+def GAME_HEIGHT = 640;
+def UI_HEIGHT = 60;
 
 // 玩家飞船
-const PLAYER_WIDTH = 50;
-const PLAYER_HEIGHT = 30;
-const PLAYER_SPEED = 6;
-const PLAYER_Y = GAME_HEIGHT - 60;
+def PLAYER_WIDTH = 50;
+def PLAYER_HEIGHT = 30;
+def PLAYER_SPEED = 6;
+def PLAYER_Y = GAME_HEIGHT - 60;
 
 // 子弹
-const BULLET_WIDTH = 4;
-const BULLET_HEIGHT = 12;
-const BULLET_SPEED = 10;
-const MAX_BULLETS = 5;
+def BULLET_WIDTH = 4;
+def BULLET_HEIGHT = 12;
+def BULLET_SPEED = 10;
+def MAX_BULLETS = 5;
 
 // 外星人编队
-const ALIEN_ROWS = 5;
-const ALIEN_COLS = 11;
-const ALIEN_WIDTH = 40;
-const ALIEN_HEIGHT = 30;
-const ALIEN_SPACING_X = 50;
-const ALIEN_SPACING_Y = 40;
-const ALIEN_START_Y = 60;
+def ALIEN_ROWS = 5;
+def ALIEN_COLS = 11;
+def ALIEN_WIDTH = 40;
+def ALIEN_HEIGHT = 30;
+def ALIEN_SPACING_X = 50;
+def ALIEN_SPACING_Y = 40;
+def ALIEN_START_Y = 60;
 
 // 外星人分数
-const ALIEN_TYPE_A_SCORE = 30;
-const ALIEN_TYPE_B_SCORE = 20;
-const ALIEN_TYPE_C_SCORE = 10;
+def ALIEN_TYPE_A_SCORE = 30;
+def ALIEN_TYPE_B_SCORE = 20;
+def ALIEN_TYPE_C_SCORE = 10;
 
 // ==================== 颜色辅助函数 ====================
 
@@ -51,13 +51,13 @@ fn makeColor(r: u8, g: u8, b: u8) -> Color {
 
 // ==================== 颜色定义 ====================
 
-const PLAYER_COLOR = makeColor(0, 255, 0);
-const BULLET_COLOR = makeColor(255, 255, 0);
-const ALIEN_A_COLOR = makeColor(255, 0, 0);
-const ALIEN_B_COLOR = makeColor(0, 255, 0);
-const ALIEN_C_COLOR = makeColor(0, 150, 255);
-const STAR_COLOR = makeColor(200, 200, 200);
-const TEXT_COLOR = makeColor(255, 255, 255);
+def PLAYER_COLOR = makeColor(0, 255, 0);
+def BULLET_COLOR = makeColor(255, 255, 0);
+def ALIEN_A_COLOR = makeColor(255, 0, 0);
+def ALIEN_B_COLOR = makeColor(0, 255, 0);
+def ALIEN_C_COLOR = makeColor(0, 150, 255);
+def STAR_COLOR = makeColor(200, 200, 200);
+def TEXT_COLOR = makeColor(255, 255, 255);
 
 // ==================== 数据结构 ====================
 
@@ -112,7 +112,7 @@ class SpaceInvadersGame extends Game {
     alienMoveTimer: u32,
     
     // 星星背景
-    stars: [50]Star,
+    stars: [Star; 50],
     starCount: int,
     
     // 按键状态
@@ -163,17 +163,17 @@ class SpaceInvadersGame extends Game {
         
         self.setState(GameState.Playing);
         
-        println("Space Invaders 游戏初始化完成!");
-        println("按 <- -> 移动，空格射击，ESC 退出");
+        println "Space Invaders 游戏初始化完成!";
+        println "按 <- -> 移动，空格射击，ESC 退出";
     }
     
     fn initAliens() {
         self.alienCount = ALIEN_ROWS * ALIEN_COLS;
         
-        var index = 0;
+        let index = 0;
         for row in 0..ALIEN_ROWS {
             for col in 0..ALIEN_COLS {
-                var alienType = 0;
+                let alienType = 0;
                 if row < 1 {
                     alienType = 0;
                 } else if row < 3 {
@@ -182,11 +182,11 @@ class SpaceInvadersGame extends Game {
                     alienType = 2;
                 }
                 
-                var startX = (WINDOW_WIDTH - ALIEN_COLS * ALIEN_SPACING_X) / 2;
-                var x = startX + col * ALIEN_SPACING_X;
-                var y = ALIEN_START_Y + row * ALIEN_SPACING_Y;
+                let startX = (WINDOW_WIDTH - ALIEN_COLS * ALIEN_SPACING_X) / 2;
+                let x = startX + col * ALIEN_SPACING_X;
+                let y = ALIEN_START_Y + row * ALIEN_SPACING_Y;
                 
-                self.aliens[index] = Alien.{
+                self.aliens[index] = Alien {
                     x: x, y: y,
                     width: ALIEN_WIDTH, height: ALIEN_HEIGHT,
                     alive: true, alienType: alienType
@@ -208,8 +208,8 @@ class SpaceInvadersGame extends Game {
     }
     
     fn onShutdown() {
-        println("Space Invaders 游戏结束!");
-        println("最终分数: " ++ self.getScore().toString());
+        println "Space Invaders 游戏结束!";
+        println("最终分数: {self}".getScore().toString());
     }
     
     fn onUpdate(dt: u32) {
@@ -296,7 +296,7 @@ class SpaceInvadersGame extends Game {
                 self.alienMoveDown = false;
                 self.alienDirection = -self.alienDirection;
             } else {
-                var needMoveDown = false;
+                let needMoveDown = false;
                 
                 for i in 0..self.alienCount {
                     if self.aliens[i].alive {
@@ -358,7 +358,7 @@ class SpaceInvadersGame extends Game {
     }
     
     fn checkWinLose() {
-        var aliensAlive = 0;
+        let aliensAlive = 0;
         for i in 0..self.alienCount {
             if self.aliens[i].alive {
                 aliensAlive = aliensAlive + 1;
@@ -378,7 +378,7 @@ class SpaceInvadersGame extends Game {
         }
     }
     
-    fn onRender(canvas: &Canvas) {
+    fn onRender(canvas: Canvas*) {
         // 清屏
         canvas.clear(Color.Black());
         
@@ -401,19 +401,19 @@ class SpaceInvadersGame extends Game {
         self.drawGameState(canvas);
     }
     
-    fn drawStars(canvas: &Canvas) {
+    fn drawStars(canvas: Canvas*) {
         for i in 0..self.starCount {
-            var brightness = self.stars[i].brightness;
-            var color = Color.RGB(brightness, brightness, brightness);
+            let brightness = self.stars[i].brightness;
+            let color = Color.RGB(brightness, brightness, brightness);
             canvas.setPixel(self.stars[i].x, self.stars[i].y, color);
         }
     }
     
-    fn drawPlayer(canvas: &Canvas) {
-        var x = self.player.x;
-        var y = self.player.y;
-        var w = self.player.width;
-        var h = self.player.height;
+    fn drawPlayer(canvas: Canvas*) {
+        let x = self.player.x;
+        let y = self.player.y;
+        let w = self.player.width;
+        let h = self.player.height;
         
         // 绘制飞船（三角形）
         canvas.setPixel(x + w/2, y, PLAYER_COLOR);
@@ -425,7 +425,7 @@ class SpaceInvadersGame extends Game {
         canvas.fillRect(x, y + h - 8, w, 6, PLAYER_COLOR);
     }
     
-    fn drawBullets(canvas: &Canvas) {
+    fn drawBullets(canvas: Canvas*) {
         for i in 0..MAX_BULLETS {
             if self.bullets[i].active {
                 canvas.fillRect(
@@ -439,19 +439,19 @@ class SpaceInvadersGame extends Game {
         }
     }
     
-    fn drawAliens(canvas: &Canvas) {
+    fn drawAliens(canvas: Canvas*) {
         for i in 0..self.alienCount {
             if !self.aliens[i].alive {
                 continue;
             }
             
-            var x = self.aliens[i].x;
-            var y = self.aliens[i].y;
-            var w = self.aliens[i].width;
-            var h = self.aliens[i].height;
-            var alienType = self.aliens[i].alienType;
+            let x = self.aliens[i].x;
+            let y = self.aliens[i].y;
+            let w = self.aliens[i].width;
+            let h = self.aliens[i].height;
+            let alienType = self.aliens[i].alienType;
             
-            var color: Color;
+            let color: Color;
             match alienType {
                 0 => color = ALIEN_A_COLOR;
                 1 => color = ALIEN_B_COLOR;
@@ -469,64 +469,64 @@ class SpaceInvadersGame extends Game {
         }
     }
     
-    fn drawUI(canvas: &Canvas) {
+    fn drawUI(canvas: Canvas*) {
         canvas.drawLine(0, GAME_HEIGHT, WINDOW_WIDTH, GAME_HEIGHT, Color.White());
         
-        var scoreText = "SCORE: " ++ self.getScore().toString();
-        canvas.drawText(20, GAME_HEIGHT + 20, scoreText, TEXT_COLOR, Font.("Arial", 20));
+        let scoreText = "SCORE: {self}".getScore().toString();
+        canvas.drawText(20, GAME_HEIGHT + 20, scoreText, TEXT_COLOR, Font("Arial", 20));
         
-        var aliensAlive = 0;
+        let aliensAlive = 0;
         for i in 0..self.alienCount {
             if self.aliens[i].alive {
                 aliensAlive = aliensAlive + 1;
             }
         }
-        var aliensText = "ALIENS: " ++ aliensAlive.toString();
-        canvas.drawText(WINDOW_WIDTH / 2 - 50, GAME_HEIGHT + 20, aliensText, TEXT_COLOR, Font.("Arial", 20));
+        let aliensText = "ALIENS: {aliensAlive}";
+        canvas.drawText(WINDOW_WIDTH / 2 - 50, GAME_HEIGHT + 20, aliensText, TEXT_COLOR, Font("Arial", 20));
         
-        canvas.drawText(WINDOW_WIDTH - 220, GAME_HEIGHT + 20, "< > MOVE  SPACE FIRE", makeColor(150, 150, 150), Font.("Arial", 14));
+        canvas.drawText(WINDOW_WIDTH - 220, GAME_HEIGHT + 20, "< > MOVE  SPACE FIRE", makeColor(150, 150, 150), Font("Arial", 14));
     }
     
-    fn drawGameState(canvas: &Canvas) {
-        var state = self.getState();
+    fn drawGameState(canvas: Canvas*) {
+        let state = self.getState();
         
         if state == GameState.Won {
-            canvas.drawText(WINDOW_WIDTH/2 - 100, GAME_HEIGHT/2 - 50, "YOU WIN!", Color.Yellow(), Font.("Arial", 48));
-            canvas.drawText(WINDOW_WIDTH/2 - 100, GAME_HEIGHT/2 + 20, "Final Score: " ++ self.getScore().toString(), Color.White(), Font.("Arial", 24));
-            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 60, "Press ESC to exit", makeColor(200, 200, 200), Font.("Arial", 18));
+            canvas.drawText(WINDOW_WIDTH/2 - 100, GAME_HEIGHT/2 - 50, "YOU WIN!", Color.Yellow(), Font("Arial", 48));
+            canvas.drawText(WINDOW_WIDTH/2 - 100, GAME_HEIGHT/2 + 20, "Final Score: {self}".getScore().toString(), Color.White(), Font("Arial", 24));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 60, "Press ESC to exit", makeColor(200, 200, 200), Font("Arial", 18));
         }
         
         if state == GameState.Lost {
-            canvas.drawText(WINDOW_WIDTH/2 - 100, GAME_HEIGHT/2 - 50, "GAME OVER", Color.Red(), Font.("Arial", 48));
-            canvas.drawText(WINDOW_WIDTH/2 - 100, GAME_HEIGHT/2 + 20, "Final Score: " ++ self.getScore().toString(), Color.White(), Font.("Arial", 24));
-            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 60, "Press ESC to exit", makeColor(200, 200, 200), Font.("Arial", 18));
+            canvas.drawText(WINDOW_WIDTH/2 - 100, GAME_HEIGHT/2 - 50, "GAME OVER", Color.Red(), Font("Arial", 48));
+            canvas.drawText(WINDOW_WIDTH/2 - 100, GAME_HEIGHT/2 + 20, "Final Score: {self}".getScore().toString(), Color.White(), Font("Arial", 24));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 60, "Press ESC to exit", makeColor(200, 200, 200), Font("Arial", 18));
         }
         
         if state == GameState.Ready {
-            canvas.drawText(WINDOW_WIDTH/2 - 120, GAME_HEIGHT/2 - 80, "SPACE INVADERS", Color.Green(), Font.("Arial", 36));
-            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2, "Red Aliens: 30 pts", ALIEN_A_COLOR, Font.("Arial", 20));
-            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 35, "Green Aliens: 20 pts", ALIEN_B_COLOR, Font.("Arial", 20));
-            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 70, "Blue Aliens: 10 pts", ALIEN_C_COLOR, Font.("Arial", 20));
-            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 120, "Press SPACE to Start", Color.White(), Font.("Arial", 24));
-            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 160, "ESC to Quit", makeColor(200, 200, 200), Font.("Arial", 18));
+            canvas.drawText(WINDOW_WIDTH/2 - 120, GAME_HEIGHT/2 - 80, "SPACE INVADERS", Color.Green(), Font("Arial", 36));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2, "Red Aliens: 30 pts", ALIEN_A_COLOR, Font("Arial", 20));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 35, "Green Aliens: 20 pts", ALIEN_B_COLOR, Font("Arial", 20));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 70, "Blue Aliens: 10 pts", ALIEN_C_COLOR, Font("Arial", 20));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 120, "Press SPACE to Start", Color.White(), Font("Arial", 24));
+            canvas.drawText(WINDOW_WIDTH/2 - 150, GAME_HEIGHT/2 + 160, "ESC to Quit", makeColor(200, 200, 200), Font("Arial", 18));
         }
     }
     
     fn onKeyDown(key: VirtualKey) {
         match key {
-            VirtualKey.Left => {
+            VirtualKey::Left => {
                 self.keyLeft = true;
             }
-            VirtualKey.Right => {
+            VirtualKey::Right => {
                 self.keyRight = true;
             }
-            VirtualKey.Space => {
+            VirtualKey::Space => {
                 self.keySpace = true;
                 if self.getState() == GameState.Ready {
                     self.setState(GameState.Playing);
                 }
             }
-            VirtualKey.Escape => {
+            VirtualKey::Escape => {
                 self.stop();
             }
             _ => {}
@@ -535,13 +535,13 @@ class SpaceInvadersGame extends Game {
     
     fn onKeyUp(key: VirtualKey) {
         match key {
-            VirtualKey.Left => {
+            VirtualKey::Left => {
                 self.keyLeft = false;
             }
-            VirtualKey.Right => {
+            VirtualKey::Right => {
                 self.keyRight = false;
             }
-            VirtualKey.Space => {
+            VirtualKey::Space => {
                 self.keySpace = false;
             }
             _ => {}
@@ -561,17 +561,17 @@ class SpaceInvadersGame extends Game {
 // ==================== 主函数 ====================
 
 fn main() {
-    println("===========================================");
-    println("  Space Invaders - 太空侵略者");
-    println("  Zen-C 游戏框架 v1.0.0");
-    println("===========================================");
-    println("");
+    println "===========================================";
+    println "  Space Invaders - 太空侵略者";
+    println "  Zen-C 游戏框架 v1.0.0";
+    println "===========================================";
+    println "";
     
     // 初始化平台
     initPlatform();
     
     // 创建游戏实例
-    var game = SpaceInvadersGame.();
+    let game = SpaceInvadersGame();
     
     // 运行游戏
     game.run();
@@ -582,6 +582,6 @@ fn main() {
     // 关闭平台
     shutdownPlatform();
     
-    println("");
-    println("游戏已退出，谢谢游玩!");
+    println "";
+    println "游戏已退出，谢谢游玩!";
 }

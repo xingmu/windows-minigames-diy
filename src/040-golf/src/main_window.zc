@@ -1,8 +1,8 @@
 // main_window.zc - Zen-C 高尔夫游戏主程序
 // 鼠标蓄力方向，挥杆击球
 
-import std.io;
-import std.math;
+import "io.zc";
+import "math.zc";
 
 // 导入平台API
 import "platform_api.zc";
@@ -10,8 +10,8 @@ import "game_logic.zc";
 
 // ==================== 常量 ====================
 
-const UI_TOP: i32 = 40;
-const UI_BOTTOM: i32 = 40;
+def UI_TOP: i32 = 40;
+def UI_BOTTOM: i32 = 40;
 
 // ==================== 全局变量 ====================
 
@@ -32,7 +32,7 @@ fn fb_set_pixel(x: i32, y: i32, color: Color) {
         return;
     }
     let offset = y * (fb_pitch / 4) + x;
-    let pixels = fb_buffer as u32 mut;
+    let pixels = (u32)fb_buffer mut;
     pixels[offset] = color;
 }
 
@@ -114,7 +114,7 @@ fn fb_fill_circle(cx: i32, cy: i32, radius: i32, color: Color) {
 
 fn fb_clear(color: Color) {
     let count = fb_pitch * fb_height / 4;
-    let pixels = fb_buffer as u32 mut;
+    let pixels = (u32)fb_buffer mut;
     for i in 0..count {
         pixels[i] = color;
     }
@@ -302,7 +302,7 @@ fn render_game() {
         }
         
         // 显示庆祝文字
-        let celebrate = "第" ++ (game.currentHole + 1).toString() ++ "洞完成! " ++ game.strokes.toString() ++ "杆";
+        let celebrate = "第" ++ (game.currentHole + 1).toString() ++ "洞完成! {game}"."{strokes}杆";
         draw_text(GAME_WIDTH / 2 - 150, GAME_HEIGHT / 2 - 50, celebrate, Color.Yellow(), 28);
         draw_text(GAME_WIDTH / 2 - 100, GAME_HEIGHT / 2, "按回车进入下一洞", Color.White(), 18);
     }
@@ -326,7 +326,7 @@ fn render_game() {
                 let x2 = game.ballX + (aimEndX - game.ballX) * t2;
                 let y2 = game.ballY + (aimEndY - game.ballY) * t2;
                 if s % 2 == 0 {
-                    fb_draw_line(x1 as i32, y1 as i32, x2 as i32, y2 as i32, Color.RGB(255, 255, 100));
+                    fb_draw_line((i32)x1, (i32)y1, (i32)x2, (i32)y2, Color.RGB(255, 255, 100));
                 }
             }
             
@@ -356,7 +356,7 @@ fn render_game() {
             fb_fill_rect(barX, barY, fillW, barHeight, powerColor);
             
             // 力度文字
-            let powerText = "力度: " ++ game.power.toString();
+            let powerText = "力度: {game}".power.toString();
             draw_text(barX, barY - 18, powerText, Color.White(), 14);
         }
         
@@ -391,7 +391,7 @@ fn render_game() {
         let title = "球场完成!";
         draw_text(GAME_WIDTH / 2 - 100, 100, title, Color.Yellow(), 36);
         
-        let scoreText = "总杆数: " ++ game.totalStrokes.toString();
+        let scoreText = "总杆数: {game}".totalStrokes.toString();
         draw_text(GAME_WIDTH / 2 - 80, 160, scoreText, Color.White(), 24);
         
         // 计算标准杆
@@ -404,7 +404,7 @@ fn render_game() {
         } else if diff == 0 {
             "标准杆完成!"
         } else {
-            "高于标准杆 " ++ diff.toString() ++ " 杆"
+            "高于标准杆 {diff}" ++ " 杆"
         };
         draw_text(GAME_WIDTH / 2 - 150, 200, rating, Color.Cyan(), 20);
         
@@ -418,19 +418,19 @@ fn render_game() {
         fb_fill_rect(0, 0, GAME_WIDTH, UI_TOP, Color.RGB(60, 40, 20));
         
         // 洞号
-        let holeText = "第" ++ (game.currentHole + 1).toString() ++ "洞  " ++ game.course.name;
+        let holeText = "第" ++ (game.currentHole + 1).toString() ++ "洞  {game}".course.name;
         draw_text(50, 12, holeText, Color.Yellow(), 18);
         
         // 标准杆
-        let parText = "标准杆: " ++ game.course.holes[game.currentHole].par.toString();
+        let parText = "标准杆: {game}".course.holes[game.currentHole].par.toString();
         draw_text(300, 12, parText, Color.White(), 16);
         
         // 当前杆数
-        let strokeText = "当前: " ++ game.strokes.toString() ++ " 杆";
+        let strokeText = "当前: {game}"."{strokes} 杆";
         draw_text(450, 12, strokeText, Color.Cyan(), 16);
         
         // 总杆数
-        let totalText = "累计: " ++ game.totalStrokes.toString() ++ " 杆";
+        let totalText = "累计: {game}"."{totalStrokes} 杆";
         draw_text(600, 12, totalText, Color.RGB(200, 200, 100), 16);
         
         // 底部信息栏
@@ -449,8 +449,8 @@ fn draw_text(x: i32, y: i32, text: string, color: Color, size: i32) {
     let charW = size * 2 / 3;
     let charH = size;
 
-    var px = x;
-    var py = y;
+    let px = x;
+    let py = y;
 
     for i in 0..len(text) {
         if text[i] == ' ' {
@@ -481,9 +481,9 @@ fn draw_text(x: i32, y: i32, text: string, color: Color, size: i32) {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 高尔夫游戏 - Mini Golf");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 高尔夫游戏 - Mini Golf";
+    io.println "========================================";
 
     // 初始化游戏状态
     init_game(&mut game);
@@ -493,13 +493,13 @@ fn main() -> i32 {
     window = createWindow(title, GAME_WIDTH, GAME_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
-    io.println("窗口创建成功!");
-    io.println("点击并拖拽控制击球方向和力度");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "点击并拖拽控制击球方向和力度";
+    io.println "========================================";
 
     0
 }

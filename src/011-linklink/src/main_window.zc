@@ -1,6 +1,6 @@
 // main_window.zc - Zen-C LinkLink 连连看游戏主程序
 
-import std.io;
+import "io.zc";
 
 // 导入游戏逻辑
 import "platform_api.zc";
@@ -8,9 +8,9 @@ import "game_logic.zc";
 
 // ==================== 常量 ====================
 
-const WINDOW_WIDTH = 520;
-const WINDOW_HEIGHT = 520;
-const TIMER_INTERVAL = 1000;  // 1秒
+def WINDOW_WIDTH = 520;
+def WINDOW_HEIGHT = 520;
+def TIMER_INTERVAL = 1000;  // 1秒
 
 // ==================== 全局变量 ====================
 
@@ -110,7 +110,7 @@ fn on_paint(w: i32, h: i32) {
     fb_draw_text_size(15, 15, scoreText, rgb(255, 255, 255), 20);
     
     // 绘制时间
-    let timeText = "时间: " ++ get_time_text(&game);
+    let timeText = "时间: {get_time_text}"(&game);
     fb_draw_text_size(WINDOW_WIDTH - 130, 15, timeText, rgb(255, 255, 255), 20);
     
     // 绘制方块
@@ -177,7 +177,7 @@ fn on_paint(w: i32, h: i32) {
         let msg = if game.gameWon { "恭喜通关！" } else { "时间到！" };
         fb_draw_text_size(WINDOW_WIDTH/2 - 60, WINDOW_HEIGHT/2 - 35, msg, rgb(255, 255, 0), 24);
         
-        let finalScore = "得分: " ++ game.score.toString();
+        let finalScore = "得分: {game}".score.toString();
         fb_draw_text_size(WINDOW_WIDTH/2 - 55, WINDOW_HEIGHT/2, finalScore, rgb(255, 255, 255), 20);
         fb_draw_text_size(WINDOW_WIDTH/2 - 70, WINDOW_HEIGHT/2 + 25, "按 R 重新开始", rgb(200, 200, 200), 16);
     }
@@ -188,11 +188,11 @@ fn on_paint(w: i32, h: i32) {
 
 fn on_key(key: KeyCode) -> bool {
     match key {
-        KeyCode.Escape => {
+        KeyCode::Escape => {
             running = false;
             return false;
         },
-        KeyCode.KeyR => {
+        KeyCode::KeyR => {
             restart_game(&mut game);
             return true;
         },
@@ -223,7 +223,7 @@ fn on_mouse(x: i32, y: i32, button: MouseButton) {
             // 检查是否没有可用的移动
             if !game.gameOver && !game.gameWon && !has_possible_moves(&game) {
                 // 没有可用移动，重新排列
-                io.println("无可用移动，正在重新排列...");
+                io.println "无可用移动，正在重新排列...";
             }
         }
     }
@@ -236,9 +236,9 @@ fn on_destroy() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C LinkLink 连连看游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C LinkLink 连连看游戏";
+    io.println "========================================";
 
     // 初始化游戏状态
     init_game(&mut game);
@@ -248,7 +248,7 @@ fn main() -> i32 {
     window = create_window(title, WINDOW_WIDTH, WINDOW_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
@@ -273,12 +273,12 @@ fn main() -> i32 {
     // 设置游戏定时器
     set_game_timer(window, TIMER_INTERVAL);
 
-    io.println("窗口创建成功!");
-    io.println("游戏规则:");
-    io.println("  - 点击两个相同的方块可以消除");
-    io.println("  - 方块必须能在最多两个拐角内连通");
-    io.println("  - 限时 5 分钟，尽量消除所有方块!");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "游戏规则:";
+    io.println "  - 点击两个相同的方块可以消除";
+    io.println "  - 方块必须能在最多两个拐角内连通";
+    io.println "  - 限时 5 分钟，尽量消除所有方块!";
+    io.println "========================================";
 
     // 初始绘制
     redraw_window(window);
@@ -286,9 +286,9 @@ fn main() -> i32 {
     // 运行事件循环
     run_event_loop(window);
 
-    io.println("游戏结束!");
-    io.println("最终得分: " ++ game.score.toString());
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println("最终得分: {game}".score.toString());
+    io.println "========================================";
 
     0
 }

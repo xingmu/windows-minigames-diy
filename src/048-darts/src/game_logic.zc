@@ -3,36 +3,36 @@
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 900;
-const GAME_HEIGHT: i32 = 650;
+def GAME_WIDTH: i32 = 900;
+def GAME_HEIGHT: i32 = 650;
 
 // 飞镖投掷位置
-const THROW_X: i32 = 120;
-const THROW_Y: i32 = 400;
+def THROW_X: i32 = 120;
+def THROW_Y: i32 = 400;
 
 // 靶盘位置和大小
-const BOARD_CX: i32 = 680;
-const BOARD_CY: i32 = 325;
-const BOARD_RADIUS: i32 = 200;
+def BOARD_CX: i32 = 680;
+def BOARD_CY: i32 = 325;
+def BOARD_RADIUS: i32 = 200;
 
 // 靶盘各环半径（从外向内）
-const OUTER_RING: i32 = 200;
-const DOUBLE_RING: i32 = 170;
-const TRIPLE_RING: i32 = 115;
-const INNER_RING: i32 = 90;
-const BULL_RING: i32 = 40;
-const BULL_EYE: i32 = 15;
+def OUTER_RING: i32 = 200;
+def DOUBLE_RING: i32 = 170;
+def TRIPLE_RING: i32 = 115;
+def INNER_RING: i32 = 90;
+def BULL_RING: i32 = 40;
+def BULL_EYE: i32 = 15;
 
 // 分值（顺时针从12点钟方向）
-const SEGMENT_VALUES: [20]i32 = [
+def SEGMENT_VALUES: [i32; 20] = [
     20, 1, 18, 4, 13, 6, 10, 15, 2, 17,
     3, 19, 7, 16, 8, 11, 14, 9, 12, 5
 ];
 
 // 每回合飞镖数
-const DARTS_PER_ROUND: i32 = 3;
-const ROUNDS: i32 = 10;
-const TOTAL_DARTS: i32 = DARTS_PER_ROUND * ROUNDS;
+def DARTS_PER_ROUND: i32 = 3;
+def ROUNDS: i32 = 10;
+def TOTAL_DARTS: i32 = DARTS_PER_ROUND * ROUNDS;
 
 // ==================== 游戏状态 ====================
 
@@ -74,7 +74,7 @@ struct DartsState {
 
 // ==================== 随机数 ====================
 
-private var rand_seed: i32 = 12345;
+private let rand_seed: i32 = 12345;
 
 fn init_rand(seed: i32) {
     rand_seed = seed;
@@ -101,8 +101,8 @@ fn absF(n: f32) -> f32 {
 
 fn sqrtF(n: f32) -> f32 {
     if n <= 0.0 { return 0.0; }
-    var x = n;
-    var y = 1.0;
+    let x = n;
+    let y = 1.0;
     while y < x {
         x = (x + y) / 2.0;
         y = n / x;
@@ -111,7 +111,7 @@ fn sqrtF(n: f32) -> f32 {
 }
 
 fn sinF(n: f32) -> f32 {
-    var x = n;
+    let x = n;
     while x > 3.14159 { x = x - 2 * 3.14159; }
     while x < -3.14159 { x = x + 2 * 3.14159; }
     return x - (x * x * x) / 6.0 + (x * x * x * x * x) / 120.0;
@@ -126,8 +126,8 @@ fn atan2F(y: f32, x: f32) -> f32 {
         if y > 0.0 { return 3.14159 / 2.0; }
         return -3.14159 / 2.0;
     }
-    var z = y / x;
-    var a = atanF(z);
+    let z = y / x;
+    let a = atanF(z);
     if x < 0.0 {
         if y >= 0.0 { return a + 3.14159; }
         return a - 3.14159;
@@ -241,12 +241,12 @@ fn on_mouse_up(game: &mut DartsState, x: i32, y: i32) {
 
 fn on_key_press(game: &mut DartsState, key: KeyCode) -> bool {
     match key {
-        KeyCode.KeyR => {
+        KeyCode::KeyR => {
             if game.status == DartsStatus.GameOver {
                 init_game(game);
             }
         },
-        KeyCode.KeyEscape => {
+        KeyCode::KeyEscape => {
             return false;
         },
         _ => {}
@@ -276,8 +276,8 @@ fn update_game(game: &mut DartsState) -> bool {
     game.darts[idx].vx = game.darts[idx].vx * drag;
     game.darts[idx].vy = game.darts[idx].vy * drag;
 
-    game.darts[idx].x = game.darts[idx].x + (game.darts[idx].vx as i32);
-    game.darts[idx].y = game.darts[idx].y + (game.darts[idx].vy as i32);
+    game.darts[idx].x = game.darts[idx].x + (game.darts[idx].(i32)vx);
+    game.darts[idx].y = game.darts[idx].y + (game.darts[idx].(i32)vy);
 
     // 检测靶盘碰撞
     let dx = game.darts[idx].x - BOARD_CX;
@@ -287,8 +287,8 @@ fn update_game(game: &mut DartsState) -> bool {
     if dist <= BOARD_RADIUS as f32 {
         // 添加随机偏差
         let wobble = (rand_float() - 0.5) * 4.0;
-        game.darts[idx].x = game.darts[idx].x + (wobble as i32);
-        game.darts[idx].y = game.darts[idx].y + (wobble as i32);
+        game.darts[idx].x = game.darts[idx].x + ((i32)wobble);
+        game.darts[idx].y = game.darts[idx].y + ((i32)wobble);
 
         let dx2 = game.darts[idx].x - BOARD_CX;
         let dy2 = game.darts[idx].y - BOARD_CY;
@@ -356,7 +356,7 @@ fn calculate_score(x: i32, y: i32) -> i32 {
     }
 
     let angle = atan2F(dy as f32, dx as f32);
-    var deg = (angle * 180.0 / 3.14159) as f32;
+    let deg = (angle * 180.0 / 3.14159) as f32;
     deg = deg + 90.0;
     if deg < 0.0 {
         deg = deg + 360.0;
@@ -389,28 +389,28 @@ fn calculate_score(x: i32, y: i32) -> i32 {
 
 // ==================== 辅助函数 ====================
 
-fn get_darts_left_in_round(game: &DartsState) -> i32 {
+fn get_darts_left_in_round(game: DartsState*) -> i32 {
     let startOfRound = (game.currentRound - 1) * DARTS_PER_ROUND;
     return DARTS_PER_ROUND - (game.currentDart - startOfRound);
 }
 
-fn get_status_text(game: &DartsState) -> string {
+fn get_status_text(game: DartsState*) -> string {
     match game.status {
-        DartsStatus.Ready => {
+        DartsStatus::Ready => {
             let darts = get_darts_left_in_round(game);
-            return "回合 " ++ game.currentRound.toString() ++ " | 剩余飞镖: " ++ darts.toString() ++ " | 点击拖拽投掷";
+            return "回合 {game}"."{currentRound} | 剩余飞镖: {darts}" ++ " | 点击拖拽投掷";
         },
-        DartsStatus.Aiming => {
+        DartsStatus::Aiming => {
             return "瞄准中... 松开鼠标投掷";
         },
-        DartsStatus.Flying => {
+        DartsStatus::Flying => {
             return "飞镖飞行中...";
         },
-        DartsStatus.Scored => {
+        DartsStatus::Scored => {
             return "得分!";
         },
-        DartsStatus.GameOver => {
-            return "游戏结束! 总分: " ++ game.totalScore.toString() ++ " | 按 R 重新开始";
+        DartsStatus::GameOver => {
+            return "游戏结束! 总分: {game}"."{totalScore} | 按 R 重新开始";
         },
     }
 }

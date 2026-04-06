@@ -1,29 +1,29 @@
 // game.zc - 射击训练游戏核心
 // Shooting Gallery - 移动靶射击训练游戏
 
-import std.math;
+import "math.zc";
 import "platform_api.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH = 800;
-const GAME_HEIGHT = 600;
-const GAME_DURATION = 60;
-const MAX_TARGETS = 8;
-const TARGET_SPAWN_INTERVAL: u32 = 1200;
-const TARGET_LIFETIME: u32 = 3500;
-const CROSSHAIR_SIZE = 20;
+def GAME_WIDTH = 800;
+def GAME_HEIGHT = 600;
+def GAME_DURATION = 60;
+def MAX_TARGETS = 8;
+def TARGET_SPAWN_INTERVAL: u32 = 1200;
+def TARGET_LIFETIME: u32 = 3500;
+def CROSSHAIR_SIZE = 20;
 
-const TARGET_TYPE_STANDING = 0;
-const TARGET_TYPE_MOVING = 1;
-const TARGET_TYPE_BONUS = 2;
+def TARGET_TYPE_STANDING = 0;
+def TARGET_TYPE_MOVING = 1;
+def TARGET_TYPE_BONUS = 2;
 
-const POINTS_STANDING = 10;
-const POINTS_MOVING = 20;
-const POINTS_BONUS = 50;
+def POINTS_STANDING = 10;
+def POINTS_MOVING = 20;
+def POINTS_BONUS = 50;
 
-const TARGET_WIDTH = 40;
-const TARGET_HEIGHT = 60;
+def TARGET_WIDTH = 40;
+def TARGET_HEIGHT = 60;
 
 // ==================== 数据结构 ====================
 
@@ -104,14 +104,14 @@ class ShootingGalleryGame {
         // 创建窗口
         self.window = createWindow(title, width, height);
         if self.window == nil {
-            println("错误: 无法创建窗口");
+            println "错误: 无法创建窗口";
             return;
         }
         
         // 初始化射击场状态
         self.initGallery();
         
-        println("射击训练游戏窗口创建成功: " ++ title);
+        println "射击训练游戏窗口创建成功: {title}";
     }
     
     // 初始化射击场
@@ -128,7 +128,7 @@ class ShootingGalleryGame {
         self.gallery.missCount = 0;
         self.gallery.totalShots = 0;
         self.gallery.hitCount = 0;
-        self.gallery.crosshair = Crosshair.{ 
+        self.gallery.crosshair = Crosshair { 
             x: self.width / 2, 
             y: self.height / 2, 
             visible: true 
@@ -152,7 +152,7 @@ class ShootingGalleryGame {
         self.gallery.gameStartTime = getTickCount();
         self.gallery.lastUpdateTime = self.gallery.gameStartTime;
         self.gallery.lastSpawnTime = self.gallery.gameStartTime;
-        self.gallery.crosshair = Crosshair.{ 
+        self.gallery.crosshair = Crosshair { 
             x: self.gallery.width / 2, 
             y: self.gallery.height / 2, 
             visible: true 
@@ -205,29 +205,29 @@ class ShootingGalleryGame {
     // ===== 事件处理 =====
     
     fn processEvents() {
-        var event = Event.{};
+        let event = Event{};
         
         while pollEvent(self.window, &event) {
             match event.msg {
-                MessageType.Quit => {
+                MessageType::Quit => {
                     self.running = false;
                 }
-                MessageType.KeyDown => {
+                MessageType::KeyDown => {
                     if event.key.key == VirtualKey.Escape {
                         self.running = false;
                     }
                 }
-                MessageType.MouseDown => {
+                MessageType::MouseDown => {
                     self.onMouseDown(event.mouse.x, event.mouse.y, event.mouse.button);
                 }
-                MessageType.MouseUp => {
+                MessageType::MouseUp => {
                     self.onMouseUp(event.mouse.x, event.mouse.y, event.mouse.button);
                 }
-                MessageType.MouseMove => {
+                MessageType::MouseMove => {
                     self.gallery.crosshair.x = event.mouse.x;
                     self.gallery.crosshair.y = event.mouse.y;
                 }
-                MessageType.Resize => {
+                MessageType::Resize => {
                     self.width = event.width;
                     self.height = event.height;
                 }
@@ -242,8 +242,8 @@ class ShootingGalleryGame {
             return;
         }
         
-        var currentTime = getTickCount();
-        var dt = currentTime - self.lastFrame;
+        let currentTime = getTickCount();
+        let dt = currentTime - self.lastFrame;
         
         // 更新计时
         self.gallery.totalTime = self.gallery.totalTime + dt as u32;
@@ -268,7 +268,7 @@ class ShootingGalleryGame {
     
     // 生成目标
     fn spawnTarget() {
-        var slot = -1;
+        let slot = -1;
         for i in 0..MAX_TARGETS {
             if !self.gallery.targets[i].alive {
                 slot = i;
@@ -280,18 +280,18 @@ class ShootingGalleryGame {
             return;
         }
         
-        var r = math.rand() % 100;
-        var targetType = TARGET_TYPE_STANDING;
+        let r = math.rand() % 100;
+        let targetType = TARGET_TYPE_STANDING;
         if r >= 90 {
             targetType = TARGET_TYPE_BONUS;
         } else if r >= 70 {
             targetType = TARGET_TYPE_MOVING;
         }
         
-        var x = (math.rand() % (self.gallery.width - TARGET_WIDTH - 100)) as int + 50;
-        var y = (math.rand() % 280) as int + 200;
+        let x = (math.rand() % (self.gallery.width - TARGET_WIDTH - 100)) as int + 50;
+        let y = (math.rand() % 280) as int + 200;
         
-        var target = &mut self.gallery.targets[slot];
+        let target = &mut self.gallery.targets[slot];
         target.x = x;
         target.y = y;
         target.width = TARGET_WIDTH;
@@ -315,10 +315,10 @@ class ShootingGalleryGame {
     
     // 更新所有目标
     fn updateTargets() {
-        var currentTime = getTickCount();
+        let currentTime = getTickCount();
         
         for i in 0..MAX_TARGETS {
-            var target = &mut self.gallery.targets[i];
+            let target = &mut self.gallery.targets[i];
             
             if !target.alive {
                 continue;
@@ -365,8 +365,8 @@ class ShootingGalleryGame {
     
     // 渲染画面
     fn render() {
-        var fb = getFrameBuffer(self.window);
-        var pitch = getFrameBufferPitch(self.window);
+        let fb = getFrameBuffer(self.window);
+        let pitch = getFrameBufferPitch(self.window);
         
         if fb == nil {
             return;
@@ -376,16 +376,16 @@ class ShootingGalleryGame {
         this.clearBuffer(fb, pitch, Color.Black());
         
         match self.gallery.status {
-            GameStatus.Ready => {
+            GameStatus::Ready => {
                 self.drawReadyScreen(fb, pitch);
             }
-            GameStatus.Playing => {
+            GameStatus::Playing => {
                 self.drawBackground(fb, pitch);
                 self.drawTargets(fb, pitch);
                 self.drawUI(fb, pitch);
                 self.drawCrosshair(fb, pitch);
             }
-            GameStatus.GameOver => {
+            GameStatus::GameOver => {
                 self.drawBackground(fb, pitch);
                 self.drawGameOverScreen(fb, pitch);
                 self.drawCrosshair(fb, pitch);
@@ -398,8 +398,8 @@ class ShootingGalleryGame {
     
     // 清空缓冲区
     fn clearBuffer(fb: rawptr, pitch: int, color: Color) {
-        var pixels = fb as u32 mut;
-        var count = (pitch * self.height) / 4;
+        let pixels = (u32)fb mut;
+        let count = (pitch * self.height) / 4;
         
         for i in 0..count {
             pixels[i] = color;
@@ -413,9 +413,9 @@ class ShootingGalleryGame {
         
         // 绘制星空
         for i in 0..60 {
-            var sx = ((i * 13 + 7) * 17) % self.width;
-            var sy = ((i * 7 + 3) * 11) % (self.height / 2);
-            var brightness = i % 4;
+            let sx = ((i * 13 + 7) * 17) % self.width;
+            let sy = ((i * 7 + 3) * 11) % (self.height / 2);
+            let brightness = i % 4;
             if brightness == 0 {
                 this.fillRectBuffer(fb, pitch, sx, sy, 2, 2, Color.White());
             } else if brightness == 1 {
@@ -451,9 +451,9 @@ class ShootingGalleryGame {
     }
     
     // 绘制单个目标
-    fn drawTarget(fb: rawptr, pitch: int, target: &Target) {
-        var color: Color;
-        var borderColor: Color;
+    fn drawTarget(fb: rawptr, pitch: int, target: Target*) {
+        let color: Color;
+        let borderColor: Color;
         
         match target.targetType {
             TARGET_TYPE_STANDING => {
@@ -479,10 +479,10 @@ class ShootingGalleryGame {
             borderColor = Color.RGB(255, 220, 50);
         }
         
-        var x = target.x;
-        var y = target.y;
-        var w = target.width;
-        var h = target.height;
+        let x = target.x;
+        let y = target.y;
+        let w = target.width;
+        let h = target.height;
         
         // 靶框
         this.fillRectBuffer(fb, pitch, x, y, w, h, color);
@@ -492,8 +492,8 @@ class ShootingGalleryGame {
         this.fillRectBuffer(fb, pitch, x + 3, y + 3, w - 6, h - 6, Color.RGB(40, 40, 40));
         
         // 靶心
-        var cx = x + w / 2;
-        var cy = y + h / 2 - 5;
+        let cx = x + w / 2;
+        let cy = y + h / 2 - 5;
         
         this.drawCircleBuffer(fb, pitch, cx, cy, 15, Color.RGB(200, 200, 200));
         this.drawCircleBuffer(fb, pitch, cx, cy, 10, Color.RGB(220, 50, 50));
@@ -510,10 +510,10 @@ class ShootingGalleryGame {
     
     // 绘制准星
     fn drawCrosshair(fb: rawptr, pitch: int) {
-        var x = self.gallery.crosshair.x;
-        var y = self.gallery.crosshair.y;
-        var size = CROSSHAIR_SIZE;
-        var color = Color.White();
+        let x = self.gallery.crosshair.x;
+        let y = self.gallery.crosshair.y;
+        let size = CROSSHAIR_SIZE;
+        let color = Color.White();
         
         // 水平线
         this.fillRectBuffer(fb, pitch, x - size, y - 1, size - size / 3, 2, color);
@@ -547,7 +547,7 @@ class ShootingGalleryGame {
             if self.gallery.timeLeft <= 10 { Color.Red() } else { Color.RGB(100, 200, 255) });
         
         // 命中率
-        var accuracy = self.getAccuracy();
+        let accuracy = self.getAccuracy();
         self.drawString(fb, pitch, self.width - 150, 12, "HIT:", Color.RGB(100, 255, 100));
         self.drawNumber(fb, pitch, self.width - 90, 12, accuracy, Color.RGB(100, 255, 100));
         self.drawChar(fb, pitch, self.width - 60, 12, '%', Color.RGB(100, 255, 100));
@@ -611,7 +611,7 @@ class ShootingGalleryGame {
         self.drawNumber(fb, pitch, self.width / 2 + 60, 160, self.gallery.score, Color.RGB(255, 215, 0));
         
         // 命中率
-        var accuracy = self.getAccuracy();
+        let accuracy = self.getAccuracy();
         self.drawString(fb, pitch, self.width / 2 - 80, 210, "ACCURACY:", Color.RGB(100, 255, 100));
         self.drawNumber(fb, pitch, self.width / 2 + 30, 210, accuracy, Color.RGB(100, 255, 100));
         self.drawChar(fb, pitch, self.width / 2 + 70, 210, '%', Color.RGB(100, 255, 100));
@@ -629,8 +629,8 @@ class ShootingGalleryGame {
     
     // 缓冲区填充矩形
     fn fillRectBuffer(fb: rawptr, pitch: int, x: int, y: int, w: int, h: int, color: Color) {
-        var pixels = fb as u32 mut;
-        var linePitch = pitch / 4;
+        let pixels = (u32)fb mut;
+        let linePitch = pitch / 4;
         
         for py in y..(y + h) {
             if py < 0 || py >= self.height {
@@ -655,19 +655,19 @@ class ShootingGalleryGame {
     
     // 缓冲区绘制线条 (Bresenham)
     fn drawLineBuffer(fb: rawptr, pitch: int, x1: int, y1: int, x2: int, y2: int, color: Color) {
-        var dx = abs(x2 - x1);
-        var dy = abs(y2 - y1);
-        var sx = if x1 < x2 { 1 } else { -1 };
-        var sy = if y1 < y2 { 1 } else { -1 };
-        var err = dx - dy;
+        let dx = abs(x2 - x1);
+        let dy = abs(y2 - y1);
+        let sx = if x1 < x2 { 1 } else { -1 };
+        let sy = if y1 < y2 { 1 } else { -1 };
+        let err = dx - dy;
         
-        var px = x1;
-        var py = y1;
+        let px = x1;
+        let py = y1;
         
         loop {
             if px >= 0 && px < self.width && py >= 0 && py < self.height {
-                var pixels = fb as u32 mut;
-                var linePitch = pitch / 4;
+                let pixels = (u32)fb mut;
+                let linePitch = pitch / 4;
                 pixels[py * linePitch + px] = color;
             }
             
@@ -675,7 +675,7 @@ class ShootingGalleryGame {
                 break;
             }
             
-            var e2 = 2 * err;
+            let e2 = 2 * err;
             if e2 > -dy {
                 err = err - dy;
                 px = px + sx;
@@ -689,11 +689,11 @@ class ShootingGalleryGame {
     
     // 缓冲区绘制圆
     fn drawCircleBuffer(fb: rawptr, pitch: int, cx: int, cy: int, radius: int, color: Color) {
-        var d = 3 - 2 * radius;
-        var x = 0;
-        var y = radius;
-        var pixels = fb as u32 mut;
-        var linePitch = pitch / 4;
+        let d = 3 - 2 * radius;
+        let x = 0;
+        let y = radius;
+        let pixels = (u32)fb mut;
+        let linePitch = pitch / 4;
         
         loop {
             this.setPixelBuffer(pixels, linePitch, cx + x, cy + y, color);
@@ -728,8 +728,8 @@ class ShootingGalleryGame {
     
     // 绘制字符串 (简化版 8x8 字体)
     fn drawString(fb: rawptr, pitch: int, x: int, y: int, text: str, color: Color) {
-        var px = x;
-        var py = y;
+        let px = x;
+        let py = y;
         
         for i in 0..len(text) {
             if text[i] == '\n' {
@@ -763,21 +763,21 @@ class ShootingGalleryGame {
             x = x + 8;
         }
         
-        var digits: [16]u8;
-        var count = 0;
+        let digits: [u8; 16];
+        let count = 0;
         
         if n == 0 {
             digits[0] = '0' as u8;
             count = 1;
         } else {
             while n > 0 && count < 16 {
-                digits[count] = (n % 10) as u8 + '0' as u8;
+                digits[count] = (u8)(n % 10) + '0' as u8;
                 n = n / 10;
                 count = count + 1;
             }
         }
         
-        var px = x + (count - 1) * 8;
+        let px = x + (count - 1) * 8;
         for i in 0..count {
             self.drawChar(fb, pitch, px, y, digits[count - 1 - i], color);
             px = px - 8;
@@ -786,7 +786,7 @@ class ShootingGalleryGame {
     
     // 获取命中率
     fn getAccuracy() -> int {
-        var total = self.gallery.totalShots;
+        let total = self.gallery.totalShots;
         if total == 0 {
             return 0;
         }
@@ -800,7 +800,7 @@ class ShootingGalleryGame {
     
     // 帧率限制
     fn frameLimit() {
-        var elapsed = getTickCount() - self.lastFrame;
+        let elapsed = getTickCount() - self.lastFrame;
         if elapsed < self.frameTime {
             sleep(self.frameTime - elapsed);
         }
@@ -809,7 +809,7 @@ class ShootingGalleryGame {
     // 初始化回调
     fn onInit() {
         self.gallery.gameStartTime = getTickCount();
-        self.gallery.crosshair = Crosshair.{ 
+        self.gallery.crosshair = Crosshair { 
             x: self.width / 2, 
             y: self.height / 2, 
             visible: true 
@@ -848,10 +848,10 @@ class ShootingGalleryGame {
         }
         
         self.gallery.totalShots = self.gallery.totalShots + 1;
-        var hit = false;
+        let hit = false;
         
         for i in 0..MAX_TARGETS {
-            var target = &mut self.gallery.targets[i];
+            let target = &mut self.gallery.targets[i];
             
             if !target.alive || target.hit {
                 continue;

@@ -2,25 +2,25 @@
 // 074-Pingpong 乒乓球 - 双人对战版
 // 与006不同：双人本地对战，无AI
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
-const WINDOW_WIDTH: int = 800;
-const WINDOW_HEIGHT: int = 600;
+def WINDOW_WIDTH: int = 800;
+def WINDOW_HEIGHT: int = 600;
 
-const PADDLE_WIDTH: int = 12;
-const PADDLE_HEIGHT: int = 90;
-const PADDLE_SPEED: int = 8;
-const PADDLE_MARGIN: int = 30;
+def PADDLE_WIDTH: int = 12;
+def PADDLE_HEIGHT: int = 90;
+def PADDLE_SPEED: int = 8;
+def PADDLE_MARGIN: int = 30;
 
-const BALL_SIZE: int = 12;
-const BALL_INITIAL_SPEED: int = 5;
-const BALL_MAX_SPEED: int = 15;
-const BALL_SPEED_INCREMENT: float = 0.3;
+def BALL_SIZE: int = 12;
+def BALL_INITIAL_SPEED: int = 5;
+def BALL_MAX_SPEED: int = 15;
+def BALL_SPEED_INCREMENT: float = 0.3;
 
-const WINNING_SCORE: int = 11;
+def WINNING_SCORE: int = 11;
 
 // ==================== Pingpong游戏类 ====================
 
@@ -174,12 +174,12 @@ pub class PingpongGame extends Game {
         self.ballY = self.ballY + self.ballVY;
         
         // 上下边界碰撞
-        if self.ballY <= 50.0 + BALL_SIZE as float / 2.0 {
-            self.ballY = 50.0 + BALL_SIZE as float / 2.0;
+        if self.ballY <= 50.0 + (float)BALL_SIZE / 2.0 {
+            self.ballY = 50.0 + (float)BALL_SIZE / 2.0;
             self.ballVY = -self.ballVY;
         }
-        if self.ballY >= self.height as float - 10.0 - BALL_SIZE as float / 2.0 {
-            self.ballY = self.height as float - 10.0 - BALL_SIZE as float / 2.0;
+        if self.ballY >= (float)(self.height) - 10.0 - (float)BALL_SIZE / 2.0 {
+            self.ballY = (float)(self.height) - 10.0 - (float)BALL_SIZE / 2.0;
             self.ballVY = -self.ballVY;
         }
         
@@ -200,7 +200,7 @@ pub class PingpongGame extends Game {
             self.resetBall(1);  // 发给玩家1
         }
         
-        if self.ballX > self.width as float {
+        if self.ballX > (float)(self.width) {
             self.p1Score = self.p1Score + 1;
             self.rally = 0;
             self.resetBall(2);  // 发给玩家2
@@ -218,30 +218,30 @@ pub class PingpongGame extends Game {
             self.ballVX = self.absFloat(self.ballVX);
             
             // 根据击中位置计算反弹角度
-            var paddleCenter = self.p1Y as float + PADDLE_HEIGHT as float / 2.0;
-            var hitPos = self.ballY - paddleCenter;
-            var angleFactor = hitPos / (PADDLE_HEIGHT as float / 2.0);
+            let paddleCenter = (float)(self.p1Y) + (float)PADDLE_HEIGHT / 2.0;
+            let hitPos = self.ballY - paddleCenter;
+            let angleFactor = hitPos / ((float)PADDLE_HEIGHT / 2.0);
             
             // 增加速度
             if self.ballSpeed < BALL_MAX_SPEED {
                 self.ballSpeed = self.ballSpeed + 1;
             }
             
-            var speed = self.ballSpeed as float;
+            let speed = self.ballSpeed as float;
             self.ballVX = speed * 0.8;
             self.ballVY = angleFactor * speed * 0.6;
         } else {
             self.ballVX = -self.absFloat(self.ballVX);
             
-            var paddleCenter = self.p2Y as float + PADDLE_HEIGHT as float / 2.0;
-            var hitPos = self.ballY - paddleCenter;
-            var angleFactor = hitPos / (PADDLE_HEIGHT as float / 2.0);
+            let paddleCenter = (float)(self.p2Y) + (float)PADDLE_HEIGHT / 2.0;
+            let hitPos = self.ballY - paddleCenter;
+            let angleFactor = hitPos / ((float)PADDLE_HEIGHT / 2.0);
             
             if self.ballSpeed < BALL_MAX_SPEED {
                 self.ballSpeed = self.ballSpeed + 1;
             }
             
-            var speed = self.ballSpeed as float;
+            let speed = self.ballSpeed as float;
             self.ballVX = -speed * 0.8;
             self.ballVY = angleFactor * speed * 0.6;
         }
@@ -249,15 +249,15 @@ pub class PingpongGame extends Game {
     
     // 检查挡板碰撞
     private fn checkPaddleCollision(px: int, py: int, pw: int, ph: int) -> bool {
-        var ballLeft = self.ballX - BALL_SIZE as float / 2.0;
-        var ballRight = self.ballX + BALL_SIZE as float / 2.0;
-        var ballTop = self.ballY - BALL_SIZE as float / 2.0;
-        var ballBottom = self.ballY + BALL_SIZE as float / 2.0;
+        let ballLeft = self.ballX - (float)BALL_SIZE / 2.0;
+        let ballRight = self.ballX + (float)BALL_SIZE / 2.0;
+        let ballTop = self.ballY - (float)BALL_SIZE / 2.0;
+        let ballBottom = self.ballY + (float)BALL_SIZE / 2.0;
         
-        var paddleLeft = px as float;
-        var paddleRight = (px + pw) as float;
-        var paddleTop = py as float;
-        var paddleBottom = (py + ph) as float;
+        let paddleLeft = px as float;
+        let paddleRight = (px + pw) as float;
+        let paddleTop = py as float;
+        let paddleBottom = (py + ph) as float;
         
         return ballRight >= paddleLeft && ballLeft <= paddleRight &&
                ballBottom >= paddleTop && ballTop <= paddleBottom;
@@ -265,8 +265,8 @@ pub class PingpongGame extends Game {
     
     // 重置球 - serveTo: 0=中间, 1=给P1, 2=给P2
     private fn resetBall(serveTo: int) {
-        self.ballX = self.width as float / 2.0;
-        self.ballY = self.height as float / 2.0;
+        self.ballX = (float)(self.width) / 2.0;
+        self.ballY = (float)(self.height) / 2.0;
         self.ballSpeed = BALL_INITIAL_SPEED;
         self.ballVX = 0.0;
         self.ballVY = 0.0;
@@ -279,24 +279,24 @@ pub class PingpongGame extends Game {
     
     // 开始发球
     private fn startBall(serveTo: int) {
-        var angle = (math.rand() % 40 - 20) as float;  // -20 到 +20 度
+        let angle = (math.rand() % 40 - 20) as float;  // -20 到 +20 度
         
         if serveTo == 1 {
             // 发给玩家1 (球从右向左)
-            self.ballVX = -(self.ballSpeed as float) * self.cos(angle);
+            self.ballVX = -((float)(self.ballSpeed)) * self.cos(angle);
         } else if serveTo == 2 {
             // 发给玩家2 (球从左向右)
-            self.ballVX = (self.ballSpeed as float) * self.cos(angle);
+            self.ballVX = ((float)(self.ballSpeed)) * self.cos(angle);
         } else {
             // 随机方向
             if math.rand() % 2 == 0 {
-                self.ballVX = (self.ballSpeed as float) * self.cos(angle);
+                self.ballVX = ((float)(self.ballSpeed)) * self.cos(angle);
             } else {
-                self.ballVX = -(self.ballSpeed as float) * self.cos(angle);
+                self.ballVX = -((float)(self.ballSpeed)) * self.cos(angle);
             }
         }
         
-        self.ballVY = (self.ballSpeed as float) * self.sin(angle);
+        self.ballVY = ((float)(self.ballSpeed)) * self.sin(angle);
         self.gameStarted = true;
     }
     
@@ -349,10 +349,10 @@ pub class PingpongGame extends Game {
     
     // 绘制中线
     private fn drawCenterLine(canvas: Canvas) {
-        var centerX = self.width / 2;
-        var dashHeight = 15;
-        var gapHeight = 10;
-        var y = 60;
+        let centerX = self.width / 2;
+        let dashHeight = 15;
+        let gapHeight = 10;
+        let y = 60;
         
         while y < self.height - 20 {
             // P1侧 - 青色
@@ -365,22 +365,22 @@ pub class PingpongGame extends Game {
     
     // 绘制分数
     private fn drawScore(canvas: Canvas) {
-        var font = Font.("Arial", 48);
+        let font = Font("Arial", 48);
         
         // P1 分数 - 左侧
-        var p1Text = self.intToString(self.p1Score);
+        let p1Text = self.intToString(self.p1Score);
         canvas.drawText(self.width / 4 - 30, 10, p1Text, self.p1Color, font);
         
         // P2 分数 - 右侧
-        var p2Text = self.intToString(self.p2Score);
+        let p2Text = self.intToString(self.p2Score);
         canvas.drawText(self.width * 3 / 4 - 30, 10, p2Text, self.p2Color, font);
         
         // 中间的 VS
-        var smallFont = Font.("Arial", 20);
+        let smallFont = Font("Arial", 20);
         canvas.drawText(self.width / 2 - 15, 20, "VS", Color.Gray(), smallFont);
         
         // 玩家标签
-        var labelFont = Font.("Arial", 12);
+        let labelFont = Font("Arial", 12);
         canvas.drawText(self.width / 4 - 25, 0, "P1", Color.LightGray(), labelFont);
         canvas.drawText(self.width * 3 / 4 - 25, 0, "P2", Color.LightGray(), labelFont);
     }
@@ -388,11 +388,11 @@ pub class PingpongGame extends Game {
     // 绘制连续击球次数
     private fn drawRally(canvas: Canvas) {
         if self.rally > 1 {
-            var font = Font.("Arial", 16);
-            var text = "连击: " ++ self.intToString(self.rally);
+            let font = Font("Arial", 16);
+            let text = "连击: {self}".intToString(self.rally);
             
             // 根据连击数改变颜色
-            var color = Color.Yellow();
+            let color = Color.Yellow();
             if self.rally >= 10 {
                 color = Color.Red();
             } else if self.rally >= 5 {
@@ -418,35 +418,35 @@ pub class PingpongGame extends Game {
     // 绘制球
     private fn drawBall(canvas: Canvas) {
         // 发光效果
-        var glowRadius = BALL_SIZE / 2 + 4;
-        canvas.fillCircle(self.ballX as int, self.ballY as int, glowRadius, Color.ARGB(100, 255, 255, 255));
+        let glowRadius = BALL_SIZE / 2 + 4;
+        canvas.fillCircle((int)(self.ballX), (int)(self.ballY), glowRadius, Color.ARGB(100, 255, 255, 255));
         
         // 球本体
-        var ballColor = Color.White();
+        let ballColor = Color.White();
         if self.hitFlash > 0 {
             ballColor = Color.Yellow();
         }
-        canvas.fillCircle(self.ballX as int, self.ballY as int, BALL_SIZE / 2, ballColor);
+        canvas.fillCircle((int)(self.ballX), (int)(self.ballY), BALL_SIZE / 2, ballColor);
     }
     
     // 绘制开始提示
     private fn drawStartMessage(canvas: Canvas) {
-        var font = Font.("Arial", 18);
+        let font = Font("Arial", 18);
         
         // P1 提示
         canvas.drawText(30, self.height / 2 - 50, "P1: W/S", Color.LightGray(), font);
         
         // P2 提示
-        var p2Text = "P2: ↑/↓";
+        let p2Text = "P2: ↑/↓";
         canvas.drawText(self.width - 100, self.height / 2 - 50, p2Text, Color.LightGray(), font);
         
         // 空格键提示
-        var spaceFont = Font.("Arial", 22);
-        var spaceText = "按 空格键 发球";
+        let spaceFont = Font("Arial", 22);
+        let spaceText = "按 空格键 发球";
         canvas.drawText(self.width / 2 - 100, self.height / 2 + 50, spaceText, Color.Yellow(), spaceFont);
         
         // 发球方向提示
-        var hintFont = Font.("Arial", 14);
+        let hintFont = Font("Arial", 14);
         if self.p1Score == 0 && self.p2Score == 0 {
             canvas.drawText(self.width / 2 - 80, self.height / 2 + 80, "先到 11 分者获胜", Color.Gray(), hintFont);
         }
@@ -457,9 +457,9 @@ pub class PingpongGame extends Game {
         // 半透明遮罩
         canvas.fillRect(0, 0, self.width, self.height, Color.ARGB(160, 0, 0, 0));
         
-        var font = Font.("Arial", 48);
-        var text: str;
-        var color: Color;
+        let font = Font("Arial", 48);
+        let text: str;
+        let color: Color;
         
         if self.winner == 1 {
             text = "P1 获胜!";
@@ -472,13 +472,13 @@ pub class PingpongGame extends Game {
         canvas.drawText(self.width / 2 - 120, self.height / 2 - 50, text, color, font);
         
         // 比分
-        var scoreFont = Font.("Arial", 24);
-        var scoreText = self.intToString(self.p1Score) ++ " - " ++ self.intToString(self.p2Score);
+        let scoreFont = Font("Arial", 24);
+        let scoreText = self.intToString(self.p1Score) ++ " - {self}".intToString(self.p2Score);
         canvas.drawText(self.width / 2 - 40, self.height / 2 + 10, scoreText, Color.White(), scoreFont);
         
         // 重新开始提示
-        var restartFont = Font.("Arial", 18);
-        var restartText = "按 R 键重新开始";
+        let restartFont = Font("Arial", 18);
+        let restartText = "按 R 键重新开始";
         canvas.drawText(self.width / 2 - 90, self.height / 2 + 60, restartText, Color.LightGray(), restartFont);
     }
     
@@ -486,29 +486,29 @@ pub class PingpongGame extends Game {
     pub fn onKeyDown(key: VirtualKey) {
         match key {
             // P1 控制 (W/S)
-            VirtualKey.KeyW => {
+            VirtualKey::KeyW => {
                 self.p1KeyUp = true;
             }
-            VirtualKey.KeyS => {
+            VirtualKey::KeyS => {
                 self.p1KeyDown = true;
             }
             // P2 控制 (上/下箭头)
-            VirtualKey.Up => {
+            VirtualKey::Up => {
                 self.p2KeyUp = true;
             }
-            VirtualKey.Down => {
+            VirtualKey::Down => {
                 self.p2KeyDown = true;
             }
             // 空格键发球
-            VirtualKey.Space => {
+            VirtualKey::Space => {
                 if !self.gameStarted && !self.gameOver {
                     // 随机决定发给谁
-                    var serveTo = if math.rand() % 2 == 0 { 1 } else { 2 };
+                    let serveTo = if math.rand() % 2 == 0 { 1 } else { 2 };
                     self.startBall(serveTo);
                 }
             }
             // R键重新开始
-            VirtualKey.KeyR => {
+            VirtualKey::KeyR => {
                 if self.gameOver {
                     self.onInit();
                 }
@@ -520,16 +520,16 @@ pub class PingpongGame extends Game {
     // onKeyUp - 键盘释放
     pub fn onKeyUp(key: VirtualKey) {
         match key {
-            VirtualKey.KeyW => {
+            VirtualKey::KeyW => {
                 self.p1KeyUp = false;
             }
-            VirtualKey.KeyS => {
+            VirtualKey::KeyS => {
                 self.p1KeyDown = false;
             }
-            VirtualKey.Up => {
+            VirtualKey::Up => {
                 self.p2KeyUp = false;
             }
-            VirtualKey.Down => {
+            VirtualKey::Down => {
                 self.p2KeyDown = false;
             }
             _ => {}
@@ -539,7 +539,7 @@ pub class PingpongGame extends Game {
     // onMouseDown - 鼠标按下
     pub fn onMouseDown(x: int, y: int, button: MouseButton) {
         if !self.gameStarted && !self.gameOver {
-            var serveTo = if math.rand() % 2 == 0 { 1 } else { 2 };
+            let serveTo = if math.rand() % 2 == 0 { 1 } else { 2 };
             self.startBall(serveTo);
         }
     }
@@ -555,9 +555,9 @@ pub class PingpongGame extends Game {
     }
     
     fn cos(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = 1.0;
-        var term = 1.0;
+        let rad = x * 3.14159 / 180.0;
+        let result = 1.0;
+        let term = 1.0;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
             result = result + term;
@@ -566,9 +566,9 @@ pub class PingpongGame extends Game {
     }
     
     fn sin(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = rad;
-        var term = rad;
+        let rad = x * 3.14159 / 180.0;
+        let result = rad;
+        let term = rad;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
             result = result + term;
@@ -580,18 +580,18 @@ pub class PingpongGame extends Game {
         if n == 0 {
             return "0";
         }
-        var result = "";
-        var negative = false;
-        var num = n;
+        let result = "";
+        let negative = false;
+        let num = n;
         if num < 0 {
             negative = true;
             num = -num;
         }
         while num > 0 {
-            var digit = num % 10;
-            result = (digit as char + "") ++ result;
+            let digit = num % 10;
+            result = ((char)digit + "") ++ result;
             num = num / 10;
         }
-        return if negative { "-" ++ result } else { result };
+        return if negative { "-{result}" } else { result };
     }
 }

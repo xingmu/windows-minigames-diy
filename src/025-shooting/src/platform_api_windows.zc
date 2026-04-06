@@ -74,12 +74,12 @@ fn getWindowSize(handle: WindowHandle) -> (int, int) {
     return (800, 600);
 }
 
-fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
+fn pollEvent(handle: WindowHandle, event: Event*) -> bool {
     event.msg = MessageType.None;
     return false;
 }
 
-fn waitEvent(handle: WindowHandle, event: &Event) {
+fn waitEvent(handle: WindowHandle, event: Event*) {
 }
 
 fn postQuitMessage(handle: WindowHandle) {

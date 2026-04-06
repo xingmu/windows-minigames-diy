@@ -1,7 +1,7 @@
 // main_window.zc - Zen-C BreakoutPlus（打砖块增强版）主程序
 
-import std.io;
-import std.math;
+import "io.zc";
+import "math.zc";
 
 // 导入游戏逻辑
 import "platform_api.zc";
@@ -9,11 +9,11 @@ import "game_logic.zc";
 
 // ==================== 常量 ====================
 
-const MAX_BRICKS = 50;
-const MAX_BALLS = 5;
-const MAX_POWERUPS = 10;
-const MAX_LASERS = 10;
-const MAX_PARTICLES = 20;
+def MAX_BRICKS = 50;
+def MAX_BALLS = 5;
+def MAX_POWERUPS = 10;
+def MAX_LASERS = 10;
+def MAX_PARTICLES = 20;
 
 // ==================== 全局变量 ====================
 
@@ -32,7 +32,7 @@ fn dimColor(c: u32, factor: f32) -> u32 {
     let r = ((c >> 16) & 0xFF) as u8;
     let g = ((c >> 8) & 0xFF) as u8;
     let b = (c & 0xFF) as u8;
-    rgb((r as f32 * factor) as u8, (g as f32 * factor) as u8, (b as f32 * factor) as u8)
+    rgb(u8)((r as f32 * factor), (u8)(g as f32 * factor), (u8)(b as f32 * factor))
 }
 
 // ==================== 事件处理 ====================
@@ -125,7 +125,7 @@ fn onPaint(w: i32, h: i32) {
             let life = game.effects[i].life / game.effects[i].maxLife;
             let alpha = (life * 255.0) as u8;
             let color = game.effects[i].color;
-            let size = (life * 4.0) as i32 + 1;
+            let size = (i32)(life * 4.0) + 1;
             if size > 0 {
                 fb_draw_circle(ex, ey, size, color);
             }
@@ -174,7 +174,7 @@ fn onPaint(w: i32, h: i32) {
     fb_draw_text_size(10, 8, config.name, rgb(200, 200, 255), 16);
 
     // 分数
-    let scoreStr = "分数: " ++ game.score.toString();
+    let scoreStr = "分数: {game}".score.toString();
     fb_draw_text_size(250, 8, scoreStr, rgb(255, 255, 100), 16);
 
     // 生命
@@ -242,10 +242,10 @@ fn onDestroy() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C BreakoutPlus 打砖块增强版");
-    io.println("多关卡 + 特殊道具系统");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C BreakoutPlus 打砖块增强版";
+    io.println "多关卡 + 特殊道具系统";
+    io.println "========================================";
 
     // 初始化游戏状态
     init_game(&mut game);
@@ -255,7 +255,7 @@ fn main() -> i32 {
     window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
@@ -282,19 +282,19 @@ fn main() -> i32 {
     // 设置游戏定时器
     set_game_timer(window, game_speed);
 
-    io.println("窗口创建成功!");
-    io.println("按空格键开始游戏");
-    io.println("使用 ← → 方向键控制挡板");
-    io.println("========================================");
-    io.println("道具说明:");
-    io.println("  E - 扩展挡板 (宽)");
-    io.println("  S - 缩小挡板 (窄)");
-    io.println("  M - 多球");
-    io.println("  L - 减速球");
-    io.println("  F - 加速球");
-    io.println("  + - 额外生命");
-    io.println("  K - 粘性挡板");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "按空格键开始游戏";
+    io.println "使用 ← → 方向键控制挡板";
+    io.println "========================================";
+    io.println "道具说明:";
+    io.println "  E - 扩展挡板 (宽)";
+    io.println "  S - 缩小挡板 (窄)";
+    io.println "  M - 多球";
+    io.println "  L - 减速球";
+    io.println "  F - 加速球";
+    io.println "  + - 额外生命";
+    io.println "  K - 粘性挡板";
+    io.println "========================================";
 
     // 初始绘制
     redraw_window(window);
@@ -302,10 +302,10 @@ fn main() -> i32 {
     // 运行事件循环
     run_event_loop(window);
 
-    io.println("游戏结束!");
-    io.println("最终得分: " ++ game.score.toString());
-    io.println("到达关卡: " ++ game.level.toString());
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println("最终得分: {game}".score.toString());
+    io.println("到达关卡: {game}".level.toString());
+    io.println "========================================";
 
     0
 }

@@ -1,40 +1,40 @@
 // game_logic.zc - Badminton Game Logic
 // 073-Badminton 羽毛球游戏
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const WINDOW_WIDTH: int = 800;
-const WINDOW_HEIGHT: int = 600;
+def WINDOW_WIDTH: int = 800;
+def WINDOW_HEIGHT: int = 600;
 
-const COURT_TOP: int = 80;
-const COURT_BOTTOM: int = 590;
-const COURT_LEFT: int = 10;
-const COURT_RIGHT: int = 790;
+def COURT_TOP: int = 80;
+def COURT_BOTTOM: int = 590;
+def COURT_LEFT: int = 10;
+def COURT_RIGHT: int = 790;
 
-const NET_X: int = 400;
-const NET_HEIGHT: int = 10;
-const NET_Y_TOP: int = 200;
-const NET_Y_BOTTOM: int = COURT_BOTTOM;
+def NET_X: int = 400;
+def NET_HEIGHT: int = 10;
+def NET_Y_TOP: int = 200;
+def NET_Y_BOTTOM: int = COURT_BOTTOM;
 
-const RACKET_WIDTH: int = 10;
-const RACKET_HEIGHT: int = 80;
-const RACKET_SPEED: int = 8;
-const RACKET_MARGIN: int = 30;
+def RACKET_WIDTH: int = 10;
+def RACKET_HEIGHT: int = 80;
+def RACKET_SPEED: int = 8;
+def RACKET_MARGIN: int = 30;
 
-const SHUTTLECOCK_SIZE: int = 8;
-const SHUTTLECOCK_GRAVITY: float = 0.15;
-const SHUTTLECOCK_DRAG: float = 0.995;
-const SHUTTLECOCK_BOUNCE: float = 0.75;
-const SHUTTLECOCK_MIN_SPEED: int = 4;
-const SHUTTLECOCK_MAX_SPEED: int = 15;
+def SHUTTLECOCK_SIZE: int = 8;
+def SHUTTLECOCK_GRAVITY: float = 0.15;
+def SHUTTLECOCK_DRAG: float = 0.995;
+def SHUTTLECOCK_BOUNCE: float = 0.75;
+def SHUTTLECOCK_MIN_SPEED: int = 4;
+def SHUTTLECOCK_MAX_SPEED: int = 15;
 
-const WINNING_SCORE: int = 11;
-const AI_REACTION_DELAY: int = 80;
-const AI_ERROR_RANGE: int = 40;
+def WINNING_SCORE: int = 11;
+def AI_REACTION_DELAY: int = 80;
+def AI_ERROR_RANGE: int = 40;
 
-const SERVICE_DELAY: int = 1500;
+def SERVICE_DELAY: int = 1500;
 
 // ==================== 数据结构 ====================
 
@@ -169,8 +169,8 @@ pub class BadmintonGame extends Game {
         
         // 服务延迟
         if self.waitingForService {
-            var current = getTickCount();
-            if current - self.serviceTimer >= SERVICE_DELAY as u32 {
+            let current = getTickCount();
+            if current - self.serviceTimer >= (u32)SERVICE_DELAY {
                 self.waitingForService = false;
                 if self.playerServing {
                     self.serveToRight();
@@ -209,33 +209,33 @@ pub class BadmintonGame extends Game {
     // 更新电脑AI
     private fn updateCPU(dt: u32) {
         // 限制AI更新频率
-        var currentTime = getTickCount();
-        if currentTime - self.aiLastUpdate < AI_REACTION_DELAY as u32 {
+        let currentTime = getTickCount();
+        if currentTime - self.aiLastUpdate < (u32)AI_REACTION_DELAY {
             return;
         }
         self.aiLastUpdate = currentTime;
         
         // 预测羽毛球的位置
         if self.shuttleActive && self.shuttleVX > 0.0 {
-            var timeToReach = (self.cpuRacketX - self.shuttleX) / self.shuttleVX;
+            let timeToReach = (self.cpuRacketX - self.shuttleX) / self.shuttleVX;
             if timeToReach > 0.0 && timeToReach < 50.0 {
-                var predictedY = self.shuttleY + self.shuttleVY * timeToReach;
+                let predictedY = self.shuttleY + self.shuttleVY * timeToReach;
                 // 添加失误
                 if math.rand() % 4 == 0 {
                     self.aiError = math.rand() % (AI_ERROR_RANGE * 2) - AI_ERROR_RANGE;
                 }
-                self.aiTargetY = predictedY as int + self.aiError + RACKET_HEIGHT / 2;
+                self.aiTargetY = (int)predictedY + self.aiError + RACKET_HEIGHT / 2;
             }
         } else {
             self.aiTargetY = self.height / 2;
         }
         
         // 让AI球拍移向目标位置
-        var cpuCenter = self.cpuRacketY + RACKET_HEIGHT / 2;
-        var diff = self.aiTargetY - cpuCenter;
+        let cpuCenter = self.cpuRacketY + RACKET_HEIGHT / 2;
+        let diff = self.aiTargetY - cpuCenter;
         
         // AI移动速度（稍微慢一点）
-        var aiSpeed = RACKET_SPEED - 2;
+        let aiSpeed = RACKET_SPEED - 2;
         
         if diff > aiSpeed {
             self.cpuRacketY = self.cpuRacketY + aiSpeed;
@@ -255,10 +255,10 @@ pub class BadmintonGame extends Game {
     // 发球到右边
     private fn serveToRight() {
         self.shuttleX = (self.playerRacketX + self.playerRacketWidth + SHUTTLECOCK_SIZE) as float;
-        self.shuttleY = self.playerRacketY as float + RACKET_HEIGHT as float / 2.0;
-        var angle = (math.rand() % 30 - 15) as float;
-        self.shuttleVX = (self.shuttleSpeed as float) * self.cos(angle);
-        self.shuttleVY = (self.shuttleSpeed as float) * self.sin(angle) - 2.0;
+        self.shuttleY = (float)(self.playerRacketY) + (float)RACKET_HEIGHT / 2.0;
+        let angle = (math.rand() % 30 - 15) as float;
+        self.shuttleVX = ((float)(self.shuttleSpeed)) * self.cos(angle);
+        self.shuttleVY = ((float)(self.shuttleSpeed)) * self.sin(angle) - 2.0;
         self.shuttleActive = true;
         self.gameStarted = true;
     }
@@ -266,10 +266,10 @@ pub class BadmintonGame extends Game {
     // 发球到左边
     private fn serveToLeft() {
         self.shuttleX = (self.cpuRacketX - SHUTTLECOCK_SIZE) as float;
-        self.shuttleY = self.cpuRacketY as float + RACKET_HEIGHT as float / 2.0;
-        var angle = (math.rand() % 30 - 15) as float;
-        self.shuttleVX = -(self.shuttleSpeed as float) * self.cos(angle);
-        self.shuttleVY = (self.shuttleSpeed as float) * self.sin(angle) - 2.0;
+        self.shuttleY = (float)(self.cpuRacketY) + (float)RACKET_HEIGHT / 2.0;
+        let angle = (math.rand() % 30 - 15) as float;
+        self.shuttleVX = -((float)(self.shuttleSpeed)) * self.cos(angle);
+        self.shuttleVY = ((float)(self.shuttleSpeed)) * self.sin(angle) - 2.0;
         self.shuttleActive = true;
         self.gameStarted = true;
     }
@@ -288,35 +288,35 @@ pub class BadmintonGame extends Game {
         self.shuttleY = self.shuttleY + self.shuttleVY;
         
         // 上下边界碰撞
-        if self.shuttleY <= COURT_TOP as float + SHUTTLECOCK_SIZE as float {
-            self.shuttleY = COURT_TOP as float + SHUTTLECOCK_SIZE as float;
+        if self.shuttleY <= (float)COURT_TOP + (float)SHUTTLECOCK_SIZE {
+            self.shuttleY = (float)COURT_TOP + SHUTTLECOCK_SIZE as float;
             self.shuttleVY = -self.shuttleVY * SHUTTLECOCK_BOUNCE;
         }
-        if self.shuttleY >= COURT_BOTTOM as float - SHUTTLECOCK_SIZE as float {
-            self.shuttleY = COURT_BOTTOM as float - SHUTTLECOCK_SIZE as float;
+        if self.shuttleY >= (float)COURT_BOTTOM - (float)SHUTTLECOCK_SIZE {
+            self.shuttleY = (float)COURT_BOTTOM - SHUTTLECOCK_SIZE as float;
             self.shuttleVY = -self.shuttleVY * SHUTTLECOCK_BOUNCE;
         }
         
         // 边界碰撞（左右边界）
-        if self.shuttleX <= COURT_LEFT as float + SHUTTLECOCK_SIZE as float {
-            self.shuttleX = COURT_LEFT as float + SHUTTLECOCK_SIZE as float;
+        if self.shuttleX <= (float)COURT_LEFT + (float)SHUTTLECOCK_SIZE {
+            self.shuttleX = (float)COURT_LEFT + SHUTTLECOCK_SIZE as float;
             self.shuttleVX = -self.shuttleVX * SHUTTLECOCK_BOUNCE;
         }
-        if self.shuttleX >= COURT_RIGHT as float - SHUTTLECOCK_SIZE as float {
-            self.shuttleX = COURT_RIGHT as float - SHUTTLECOCK_SIZE as float;
+        if self.shuttleX >= (float)COURT_RIGHT - (float)SHUTTLECOCK_SIZE {
+            self.shuttleX = (float)COURT_RIGHT - SHUTTLECOCK_SIZE as float;
             self.shuttleVX = -self.shuttleVX * SHUTTLECOCK_BOUNCE;
         }
         
         // 玩家球拍碰撞
         if self.checkRacketCollision(self.playerRacketX, self.playerRacketY, self.playerRacketWidth, self.playerRacketHeight) {
             self.shuttleVX = self.absFloat(self.shuttleVX);
-            if self.shuttleVX < SHUTTLECOCK_MIN_SPEED as float {
+            if self.shuttleVX < (float)SHUTTLECOCK_MIN_SPEED {
                 self.shuttleVX = SHUTTLECOCK_MIN_SPEED as float;
             }
             
-            var racketCenter = self.playerRacketY as float + RACKET_HEIGHT as float / 2.0;
-            var hitPos = self.shuttleY - racketCenter;
-            self.shuttleVY = hitPos / (RACKET_HEIGHT as float / 2.0) * (self.shuttleSpeed as float);
+            let racketCenter = (float)(self.playerRacketY) + (float)RACKET_HEIGHT / 2.0;
+            let hitPos = self.shuttleY - racketCenter;
+            self.shuttleVY = hitPos / ((float)RACKET_HEIGHT / 2.0) * ((float)(self.shuttleSpeed));
             
             // 增加速度
             if self.shuttleSpeed < SHUTTLECOCK_MAX_SPEED {
@@ -324,8 +324,8 @@ pub class BadmintonGame extends Game {
             }
             
             // 限制速度
-            var currentSpeed = self.sqrtFloat(self.shuttleVX * self.shuttleVX + self.shuttleVY * self.shuttleVY);
-            if currentSpeed > SHUTTLECOCK_MAX_SPEED as float {
+            let currentSpeed = self.sqrtFloat(self.shuttleVX * self.shuttleVX + self.shuttleVY * self.shuttleVY);
+            if currentSpeed > (float)SHUTTLECOCK_MAX_SPEED {
                 self.shuttleVX = self.shuttleVX / currentSpeed * self.shuttleSpeed as float;
                 self.shuttleVY = self.shuttleVY / currentSpeed * self.shuttleSpeed as float;
             }
@@ -336,13 +336,13 @@ pub class BadmintonGame extends Game {
         // 电脑球拍碰撞
         if self.checkRacketCollision(self.cpuRacketX, self.cpuRacketY, self.cpuRacketWidth, self.cpuRacketHeight) {
             self.shuttleVX = -self.absFloat(self.shuttleVX);
-            if self.shuttleVX > -SHUTTLECOCK_MIN_SPEED as float {
+            if self.shuttleVX > -(float)SHUTTLECOCK_MIN_SPEED {
                 self.shuttleVX = -SHUTTLECOCK_MIN_SPEED as float;
             }
             
-            var racketCenter = self.cpuRacketY as float + RACKET_HEIGHT as float / 2.0;
-            var hitPos = self.shuttleY - racketCenter;
-            self.shuttleVY = hitPos / (RACKET_HEIGHT as float / 2.0) * (self.shuttleSpeed as float);
+            let racketCenter = (float)(self.cpuRacketY) + (float)RACKET_HEIGHT / 2.0;
+            let hitPos = self.shuttleY - racketCenter;
+            self.shuttleVY = hitPos / ((float)RACKET_HEIGHT / 2.0) * ((float)(self.shuttleSpeed));
             
             // 增加速度
             if self.shuttleSpeed < SHUTTLECOCK_MAX_SPEED {
@@ -350,8 +350,8 @@ pub class BadmintonGame extends Game {
             }
             
             // 限制速度
-            var currentSpeed = self.sqrtFloat(self.shuttleVX * self.shuttleVX + self.shuttleVY * self.shuttleVY);
-            if currentSpeed > SHUTTLECOCK_MAX_SPEED as float {
+            let currentSpeed = self.sqrtFloat(self.shuttleVX * self.shuttleVX + self.shuttleVY * self.shuttleVY);
+            if currentSpeed > (float)SHUTTLECOCK_MAX_SPEED {
                 self.shuttleVX = self.shuttleVX / currentSpeed * self.shuttleSpeed as float;
                 self.shuttleVY = self.shuttleVY / currentSpeed * self.shuttleSpeed as float;
             }
@@ -360,13 +360,13 @@ pub class BadmintonGame extends Game {
         }
         
         // 网碰撞
-        if self.shuttleX > (NET_X - SHUTTLECOCK_SIZE) as float && self.shuttleX < (NET_X + SHUTTLECOCK_SIZE) as float {
-            if self.shuttleY > (NET_Y_TOP - SHUTTLECOCK_SIZE) as float && self.shuttleY < NET_Y_BOTTOM as float {
+        if self.shuttleX > (float)(NET_X - SHUTTLECOCK_SIZE) && self.shuttleX < (float)(NET_X + SHUTTLECOCK_SIZE) {
+            if self.shuttleY > (float)(NET_Y_TOP - SHUTTLECOCK_SIZE) && self.shuttleY < (float)NET_Y_BOTTOM {
                 // 在网区域内
-                if self.shuttleVX > 0.0 && self.shuttleX < NET_X as float {
+                if self.shuttleVX > 0.0 && self.shuttleX < (float)NET_X {
                     self.shuttleVX = -self.shuttleVX * SHUTTLECOCK_BOUNCE;
                     self.shuttleX = (NET_X - SHUTTLECOCK_SIZE) as float;
-                } else if self.shuttleVX < 0.0 && self.shuttleX > NET_X as float {
+                } else if self.shuttleVX < 0.0 && self.shuttleX > (float)NET_X {
                     self.shuttleVX = -self.shuttleVX * SHUTTLECOCK_BOUNCE;
                     self.shuttleX = (NET_X + SHUTTLECOCK_SIZE) as float;
                 }
@@ -376,15 +376,15 @@ pub class BadmintonGame extends Game {
     
     // 检查球拍碰撞
     private fn checkRacketCollision(rx: int, ry: int, rw: int, rh: int) -> bool {
-        var shuttleLeft = self.shuttleX - SHUTTLECOCK_SIZE as float / 2.0;
-        var shuttleRight = self.shuttleX + SHUTTLECOCK_SIZE as float / 2.0;
-        var shuttleTop = self.shuttleY - SHUTTLECOCK_SIZE as float / 2.0;
-        var shuttleBottom = self.shuttleY + SHUTTLECOCK_SIZE as float / 2.0;
+        let shuttleLeft = self.shuttleX - (float)SHUTTLECOCK_SIZE / 2.0;
+        let shuttleRight = self.shuttleX + (float)SHUTTLECOCK_SIZE / 2.0;
+        let shuttleTop = self.shuttleY - (float)SHUTTLECOCK_SIZE / 2.0;
+        let shuttleBottom = self.shuttleY + (float)SHUTTLECOCK_SIZE / 2.0;
         
-        var racketLeft = rx as float;
-        var racketRight = (rx + rw) as float;
-        var racketTop = ry as float;
-        var racketBottom = (ry + rh) as float;
+        let racketLeft = rx as float;
+        let racketRight = (rx + rw) as float;
+        let racketTop = ry as float;
+        let racketBottom = (ry + rh) as float;
         
         return shuttleRight >= racketLeft && shuttleLeft <= racketRight &&
                shuttleBottom >= racketTop && shuttleTop <= racketBottom;
@@ -393,7 +393,7 @@ pub class BadmintonGame extends Game {
     // 检查得分
     private fn checkScoring() {
         // 羽毛球出界左侧（玩家失分）
-        if self.shuttleX < COURT_LEFT as float {
+        if self.shuttleX < (float)COURT_LEFT {
             self.cpuScore = self.cpuScore + 1;
             self.lastServer = 1;
             self.playerServing = false;
@@ -406,7 +406,7 @@ pub class BadmintonGame extends Game {
         }
         
         // 羽毛球出界右侧（电脑失分）
-        if self.shuttleX > COURT_RIGHT as float {
+        if self.shuttleX > (float)COURT_RIGHT {
             self.playerScore = self.playerScore + 1;
             self.lastServer = 2;
             self.playerServing = true;
@@ -419,8 +419,8 @@ pub class BadmintonGame extends Game {
         }
         
         // 羽毛球落地（如果在网这边）
-        if self.shuttleY > COURT_BOTTOM as float - SHUTTLECOCK_SIZE as float {
-            if self.shuttleX < NET_X as float {
+        if self.shuttleY > (float)COURT_BOTTOM - (float)SHUTTLECOCK_SIZE {
+            if self.shuttleX < (float)NET_X {
                 // 玩家这边落地，玩家失分
                 self.cpuScore = self.cpuScore + 1;
                 self.lastServer = 1;
@@ -497,30 +497,30 @@ pub class BadmintonGame extends Game {
     private fn drawRacket(canvas: Canvas, x: int, y: int, w: int, h: int, color: Color) {
         canvas.fillRect(x, y, w, h, color);
         // 球拍手柄
-        var handleX = if color == Color.Blue() { x + w } else { x - 15 };
+        let handleX = if color == Color.Blue() { x + w } else { x - 15 };
         canvas.fillRect(handleX, y + h/2 - 3, 15, 6, Color.Brown());
     }
     
     // 绘制羽毛球
     private fn drawShuttlecock(canvas: Canvas) {
         // 羽毛球头部（圆形）
-        canvas.fillCircle(self.shuttleX as int, self.shuttleY as int, SHUTTLECOCK_SIZE, Color.White());
+        canvas.fillCircle((int)(self.shuttleX), (int)(self.shuttleY), SHUTTLECOCK_SIZE, Color.White());
         // 羽毛球尾部（羽毛部分用线条表示）
-        var tailDir = if self.shuttleVX > 0.0 { -1 } else { 1 };
-        var tailX = self.shuttleX as int + tailDir * SHUTTLECOCK_SIZE * 2;
-        var tailY = self.shuttleY as int;
-        canvas.drawLine(self.shuttleX as int, self.shuttleY as int, tailX, tailY, Color.Cyan());
+        let tailDir = if self.shuttleVX > 0.0 { -1 } else { 1 };
+        let tailX = (int)(self.shuttleX) + tailDir * SHUTTLECOCK_SIZE * 2;
+        let tailY = self.shuttleY as int;
+        canvas.drawLine((int)(self.shuttleX), (int)(self.shuttleY), tailX, tailY, Color.Cyan());
     }
     
     // 绘制分数
     private fn drawScore(canvas: Canvas) {
-        var font = Font.("Arial", 36);
-        var fontSmall = Font.("Arial", 14);
+        let font = Font("Arial", 36);
+        let fontSmall = Font("Arial", 14);
         
-        var playerText = self.intToString(self.playerScore);
+        let playerText = self.intToString(self.playerScore);
         canvas.drawText(self.width / 4 - 20, 15, playerText, Color.Blue(), font);
         
-        var cpuText = self.intToString(self.cpuScore);
+        let cpuText = self.intToString(self.cpuScore);
         canvas.drawText(self.width * 3 / 4 - 20, 15, cpuText, Color.Red(), font);
         
         canvas.drawText(self.width / 2 - 10, 15, "-", Color.Gray(), font);
@@ -532,9 +532,9 @@ pub class BadmintonGame extends Game {
     // 绘制发球指示
     private fn drawServiceIndicator(canvas: Canvas) {
         if self.waitingForService {
-            var font = Font.("Arial", 20);
-            var text = if self.playerServing { "玩家发球..." } else { "电脑发球..." };
-            var xPos = if self.playerServing { self.width / 4 - 60 } else { self.width * 3 / 4 - 60 };
+            let font = Font("Arial", 20);
+            let text = if self.playerServing { "玩家发球..." } else { "电脑发球..." };
+            let xPos = if self.playerServing { self.width / 4 - 60 } else { self.width * 3 / 4 - 60 };
             canvas.drawText(xPos, self.height / 2, text, Color.Yellow(), font);
         }
     }
@@ -543,34 +543,34 @@ pub class BadmintonGame extends Game {
     private fn drawGameOver(canvas: Canvas) {
         canvas.fillRect(0, 0, self.width, self.height, Color.ARGB(150, 0, 0, 0));
         
-        var font = Font.("Arial", 48);
-        var text = self.winner ++ " 获胜!";
+        let font = Font("Arial", 48);
+        let text = self."{winner} 获胜!";
         canvas.drawText(self.width / 2 - 150, self.height / 2 - 50, text, Color.Yellow(), font);
         
-        var smallFont = Font.("Arial", 20);
-        var scoreText = "比分: " ++ self.intToString(self.playerScore) ++ " - " ++ self.intToString(self.cpuScore);
+        let smallFont = Font("Arial", 20);
+        let scoreText = "比分: {self}".intToString(self.playerScore) ++ " - {self}".intToString(self.cpuScore);
         canvas.drawText(self.width / 2 - 80, self.height / 2 + 10, scoreText, Color.White(), smallFont);
         
-        var restartText = "按 R 键重新开始";
+        let restartText = "按 R 键重新开始";
         canvas.drawText(self.width / 2 - 100, self.height / 2 + 50, restartText, Color.White(), smallFont);
     }
     
     // onKeyDown - 键盘按下
     pub fn onKeyDown(key: VirtualKey) {
         match key {
-            VirtualKey.Up | VirtualKey.KeyW => {
+            VirtualKey.Up | VirtualKey::KeyW => {
                 self.keyUp = true;
             }
-            VirtualKey.Down | VirtualKey.KeyS => {
+            VirtualKey.Down | VirtualKey::KeyS => {
                 self.keyDown = true;
             }
-            VirtualKey.Space => {
+            VirtualKey::Space => {
                 if self.waitingForService && self.playerServing && !self.gameOver {
                     self.waitingForService = false;
                     self.serveToRight();
                 }
             }
-            VirtualKey.KeyR => {
+            VirtualKey::KeyR => {
                 if self.gameOver {
                     self.onInit();
                 }
@@ -582,10 +582,10 @@ pub class BadmintonGame extends Game {
     // onKeyUp - 键盘释放
     pub fn onKeyUp(key: VirtualKey) {
         match key {
-            VirtualKey.Up | VirtualKey.KeyW => {
+            VirtualKey.Up | VirtualKey::KeyW => {
                 self.keyUp = false;
             }
-            VirtualKey.Down | VirtualKey.KeyS => {
+            VirtualKey.Down | VirtualKey::KeyS => {
                 self.keyDown = false;
             }
             _ => {}
@@ -614,8 +614,8 @@ pub class BadmintonGame extends Game {
         if n < 0.0 {
             return 0.0;
         }
-        var x = n;
-        var y = 1.0;
+        let x = n;
+        let y = 1.0;
         while y < x {
             x = (x + y) / 2.0;
             y = n / x;
@@ -624,9 +624,9 @@ pub class BadmintonGame extends Game {
     }
     
     fn cos(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = 1.0;
-        var term = 1.0;
+        let rad = x * 3.14159 / 180.0;
+        let result = 1.0;
+        let term = 1.0;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
             result = result + term;
@@ -635,9 +635,9 @@ pub class BadmintonGame extends Game {
     }
     
     fn sin(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = rad;
-        var term = rad;
+        let rad = x * 3.14159 / 180.0;
+        let result = rad;
+        let term = rad;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
             result = result + term;
@@ -649,18 +649,18 @@ pub class BadmintonGame extends Game {
         if n == 0 {
             return "0";
         }
-        var result = "";
-        var negative = false;
-        var num = n;
+        let result = "";
+        let negative = false;
+        let num = n;
         if num < 0 {
             negative = true;
             num = -num;
         }
         while num > 0 {
-            var digit = num % 10;
-            result = (digit as char + "") ++ result;
+            let digit = num % 10;
+            result = ((char)digit + "") ++ result;
             num = num / 10;
         }
-        return if negative { "-" ++ result } else { result };
+        return if negative { "-{result}" } else { result };
     }
 }

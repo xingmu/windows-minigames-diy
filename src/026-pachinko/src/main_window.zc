@@ -1,6 +1,6 @@
 // main_window.zc - Zen-C Pachinko（弹珠台）游戏主程序
 
-import std.io;
+import "io.zc";
 
 // 导入游戏逻辑
 import "platform_api.zc";
@@ -73,7 +73,7 @@ fn on_paint(w: i32, h: i32) {
     for i in 0..MAX_BALLS {
         if game.balls[i].active {
             let ball = game.balls[i];
-            fb_draw_circle(ball.x as i32, ball.y as i32, ball.radius, rgb(255, 220, 100));
+            fb_draw_circle(ball.(i32)x, ball.(i32)y, ball.radius, rgb(255, 220, 100));
         }
     }
 
@@ -86,11 +86,11 @@ fn on_paint(w: i32, h: i32) {
                  6, indicator_h, rgb(255, 100, 100));
 
     // 绘制分数
-    let score_str = "分数: " ++ game.score.toString();
+    let score_str = "分数: {game}".score.toString();
     fb_draw_text_size(10, 10, score_str, rgb(255, 255, 255), 20);
 
     // 绘制剩余球数
-    let balls_str = "剩余: " ++ game.balls_remaining.toString() ++ " 球";
+    let balls_str = "剩余: {game}"."{balls_remaining} 球";
     fb_draw_text_size(10, 38, balls_str, rgb(200, 200, 200), 16);
 
     // 绘制瞄准指示
@@ -148,9 +148,9 @@ fn on_destroy() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C Pachinko 弹珠台游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C Pachinko 弹珠台游戏";
+    io.println "========================================";
 
     // 初始化游戏状态
     init_game(&mut game);
@@ -160,7 +160,7 @@ fn main() -> i32 {
     window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
@@ -188,11 +188,11 @@ fn main() -> i32 {
     // 设置游戏定时器
     set_game_timer(window, game_speed);
 
-    io.println("窗口创建成功!");
-    io.println("按空格键发射弹珠");
-    io.println("使用 ↑ ↓ 调整发射力度");
-    io.println("使用 ← → 控制翻转器");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "按空格键发射弹珠";
+    io.println "使用 ↑ ↓ 调整发射力度";
+    io.println "使用 ← → 控制翻转器";
+    io.println "========================================";
 
     // 初始绘制
     redraw_window(window);
@@ -200,9 +200,9 @@ fn main() -> i32 {
     // 运行事件循环
     run_event_loop(window);
 
-    io.println("游戏结束!");
-    io.println("最终得分: " ++ game.score.toString());
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println("最终得分: {game}".score.toString());
+    io.println "========================================";
 
     0
 }

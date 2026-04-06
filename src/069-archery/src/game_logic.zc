@@ -1,29 +1,29 @@
 // game_logic.zc - Zen-C Archery（射箭）游戏核心逻辑
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 800;
-const GAME_HEIGHT: i32 = 600;
-const GRAVITY: i32 = 2;           // 重力加速度
-const ARROW_SPEED: i32 = 15;       // 弓箭初速度
-const MAX_ARROWS: i32 = 10;        // 最大弓箭数量
-const TARGET_COUNT: i32 = 3;       // 目标数量
-const ARROWS_PER_ROUND: i32 = 5;   // 每轮弓箭数量
-const BULLSEYE_SCORE: i32 = 100;   // 内圈分数
-const MIDDLE_SCORE: i32 = 50;      // 中圈分数
-const OUTER_SCORE: i32 = 20;       // 外圈分数
+def GAME_WIDTH: i32 = 800;
+def GAME_HEIGHT: i32 = 600;
+def GRAVITY: i32 = 2;           // 重力加速度
+def ARROW_SPEED: i32 = 15;       // 弓箭初速度
+def MAX_ARROWS: i32 = 10;        // 最大弓箭数量
+def TARGET_COUNT: i32 = 3;       // 目标数量
+def ARROWS_PER_ROUND: i32 = 5;   // 每轮弓箭数量
+def BULLSEYE_SCORE: i32 = 100;   // 内圈分数
+def MIDDLE_SCORE: i32 = 50;      // 中圈分数
+def OUTER_SCORE: i32 = 20;       // 外圈分数
 
 // ==================== 游戏颜色 ====================
 
-const SKY_COLOR = Color { r: 135, g: 206, b: 235 };   // 天蓝色
-const GRASS_COLOR = Color { r: 34, g: 139, b: 34 };   // 草绿色
-const BOW_COLOR = Color { r: 139, g: 69, b: 19 };     // 棕色
-const ARROW_COLOR = Color { r: 160, g: 82, b: 45 };   // 深棕色
-const TARGET_RED = Color { r: 220, g: 20, b: 60 };    // 红色
-const TARGET_WHITE = Color { r: 255, g: 255, b: 255 }; // 白色
-const BULLSEYE_COLOR = Color { r: 255, g: 215, b: 0 };  // 金色
+def SKY_COLOR = Color { r: 135, g: 206, b: 235 };   // 天蓝色
+def GRASS_COLOR = Color { r: 34, g: 139, b: 34 };   // 草绿色
+def BOW_COLOR = Color { r: 139, g: 69, b: 19 };     // 棕色
+def ARROW_COLOR = Color { r: 160, g: 82, b: 45 };   // 深棕色
+def TARGET_RED = Color { r: 220, g: 20, b: 60 };    // 红色
+def TARGET_WHITE = Color { r: 255, g: 255, b: 255 }; // 白色
+def BULLSEYE_COLOR = Color { r: 255, g: 215, b: 0 };  // 金色
 
 // ==================== 游戏状态枚举 ====================
 
@@ -225,7 +225,7 @@ fn handle_shoot(game: &mut ArcheryState) -> bool {
 
 // 更新游戏逻辑
 fn update_game(game: &mut ArcheryState) -> bool {
-    var needs_redraw = false;
+    let needs_redraw = false;
     
     // 更新飞行中的弓箭
     for i in 0..MAX_ARROWS {
@@ -265,7 +265,7 @@ fn update_game(game: &mut ArcheryState) -> bool {
     
     // 检查回合是否结束
     if game.status == GameStatus.Shooting {
-        var all_done = true;
+        let all_done = true;
         for i in 0..MAX_ARROWS {
             if game.arrows[i].active {
                 all_done = false;
@@ -386,13 +386,13 @@ fn restart_game(game: &mut ArcheryState) {
 }
 
 // 获取状态文本
-fn get_status_text(game: &ArcheryState) -> string {
+fn get_status_text(game: ArcheryState*) -> string {
     match game.status {
-        GameStatus.Ready => return "点击开始射箭!",
-        GameStatus.Playing => return "准备... 点击射箭!",
-        GameStatus.Shooting => return "弓箭飞行中...",
-        GameStatus.RoundEnd => return "回合结束! 按空格继续",
-        GameStatus.GameOver => return "游戏结束! 按R重新开始",
+        GameStatus::Ready => return "点击开始射箭!",
+        GameStatus::Playing => return "准备... 点击射箭!",
+        GameStatus::Shooting => return "弓箭飞行中...",
+        GameStatus::RoundEnd => return "回合结束! 按空格继续",
+        GameStatus::GameOver => return "游戏结束! 按R重新开始",
     }
 }
 
@@ -402,16 +402,14 @@ fn get_controls_text() -> string {
 }
 
 // 获取分数文本
-fn get_score_text(game: &ArcheryState) -> string {
-    return "分数: " ++ game.score.toString() ++ 
-           "  回合: " ++ game.round.toString() ++ 
-           "  弓箭: " ++ game.arrows_left.toString()
+fn get_score_text(game: ArcheryState*) -> string {
+    return "分数: {game}"."{score}  回合: {game}"."{round}  弓箭: {game}".arrows_left.toString()
 }
 
 // 获取风力文本
-fn get_wind_text(game: &ArcheryState) -> string {
+fn get_wind_text(game: ArcheryState*) -> string {
     let wind_str = if game.wind > 0 {
-        "右风: " ++ game.wind.toString()
+        "右风: {game}".wind.toString()
     } else if game.wind < 0 {
         "左风: " ++ (-game.wind).toString()
     } else {
@@ -421,16 +419,16 @@ fn get_wind_text(game: &ArcheryState) -> string {
 }
 
 // 获取瞄准线数据(用于绘制轨迹预测)
-fn get_trajectory_points(game: &ArcheryState, count: i32) -> [count]Point {
+fn get_trajectory_points(game: ArcheryState*, count: i32) -> [count]Point {
     let points: [count]Point;
     
-    var x = game.bow.x as f32;
-    var y = game.bow.y as f32;
-    var vx = game.bow.power as f32 * math.cos(game.bow.angle);
-    var vy = game.bow.power as f32 * math.sin(game.bow.angle);
+    let x = game.bow.x as f32;
+    let y = game.bow.y as f32;
+    let vx = game.bow.power as f32 * math.cos(game.bow.angle);
+    let vy = game.bow.power as f32 * math.sin(game.bow.angle);
     
     for i in 0..count {
-        points[i] = Point { x: x as i32, y: y as i32 };
+        points[i] = Point { x: (i32)x, y: (i32)y };
         
         vy = vy + (GRAVITY as f32);
         vx = vx + (game.wind as f32 * 0.02);

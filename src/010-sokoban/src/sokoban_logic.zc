@@ -1,15 +1,15 @@
 // sokoban_logic.zc - 推箱子游戏逻辑
 
-import std.io;
+import "io.zc";
 
 // ==================== 常量定义 ====================
 
 // 最大关卡数量
-const MAX_LEVELS = 3;
+def MAX_LEVELS = 3;
 
 // 最大网格尺寸
-const MAX_GRID_WIDTH = 20
-const MAX_GRID_HEIGHT = 15
+def MAX_GRID_WIDTH = 20
+def MAX_GRID_HEIGHT = 15
 
 // 格子类型
 enum CellType {
@@ -35,9 +35,9 @@ struct Level {
     playerStartY: int,
     grid: [MAX_GRID_HEIGHT][MAX_GRID_WIDTH]CellType,
     boxCount: int,
-    boxes: [10]Point,
+    boxes: [Point; 10],
     targetCount: int,
-    targets: [10]Point,
+    targets: [Point; 10],
 }
 
 // 坐标点
@@ -63,11 +63,11 @@ struct SokobanGameState {
     
     // 箱子位置
     boxCount: int,
-    boxes: [10]Point,
+    boxes: [Point; 10],
     
     // 目标位置
     targetCount: int,
-    targets: [10]Point,
+    targets: [Point; 10],
 }
 
 // ==================== 关卡定义 ====================
@@ -81,7 +81,7 @@ struct SokobanGameState {
 // % = 玩家在目标点上
 
 // 关卡1 - 入门 (5x5)
-const LEVEL_1: str = 
+def LEVEL_1: str = 
     "#####" ++
     "#.*.#" ++
     "#.$.#" ++
@@ -89,7 +89,7 @@ const LEVEL_1: str =
     "#####";
 
 // 关卡2 - 中等 (6x6)
-const LEVEL_2: str = 
+def LEVEL_2: str = 
     "######" ++
     "#....#" ++
     "#.$@.#" ++
@@ -98,7 +98,7 @@ const LEVEL_2: str =
     "######";
 
 // 关卡3 - 困难 (7x7)
-const LEVEL_3: str = 
+def LEVEL_3: str = 
     "#######" ++
     "#.....#" ++
     "#.$$$.#" ++
@@ -117,11 +117,11 @@ fn parseLevel(levelStr: str, level: &mut Level) {
     level.targetCount = 0;
     
     // 逐字符解析
-    var x = 0;
-    var y = 0;
+    let x = 0;
+    let y = 0;
     
     for i in 0..len(levelStr) {
-        var ch = levelStr[i];
+        let ch = levelStr[i];
         
         if ch == '\n' {
             // 换行
@@ -147,21 +147,21 @@ fn parseLevel(levelStr: str, level: &mut Level) {
         } else if ch == '$' {
             // 箱子
             level.grid[y][x] = CellType.Floor;
-            level.boxes[level.boxCount] = Point.{ x: x, y: y };
+            level.boxes[level.boxCount] = Point { x: x, y: y };
             level.boxCount = level.boxCount + 1;
             x = x + 1;
         } else if ch == '*' {
             // 目标点
             level.grid[y][x] = CellType.Target;
-            level.targets[level.targetCount] = Point.{ x: x, y: y };
+            level.targets[level.targetCount] = Point { x: x, y: y };
             level.targetCount = level.targetCount + 1;
             x = x + 1;
         } else if ch == '+' {
             // 箱子在目标点上
             level.grid[y][x] = CellType.Target;
-            level.boxes[level.boxCount] = Point.{ x: x, y: y };
+            level.boxes[level.boxCount] = Point { x: x, y: y };
             level.boxCount = level.boxCount + 1;
-            level.targets[level.targetCount] = Point.{ x: x, y: y };
+            level.targets[level.targetCount] = Point { x: x, y: y };
             level.targetCount = level.targetCount + 1;
             x = x + 1;
         } else if ch == '%' {
@@ -169,7 +169,7 @@ fn parseLevel(levelStr: str, level: &mut Level) {
             level.grid[y][x] = CellType.Target;
             level.playerStartX = x;
             level.playerStartY = y;
-            level.targets[level.targetCount] = Point.{ x: x, y: y };
+            level.targets[level.targetCount] = Point { x: x, y: y };
             level.targetCount = level.targetCount + 1;
             x = x + 1;
         }
@@ -183,7 +183,7 @@ fn parseLevel(levelStr: str, level: &mut Level) {
 
 // 初始化游戏状态
 fn initGame(state: &mut SokobanGameState, levelIndex: int) {
-    var level: Level;
+    let level: Level;
     
     // 根据关卡加载
     if levelIndex == 0 {
@@ -230,7 +230,7 @@ fn resetLevel(state: &mut SokobanGameState) {
 }
 
 // 检查是否是目标点
-fn isTarget(state: &SokobanGameState, x: int, y: int) -> bool {
+fn isTarget(state: SokobanGameState*, x: int, y: int) -> bool {
     for i in 0..state.targetCount {
         if state.targets[i].x == x && state.targets[i].y == y {
             return true;
@@ -240,7 +240,7 @@ fn isTarget(state: &SokobanGameState, x: int, y: int) -> bool {
 }
 
 // 检查某个位置是否有箱子
-fn getBoxAt(state: &SokobanGameState, x: int, y: int) -> int {
+fn getBoxAt(state: SokobanGameState*, x: int, y: int) -> int {
     for i in 0..state.boxCount {
         if state.boxes[i].x == x && state.boxes[i].y == y {
             return i;
@@ -250,7 +250,7 @@ fn getBoxAt(state: &SokobanGameState, x: int, y: int) -> int {
 }
 
 // 检查是否是墙
-fn isWall(state: &SokobanGameState, x: int, y: int) -> bool {
+fn isWall(state: SokobanGameState*, x: int, y: int) -> bool {
     if x < 0 || x >= state.gridWidth || y < 0 || y >= state.gridHeight {
         return true;
     }
@@ -263,8 +263,8 @@ fn movePlayer(state: &mut SokobanGameState, dir: Direction) -> bool {
         return false;
     }
     
-    var dx = 0;
-    var dy = 0;
+    let dx = 0;
+    let dy = 0;
     
     match dir {
         Direction::Up => { dy = -1; }
@@ -273,8 +273,8 @@ fn movePlayer(state: &mut SokobanGameState, dir: Direction) -> bool {
         Direction::Right => { dx = 1; }
     }
     
-    var newX = state.playerX + dx;
-    var newY = state.playerY + dy;
+    let newX = state.playerX + dx;
+    let newY = state.playerY + dy;
     
     // 检查是否是墙
     if isWall(state, newX, newY) {
@@ -282,12 +282,12 @@ fn movePlayer(state: &mut SokobanGameState, dir: Direction) -> bool {
     }
     
     // 检查该位置是否有箱子
-    var boxIdx = getBoxAt(state, newX, newY);
+    let boxIdx = getBoxAt(state, newX, newY);
     
     if boxIdx >= 0 {
         // 有箱子，尝试推箱子
-        var boxNewX = newX + dx;
-        var boxNewY = newY + dy;
+        let boxNewX = newX + dx;
+        let boxNewY = newY + dy;
         
         // 检查箱子移动的目标位置是否是墙或另一个箱子
         if isWall(state, boxNewX, boxNewY) {
@@ -319,10 +319,10 @@ fn movePlayer(state: &mut SokobanGameState, dir: Direction) -> bool {
 fn checkWin(state: &mut SokobanGameState) {
     // 所有目标点都必须有箱子
     for i in 0..state.targetCount {
-        var tx = state.targets[i].x;
-        var ty = state.targets[i].y;
+        let tx = state.targets[i].x;
+        let ty = state.targets[i].y;
         
-        var hasBox = false;
+        let hasBox = false;
         for j in 0..state.boxCount {
             if state.boxes[j].x == tx && state.boxes[j].y == ty {
                 hasBox = true;
@@ -349,14 +349,14 @@ fn nextLevel(state: &mut SokobanGameState) {
 }
 
 // 获取状态文本
-fn getStatusText(state: &SokobanGameState) -> str {
+fn getStatusText(state: SokobanGameState*) -> str {
     if state.allWon {
         return "CONGRATULATIONS! All levels completed!";
     }
     if state.levelWon {
-        return "Level " ++ (state.currentLevel + 1).toString() ++ " Complete! Steps: " ++ state.steps.toString();
+        return "Level " ++ (state.currentLevel + 1).toString() ++ " Complete! Steps: {state}".steps.toString();
     }
-    return "Level " ++ (state.currentLevel + 1).toString() ++ "/" ++ MAX_LEVELS.toString() ++ " - Steps: " ++ state.steps.toString();
+    return "Level " ++ (state.currentLevel + 1).toString() ++ "/{MAX_LEVELS}" ++ " - Steps: {state}".steps.toString();
 }
 
 // 获取控制说明

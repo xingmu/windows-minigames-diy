@@ -3,11 +3,11 @@
 
 // 主函数 - 程序入口
 pub fn main() {
-    println("===========================================");
-    println("  Zen-C 游戏框架 v1.0.0");
-    println("  现代系统编程，零开销");
-    println("===========================================");
-    println("");
+    println "===========================================";
+    println "  Zen-C 游戏框架 v1.0.0";
+    println "  现代系统编程，零开销";
+    println "===========================================";
+    println "";
     
     // 初始化平台
     initPlatform();
@@ -15,15 +15,15 @@ pub fn main() {
     // 游戏主循环在 game.zc 的 Game.run() 中实现
     // 子类通过重写 onInit, onUpdate, onRender 等方法实现具体游戏
     
-    println("框架已就绪");
-    println("");
-    println("使用方法:");
-    println("  1. 创建一个继承自 Game 的类");
-    println("  2. 重写 onInit() 进行初始化");
-    println("  3. 重写 onUpdate(dt) 更新游戏逻辑");
-    println("  4. 重写 onRender(canvas) 绘制游戏画面");
-    println("  5. 调用 run() 开始游戏");
-    println("");
+    println "框架已就绪";
+    println "";
+    println "使用方法:";
+    println "  1. 创建一个继承自 Game 的类";
+    println "  2. 重写 onInit() 进行初始化";
+    println "  3. 重写 onUpdate(dt) 更新游戏逻辑";
+    println "  4. 重写 onRender(canvas) 绘制游戏画面";
+    println "  5. 调用 run() 开始游戏";
+    println "";
     
     // 清理
     shutdownPlatform();
@@ -113,10 +113,10 @@ class PongGame extends Game {
     
     fn onKeyDown(key: VirtualKey) {
         match key {
-            VirtualKey.Up => {
+            VirtualKey::Up => {
                 self.paddleY = self.paddleY - 20;
             }
-            VirtualKey.Down => {
+            VirtualKey::Down => {
                 self.paddleY = self.paddleY + 20;
             }
             _ => {}
@@ -131,7 +131,7 @@ class PongGame extends Game {
 
 // 运行游戏
 fn main() {
-    var game = PongGame.("Pong Game", 800, 600, 60);
+    let game = PongGame("Pong Game", 800, 600, 60);
     game.run();
     game.destroy();
 }

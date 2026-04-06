@@ -3,7 +3,7 @@
 // 提供游戏开发的基础设施
 
 // 游戏状态
-pub type GameState = enum {
+enum GameState {
     Ready,      // 等待开始
     Playing,    // 游戏中
     Paused,     // 暂停
@@ -47,11 +47,11 @@ pub abstract class Game {
         // 创建窗口
         self.window = createWindow(title, width, height);
         if self.window == nil {
-            println("错误: 无法创建窗口");
+            println "错误: 无法创建窗口";
             return;
         }
         
-        println("游戏窗口创建成功: " ++ title);
+        println "游戏窗口创建成功: {title}";
     }
     
     // 析构函数
@@ -122,7 +122,7 @@ pub abstract class Game {
     pub abstract fn onUpdate(dt: u32);
     
     // 渲染回调 (每帧调用)
-    pub abstract fn onRender(canvas: &Canvas);
+    pub abstract fn onRender(canvas: Canvas*);
     
     // 键盘按下回调
     pub abstract fn onKeyDown(key: VirtualKey);
@@ -140,34 +140,34 @@ pub abstract class Game {
     
     // 处理所有待处理事件
     private fn processEvents() {
-        var event = Event.{};
+        let event = Event{};
         
         while pollEvent(self.window, &event) {
             match event.msg {
-                MessageType.Quit => {
+                MessageType::Quit => {
                     self.running = false;
                 }
-                MessageType.KeyDown => {
+                MessageType::KeyDown => {
                     if event.key.key == VirtualKey.Escape {
                         self.running = false;
                     } else {
                         self.onKeyDown(event.key.key);
                     }
                 }
-                MessageType.KeyUp => {
+                MessageType::KeyUp => {
                     self.onKeyUp(event.key.key);
                 }
-                MessageType.MouseDown => {
+                MessageType::MouseDown => {
                     self.onMouseDown(event.mouse.x, event.mouse.y, event.mouse.button);
                 }
-                MessageType.MouseUp => {
+                MessageType::MouseUp => {
                     self.onMouseUp(event.mouse.x, event.mouse.y, event.mouse.button);
                 }
-                MessageType.Resize => {
+                MessageType::Resize => {
                     self.width = event.width;
                     self.height = event.height;
                 }
-                MessageType.Paint => {
+                MessageType::Paint => {
                     // 已在render中处理
                 }
                 _ => {}
@@ -181,19 +181,19 @@ pub abstract class Game {
             return;
         }
         
-        var current = getTickCount();
-        var dt = current - self.lastFrame;
+        let current = getTickCount();
+        let dt = current - self.lastFrame;
         
         self.onUpdate(dt);
     }
     
     // 渲染画面
     private fn render() {
-        var fb = getFrameBuffer(self.window);
-        var pitch = getFrameBufferPitch(self.window);
+        let fb = getFrameBuffer(self.window);
+        let pitch = getFrameBufferPitch(self.window);
         
         // 创建画布实现
-        var canvas = FrameBufferCanvas.{
+        let canvas = FrameBufferCanvas {
             width: self.width,
             height: self.height,
             pitch: pitch,
@@ -214,7 +214,7 @@ pub abstract class Game {
     
     // 帧率限制
     private fn frameLimit() {
-        var elapsed = getTickCount() - self.lastFrame;
+        let elapsed = getTickCount() - self.lastFrame;
         if elapsed < self.frameTime {
             sleep(self.frameTime - elapsed);
         }
@@ -222,8 +222,8 @@ pub abstract class Game {
     
     // 辅助：随机整数
     pub fn randInt(min: int, max: int) -> int {
-        var r = 0;
-        var i = 0;
+        let r = 0;
+        let i = 0;
         while i < 10 {
             r = r + i;
             i = i + 1;
@@ -245,8 +245,8 @@ private class FrameBufferCanvas {
 
 impl Canvas for FrameBufferCanvas {
     fn clear(color: Color) {
-        var pixels = self.buffer as u32 mut;
-        var count = (self.pitch * self.height) / 4;
+        let pixels = (u32)(self.buffer) mut;
+        let count = (self.pitch * self.height) / 4;
         
         for i in 0..count {
             pixels[i] = color;
@@ -258,8 +258,8 @@ impl Canvas for FrameBufferCanvas {
             return;
         }
         
-        var offset = y * (self.pitch / 4) + x;
-        var pixels = self.buffer as u32 mut;
+        let offset = y * (self.pitch / 4) + x;
+        let pixels = (u32)(self.buffer) mut;
         pixels[offset] = color;
     }
     
@@ -268,18 +268,18 @@ impl Canvas for FrameBufferCanvas {
             return Color.Black();
         }
         
-        var offset = y * (self.pitch / 4) + x;
-        var pixels = self.buffer as u32;
+        let offset = y * (self.pitch / 4) + x;
+        let pixels = self.buffer as u32;
         return pixels[offset];
     }
     
     fn drawLine(x1: int, y1: int, x2: int, y2: int, color: Color) {
         // Bresenham 算法
-        var dx = abs(x2 - x1);
-        var dy = abs(y2 - y1);
-        var sx = if x1 < x2 { 1 } else { -1 };
-        var sy = if y1 < y2 { 1 } else { -1 };
-        var err = dx - dy;
+        let dx = abs(x2 - x1);
+        let dy = abs(y2 - y1);
+        let sx = if x1 < x2 { 1 } else { -1 };
+        let sy = if y1 < y2 { 1 } else { -1 };
+        let err = dx - dy;
         
         loop {
             self.setPixel(x1, y1, color);
@@ -288,7 +288,7 @@ impl Canvas for FrameBufferCanvas {
                 break;
             }
             
-            var e2 = 2 * err;
+            let e2 = 2 * err;
             if e2 > -dy {
                 err = err - dy;
                 x1 = x1 + sx;
@@ -316,9 +316,9 @@ impl Canvas for FrameBufferCanvas {
     }
     
     fn drawCircle(cx: int, cy: int, radius: int, color: Color) {
-        var d = 3 - 2 * radius;
-        var x = 0;
-        var y = radius;
+        let d = 3 - 2 * radius;
+        let x = 0;
+        let y = radius;
         
         loop {
             self.setPixel(cx + x, cy + y, color);
@@ -369,12 +369,12 @@ impl Canvas for FrameBufferCanvas {
 }
 
 // 简化文字绘制 - 8x8 位图字体
-private fn drawSimpleText(canvas: &FrameBufferCanvas, x: int, y: int, text: str, color: Color) {
-    var charWidth = 8;
-    var charHeight = 8;
+private fn drawSimpleText(canvas: FrameBufferCanvas*, x: int, y: int, text: str, color: Color) {
+    let charWidth = 8;
+    let charHeight = 8;
     
-    var px = x;
-    var py = y;
+    let px = x;
+    let py = y;
     
     for i in 0..len(text) {
         if text[i] == '\n' {
@@ -417,8 +417,8 @@ fn rectIntersect(r1: Rect, r2: Rect) -> bool {
 
 // 计算两点距离
 fn distance(x1: int, y1: int, x2: int, y2: int) -> int {
-    var dx = x2 - x1;
-    var dy = y2 - y1;
+    let dx = x2 - x1;
+    let dy = y2 - y1;
     return sqrt(dx*dx + dy*dy);
 }
 
@@ -427,8 +427,8 @@ fn sqrt(n: int) -> int {
         return 0;
     }
     
-    var x = n;
-    var y = 1;
+    let x = n;
+    let y = 1;
     
     while y < x {
         x = (x + y) / 2;
@@ -439,7 +439,7 @@ fn sqrt(n: int) -> int {
 }
 
 // 随机数辅助
-private var rng_seed: u32 = 1;
+private let rng_seed: u32 = 1;
 
 pub fn setRandomSeed(seed: u32) {
     rng_seed = seed;
@@ -452,6 +452,6 @@ pub fn rand() -> u32 {
 }
 
 pub fn randInt(min: int, max: int) -> int {
-    var r = rand() % (max - min + 1);
+    let r = rand() % (max - min + 1);
     return min + r;
 }

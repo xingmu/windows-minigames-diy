@@ -1,29 +1,29 @@
 // game_logic.zc - 石头剪刀布游戏逻辑
 // Zen-C 纯游戏逻辑模块
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 480;
-const GAME_HEIGHT: i32 = 640;
+def GAME_WIDTH: i32 = 480;
+def GAME_HEIGHT: i32 = 640;
 
 // 按钮尺寸和位置
-const BUTTON_SIZE: i32 = 100;
-const BUTTON_Y: i32 = 480;
-const BUTTON_SPACING: i32 = 20;
-const ROCK_BUTTON_X: i32 = 60;
-const PAPER_BUTTON_X: i32 = ROCK_BUTTON_X + BUTTON_SIZE + BUTTON_SPACING;
-const SCISSORS_BUTTON_X: i32 = PAPER_BUTTON_X + BUTTON_SIZE + BUTTON_SPACING;
+def BUTTON_SIZE: i32 = 100;
+def BUTTON_Y: i32 = 480;
+def BUTTON_SPACING: i32 = 20;
+def ROCK_BUTTON_X: i32 = 60;
+def PAPER_BUTTON_X: i32 = ROCK_BUTTON_X + BUTTON_SIZE + BUTTON_SPACING;
+def SCISSORS_BUTTON_X: i32 = PAPER_BUTTON_X + BUTTON_SIZE + BUTTON_SPACING;
 
 // 结果显示区域
-const RESULT_Y: i32 = 320;
-const RESULT_HEIGHT: i32 = 120;
+def RESULT_Y: i32 = 320;
+def RESULT_HEIGHT: i32 = 120;
 
 // 玩家选择区域
-const PLAYER_CHOICE_Y: i32 = 180;
-const CPU_CHOICE_Y: i32 = 40;
+def PLAYER_CHOICE_Y: i32 = 180;
+def CPU_CHOICE_Y: i32 = 40;
 
 // ==================== 枚举定义 ====================
 
@@ -82,7 +82,7 @@ pub struct GameState {
 // ==================== 按钮区域 ====================
 
 // 按钮数组
-const BUTTONS: [3]Button = [
+def BUTTONS: [Button; 3] = [
     Button { x: ROCK_BUTTON_X, y: BUTTON_Y, width: BUTTON_SIZE, height: BUTTON_SIZE, choice: Choice::Rock },
     Button { x: PAPER_BUTTON_X, y: BUTTON_Y, width: BUTTON_SIZE, height: BUTTON_SIZE, choice: Choice::Paper },
     Button { x: SCISSORS_BUTTON_X, y: BUTTON_Y, width: BUTTON_SIZE, height: BUTTON_SIZE, choice: Choice::Scissors },
@@ -202,7 +202,7 @@ pub fn update_animation(game: &mut GameState, dt: i32) {
 }
 
 // 检查是否点击了按钮
-pub fn check_button_click(game: &GameState, x: i32, y: i32) -> Choice {
+pub fn check_button_click(game: GameState*, x: i32, y: i32) -> Choice {
     // 根据窗口大小计算按钮位置
     let scale_x = game.window_width as f32 / GAME_WIDTH as f32;
     let scale_y = game.window_height as f32 / GAME_HEIGHT as f32;

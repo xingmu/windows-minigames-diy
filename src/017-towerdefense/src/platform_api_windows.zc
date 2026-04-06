@@ -1,29 +1,29 @@
 // platform_api_windows.zc - Windows 平台实现
 // 框架版本: 1.0.0
 
-import std.ffi;
+// import "ffi.zc";
 
 // Windows API 常量
-const WM_PAINT = 15;
-const WM_DESTROY = 2;
-const WM_KEYDOWN = 256;
-const WM_KEYUP = 257;
-const WM_LBUTTONDOWN = 513;
-const WM_RBUTTONDOWN = 516;
-const WM_MBUTTONDOWN = 519;
-const WM_LBUTTONUP = 514;
-const WM_RBUTTONUP = 517;
-const WM_MBUTTONUP = 520;
-const WM_MOUSEMOVE = 512;
-const WM_SIZE = 5;
+def WM_PAINT = 15;
+def WM_DESTROY = 2;
+def WM_KEYDOWN = 256;
+def WM_KEYUP = 257;
+def WM_LBUTTONDOWN = 513;
+def WM_RBUTTONDOWN = 516;
+def WM_MBUTTONDOWN = 519;
+def WM_LBUTTONUP = 514;
+def WM_RBUTTONUP = 517;
+def WM_MBUTTONUP = 520;
+def WM_MOUSEMOVE = 512;
+def WM_SIZE = 5;
 
-const VK_ESCAPE = 0x1B;
-const VK_SPACE = 0x20;
-const VK_RETURN = 0x0D;
-const VK_LEFT = 0x25;
-const VK_UP = 0x26;
-const VK_RIGHT = 0x27;
-const VK_DOWN = 0x28;
+def VK_ESCAPE = 0x1B;
+def VK_SPACE = 0x20;
+def VK_RETURN = 0x0D;
+def VK_LEFT = 0x25;
+def VK_UP = 0x26;
+def VK_RIGHT = 0x27;
+def VK_DOWN = 0x28;
 
 // Windows API 类型
 type HWND = rawptr;
@@ -59,7 +59,7 @@ struct PAINTSTRUCT {
     rcPaint: RECT,
     fRestore: bool,
     fIncUpdate: bool,
-    rgbReserved: [32]u8,
+    rgbReserved: [u8; 32],
 }
 
 struct WNDCLASSA {
@@ -75,7 +75,7 @@ struct WNDCLASSA {
 
 // 内部状态
 private static mut hwnd: HWND = nil;
-private static mut eventQueue: [10]Event;
+private static mut eventQueue: [Event; 10];
 private static mut eventCount: int = 0;
 private static mut lastMouseX: int = 0;
 private static mut lastMouseY: int = 0;
@@ -150,10 +150,10 @@ extern fn windowProc(hwnd: HWND, msg: u32, wParam: u32, lParam: i32) -> i32 {
         },
         WM_KEYDOWN => {
             if eventCount < 10 {
-                eventQueue[eventCount] = Event.{
+                eventQueue[eventCount] = Event {
                     msg: MessageType.KeyDown,
-                    key: KeyEvent.{ key: vkToVirtualKey(wParam) },
-                    mouse: MouseEvent.{ x: 0, y: 0, button: MouseButton.Left },
+                    key: KeyEvent { key: vkToVirtualKey(wParam) },
+                    mouse: MouseEvent { x: 0, y: 0, button: MouseButton.Left },
                     width: 0,
                     height: 0,
                 };
@@ -163,10 +163,10 @@ extern fn windowProc(hwnd: HWND, msg: u32, wParam: u32, lParam: i32) -> i32 {
         },
         WM_KEYUP => {
             if eventCount < 10 {
-                eventQueue[eventCount] = Event.{
+                eventQueue[eventCount] = Event {
                     msg: MessageType.KeyUp,
-                    key: KeyEvent.{ key: vkToVirtualKey(wParam) },
-                    mouse: MouseEvent.{ x: 0, y: 0, button: MouseButton.Left },
+                    key: KeyEvent { key: vkToVirtualKey(wParam) },
+                    mouse: MouseEvent { x: 0, y: 0, button: MouseButton.Left },
                     width: 0,
                     height: 0,
                 };
@@ -175,15 +175,15 @@ extern fn windowProc(hwnd: HWND, msg: u32, wParam: u32, lParam: i32) -> i32 {
             return 0;
         },
         WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_MBUTTONDOWN => {
-            var x = (lParam & 0xFFFF) as int;
-            var y = ((lParam >> 16) & 0xFFFF) as int;
+            let x = (lParam & 0xFFFF) as int;
+            let y = ((lParam >> 16) & 0xFFFF) as int;
             lastMouseX = x;
             lastMouseY = y;
             if eventCount < 10 {
-                eventQueue[eventCount] = Event.{
+                eventQueue[eventCount] = Event {
                     msg: MessageType.MouseDown,
-                    key: KeyEvent.{ key: VirtualKey.Escape },
-                    mouse: MouseEvent.{ x: x, y: y, button: msgToMouseButton(msg) },
+                    key: KeyEvent { key: VirtualKey.Escape },
+                    mouse: MouseEvent { x: x, y: y, button: msgToMouseButton(msg) },
                     width: 0,
                     height: 0,
                 };
@@ -192,15 +192,15 @@ extern fn windowProc(hwnd: HWND, msg: u32, wParam: u32, lParam: i32) -> i32 {
             return 0;
         },
         WM_LBUTTONUP, WM_RBUTTONUP, WM_MBUTTONUP => {
-            var x = (lParam & 0xFFFF) as int;
-            var y = ((lParam >> 16) & 0xFFFF) as int;
+            let x = (lParam & 0xFFFF) as int;
+            let y = ((lParam >> 16) & 0xFFFF) as int;
             lastMouseX = x;
             lastMouseY = y;
             if eventCount < 10 {
-                eventQueue[eventCount] = Event.{
+                eventQueue[eventCount] = Event {
                     msg: MessageType.MouseUp,
-                    key: KeyEvent.{ key: VirtualKey.Escape },
-                    mouse: MouseEvent.{ x: x, y: y, button: msgToMouseButton(msg) },
+                    key: KeyEvent { key: VirtualKey.Escape },
+                    mouse: MouseEvent { x: x, y: y, button: msgToMouseButton(msg) },
                     width: 0,
                     height: 0,
                 };
@@ -209,8 +209,8 @@ extern fn windowProc(hwnd: HWND, msg: u32, wParam: u32, lParam: i32) -> i32 {
             return 0;
         },
         WM_MOUSEMOVE => {
-            var x = (lParam & 0xFFFF) as int;
-            var y = ((lParam >> 16) & 0xFFFF) as int;
+            let x = (lParam & 0xFFFF) as int;
+            let y = ((lParam >> 16) & 0xFFFF) as int;
             lastMouseX = x;
             lastMouseY = y;
             return 0;
@@ -222,17 +222,17 @@ extern fn windowProc(hwnd: HWND, msg: u32, wParam: u32, lParam: i32) -> i32 {
 }
 
 // Windows API 声明
-extern "user32.dll" fn RegisterClassA(wc: &WNDCLASSA) -> u16;
+extern "user32.dll" fn RegisterClassA(wc: WNDCLASSA*) -> u16;
 extern "user32.dll" fn CreateWindowExA(exStyle: u32, className: str, windowName: str,
     style: u32, x: i32, y: i32, width: i32, height: i32,
     hWndParent: HWND, hMenu: rawptr, hInstance: HINSTANCE, lpParam: rawptr) -> HWND;
 extern "user32.dll" fn ShowWindow(hwnd: HWND, nCmdShow: i32) -> bool;
-extern "user32.dll" fn GetMessageA(msg: &MSG, hwnd: HWND, msgFilterMin: u32, msgFilterMax: u32) -> bool;
-extern "user32.dll" fn TranslateMessage(msg: &MSG);
-extern "user32.dll" fn DispatchMessageA(msg: &MSG) -> i32;
-extern "user32.dll" fn BeginPaint(hwnd: HWND, ps: &PAINTSTRUCT) -> HDC;
-extern "user32.dll" fn EndPaint(hwnd: HWND, ps: &PAINTSTRUCT) -> bool;
-extern "user32.dll" fn GetClientRect(hwnd: HWND, rect: &RECT);
+extern "user32.dll" fn GetMessageA(msg: MSG*, hwnd: HWND, msgFilterMin: u32, msgFilterMax: u32) -> bool;
+extern "user32.dll" fn TranslateMessage(msg: MSG*);
+extern "user32.dll" fn DispatchMessageA(msg: MSG*) -> i32;
+extern "user32.dll" fn BeginPaint(hwnd: HWND, ps: PAINTSTRUCT*) -> HDC;
+extern "user32.dll" fn EndPaint(hwnd: HWND, ps: PAINTSTRUCT*) -> bool;
+extern "user32.dll" fn GetClientRect(hwnd: HWND, rect: RECT*);
 extern "user32.dll" fn PostQuitMessage(exitCode: i32);
 extern "user32.dll" fn DefWindowProcA(hwnd: HWND, msg: u32, wParam: u32, lParam: i32) -> i32;
 extern "user32.dll" fn GetStockObject(obj: i32) -> rawptr;
@@ -248,10 +248,10 @@ extern "gdi32.dll" fn BitBlt(destDC: HDC, x: i32, y: i32, width: i32, height: i3
 extern "gdi32.dll" fn DeleteDC(hdc: HDC);
 extern "gdi32.dll" fn DeleteObject(obj: rawptr) -> bool;
 
-const DC_COMPATIBLE = 0x54002F;
-const SRCCOPY = 0x00CC0020;
-const WHITE_BRUSH = 0;
-const IDC_ARROW = 0x7F00;
+def DC_COMPATIBLE = 0x54002F;
+def SRCCOPY = 0x00CC0020;
+def WHITE_BRUSH = 0;
+def IDC_ARROW = 0x7F00;
 
 // 内部帧缓冲
 private static mut frameBuffer: [800 * 600]u32;
@@ -263,7 +263,7 @@ private static mut gameHeight: int = 0;
 
 // 窗口注册和创建
 private fn registerWindowClass(hInstance: HINSTANCE) -> bool {
-    var wc = WNDCLASSA.{
+    let wc = WNDCLASSA {
         style: 0,
         lpfnWndProc: windowProc,
         hInstance: hInstance,
@@ -274,12 +274,12 @@ private fn registerWindowClass(hInstance: HINSTANCE) -> bool {
         lpszClassName: "ZenCGame",
     };
     
-    var result = RegisterClassA(&wc);
+    let result = RegisterClassA(&wc);
     return result != 0;
 }
 
 private fn createMainWindow(title: str, width: int, height: int) -> HWND {
-    var hInstance: HINSTANCE = nil;
+    let hInstance: HINSTANCE = nil;
     
     if !registerWindowClass(hInstance) {
         return nil;
@@ -288,7 +288,7 @@ private fn createMainWindow(title: str, width: int, height: int) -> HWND {
     gameWidth = width;
     gameHeight = height;
     
-    var hwnd = CreateWindowExA(
+    let hwnd = CreateWindowExA(
         0,
         "ZenCGame",
         title,
@@ -319,7 +319,7 @@ pub fn createWindow(title: str, width: int, height: int) -> WindowHandle {
         windowDC = GetDC(hwnd);
         backBuffer = CreateCompatibleDC(windowDC);
         
-        var rect = RECT.{ left: 0, top: 0, right: width, bottom: height };
+        let rect = RECT { left: 0, top: 0, right: width, bottom: height };
         // 确保尺寸正确
     }
     
@@ -337,7 +337,7 @@ pub fn closeWindow(window: WindowHandle) {
     }
 }
 
-pub fn pollEvent(window: WindowHandle, event: &Event) -> bool {
+pub fn pollEvent(window: WindowHandle, event: Event*) -> bool {
     if quitRequested {
         event.msg = MessageType.Quit;
         quitRequested = false;
@@ -358,7 +358,7 @@ pub fn pollEvent(window: WindowHandle, event: &Event) -> bool {
         return true;
     }
     
-    var msg = MSG.{};
+    let msg = MSG{};
     if GetMessageA(&msg, hwnd, 0, 0) {
         TranslateMessage(&msg);
         DispatchMessageA(&msg);

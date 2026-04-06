@@ -3,59 +3,59 @@
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 500;
-const GAME_HEIGHT: i32 = 700;
+def GAME_WIDTH: i32 = 500;
+def GAME_HEIGHT: i32 = 700;
 
 // 球道尺寸
-const LANE_LEFT: i32 = 100;
-const LANE_TOP: i32 = 80;
-const LANE_RIGHT: i32 = 400;
-const LANE_BOTTOM: i32 = 620;
-const LANE_WIDTH: i32 = LANE_RIGHT - LANE_LEFT;
-const LANE_HEIGHT: i32 = LANE_BOTTOM - LANE_TOP;
+def LANE_LEFT: i32 = 100;
+def LANE_TOP: i32 = 80;
+def LANE_RIGHT: i32 = 400;
+def LANE_BOTTOM: i32 = 620;
+def LANE_WIDTH: i32 = LANE_RIGHT - LANE_LEFT;
+def LANE_HEIGHT: i32 = LANE_BOTTOM - LANE_TOP;
 
 // 助走道区域 (发球区)
-const APPROACH_TOP: i32 = LANE_BOTTOM;
-const APPROACH_BOTTOM: i32 = GAME_HEIGHT - 40;
+def APPROACH_TOP: i32 = LANE_BOTTOM;
+def APPROACH_BOTTOM: i32 = GAME_HEIGHT - 40;
 
 // 球半径
-const BALL_RADIUS: i32 = 14;
+def BALL_RADIUS: i32 = 14;
 
 // 瓶半径
-const PIN_RADIUS: i32 = 8;
+def PIN_RADIUS: i32 = 8;
 
 // 瓶高 (用于渲染)
-const PIN_HEIGHT: i32 = 20;
+def PIN_HEIGHT: i32 = 20;
 
 // 最大瓶数量
-const MAX_PINS: i32 = 10;
+def MAX_PINS: i32 = 10;
 
 // 摩擦系数
-const FRICTION: i32 = 1;
+def FRICTION: i32 = 1;
 
 // 最大掷球力度
-const MAX_POWER: i32 = 30;
+def MAX_POWER: i32 = 30;
 
 // 最小速度阈值
-const MIN_VELOCITY: i32 = 1;
+def MIN_VELOCITY: i32 = 1;
 
 // 沟槽宽度
-const GUTTER_WIDTH: i32 = 30;
+def GUTTER_WIDTH: i32 = 30;
 
 // ==================== 颜色定义 ====================
 
-const BALL_COLOR: Color = Color.RGB(30, 30, 180);    // 深蓝色球
-const BALL_COLOR_SECONDARY: Color = Color.RGB(80, 80, 220);  // 蓝色
+def BALL_COLOR: Color = Color.RGB(30, 30, 180);    // 深蓝色球
+def BALL_COLOR_SECONDARY: Color = Color.RGB(80, 80, 220);  // 蓝色
 
-const PIN_COLOR: Color = Color.RGB(220, 30, 30);     // 红色瓶
-const PIN_COLOR_STRIPE: Color = Color.White();       // 白色条纹
+def PIN_COLOR: Color = Color.RGB(220, 30, 30);     // 红色瓶
+def PIN_COLOR_STRIPE: Color = Color.White();       // 白色条纹
 
-const LANE_COLOR: Color = Color.RGB(180, 140, 90);   // 木色球道
-const LANE_COLOR_STRIPE: Color = Color.RGB(200, 160, 100);
-const APPROACH_COLOR: Color = Color.RGB(160, 120, 70);
-const GUTTER_COLOR: Color = Color.RGB(60, 50, 40);   // 深棕色沟槽
+def LANE_COLOR: Color = Color.RGB(180, 140, 90);   // 木色球道
+def LANE_COLOR_STRIPE: Color = Color.RGB(200, 160, 100);
+def APPROACH_COLOR: Color = Color.RGB(160, 120, 70);
+def GUTTER_COLOR: Color = Color.RGB(60, 50, 40);   // 深棕色沟槽
 
-const FOUL_LINE_COLOR: Color = Color.RGB(255, 255, 255);
+def FOUL_LINE_COLOR: Color = Color.RGB(255, 255, 255);
 
 // ==================== 瓶布局 ====================
 
@@ -65,21 +65,21 @@ const FOUL_LINE_COLOR: Color = Color.RGB(255, 255, 255);
 //  4 5 6      <- 第3排3瓶
 // 7 8 9 10    <- 第4排4瓶
 
-const PIN_FORMATION: [10]PinPos = [
+def PIN_FORMATION: [PinPos; 10] = [
     // 第1排 (顶)
-    PinPos.{ x: 0, y: 0 },
+    PinPos { x: 0, y: 0 },
     // 第2排
-    PinPos.{ x: -1, y: 1 },
-    PinPos.{ x: 1, y: 1 },
+    PinPos { x: -1, y: 1 },
+    PinPos { x: 1, y: 1 },
     // 第3排
-    PinPos.{ x: -2, y: 2 },
-    PinPos.{ x: 0, y: 2 },
-    PinPos.{ x: 2, y: 2 },
+    PinPos { x: -2, y: 2 },
+    PinPos { x: 0, y: 2 },
+    PinPos { x: 2, y: 2 },
     // 第4排 (底)
-    PinPos.{ x: -3, y: 3 },
-    PinPos.{ x: -1, y: 3 },
-    PinPos.{ x: 1, y: 3 },
-    PinPos.{ x: 3, y: 3 },
+    PinPos { x: -3, y: 3 },
+    PinPos { x: -1, y: 3 },
+    PinPos { x: 1, y: 3 },
+    PinPos { x: 3, y: 3 },
 ];
 
 struct PinPos {
@@ -138,7 +138,7 @@ struct BowlingState {
     currentFrame: i32,     // 当前Frame (0-9)
     currentRoll: i32,       // 当前投球次数 (1或2, strike时直接跳到下一Frame)
     totalScore: i32,
-    frames: [10]Frame,
+    frames: [Frame; 10],
     mouseX: i32,
     mouseY: i32,
     power: i32,
@@ -199,7 +199,7 @@ fn initPins(state: &mut BowlingState) {
 
     for i in 0..MAX_PINS {
         let pos = PIN_FORMATION[i];
-        state.pins[i] = Pin.{
+        state.pins[i] = Pin {
             x: centerX + pos.x * spacing,
             y: firstRowY - pos.y * (spacing * 2 - 4),
             vx: 0,
@@ -231,7 +231,7 @@ fn init_game(state: &mut BowlingState) {
 
     // 初始化所有Frame
     for i in 0..10 {
-        state.frames[i] = Frame.{
+        state.frames[i] = Frame {
             firstRoll: -1,
             secondRoll: -1,
             pinsDown: 0,
@@ -248,7 +248,7 @@ fn init_game(state: &mut BowlingState) {
 
 // 重置球到发球位置
 fn resetBall(state: &mut BowlingState) {
-    state.ball = Ball.{
+    state.ball = Ball {
         x: (LANE_LEFT + LANE_RIGHT) / 2,
         y: APPROACH_TOP - 50,
         vx: 0,
@@ -351,7 +351,7 @@ fn updateBall(state: &mut BowlingState) -> bool {
 
 // 更新瓶的物理状态
 fn updatePins(state: &mut BowlingState) {
-    var anyMoving = false;
+    let anyMoving = false;
 
     for i in 0..state.pinCount {
         let mut pin = state.pins[i];
@@ -551,8 +551,8 @@ fn allPinsStopped(state: & BowlingState) -> bool {
 }
 
 // 计算击倒的瓶数
-fn countKnockedPins(state: &BowlingState) -> i32 {
-    var count = 0;
+fn countKnockedPins(state: BowlingState*) -> i32 {
+    let count = 0;
     for i in 0..state.pinCount {
         if !state.pins[i].standing {
             count = count + 1;
@@ -563,7 +563,7 @@ fn countKnockedPins(state: &BowlingState) -> i32 {
 
 // 计算当前Frame得分
 fn calculateFrameScore(state: &mut BowlingState, frameIdx: i32) -> i32 {
-    var score = 0;
+    let score = 0;
     let frame = state.frames[frameIdx];
 
     if frame.firstRoll < 0 {
@@ -610,7 +610,7 @@ fn calculateFrameScore(state: &mut BowlingState, frameIdx: i32) -> i32 {
 
 // 更新总分
 fn updateTotalScore(state: &mut BowlingState) {
-    var total = 0;
+    let total = 0;
     for i in 0..=state.currentFrame {
         total = total + state.frames[i].score;
     }
@@ -799,14 +799,14 @@ fn onMouseUp(state: &mut BowlingState, x: i32, y: i32) {
 
 // ==================== 状态查询 ====================
 
-fn getStatusText(state: &BowlingState) -> string {
+fn getStatusText(state: BowlingState*) -> string {
     match state.status {
-        GameStatus.Ready => return "第" ++ (state.currentFrame + 1).toString() ++ "格 | 第" ++ state.currentRoll.toString() ++ "投 | 点击蓄力掷球",
-        GameStatus.Aiming => return "瞄准中... 力度: " ++ state.power.toString(),
-        GameStatus.Throwing => return "球运动中...",
-        GameStatus.Counting => return "计数中...",
-        GameStatus.FrameDone => return "本格结束",
-        GameStatus.GameOver => return "游戏结束! 总分: " ++ state.totalScore.toString() ++ " | 点击重新开始",
+        GameStatus::Ready => return "第" ++ (state.currentFrame + 1).toString() ++ "格 | 第{state}"."{currentRoll}投 | 点击蓄力掷球",
+        GameStatus::Aiming => return "瞄准中... 力度: {state}".power.toString(),
+        GameStatus::Throwing => return "球运动中...",
+        GameStatus::Counting => return "计数中...",
+        GameStatus::FrameDone => return "本格结束",
+        GameStatus::GameOver => return "游戏结束! 总分: {state}"."{totalScore} | 点击重新开始",
     }
 }
 
@@ -815,8 +815,8 @@ fn getControlsText() -> string {
 }
 
 // 统计当前站立瓶数
-fn countStandingPins(state: &BowlingState) -> i32 {
-    var count = 0;
+fn countStandingPins(state: BowlingState*) -> i32 {
+    let count = 0;
     for i in 0..state.pinCount {
         if state.pins[i].standing {
             count = count + 1;

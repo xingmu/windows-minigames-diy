@@ -1,6 +1,6 @@
 // main_window.zc - Zen-C Darts（飞镖）游戏主程序
 
-import std.io;
+import "io.zc";
 
 import "platform_api.zc";
 import "game_logic.zc";
@@ -164,11 +164,11 @@ fn draw_dartboard() {
         let sin_a = math.sin(rad);
         
         // 从中心到外圈的铁丝
-        fb_draw_line(
-            cx + (TRIPLE_RING_INNER as f32 * cos_a) as i32,
-            cy - (TRIPLE_RING_INNER as f32 * sin_a) as i32,
-            cx + (r as f32 * cos_a) as i32,
-            cy - (r as f32 * sin_a) as i32,
+        fb_draw_line(i32)(
+            cx + (TRIPLE_RING_INNER as f32 * cos_a),
+            cy - (i32)(TRIPLE_RING_INNER as f32 * sin_a),
+            cx + (i32)(r as f32 * cos_a),
+            cy - (i32)(r as f32 * sin_a),
             COLOR_GREY
         );
     }
@@ -209,10 +209,10 @@ fn draw_sector(cx: i32, cy: i32, inner_r: i32, outer_r: i32,
 fn fill_triangle(x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, color: Color) {
     // 简单的三角形填充（扫描线）
     // 找出最上、最下、最左点
-    var min_y = y1;
-    var max_y = y1;
-    var points: [3]i32 = [x1, x2, x3];
-    var ys: [3]i32 = [y1, y2, y3];
+    let min_y = y1;
+    let max_y = y1;
+    let points: [i32; 3] = [x1, x2, x3];
+    let ys: [i32; 3] = [y1, y2, y3];
     
     for i in 0..3 {
         if ys[i] < min_y { min_y = ys[i]; }
@@ -220,9 +220,9 @@ fn fill_triangle(x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, color: Co
     }
     
     for py in min_y..max_y {
-        var left_x = 0;
-        var right_x = 0;
-        var first = true;
+        let left_x = 0;
+        let right_x = 0;
+        let first = true;
         
         // 与三条边相交
         let edges: [3](i32, i32, i32, i32) = [
@@ -314,20 +314,20 @@ fn draw_ui() {
     fb_draw_rect(10, 10, 180, 120, rgb(100, 100, 150));
     
     // 剩余分数
-    let score_text = "剩余: " ++ game.score.toString();
+    let score_text = "剩余: {game}".score.toString();
     fb_draw_text_size(20, 20, score_text, COLOR_WHITE, 20);
     
     // 轮次
-    let round_text = "轮次: " ++ game.round.toString();
+    let round_text = "轮次: {game}".round.toString();
     fb_draw_text_size(20, 50, round_text, COLOR_WHITE, 16);
     
     // 本轮得分
-    let round_score_text = "本轮: " ++ game.round_score.toString();
+    let round_score_text = "本轮: {game}".round_score.toString();
     fb_draw_text_size(20, 75, round_score_text, COLOR_YELLOW, 16);
     
     // 剩余飞镖
     let remaining = DARTS_PER_ROUND - game.darts_thrown;
-    let darts_text = "飞镖: " ++ remaining.toString() ++ "/" ++ DARTS_PER_ROUND.toString();
+    let darts_text = "飞镖: {remaining}" ++ "/{DARTS_PER_ROUND}";
     fb_draw_text_size(20, 100, darts_text, COLOR_GREEN, 16);
     
     // 状态消息
@@ -366,9 +366,9 @@ fn draw_score_legend() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C Darts 飞镖游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C Darts 飞镖游戏";
+    io.println "========================================";
 
     // 初始化游戏状态
     init_game(&mut game);
@@ -378,7 +378,7 @@ fn main() -> i32 {
     window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
@@ -406,9 +406,9 @@ fn main() -> i32 {
     // 设置游戏定时器
     set_game_timer(window, game_speed);
 
-    io.println("窗口创建成功!");
-    io.println("点击镖盘投掷飞镖");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "点击镖盘投掷飞镖";
+    io.println "========================================";
 
     // 初始绘制
     redraw_window(window);
@@ -416,8 +416,8 @@ fn main() -> i32 {
     // 运行事件循环
     run_event_loop(window);
 
-    io.println("游戏结束!");
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println "========================================";
 
     0
 }

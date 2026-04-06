@@ -1,8 +1,8 @@
 // main_window.zc - Zen-C 麻将游戏主程序
 // 使用 003-framework 框架，继承 Game 类
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 
 // 导入框架
 import "platform_api.zc";
@@ -13,38 +13,38 @@ import "mahjong_logic.zc";
 
 // ==================== 游戏常量 ====================
 
-const WINDOW_WIDTH = 900;       // 窗口宽度
-const WINDOW_HEIGHT = 700;      // 窗口高度
-const TILE_WIDTH = 40;          // 牌宽度
-const TILE_HEIGHT = 56;         // 牌高度
-const TILE_GAP = 2;             // 牌间距
+def WINDOW_WIDTH = 900;       // 窗口宽度
+def WINDOW_HEIGHT = 700;      // 窗口高度
+def TILE_WIDTH = 40;          // 牌宽度
+def TILE_HEIGHT = 56;         // 牌高度
+def TILE_GAP = 2;             // 牌间距
 
 // 玩家区域位置
-const PLAYER_HAND_Y = 580;      // 玩家手牌Y坐标
-const AI1_HAND_Y = 20;          // 电脑1手牌Y坐标
-const AI2_HAND_X = 820;         // 电脑2手牌X坐标
-const AI3_HAND_X = 20;          // 电脑3手牌X坐标
+def PLAYER_HAND_Y = 580;      // 玩家手牌Y坐标
+def AI1_HAND_Y = 20;          // 电脑1手牌Y坐标
+def AI2_HAND_X = 820;         // 电脑2手牌X坐标
+def AI3_HAND_X = 20;          // 电脑3手牌X坐标
 
 // 玩家出牌区
-const PLAYER_DISCARD_X = 300;
-const PLAYER_DISCARD_Y = 480;
+def PLAYER_DISCARD_X = 300;
+def PLAYER_DISCARD_Y = 480;
 
 // 牌墙位置
-const WALL_X = 600;
-const WALL_Y = 200;
+def WALL_X = 600;
+def WALL_Y = 200;
 
 // 摸牌区
-const DRAW_X = 700;
-const DRAW_Y = 350;
+def DRAW_X = 700;
+def DRAW_Y = 350;
 
 // 操作按钮区域
-const BTN_Y = 640;
-const BTN_WIDTH = 80;
-const BTN_HEIGHT = 40;
+def BTN_Y = 640;
+def BTN_WIDTH = 80;
+def BTN_HEIGHT = 40;
 
 // ==================== 游戏阶段 ====================
 
-pub type GamePhase = enum {
+enum GamePhase {
     Start,      // 开始界面
     Deal,       // 发牌
     Playing,    // 游戏中
@@ -53,13 +53,13 @@ pub type GamePhase = enum {
 };
 
 // 玩家座位 (0=玩家, 1=下家AI, 2=对家AI, 3=上家AI)
-const PLAYER_SEAT = 0;
-const AI1_SEAT = 1;
-const AI2_SEAT = 2;
-const AI3_SEAT = 3;
+def PLAYER_SEAT = 0;
+def AI1_SEAT = 1;
+def AI2_SEAT = 2;
+def AI3_SEAT = 3;
 
 // 当前操作玩家
-const CURRENT_DEALER = 0;  // 庄家座位
+def CURRENT_DEALER = 0;  // 庄家座位
 
 // ==================== 麻将游戏类 ====================
 
@@ -160,7 +160,7 @@ class MahjongGame extends Game {
         // 创建窗口
         self.window = createWindow(title, width, height);
         if self.window == nil {
-            println("错误: 无法创建窗口");
+            println "错误: 无法创建窗口";
             return;
         }
         
@@ -223,7 +223,7 @@ class MahjongGame extends Game {
         self.showHuBtn = false;
         self.showCancelBtn = false;
         
-        println("麻将游戏创建成功: " ++ title);
+        println "麻将游戏创建成功: {title}";
     }
     
     // 开始新游戏
@@ -265,7 +265,7 @@ class MahjongGame extends Game {
     // 发牌（每人13张，庄家14张）
     fn dealTiles() {
         // 庄家先摸牌，所以庄家发13张，其他家发13张
-        var dealOrder: [int; 4] = [self.dealerSeat, 
+        let dealOrder: [int; 4] = [self.dealerSeat, 
                                    (self.dealerSeat + 1) % 4, 
                                    (self.dealerSeat + 2) % 4, 
                                    (self.dealerSeat + 3) % 4];
@@ -273,14 +273,14 @@ class MahjongGame extends Game {
         // 每人13张
         for round in 0..13 {
             for i in 0..4 {
-                var tile = self.wall.draw();
-                var seat = dealOrder[i];
+                let tile = self.wall.draw();
+                let seat = dealOrder[i];
                 self.addTileToHand(seat, tile);
             }
         }
         
         // 庄家多摸一张（14张）
-        var dealerTile = self.wall.draw();
+        let dealerTile = self.wall.draw();
         self.addTileToHand(self.dealerSeat, dealerTile);
         
         // 排序手牌
@@ -351,7 +351,7 @@ class MahjongGame extends Game {
             return;
         }
         
-        var tile = self.wall.draw();
+        let tile = self.wall.draw();
         self.lastDrawn = tile;
         
         // 添加到手牌
@@ -370,7 +370,7 @@ class MahjongGame extends Game {
             return;
         }
         
-        var tile = self.wall.draw();
+        let tile = self.wall.draw();
         self.lastDrawn = tile;
         
         match seat {
@@ -396,10 +396,10 @@ class MahjongGame extends Game {
     // 检查玩家能否杠
     fn checkGangOption() {
         // 明杠：手牌有3张和摸来的牌相同
-        var gangTiles = getGangTiles(self.playerHand, self.playerHandSize, self.lastDrawn);
+        let gangTiles = getGangTiles(self.playerHand, self.playerHandSize, self.lastDrawn);
         
         // 统计有多少个可以杠的
-        var canGang = false;
+        let canGang = false;
         for i in 0..34 {
             if gangTiles[i] {
                 canGang = true;
@@ -417,7 +417,7 @@ class MahjongGame extends Game {
             return;
         }
         
-        var tile = self.playerHand[tileIndex];
+        let tile = self.playerHand[tileIndex];
         
         // 移除手牌
         for i in tileIndex..(self.playerHandSize - 1) {
@@ -441,14 +441,14 @@ class MahjongGame extends Game {
     
     // AI打出牌
     fn aiDiscardTile(seat: int) {
-        var hand = self.getHand(seat);
-        var handSize = self.getHandSize(seat);
+        let hand = self.getHand(seat);
+        let handSize = self.getHandSize(seat);
         
         // AI决策
-        var decision = aiDecision(hand, handSize, self.aiLevel, nil);
+        let decision = aiDecision(hand, handSize, self.aiLevel, nil);
         
         // 移除手牌
-        var tile = decision.discardTile;
+        let tile = decision.discardTile;
         removeFromHand(hand, handSize, tile);
         
         // 更新手牌数
@@ -496,7 +496,7 @@ class MahjongGame extends Game {
         
         // 检查玩家能否操作（别人打出牌后）
         if self.lastDiscardPlayer != PLAYER_SEAT {
-            var fromPlayer = (self.lastDiscardPlayer + 3) % 4;  // 相对位置
+            let fromPlayer = (self.lastDiscardPlayer + 3) % 4;  // 相对位置
             
             // 检查胡
             if canHu(self.playerHand, self.playerHandSize) {
@@ -541,11 +541,11 @@ class MahjongGame extends Game {
             return;
         }
         
-        var tile = self.lastDiscarded;
+        let tile = self.lastDiscarded;
         
         // 从手牌移除2张
-        var removed = 0;
-        var i = 0;
+        let removed = 0;
+        let i = 0;
         while removed < 2 && i < self.playerHandSize {
             if self.playerHand[i] == tile {
                 // 移除这张牌
@@ -607,11 +607,11 @@ class MahjongGame extends Game {
             return;
         }
         
-        var tile = self.lastDrawn;
+        let tile = self.lastDrawn;
         
         // 从手牌移除3张
-        var removed = 0;
-        var i = 0;
+        let removed = 0;
+        let i = 0;
         while removed < 3 && i < self.playerHandSize {
             if self.playerHand[i] == tile {
                 for j in i..(self.playerHandSize - 1) {
@@ -681,22 +681,22 @@ class MahjongGame extends Game {
     // ==================== Game 类方法实现 ====================
     
     pub fn onInit() {
-        println("麻将游戏初始化");
+        println "麻将游戏初始化";
     }
     
     pub fn onShutdown() {
-        println("麻将游戏关闭");
+        println "麻将游戏关闭";
     }
     
     pub fn onUpdate(dt: u32) {
         match self.phase {
-            GamePhase.Start => {
+            GamePhase::Start => {
                 // 等待玩家开始
             }
-            GamePhase.Deal => {
+            GamePhase::Deal => {
                 // 发牌中
             }
-            GamePhase.Playing => {
+            GamePhase::Playing => {
                 // AI回合
                 if self.currentPlayer != PLAYER_SEAT {
                     // 简单延迟后AI出牌
@@ -707,14 +707,14 @@ class MahjongGame extends Game {
                     }
                 }
             }
-            GamePhase.OPERATING => {
+            GamePhase::OPERATING => {
                 // 等待玩家操作超时后自动过
-                var elapsed = getTickCount() - self.operationTimer;
+                let elapsed = getTickCount() - self.operationTimer;
                 if elapsed > 10000 {  // 10秒超时
                     self.playerCancel();
                 }
             }
-            GamePhase.GAMEOver => {
+            GamePhase::GAMEOver => {
                 // 游戏结束
             }
         }
@@ -725,20 +725,20 @@ class MahjongGame extends Game {
         canvas.clear(Color.RGB(30, 80, 50));
         
         match self.phase {
-            GamePhase.Start => {
+            GamePhase::Start => {
                 self.renderStartScreen(canvas);
             }
-            GamePhase.Deal => {
+            GamePhase::Deal => {
                 self.renderGameScreen(canvas);
             }
-            GamePhase.Playing => {
+            GamePhase::Playing => {
                 self.renderGameScreen(canvas);
             }
-            GamePhase.OPERATING => {
+            GamePhase::OPERATING => {
                 self.renderGameScreen(canvas);
                 self.renderOperationButtons(canvas);
             }
-            GamePhase.GAMEOver => {
+            GamePhase::GAMEOver => {
                 self.renderGameScreen(canvas);
                 self.renderGameOver(canvas);
             }
@@ -749,25 +749,25 @@ class MahjongGame extends Game {
     fn renderStartScreen(canvas: Canvas) {
         // 标题
         canvas.drawText(WINDOW_WIDTH / 2 - 100, 150, 
-                        "Zen-C 麻将", Color.Yellow(), Font.("Arial", 48));
+                        "Zen-C 麻将", Color.Yellow(), Font("Arial", 48));
         
         canvas.drawText(WINDOW_WIDTH / 2 - 150, 250, 
-                        "Mahjong Game", Color.White(), Font.("Arial", 24));
+                        "Mahjong Game", Color.White(), Font("Arial", 24));
         
         // 开始按钮
         canvas.fillRect(WINDOW_WIDTH / 2 - 100, 400, 200, 60, Color.RGB(100, 50, 0));
         canvas.drawRect(WINDOW_WIDTH / 2 - 100, 400, 200, 60, Color.Yellow());
-        canvas.drawText(WINDOW_WIDTH / 2 - 50, 420, "开始游戏", Color.White(), Font.("Arial", 20));
+        canvas.drawText(WINDOW_WIDTH / 2 - 50, 420, "开始游戏", Color.White(), Font("Arial", 20));
         
         // 操作说明
         canvas.drawText(WINDOW_WIDTH / 2 - 150, 520, 
-                        "操作说明:", Color.White(), Font.("Arial", 16));
+                        "操作说明:", Color.White(), Font("Arial", 16));
         canvas.drawText(WINDOW_WIDTH / 2 - 150, 550, 
-                        "鼠标点击选择手牌", Color.LightGray(), Font.("Arial", 14));
+                        "鼠标点击选择手牌", Color.LightGray(), Font("Arial", 14));
         canvas.drawText(WINDOW_WIDTH / 2 - 150, 575, 
-                        "右键点击打出选中的牌", Color.LightGray(), Font.("Arial", 14));
+                        "右键点击打出选中的牌", Color.LightGray(), Font("Arial", 14));
         canvas.drawText(WINDOW_WIDTH / 2 - 150, 600, 
-                        "ESC 退出游戏", Color.LightGray(), Font.("Arial", 14));
+                        "ESC 退出游戏", Color.LightGray(), Font("Arial", 14));
     }
     
     // 渲染游戏画面
@@ -795,79 +795,79 @@ class MahjongGame extends Game {
         canvas.drawRect(WALL_X - 10, WALL_Y - 10, 180, 300, Color.RGB(100, 80, 40));
         
         // 渲染牌墙上的牌（简化显示）
-        var tilesShown = min(self.wall.remaining() / 4, 30);
+        let tilesShown = min(self.wall.remaining() / 4, 30);
         for row in 0..5 {
             for col in 0..6 {
-                var idx = row * 6 + col;
+                let idx = row * 6 + col;
                 if idx < tilesShown {
-                    var tx = WALL_X + col * 28;
-                    var ty = WALL_Y + row * 28;
+                    let tx = WALL_X + col * 28;
+                    let ty = WALL_Y + row * 28;
                     self.drawTileBack(canvas, tx, ty);
                 }
             }
         }
         
         // 剩余牌数
-        var remainingStr = "剩余: " ++ self.wall.remaining().toString();
-        canvas.drawText(WALL_X, WALL_Y + 160, remainingStr, Color.White(), Font.("Arial", 12));
+        let remainingStr = "剩余: {self}".wall.remaining().toString();
+        canvas.drawText(WALL_X, WALL_Y + 160, remainingStr, Color.White(), Font("Arial", 12));
         
         // 骰子点数
-        var diceStr = "骰子: " ++ self.wall.dice[0].toString() ++ "," ++ self.wall.dice[1].toString();
-        canvas.drawText(WALL_X, WALL_Y + 180, diceStr, Color.White(), Font.("Arial", 12));
+        let diceStr = "骰子: {self}".wall.dice[0].toString() ++ ",{self}".wall.dice[1].toString();
+        canvas.drawText(WALL_X, WALL_Y + 180, diceStr, Color.White(), Font("Arial", 12));
     }
     
     // 渲染各玩家打出的牌
     fn renderDiscardedTiles(canvas: Canvas) {
         // 玩家打出的牌（左下角）
-        canvas.drawText(30, PLAYER_DISCARD_Y - 20, "你的出牌:", Color.White(), Font.("Arial", 12));
+        canvas.drawText(30, PLAYER_DISCARD_Y - 20, "你的出牌:", Color.White(), Font("Arial", 12));
         for i in 0..self.playerDiscardCount {
-            var col = i % 10;
-            var row = i / 10;
-            var tx = 30 + col * 45;
-            var ty = PLAYER_DISCARD_Y + row * 60;
+            let col = i % 10;
+            let row = i / 10;
+            let tx = 30 + col * 45;
+            let ty = PLAYER_DISCARD_Y + row * 60;
             self.drawTile(canvas, tx, ty, self.playerDiscarded[i]);
         }
         
         // AI1打出的牌（上方中间）
-        canvas.drawText(WINDOW_WIDTH / 2 - 50, 70, "上家出牌:", Color.White(), Font.("Arial", 12));
+        canvas.drawText(WINDOW_WIDTH / 2 - 50, 70, "上家出牌:", Color.White(), Font("Arial", 12));
         for i in 0..self.ai1DiscardCount {
-            var col = i % 10;
-            var row = i / 10;
-            var tx = WINDOW_WIDTH / 2 - 200 + col * 45;
-            var ty = 90 + row * 50;
+            let col = i % 10;
+            let row = i / 10;
+            let tx = WINDOW_WIDTH / 2 - 200 + col * 45;
+            let ty = 90 + row * 50;
             self.drawTileRotated(canvas, tx, ty, self.ai1Discarded[i]);
         }
         
         // AI2打出的牌（右侧）
-        canvas.drawText(830, 80, "下家出牌:", Color.White(), Font.("Arial", 12));
+        canvas.drawText(830, 80, "下家出牌:", Color.White(), Font("Arial", 12));
         for i in 0..self.ai2DiscardCount {
-            var col = i % 3;
-            var row = i / 3;
-            var tx = 850;
-            var ty = 110 + row * 55;
+            let col = i % 3;
+            let row = i / 3;
+            let tx = 850;
+            let ty = 110 + row * 55;
             self.drawTileRotated(canvas, tx, ty, self.ai2Discarded[i]);
         }
         
         // AI3打出的牌（左侧）
-        canvas.drawText(30, 80, "对家出牌:", Color.White(), Font.("Arial", 12));
+        canvas.drawText(30, 80, "对家出牌:", Color.White(), Font("Arial", 12));
         for i in 0..self.ai3DiscardCount {
-            var col = i % 3;
-            var row = i / 3;
-            var tx = 40;
-            var ty = 110 + row * 55;
+            let col = i % 3;
+            let row = i / 3;
+            let tx = 40;
+            let ty = 110 + row * 55;
             self.drawTileRotated(canvas, tx, ty, self.ai3Discarded[i]);
         }
     }
     
     // 渲染玩家手牌
     fn renderPlayerHand(canvas: Canvas) {
-        var startX = (WINDOW_WIDTH - self.playerHandSize * (TILE_WIDTH + TILE_GAP)) / 2;
+        let startX = (WINDOW_WIDTH - self.playerHandSize * (TILE_WIDTH + TILE_GAP)) / 2;
         
-        canvas.drawText(startX, PLAYER_HAND_Y - 20, "你的手牌:", Color.White(), Font.("Arial", 12));
+        canvas.drawText(startX, PLAYER_HAND_Y - 20, "你的手牌:", Color.White(), Font("Arial", 12));
         
         for i in 0..self.playerHandSize {
-            var tx = startX + i * (TILE_WIDTH + TILE_GAP);
-            var ty = PLAYER_HAND_Y;
+            let tx = startX + i * (TILE_WIDTH + TILE_GAP);
+            let ty = PLAYER_HAND_Y;
             
             // 高亮选中的牌
             if i == self.selectedTile {
@@ -880,7 +880,7 @@ class MahjongGame extends Game {
         // 当前出牌提示
         if self.phase == GamePhase.Playing && self.currentPlayer == PLAYER_SEAT {
             canvas.drawText(startX + 200, PLAYER_HAND_Y + TILE_HEIGHT + 10, 
-                            "请选择要打出的牌 (右键点击)", Color.Cyan(), Font.("Arial", 14));
+                            "请选择要打出的牌 (右键点击)", Color.Cyan(), Font("Arial", 14));
         }
     }
     
@@ -888,28 +888,28 @@ class MahjongGame extends Game {
     fn renderAIHands(canvas: Canvas) {
         // AI1（上方）
         canvas.drawText(WINDOW_WIDTH / 2 - 30, AI1_HAND_Y + 5, 
-                        "AI1 (" ++ self.ai1HandSize.toString() ++ "张)", Color.White(), Font.("Arial", 12));
+                        "AI1 ({self}"."{ai1HandSize}张)", Color.White(), Font("Arial", 12));
         for i in 0..self.ai1HandSize {
-            var tx = WINDOW_WIDTH / 2 - 200 + i * 20;
-            var ty = AI1_HAND_Y + 25;
+            let tx = WINDOW_WIDTH / 2 - 200 + i * 20;
+            let ty = AI1_HAND_Y + 25;
             self.drawTileBack(canvas, tx, ty);
         }
         
         // AI2（右侧）
         canvas.drawText(AI2_HAND_X + 5, 50, 
-                         "AI2 (" ++ self.ai2HandSize.toString() ++ "张)", Color.White(), Font.("Arial", 12));
+                         "AI2 ({self}"."{ai2HandSize}张)", Color.White(), Font("Arial", 12));
         for i in 0..self.ai2HandSize {
-            var tx = AI2_HAND_X - 25;
-            var ty = 70 + i * 20;
+            let tx = AI2_HAND_X - 25;
+            let ty = 70 + i * 20;
             self.drawTileBackRotated(canvas, tx, ty);
         }
         
         // AI3（左侧）
         canvas.drawText(AI3_HAND_X + 5, 50, 
-                         "AI3 (" ++ self.ai3HandSize.toString() ++ "张)", Color.White(), Font.("Arial", 12));
+                         "AI3 ({self}"."{ai3HandSize}张)", Color.White(), Font("Arial", 12));
         for i in 0..self.ai3HandSize {
-            var tx = AI3_HAND_X + 25;
-            var ty = 70 + i * 20;
+            let tx = AI3_HAND_X + 25;
+            let ty = 70 + i * 20;
             self.drawTileBackRotated(canvas, tx, ty);
         }
     }
@@ -920,26 +920,26 @@ class MahjongGame extends Game {
         canvas.fillRect(30, 30, 200, 80, Color.RGB(20, 20, 30));
         canvas.drawRect(30, 30, 200, 80, Color.RGB(100, 100, 100));
         
-        canvas.drawText(40, 40, "回合: " ++ self.roundNumber.toString(), Color.White(), Font.("Arial", 14));
-        canvas.drawText(40, 60, "你的分数: " ++ self.playerScore.toString(), Color.Yellow(), Font.("Arial", 14));
+        canvas.drawText(40, 40, "回合: {self}".roundNumber.toString(), Color.White(), Font("Arial", 14));
+        canvas.drawText(40, 60, "你的分数: {self}".playerScore.toString(), Color.Yellow(), Font("Arial", 14));
         
         // 当前操作玩家
-        var currentName = "你";
+        let currentName = "你";
         if self.currentPlayer == AI1_SEAT { currentName = "AI1"; }
         else if self.currentPlayer == AI2_SEAT { currentName = "AI2"; }
         else if self.currentPlayer == AI3_SEAT { currentName = "AI3"; }
         
-        canvas.drawText(40, 80, "当前: " ++ currentName, Color.Cyan(), Font.("Arial", 14));
+        canvas.drawText(40, 80, "当前: {currentName}", Color.Cyan(), Font("Arial", 14));
         
         // 最后打出的牌
         if self.lastDiscardPlayer >= 0 {
-            var discarder = "你";
+            let discarder = "你";
             if self.lastDiscardPlayer == AI1_SEAT { discarder = "AI1"; }
             else if self.lastDiscardPlayer == AI2_SEAT { discarder = "AI2"; }
             else if self.lastDiscardPlayer == AI3_SEAT { discarder = "AI3"; }
             
-            var tileName = getTileName(self.lastDiscarded);
-            canvas.drawText(40, 130, "最后: " ++ discarder ++ "打出", Color.LightGray(), Font.("Arial", 12));
+            let tileName = getTileName(self.lastDiscarded);
+            canvas.drawText(40, 130, "最后: {discarder}" ++ "打出", Color.LightGray(), Font("Arial", 12));
             
             // 显示最后打出的牌
             self.drawTile(canvas, 140, 118, self.lastDiscarded);
@@ -948,12 +948,12 @@ class MahjongGame extends Game {
     
     // 渲染操作按钮
     fn renderOperationButtons(canvas: Canvas) {
-        var btnX = WINDOW_WIDTH / 2 - 200;
+        let btnX = WINDOW_WIDTH / 2 - 200;
         
         // 操作提示
         canvas.fillRect(WINDOW_WIDTH / 2 - 150, BTN_Y - 40, 300, 35, Color.RGB(0, 0, 0, 200));
         canvas.drawText(WINDOW_WIDTH / 2 - 100, BTN_Y - 30, 
-                        "请选择操作", Color.Yellow(), Font.("Arial", 18));
+                        "请选择操作", Color.Yellow(), Font("Arial", 18));
         
         if self.showChiBtn {
             self.drawButton(canvas, btnX, BTN_Y, "吃", Color.Orange());
@@ -989,27 +989,27 @@ class MahjongGame extends Game {
         canvas.fillRect(WINDOW_WIDTH / 2 - 200, 200, 400, 300, Color.RGB(40, 40, 60));
         canvas.drawRect(WINDOW_WIDTH / 2 - 200, 200, 400, 300, Color.Yellow());
         
-        canvas.drawText(WINDOW_WIDTH / 2 - 80, 220, "游戏结束", Color.Yellow(), Font.("Arial", 32));
+        canvas.drawText(WINDOW_WIDTH / 2 - 80, 220, "游戏结束", Color.Yellow(), Font("Arial", 32));
         
         // 分数
         canvas.drawText(WINDOW_WIDTH / 2 - 150, 280, 
-                        "你的得分: " ++ self.playerScore.toString(), Color.White(), Font.("Arial", 20));
+                        "你的得分: {self}".playerScore.toString(), Color.White(), Font("Arial", 20));
         canvas.drawText(WINDOW_WIDTH / 2 - 150, 320, 
-                        "AI1得分: " ++ self.ai1Score.toString(), Color.LightGray(), Font.("Arial", 16));
+                        "AI1得分: {self}".ai1Score.toString(), Color.LightGray(), Font("Arial", 16));
         canvas.drawText(WINDOW_WIDTH / 2 - 150, 350, 
-                        "AI2得分: " ++ self.ai2Score.toString(), Color.LightGray(), Font.("Arial", 16));
+                        "AI2得分: {self}".ai2Score.toString(), Color.LightGray(), Font("Arial", 16));
         canvas.drawText(WINDOW_WIDTH / 2 - 150, 380, 
-                        "AI3得分: " ++ self.ai3Score.toString(), Color.LightGray(), Font.("Arial", 16));
+                        "AI3得分: {self}".ai3Score.toString(), Color.LightGray(), Font("Arial", 16));
         
         // 重新开始按钮
         canvas.fillRect(WINDOW_WIDTH / 2 - 80, 430, 160, 50, Color.RGB(100, 50, 0));
         canvas.drawRect(WINDOW_WIDTH / 2 - 80, 430, 160, 50, Color.Yellow());
-        canvas.drawText(WINDOW_WIDTH / 2 - 40, 450, "再来一局", Color.White(), Font.("Arial", 18));
+        canvas.drawText(WINDOW_WIDTH / 2 - 40, 450, "再来一局", Color.White(), Font("Arial", 18));
     }
     
     // 绘制一张牌（正面）
     fn drawTile(canvas: Canvas, x: int, y: int, tile: TileType) {
-        var (r, g, b) = getTileColor(tile);
+        let (r, g, b) = getTileColor(tile);
         
         // 牌底
         canvas.fillRect(x, y, TILE_WIDTH, TILE_HEIGHT, Color.RGB(250, 250, 220));
@@ -1021,8 +1021,8 @@ class MahjongGame extends Game {
         canvas.fillRect(x + 2, y + 2, TILE_WIDTH - 4, 12, Color.RGB(r, g, b));
         
         // 牌面文字
-        var name = getTileChar(tile);
-        canvas.drawText(x + 4, y + 18, name, Color.Black(), Font.("Arial", 14));
+        let name = getTileChar(tile);
+        canvas.drawText(x + 4, y + 18, name, Color.Black(), Font("Arial", 14));
     }
     
     // 绘制一张牌的背面
@@ -1037,18 +1037,18 @@ class MahjongGame extends Game {
     
     // 绘制旋转的牌（AI用）
     fn drawTileRotated(canvas: Canvas, x: int, y: int, tile: TileType) {
-        var (r, g, b) = getTileColor(tile);
+        let (r, g, b) = getTileColor(tile);
         
         // 简化的水平显示
-        var w = 36;
-        var h = 48;
+        let w = 36;
+        let h = 48;
         
         canvas.fillRect(x, y, w, h, Color.RGB(250, 250, 220));
         canvas.drawRect(x, y, w, h, Color.RGB(50, 50, 50));
         canvas.fillRect(x + 2, y + 2, w - 4, 10, Color.RGB(r, g, b));
         
-        var name = getTileChar(tile);
-        canvas.drawText(x + 3, y + 16, name, Color.Black(), Font.("Arial", 12));
+        let name = getTileChar(tile);
+        canvas.drawText(x + 3, y + 16, name, Color.Black(), Font("Arial", 12));
     }
     
     // 绘制旋转的牌背面
@@ -1062,7 +1062,7 @@ class MahjongGame extends Game {
     fn drawButton(canvas: Canvas, x: int, y: int, text: str, color: Color) {
         canvas.fillRect(x, y, BTN_WIDTH, BTN_HEIGHT, color);
         canvas.drawRect(x, y, BTN_WIDTH, BTN_HEIGHT, Color.White());
-        canvas.drawText(x + 15, y + 12, text, Color.White(), Font.("Arial", 16));
+        canvas.drawText(x + 15, y + 12, text, Color.White(), Font("Arial", 16));
     }
     
     // 获取点击的牌索引
@@ -1071,14 +1071,14 @@ class MahjongGame extends Game {
             return -1;
         }
         
-        var startX = (WINDOW_WIDTH - self.playerHandSize * (TILE_WIDTH + TILE_GAP)) / 2;
+        let startX = (WINDOW_WIDTH - self.playerHandSize * (TILE_WIDTH + TILE_GAP)) / 2;
         
-        var relX = mx - startX;
+        let relX = mx - startX;
         if relX < 0 {
             return -1;
         }
         
-        var index = relX / (TILE_WIDTH + TILE_GAP);
+        let index = relX / (TILE_WIDTH + TILE_GAP);
         if index >= 0 && index < self.playerHandSize {
             return index;
         }
@@ -1106,7 +1106,7 @@ class MahjongGame extends Game {
         
         // 开始按钮
         if self.phase == GamePhase.Start {
-            var startBtn = Rect.new(WINDOW_WIDTH / 2 - 100, 400, 200, 60);
+            let startBtn = Rect.new(WINDOW_WIDTH / 2 - 100, 400, 200, 60);
             if startBtn.contains(mx, my) {
                 return "start";
             }
@@ -1114,7 +1114,7 @@ class MahjongGame extends Game {
         
         // 重新开始按钮
         if self.phase == GamePhase.GAMEOver {
-            var restartBtn = Rect.new(WINDOW_WIDTH / 2 - 80, 430, 160, 50);
+            let restartBtn = Rect.new(WINDOW_WIDTH / 2 - 80, 430, 160, 50);
             if restartBtn.contains(mx, my) {
                 return "restart";
             }
@@ -1127,22 +1127,22 @@ class MahjongGame extends Game {
     
     pub fn onKeyDown(key: VirtualKey) {
         match key {
-            VirtualKey.Escape => {
+            VirtualKey::Escape => {
                 self.running = false;
             }
-            VirtualKey.Left => {
+            VirtualKey::Left => {
                 // 向左选择
                 if self.selectedTile > 0 {
                     self.selectedTile = self.selectedTile - 1;
                 }
             }
-            VirtualKey.Right => {
+            VirtualKey::Right => {
                 // 向右选择
                 if self.selectedTile < self.playerHandSize - 1 {
                     self.selectedTile = self.selectedTile + 1;
                 }
             }
-            VirtualKey.Enter, VirtualKey.Space => {
+            VirtualKey.Enter, VirtualKey::Space => {
                 // 确认选择，打出牌
                 if self.phase == GamePhase.Playing && self.currentPlayer == PLAYER_SEAT {
                     if self.selectedTile >= 0 && self.selectedTile < self.playerHandSize {
@@ -1161,8 +1161,8 @@ class MahjongGame extends Game {
     
     pub fn onMouseDown(x: int, y: int, button: MouseButton) {
         match button {
-            MouseButton.Left => {
-                var btn = self.getClickedButton(x, y);
+            MouseButton::Left => {
+                let btn = self.getClickedButton(x, y);
                 
                 match btn {
                     "start" => {
@@ -1190,7 +1190,7 @@ class MahjongGame extends Game {
                     _ => {
                         // 检查是否点击了手牌
                         if self.phase == GamePhase.Playing && self.currentPlayer == PLAYER_SEAT {
-                            var tileIndex = self.getClickedTileIndex(x, y);
+                            let tileIndex = self.getClickedTileIndex(x, y);
                             if tileIndex >= 0 {
                                 self.selectedTile = tileIndex;
                             }
@@ -1198,7 +1198,7 @@ class MahjongGame extends Game {
                     }
                 }
             }
-            MouseButton.Right => {
+            MouseButton::Right => {
                 // 右键打出选中的牌
                 if self.phase == GamePhase.Playing && self.currentPlayer == PLAYER_SEAT {
                     if self.selectedTile >= 0 && self.selectedTile < self.playerHandSize {
@@ -1219,16 +1219,16 @@ class MahjongGame extends Game {
 // ==================== 主函数 ====================
 
 fn main() {
-    println("===========================================");
-    println("  Zen-C 麻将游戏");
-    println("  使用 003-framework 框架");
-    println("===========================================");
+    println "===========================================";
+    println "  Zen-C 麻将游戏";
+    println "  使用 003-framework 框架";
+    println "===========================================";
     
     // 初始化平台
     initPlatform();
     
     // 创建游戏实例
-    var game = MahjongGame.("Mahjong - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    let game = MahjongGame("Mahjong - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
     
     // 运行游戏
     game.run();
@@ -1239,5 +1239,5 @@ fn main() {
     // 关闭平台
     shutdownPlatform();
     
-    println("游戏退出!");
+    println "游戏退出!";
 }

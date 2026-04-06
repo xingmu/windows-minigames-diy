@@ -1,24 +1,24 @@
 // game_logic.zc - 扫雷游戏逻辑模块
 // Zen-C Implementation
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // Constants
-const EASY_ROWS: i32 = 9;
-const EASY_COLS: i32 = 9;
-const EASY_MINES: i32 = 10;
+def EASY_ROWS: i32 = 9;
+def EASY_COLS: i32 = 9;
+def EASY_MINES: i32 = 10;
 
-const MEDIUM_ROWS: i32 = 16;
-const MEDIUM_COLS: i32 = 16;
-const MEDIUM_MINES: i32 = 40;
+def MEDIUM_ROWS: i32 = 16;
+def MEDIUM_COLS: i32 = 16;
+def MEDIUM_MINES: i32 = 40;
 
-const HARD_ROWS: i32 = 16;
-const HARD_COLS: i32 = 30;
-const HARD_MINES: i32 = 99;
+def HARD_ROWS: i32 = 16;
+def HARD_COLS: i32 = 30;
+def HARD_MINES: i32 = 99;
 
-const TILE_SIZE: i32 = 16;
-const HEADER_HEIGHT: i32 = 40;
+def TILE_SIZE: i32 = 16;
+def HEADER_HEIGHT: i32 = 40;
 
 // Game Status
 enum GameStatus {
@@ -177,7 +177,7 @@ fn place_mines(game: &mut GameState, safe_row: i32, safe_col: i32) {
 }
 
 // Check if position is valid
-fn is_valid_position(game: &GameState, row: i32, col: i32) -> bool {
+fn is_valid_position(game: GameState*, row: i32, col: i32) -> bool {
     row >= 0 && row < game.config.rows && col >= 0 && col < game.config.cols
 }
 

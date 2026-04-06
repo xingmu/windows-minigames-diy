@@ -1,18 +1,18 @@
 // main_window.zc - Zen-C Tower Defense 游戏主程序
 // 塔防游戏：敌人从路径上过来，建造防御塔攻击敌人
 
-import std.io;
+import "io.zc";
 import "platform_api.zc";
 
 // ==================== 游戏配置 ====================
 
-const WINDOW_WIDTH: int = 800;
-const WINDOW_HEIGHT: int = 600;
-const TARGET_FPS: int = 60;
-const FRAME_TIME: u32 = 1000 / TARGET_FPS;
-const GRID_SIZE: int = 40;
-const MAP_COLS: int = 20;
-const MAP_ROWS: int = 13;
+def WINDOW_WIDTH: int = 800;
+def WINDOW_HEIGHT: int = 600;
+def TARGET_FPS: int = 60;
+def FRAME_TIME: u32 = 1000 / TARGET_FPS;
+def GRID_SIZE: int = 40;
+def MAP_COLS: int = 20;
+def MAP_ROWS: int = 13;
 
 // ==================== 游戏状态 ====================
 
@@ -42,44 +42,44 @@ struct PathPoint { x: int, y: int, }
 struct TowerInfo { name: str, cost: int, range: int, damage: int, fireRate: u32, }
 struct EnemyInfo { hp: int, speed: float, reward: int, }
 
-const TOWER_INFO: [3]TowerInfo = [
-    TowerInfo.{ name: "Arrow", cost: 50, range: 120, damage: 10, fireRate: 500 },
-    TowerInfo.{ name: "Cannon", cost: 100, range: 100, damage: 30, fireRate: 1200 },
-    TowerInfo.{ name: "Ice", cost: 75, range: 100, damage: 5, fireRate: 800 },
+def TOWER_INFO: [TowerInfo; 3] = [
+    TowerInfo { name: "Arrow", cost: 50, range: 120, damage: 10, fireRate: 500 },
+    TowerInfo { name: "Cannon", cost: 100, range: 100, damage: 30, fireRate: 1200 },
+    TowerInfo { name: "Ice", cost: 75, range: 100, damage: 5, fireRate: 800 },
 ];
 
-const TOWER_COLORS: [3]Color = [ Color.Brown(), Color.DarkGray(), Color.Cyan(), ];
+def TOWER_COLORS: [Color; 3] = [ Color.Brown(), Color.DarkGray(), Color.Cyan(), ];
 
-const ENEMY_INFO: [4]EnemyInfo = [
-    EnemyInfo.{ hp: 50, speed: 60.0, reward: 10 },
-    EnemyInfo.{ hp: 30, speed: 100.0, reward: 15 },
-    EnemyInfo.{ hp: 150, speed: 40.0, reward: 25 },
-    EnemyInfo.{ hp: 500, speed: 30.0, reward: 100 },
+def ENEMY_INFO: [EnemyInfo; 4] = [
+    EnemyInfo { hp: 50, speed: 60.0, reward: 10 },
+    EnemyInfo { hp: 30, speed: 100.0, reward: 15 },
+    EnemyInfo { hp: 150, speed: 40.0, reward: 25 },
+    EnemyInfo { hp: 500, speed: 30.0, reward: 100 },
 ];
 
-const ENEMY_COLORS: [4]Color = [ Color.Green(), Color.Yellow(), Color.Magenta(), Color.Red(), ];
+def ENEMY_COLORS: [Color; 4] = [ Color.Green(), Color.Yellow(), Color.Magenta(), Color.Red(), ];
 
-const PATH: [12]PathPoint = [
-    PathPoint.{ x: 0, y: 2 }, PathPoint.{ x: 4, y: 2 },
-    PathPoint.{ x: 4, y: 5 }, PathPoint.{ x: 10, y: 5 },
-    PathPoint.{ x: 10, y: 8 }, PathPoint.{ x: 6, y: 8 },
-    PathPoint.{ x: 6, y: 10 }, PathPoint.{ x: 15, y: 10 },
-    PathPoint.{ x: 15, y: 6 }, PathPoint.{ x: 18, y: 6 },
-    PathPoint.{ x: 18, y: 12 }, PathPoint.{ x: 0, y: 12 },
+def PATH: [PathPoint; 12] = [
+    PathPoint { x: 0, y: 2 }, PathPoint { x: 4, y: 2 },
+    PathPoint { x: 4, y: 5 }, PathPoint { x: 10, y: 5 },
+    PathPoint { x: 10, y: 8 }, PathPoint { x: 6, y: 8 },
+    PathPoint { x: 6, y: 10 }, PathPoint { x: 15, y: 10 },
+    PathPoint { x: 15, y: 6 }, PathPoint { x: 18, y: 6 },
+    PathPoint { x: 18, y: 12 }, PathPoint { x: 0, y: 12 },
 ];
 
 // ==================== 颜色 ====================
 
-const PATH_COLOR = Color.RGB(180, 140, 100);
-const GRASS_COLOR = Color.RGB(90, 190, 90);
-const GRASS_DARK = Color.RGB(80, 180, 80);
-const UI_PANEL_COLOR = Color.RGB(60, 60, 60);
-const GOLD_COLOR = Color.RGB(255, 215, 0);
-const HP_BAR_BG = Color.RGB(100, 100, 100);
-const HP_BAR_GREEN = Color.RGB(0, 200, 0);
-const HP_BAR_RED = Color.RGB(200, 0, 0);
-const BTN_BG = Color.RGB(50, 50, 50);
-const BTN_SEL = Color.RGB(80, 80, 80);
+def PATH_COLOR = Color.RGB(180, 140, 100);
+def GRASS_COLOR = Color.RGB(90, 190, 90);
+def GRASS_DARK = Color.RGB(80, 180, 80);
+def UI_PANEL_COLOR = Color.RGB(60, 60, 60);
+def GOLD_COLOR = Color.RGB(255, 215, 0);
+def HP_BAR_BG = Color.RGB(100, 100, 100);
+def HP_BAR_GREEN = Color.RGB(0, 200, 0);
+def HP_BAR_RED = Color.RGB(200, 0, 0);
+def BTN_BG = Color.RGB(50, 50, 50);
+def BTN_SEL = Color.RGB(80, 80, 80);
 
 // ==================== 全局数据 ====================
 
@@ -95,11 +95,11 @@ static mut enemiesSpawned: int = 0;
 static mut enemiesKilled: int = 0;
 static mut spawnTimer: u32 = 0;
 static mut spawnInterval: u32 = 1500;
-static mut towers: [20]Tower;
+static mut towers: [Tower; 20];
 static mut towerCount: int = 0;
-static mut enemies: [30]Enemy;
+static mut enemies: [Enemy; 30];
 static mut enemyCount: int = 0;
-static mut projectiles: [50]Projectile;
+static mut projectiles: [Projectile; 50];
 static mut projectileCount: int = 0;
 static mut selectedTowerType: TowerType = TowerType.Arrow;
 static mut mouseX: int = 0;
@@ -113,13 +113,13 @@ fn absInt(x: int) -> int { return if x < 0 { -x } else { x }; }
 
 fn sqrtFloat(n: float) -> float {
     if n < 0.0 { return 0.0; }
-    var x = n; var y = 1.0;
+    let x = n; let y = 1.0;
     while y < x { x = (x + y) / 2.0; y = n / x; }
     return x;
 }
 
 fn distance(x1: float, y1: float, x2: float, y2: float) -> float {
-    var dx = x2 - x1; var dy = y2 - y1;
+    let dx = x2 - x1; let dy = y2 - y1;
     return sqrtFloat(dx * dx + dy * dy);
 }
 
@@ -147,8 +147,8 @@ fn initGame() {
 static mut rng_seed: u32 = 54321;
 fn randInt(minVal: int, maxVal: int) -> int {
     rng_seed = rng_seed * 1103515245 + 12345;
-    var r = (rng_seed / 65536) % 32768;
-    return minVal + (r as int % (maxVal - minVal + 1));
+    let r = (rng_seed / 65536) % 32768;
+    return minVal + ((int)r % (maxVal - minVal + 1));
 }
 
 // ==================== 工具 ====================
@@ -170,16 +170,16 @@ fn canPlaceTower(gridX: int, gridY: int) -> bool {
 }
 
 fn placeTower(gridX: int, gridY: int, towerType: TowerType) -> bool {
-    var info = TOWER_INFO[towerType as int];
-    if gold < info.cost { io.println("金币不足! 需要 " ++ info.cost.toString() ++ " 金币"); return false; }
+    let info = TOWER_INFO[towerType as int];
+    if gold < info.cost { io.println("金币不足! 需要 {info}"."{cost} 金币"); return false; }
     if !canPlaceTower(gridX, gridY) { return false; }
     if towerCount >= 20 { return false; }
     
     gold = gold - info.cost;
-    towers[towerCount] = Tower.{ x: gridX, y: gridY, towerType: towerType, level: 1,
+    towers[towerCount] = Tower { x: gridX, y: gridY, towerType: towerType, level: 1,
         range: info.range, damage: info.damage, fireRate: info.fireRate, lastFire: 0 };
     towerCount = towerCount + 1;
-    io.println("建造 " ++ info.name ++ " 塔! 剩余金币: " ++ gold.toString());
+    io.println("建造 {info}"."{name} 塔! 剩余金币: {gold}");
     return true;
 }
 
@@ -193,25 +193,25 @@ fn startNextWave() {
     if spawnInterval < 500 { spawnInterval = 500; }
     spawnTimer = 0;
     gameState = GameState.Playing;
-    io.println("===========================================");
-    io.println("波次 " ++ currentWave.toString() ++ " 开始! 敌人数量: " ++ enemiesInWave.toString());
-    io.println("===========================================");
+    io.println "===========================================";
+    io.println("波次 {currentWave}" ++ " 开始! 敌人数量: {enemiesInWave}");
+    io.println "===========================================";
 }
 
 fn spawnEnemy() {
     if enemyCount >= 30 { return; }
-    var enemyType: EnemyType;
-    var roll = randInt(0, 100);
+    let enemyType: EnemyType;
+    let roll = randInt(0, 100);
     if currentWave >= 5 && roll < 10 { enemyType = EnemyType.Boss; }
     else if currentWave >= 3 && roll < 30 { enemyType = EnemyType.Tank; }
     else if currentWave >= 2 && roll < 50 { enemyType = EnemyType.Fast; }
     else { enemyType = EnemyType.Basic; }
     
-    var info = ENEMY_INFO[enemyType as int];
-    var hpMult = 1.0 + (currentWave - 1) * 0.2;
-    enemies[enemyCount] = Enemy.{ x: (PATH[0].x * GRID_SIZE + GRID_SIZE / 2) as float,
-        y: (PATH[0].y * GRID_SIZE + GRID_SIZE / 2) as float, enemyType: enemyType,
-        hp: (info.hp as float * hpMult) as int, maxHp: (info.hp as float * hpMult) as int,
+    let info = ENEMY_INFO[enemyType as int];
+    let hpMult = 1.0 + (currentWave - 1) * 0.2;
+    enemies[enemyCount] = Enemy { x: (float)(PATH[0].x * GRID_SIZE + GRID_SIZE / 2),
+        y: (float)(PATH[0].y * GRID_SIZE + GRID_SIZE / 2), enemyType: enemyType,
+        hp: (info.(float)hp * hpMult) as int, maxHp: (info.(float)hp * hpMult) as int,
         speed: info.speed, reward: info.reward, pathIndex: 0, slowed: false, slowTimer: 0 };
     enemyCount = enemyCount + 1;
     enemiesSpawned = enemiesSpawned + 1;
@@ -219,33 +219,33 @@ fn spawnEnemy() {
 
 // ==================== 游戏逻辑 ====================
 
-fn findTarget(tower: &Tower) -> &Enemy {
-    var towerX = (tower.x * GRID_SIZE + GRID_SIZE / 2) as float;
-    var towerY = (tower.y * GRID_SIZE + GRID_SIZE / 2) as float;
-    var closestDist: float = 9999.0;
-    var closestEnemy: &Enemy = nil;
+fn findTarget(tower: Tower*) -> Enemy* {
+    let towerX = (tower.x * GRID_SIZE + GRID_SIZE / 2) as float;
+    let towerY = (tower.y * GRID_SIZE + GRID_SIZE / 2) as float;
+    let closestDist: float = 9999.0;
+    let closestEnemy: Enemy* = nil;
     for i in 0..enemyCount {
-        var enemy = &enemies[i];
-        var dist = distance(towerX, towerY, enemy.x, enemy.y);
-        if dist <= tower.range as float && dist < closestDist { closestDist = dist; closestEnemy = enemy; }
+        let enemy = &enemies[i];
+        let dist = distance(towerX, towerY, enemy.x, enemy.y);
+        if dist <= tower.(float)range && dist < closestDist { closestDist = dist; closestEnemy = enemy; }
     }
     return closestEnemy;
 }
 
-fn fireProjectile(tower: &Tower, target: &Enemy) {
+fn fireProjectile(tower: Tower*, target: Enemy*) {
     if projectileCount >= 50 { return; }
-    var towerX = (tower.x * GRID_SIZE + GRID_SIZE / 2) as float;
-    var towerY = (tower.y * GRID_SIZE + GRID_SIZE / 2) as float;
-    projectiles[projectileCount] = Projectile.{ x: towerX, y: towerY, targetX: target.x, targetY: target.y,
+    let towerX = (tower.x * GRID_SIZE + GRID_SIZE / 2) as float;
+    let towerY = (tower.y * GRID_SIZE + GRID_SIZE / 2) as float;
+    projectiles[projectileCount] = Projectile { x: towerX, y: towerY, targetX: target.x, targetY: target.y,
         damage: tower.damage, speed: 300.0, active: true, towerType: tower.towerType };
     projectileCount = projectileCount + 1;
 }
 
 fn updateTowers() {
     for i in 0..towerCount {
-        var tower = &towers[i];
+        let tower = &towers[i];
         if gameTime - tower.lastFire >= tower.fireRate {
-            var target = findTarget(tower);
+            let target = findTarget(tower);
             if target != nil { fireProjectile(tower, target); tower.lastFire = gameTime; }
         }
     }
@@ -254,19 +254,19 @@ fn updateTowers() {
 fn updateProjectiles(dt: float) {
     for i in 0..projectileCount {
         if !projectiles[i].active { continue; }
-        var proj = &projectiles[i];
-        var dx = proj.targetX - proj.x; var dy = proj.targetY - proj.y;
-        var dist = sqrtFloat(dx * dx + dy * dy);
+        let proj = &projectiles[i];
+        let dx = proj.targetX - proj.x; let dy = proj.targetY - proj.y;
+        let dist = sqrtFloat(dx * dx + dy * dy);
         if dist < proj.speed * dt {
             proj.active = false;
             if proj.towerType == TowerType.Cannon {
                 for j in 0..enemyCount {
-                    var enemy = &enemies[j];
+                    let enemy = &enemies[j];
                     if distance(proj.x, proj.y, enemy.x, enemy.y) <= 50.0 { enemy.hp = enemy.hp - proj.damage; }
                 }
             } else if proj.towerType == TowerType.Ice {
                 for j in 0..enemyCount {
-                    var enemy = &enemies[j];
+                    let enemy = &enemies[j];
                     if distance(proj.x, proj.y, enemy.x, enemy.y) <= 30.0 {
                         enemy.slowed = true; enemy.slowTimer = gameTime + 2000; enemy.hp = enemy.hp - proj.damage;
                     }
@@ -279,37 +279,37 @@ fn updateProjectiles(dt: float) {
                 }
             }
         } else {
-            var move = proj.speed * dt;
+            let move = proj.speed * dt;
             proj.x = proj.x + (dx / dist) * move; proj.y = proj.y + (dy / dist) * move;
         }
     }
-    var writeIdx = 0;
+    let writeIdx = 0;
     for i in 0..projectileCount { if projectiles[i].active { projectiles[writeIdx] = projectiles[i]; writeIdx = writeIdx + 1; } }
     projectileCount = writeIdx;
 }
 
 fn updateEnemies(dt: float) {
     for i in 0..enemyCount {
-        var enemy = &enemies[i];
+        let enemy = &enemies[i];
         if enemy.slowed && gameTime >= enemy.slowTimer { enemy.slowed = false; }
-        var speed = enemy.speed; if enemy.slowed { speed = speed * 0.5; }
+        let speed = enemy.speed; if enemy.slowed { speed = speed * 0.5; }
         if enemy.pathIndex < PATH.len - 1 {
-            var current = PATH[enemy.pathIndex];
-            var next = PATH[enemy.pathIndex + 1];
-            var targetX = (next.x * GRID_SIZE + GRID_SIZE / 2) as float;
-            var targetY = (next.y * GRID_SIZE + GRID_SIZE / 2) as float;
-            var dx = targetX - enemy.x; var dy = targetY - enemy.y;
-            var dist = sqrtFloat(dx * dx + dy * dy);
+            let current = PATH[enemy.pathIndex];
+            let next = PATH[enemy.pathIndex + 1];
+            let targetX = (next.x * GRID_SIZE + GRID_SIZE / 2) as float;
+            let targetY = (next.y * GRID_SIZE + GRID_SIZE / 2) as float;
+            let dx = targetX - enemy.x; let dy = targetY - enemy.y;
+            let dist = sqrtFloat(dx * dx + dy * dy);
             if dist < 5.0 { enemy.pathIndex = enemy.pathIndex + 1; }
-            else { var move = speed * dt; enemy.x = enemy.x + (dx / dist) * move; enemy.y = enemy.y + (dy / dist) * move; }
+            else { let move = speed * dt; enemy.x = enemy.x + (dx / dist) * move; enemy.y = enemy.y + (dy / dist) * move; }
         } else {
             enemy.hp = 0; lives = lives - 1;
-            io.println("敌人到达终点! 剩余生命: " ++ lives.toString());
-            if lives <= 0 { gameState = GameState.GameOver; io.println("游戏结束!"); }
+            io.println "敌人到达终点! 剩余生命: {lives}";
+            if lives <= 0 { gameState = GameState.GameOver; io.println "游戏结束!"; }
         }
         if enemy.hp <= 0 { gold = gold + enemy.reward; score = score + enemy.reward * 10; enemiesKilled = enemiesKilled + 1; }
     }
-    var writeIdx = 0;
+    let writeIdx = 0;
     for i in 0..enemyCount { if enemies[i].hp > 0 { enemies[writeIdx] = enemies[i]; writeIdx = writeIdx + 1; } }
     enemyCount = writeIdx;
 }
@@ -318,12 +318,12 @@ fn updateGame(dt: u32) {
     if gameState == GameState.GameOver || gameState == GameState.Victory { return; }
     if gameState == GameState.Ready || gameState == GameState.WaveComplete { return; }
     gameTime = gameTime + dt;
-    var dtSec = dt as float / 1000.0;
+    let dtSec = (float)dt / 1000.0;
     if enemiesSpawned < enemiesInWave && gameTime >= spawnTimer + spawnInterval { spawnEnemy(); spawnTimer = gameTime; }
     updateEnemies(dtSec); updateTowers(); updateProjectiles(dtSec);
     if enemiesSpawned >= enemiesInWave && enemyCount == 0 && gameState == GameState.Playing {
-        if currentWave >= 10 { gameState = GameState.Victory; io.println("==========================================="); io.println("胜利! 最终得分: " ++ score.toString()); io.println("==========================================="); }
-        else { gameState = GameState.WaveComplete; gold = gold + 50 + currentWave * 10; io.println("波次 " ++ currentWave.toString() ++ " 完成! 奖励: " ++ (50 + currentWave * 10).toString() ++ " 金币"); }
+        if currentWave >= 10 { gameState = GameState.Victory; io.println "==========================================="; io.println "胜利! 最终得分: {score}"; io.println "==========================================="; }
+        else { gameState = GameState.WaveComplete; gold = gold + 50 + currentWave * 10; io.println("波次 {currentWave}" ++ " 完成! 奖励: " ++ (50 + currentWave * 10).toString() ++ " 金币"); }
     }
 }
 
@@ -331,7 +331,7 @@ fn updateGame(dt: u32) {
 
 fn setPixel(ctx: rawptr, x: int, y: int, pitch: int, buffer: rawptr, color: Color) {
     if x < 0 || x >= WINDOW_WIDTH || y < 0 || y >= WINDOW_HEIGHT { return; }
-    var offset = y * (pitch / 4) + x; var pixels = buffer as u32 mut; pixels[offset] = color;
+    let offset = y * (pitch / 4) + x; let pixels = (u32)buffer mut; pixels[offset] = color;
 }
 
 fn drawRect(ctx: rawptr, x: int, y: int, w: int, h: int, pitch: int, buffer: rawptr, color: Color) {
@@ -343,22 +343,22 @@ fn fillCircle(ctx: rawptr, cx: int, cy: int, radius: int, pitch: int, buffer: ra
 }
 
 fn drawLine(ctx: rawptr, x1: int, y1: int, x2: int, y2: int, pitch: int, buffer: rawptr, color: Color) {
-    var dx = absInt(x2 - x1); var dy = absInt(y2 - y1);
-    var sx = if x1 < x2 { 1 } else { -1 }; var sy = if y1 < y2 { 1 } else { -1 };
-    var err = dx - dy; var x = x1; var y = y1;
-    loop { setPixel(ctx, x, y, pitch, buffer, color); if x == x2 && y == y2 { break; } var e2 = 2 * err; if e2 > -dy { err = err - dy; x = x + sx; } if e2 < dx { err = err + dx; y = y + sy; } }
+    let dx = absInt(x2 - x1); let dy = absInt(y2 - y1);
+    let sx = if x1 < x2 { 1 } else { -1 }; let sy = if y1 < y2 { 1 } else { -1 };
+    let err = dx - dy; let x = x1; let y = y1;
+    loop { setPixel(ctx, x, y, pitch, buffer, color); if x == x2 && y == y2 { break; } let e2 = 2 * err; if e2 > -dy { err = err - dy; x = x + sx; } if e2 < dx { err = err + dx; y = y + sy; } }
 }
 
 fn clearScreen(pitch: int, buffer: rawptr) {
-    var pixels = buffer as u32 mut; var count = (pitch * WINDOW_HEIGHT) / 4;
+    let pixels = (u32)buffer mut; let count = (pitch * WINDOW_HEIGHT) / 4;
     for i in 0..count { pixels[i] = Color.RGB(135, 206, 235); }
 }
 
 fn drawBackground(pitch: int, buffer: rawptr) {
     for py in 0..(WINDOW_HEIGHT - 80) {
         for px in 0..WINDOW_WIDTH {
-            var isDark = ((px / GRID_SIZE) + (py / GRID_SIZE)) % 2 == 0;
-            var offset = py * (pitch / 4) + px; var pixels = buffer as u32 mut;
+            let isDark = ((px / GRID_SIZE) + (py / GRID_SIZE)) % 2 == 0;
+            let offset = py * (pitch / 4) + px; let pixels = (u32)buffer mut;
             pixels[offset] = if isDark { GRASS_DARK } else { GRASS_COLOR };
         }
     }
@@ -366,44 +366,44 @@ fn drawBackground(pitch: int, buffer: rawptr) {
 
 fn drawPath(pitch: int, buffer: rawptr) {
     for i in 0..PATH.len - 1 {
-        var p1 = PATH[i]; var p2 = PATH[i + 1];
+        let p1 = PATH[i]; let p2 = PATH[i + 1];
         if p1.x == p2.x {
-            var minY = if p1.y < p2.y { p1.y } else { p2.y };
-            var maxY = if p1.y > p2.y { p1.y } else { p2.y };
+            let minY = if p1.y < p2.y { p1.y } else { p2.y };
+            let maxY = if p1.y > p2.y { p1.y } else { p2.y };
             for py in minY..(maxY + 1) { drawRect(nil, p1.x * GRID_SIZE, py * GRID_SIZE, GRID_SIZE, GRID_SIZE, pitch, buffer, PATH_COLOR); }
         } else {
-            var minX = if p1.x < p2.x { p1.x } else { p2.x };
-            var maxX = if p1.x > p2.x { p1.x } else { p2.x };
+            let minX = if p1.x < p2.x { p1.x } else { p2.x };
+            let maxX = if p1.x > p2.x { p1.x } else { p2.x };
             for px in minX..(maxX + 1) { drawRect(nil, px * GRID_SIZE, p1.y * GRID_SIZE, GRID_SIZE, GRID_SIZE, pitch, buffer, PATH_COLOR); }
         }
     }
 }
 
-fn drawTower(tower: &Tower, pitch: int, buffer: rawptr) {
-    var cx = tower.x * GRID_SIZE + GRID_SIZE / 2; var cy = tower.y * GRID_SIZE + GRID_SIZE / 2;
-    var color = TOWER_COLORS[tower.towerType as int];
+fn drawTower(tower: Tower*, pitch: int, buffer: rawptr) {
+    let cx = tower.x * GRID_SIZE + GRID_SIZE / 2; let cy = tower.y * GRID_SIZE + GRID_SIZE / 2;
+    let color = TOWER_COLORS[tower.towerType as int];
     fillCircle(nil, cx, cy, 15, pitch, buffer, Color.DarkGray());
     match tower.towerType {
-        TowerType.Arrow => { fillCircle(nil, cx, cy, 12, pitch, buffer, color); drawRect(nil, cx - 3, cy - 15, 6, 12, pitch, buffer, color); },
-        TowerType.Cannon => { fillCircle(nil, cx, cy, 14, pitch, buffer, color); drawRect(nil, cx - 4, cy - 18, 8, 18, pitch, buffer, Color.Black()); },
-        TowerType.Ice => { fillCircle(nil, cx, cy, 13, pitch, buffer, Color.Cyan()); fillCircle(nil, cx, cy, 8, pitch, buffer, Color.White()); },
+        TowerType::Arrow => { fillCircle(nil, cx, cy, 12, pitch, buffer, color); drawRect(nil, cx - 3, cy - 15, 6, 12, pitch, buffer, color); },
+        TowerType::Cannon => { fillCircle(nil, cx, cy, 14, pitch, buffer, color); drawRect(nil, cx - 4, cy - 18, 8, 18, pitch, buffer, Color.Black()); },
+        TowerType::Ice => { fillCircle(nil, cx, cy, 13, pitch, buffer, Color.Cyan()); fillCircle(nil, cx, cy, 8, pitch, buffer, Color.White()); },
     }
     if tower.level > 1 { drawRect(nil, cx - 8, cy + 12, 16, 4, pitch, buffer, GOLD_COLOR); }
 }
 
 fn drawTowers(pitch: int, buffer: rawptr) { for i in 0..towerCount { drawTower(&towers[i], pitch, buffer); } }
 
-fn drawEnemy(enemy: &Enemy, pitch: int, buffer: rawptr) {
-    var cx = enemy.x as int; var cy = enemy.y as int; var radius = 12;
+fn drawEnemy(enemy: Enemy*, pitch: int, buffer: rawptr) {
+    let cx = enemy.x as int; let cy = enemy.y as int; let radius = 12;
     if enemy.enemyType == EnemyType.Tank { radius = 16; } else if enemy.enemyType == EnemyType.Fast { radius = 10; } else if enemy.enemyType == EnemyType.Boss { radius = 20; }
-    var color = ENEMY_COLORS[enemy.enemyType as int]; if enemy.slowed { color = Color.RGB(150, 200, 255); }
+    let color = ENEMY_COLORS[enemy.enemyType as int]; if enemy.slowed { color = Color.RGB(150, 200, 255); }
     fillCircle(nil, cx, cy, radius, pitch, buffer, color);
-    var barWidth = radius * 2 + 4; var barX = cx - radius - 2; var barY = cy - radius - 8;
+    let barWidth = radius * 2 + 4; let barX = cx - radius - 2; let barY = cy - radius - 8;
     drawRect(nil, barX, barY, barWidth, 4, pitch, buffer, HP_BAR_BG);
-    var hpRatio = enemy.hp as float / enemy.maxHp as float;
-    var hpWidth = (barWidth - 2) * hpRatio;
-    var hpColor = if hpRatio > 0.5 { HP_BAR_GREEN } else if hpRatio > 0.25 { GOLD_COLOR } else { HP_BAR_RED };
-    drawRect(nil, barX + 1, barY + 1, hpWidth as int, 2, pitch, buffer, hpColor);
+    let hpRatio = enemy.(float)hp / enemy.maxHp as float;
+    let hpWidth = (barWidth - 2) * hpRatio;
+    let hpColor = if hpRatio > 0.5 { HP_BAR_GREEN } else if hpRatio > 0.25 { GOLD_COLOR } else { HP_BAR_RED };
+    drawRect(nil, barX + 1, barY + 1, (int)hpWidth, 2, pitch, buffer, hpColor);
 }
 
 fn drawEnemies(pitch: int, buffer: rawptr) { for i in 0..enemyCount { drawEnemy(&enemies[i], pitch, buffer); } }
@@ -411,17 +411,17 @@ fn drawEnemies(pitch: int, buffer: rawptr) { for i in 0..enemyCount { drawEnemy(
 fn drawProjectiles(pitch: int, buffer: rawptr) {
     for i in 0..projectileCount {
         if !projectiles[i].active { continue; }
-        var proj = &projectiles[i]; var cx = proj.x as int; var cy = proj.y as int;
+        let proj = &projectiles[i]; let cx = proj.x as int; let cy = proj.y as int;
         match proj.towerType {
-            TowerType.Arrow => { drawLine(nil, cx - 5, cy - 5, cx + 5, cy + 5, pitch, buffer, Color.Brown()); drawLine(nil, cx + 5, cy - 5, cx - 5, cy + 5, pitch, buffer, Color.Brown()); },
-            TowerType.Cannon => { fillCircle(nil, cx, cy, 5, pitch, buffer, Color.Black()); },
-            TowerType.Ice => { fillCircle(nil, cx, cy, 4, pitch, buffer, Color.Cyan()); },
+            TowerType::Arrow => { drawLine(nil, cx - 5, cy - 5, cx + 5, cy + 5, pitch, buffer, Color.Brown()); drawLine(nil, cx + 5, cy - 5, cx - 5, cy + 5, pitch, buffer, Color.Brown()); },
+            TowerType::Cannon => { fillCircle(nil, cx, cy, 5, pitch, buffer, Color.Black()); },
+            TowerType::Ice => { fillCircle(nil, cx, cy, 4, pitch, buffer, Color.Cyan()); },
         }
     }
 }
 
 fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, pitch: int, buffer: rawptr, color: Color) {
-    var px = x; var py = y; var charW = 8; var charH = 8;
+    let px = x; let py = y; let charW = 8; let charH = 8;
     for i in 0..len(text) {
         for cy in 0..charH { for cx in 0..charW { if ((text[i] as u32 + cx + cy) % 3) != 0 { setPixel(ctx, px + cx, py + cy, pitch, buffer, color); } } }
         px = px + charW; if px > WINDOW_WIDTH - charW { py = py + charH; px = x; }
@@ -429,18 +429,18 @@ fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, pitch: int, buffer: ra
 }
 
 fn drawUIPanel(pitch: int, buffer: rawptr) {
-    var panelY = WINDOW_HEIGHT - 80;
+    let panelY = WINDOW_HEIGHT - 80;
     drawRect(nil, 0, panelY, WINDOW_WIDTH, 80, pitch, buffer, UI_PANEL_COLOR);
     drawRect(nil, 0, panelY, WINDOW_WIDTH, 3, pitch, buffer, Color.RGB(100, 100, 100));
-    drawTextSimple(nil, 20, panelY + 10, "Gold: " ++ gold.toString(), pitch, buffer, GOLD_COLOR);
-    drawTextSimple(nil, 150, panelY + 10, "Lives: " ++ lives.toString(), pitch, buffer, HP_BAR_GREEN);
-    drawTextSimple(nil, 280, panelY + 10, "Wave: " ++ currentWave.toString() ++ "/10", pitch, buffer, Color.White());
-    drawTextSimple(nil, 420, panelY + 10, "Score: " ++ score.toString(), pitch, buffer, Color.White());
+    drawTextSimple(nil, 20, panelY + 10, "Gold: {gold}", pitch, buffer, GOLD_COLOR);
+    drawTextSimple(nil, 150, panelY + 10, "Lives: {lives}", pitch, buffer, HP_BAR_GREEN);
+    drawTextSimple(nil, 280, panelY + 10, "Wave: {currentWave}" ++ "/10", pitch, buffer, Color.White());
+    drawTextSimple(nil, 420, panelY + 10, "Score: {score}", pitch, buffer, Color.White());
     drawTextSimple(nil, 20, panelY + 40, "Towers:", pitch, buffer, Color.White());
     for i in 0..3 {
-        var bx = 100 + i * 80; var info = TOWER_INFO[i];
-        var selected = (i as TowerType) == selectedTowerType;
-        var btnColor = if selected { BTN_SEL } else { BTN_BG };
+        let bx = 100 + i * 80; let info = TOWER_INFO[i];
+        let selected = (i as TowerType) == selectedTowerType;
+        let btnColor = if selected { BTN_SEL } else { BTN_BG };
         drawRect(nil, bx, panelY + 35, 70, 40, pitch, buffer, btnColor);
         drawRect(nil, bx, panelY + 35, 70, 2, pitch, buffer, TOWER_COLORS[i]);
         fillCircle(nil, bx + 20, panelY + 55, 10, pitch, buffer, TOWER_COLORS[i]);
@@ -451,16 +451,16 @@ fn drawUIPanel(pitch: int, buffer: rawptr) {
 
 fn drawHoverIndicator(pitch: int, buffer: rawptr) {
     if mouseY >= WINDOW_HEIGHT - 80 { return; }
-    var gridX = mouseX / GRID_SIZE; var gridY = mouseY / GRID_SIZE;
+    let gridX = mouseX / GRID_SIZE; let gridY = mouseY / GRID_SIZE;
     if canPlaceTower(gridX, gridY) {
         drawRect(nil, gridX * GRID_SIZE, gridY * GRID_SIZE, GRID_SIZE, GRID_SIZE, pitch, buffer, Color.RGB(255, 255, 255, 100));
-        var info = TOWER_INFO[selectedTowerType as int];
-        var cx = gridX * GRID_SIZE + GRID_SIZE / 2; var cy = gridY * GRID_SIZE + GRID_SIZE / 2;
+        let info = TOWER_INFO[selectedTowerType as int];
+        let cx = gridX * GRID_SIZE + GRID_SIZE / 2; let cy = gridY * GRID_SIZE + GRID_SIZE / 2;
         for r in 0..info.range {
             for angle in 0..360..15 {
-                var rad = angle as float * 3.14159 / 180.0;
-                var px = cx + (r as float * cosFloat(rad)) as int;
-                var py2 = cy + (r as float * sinFloat(rad)) as int;
+                let rad = (float)angle * 3.14159 / 180.0;
+                let px = cx + ((float)r * cosFloat(rad)) as int;
+                let py2 = cy + ((float)r * sinFloat(rad)) as int;
                 if px >= 0 && px < WINDOW_WIDTH && py2 >= 0 && py2 < WINDOW_HEIGHT - 80 { setPixel(nil, px, py2, pitch, buffer, Color.RGB(255, 255, 255, 40)); }
             }
         }
@@ -479,12 +479,12 @@ fn drawGameState(pitch: int, buffer: rawptr) {
     } else if gameState == GameState.GameOver {
         drawRect(nil, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT - 80, pitch, buffer, Color.RGB(0, 0, 0, 180));
         drawTextSimple(nil, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 - 60, "Game Over", pitch, buffer, HP_BAR_RED);
-        drawTextSimple(nil, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2, "Score: " ++ score.toString(), pitch, buffer, Color.White());
+        drawTextSimple(nil, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2, "Score: {score}", pitch, buffer, Color.White());
         drawTextSimple(nil, WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2 + 40, "Press SPACE to restart", pitch, buffer, GOLD_COLOR);
     } else if gameState == GameState.Victory {
         drawRect(nil, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT - 80, pitch, buffer, Color.RGB(0, 0, 0, 180));
         drawTextSimple(nil, WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT / 2 - 60, "Victory!", pitch, buffer, GOLD_COLOR);
-        drawTextSimple(nil, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2, "Score: " ++ score.toString(), pitch, buffer, Color.White());
+        drawTextSimple(nil, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2, "Score: {score}", pitch, buffer, Color.White());
     }
 }
 
@@ -504,14 +504,14 @@ fn render(pitch: int, buffer: rawptr) {
 
 fn handleKeyDown(key: VirtualKey) {
     match key {
-        VirtualKey.Space => {
+        VirtualKey::Space => {
             if gameState == GameState.Ready || gameState == GameState.WaveComplete { startNextWave(); }
             else if gameState == GameState.GameOver || gameState == GameState.Victory { initGame(); startNextWave(); }
         },
-        VirtualKey.Digit1, VirtualKey.Key1 => { selectedTowerType = TowerType.Arrow; },
-        VirtualKey.Digit2, VirtualKey.Key2 => { selectedTowerType = TowerType.Cannon; },
-        VirtualKey.Digit3, VirtualKey.Key3 => { selectedTowerType = TowerType.Ice; },
-        VirtualKey.Escape => { running = false; },
+        VirtualKey.Digit1, VirtualKey::Key1 => { selectedTowerType = TowerType.Arrow; },
+        VirtualKey.Digit2, VirtualKey::Key2 => { selectedTowerType = TowerType.Cannon; },
+        VirtualKey.Digit3, VirtualKey::Key3 => { selectedTowerType = TowerType.Ice; },
+        VirtualKey::Escape => { running = false; },
         _ => {}
     }
 }
@@ -519,26 +519,26 @@ fn handleKeyDown(key: VirtualKey) {
 fn handleMouseDown(x: int, y: int, button: MouseButton) {
     if button == MouseButton.Left {
         if y >= WINDOW_HEIGHT - 80 {
-            var panelY = WINDOW_HEIGHT - 80;
+            let panelY = WINDOW_HEIGHT - 80;
             for i in 0..3 {
-                var bx = 100 + i * 80;
+                let bx = 100 + i * 80;
                 if x >= bx && x < bx + 70 && y >= panelY + 35 && y < panelY + 75 { selectedTowerType = i as TowerType; return; }
             }
         } else {
-            var gridX = x / GRID_SIZE; var gridY = y / GRID_SIZE;
+            let gridX = x / GRID_SIZE; let gridY = y / GRID_SIZE;
             placeTower(gridX, gridY, selectedTowerType);
         }
     }
 }
 
 fn processEvents() {
-    var event = Event.{};
+    let event = Event{};
     while pollEvent(window, &event) {
         match event.msg {
-            MessageType.Quit => { running = false; },
-            MessageType.KeyDown => { handleKeyDown(event.key.key); },
-            MessageType.MouseDown => { handleMouseDown(event.mouse.x, event.mouse.y, event.mouse.button); },
-            MessageType.MouseMove => { mouseX = event.mouse.x; mouseY = event.mouse.y; },
+            MessageType::Quit => { running = false; },
+            MessageType::KeyDown => { handleKeyDown(event.key.key); },
+            MessageType::MouseDown => { handleMouseDown(event.mouse.x, event.mouse.y, event.mouse.button); },
+            MessageType::MouseMove => { mouseX = event.mouse.x; mouseY = event.mouse.y; },
             _ => {}
         }
     }
@@ -548,31 +548,31 @@ fn gameLoop() {
     lastFrame = getTickCount();
     while running {
         processEvents();
-        var current = getTickCount(); var dt = current - lastFrame;
+        let current = getTickCount(); let dt = current - lastFrame;
         updateGame(dt);
-        var fb = getFrameBuffer(window); var pitch = getFrameBufferPitch(window);
+        let fb = getFrameBuffer(window); let pitch = getFrameBufferPitch(window);
         render(pitch, fb);
         presentFrame(window);
         lastFrame = current;
-        var elapsed = getTickCount() - lastFrame;
+        let elapsed = getTickCount() - lastFrame;
         if elapsed < FRAME_TIME { sleep(FRAME_TIME - elapsed); }
     }
 }
 
 fn main() {
-    io.println("===========================================");
-    io.println("  Tower Defense - Zen-C");
-    io.println("  版本: 1.0.0");
-    io.println("===========================================");
+    io.println "===========================================";
+    io.println "  Tower Defense - Zen-C";
+    io.println "  版本: 1.0.0";
+    io.println "===========================================";
     initPlatform();
     window = createWindow("Tower Defense - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT);
-    if window == nil { io.println("错误: 无法创建窗口"); return; }
-    io.println("窗口创建成功!");
+    if window == nil { io.println "错误: 无法创建窗口"; return; }
+    io.println "窗口创建成功!";
     initGame();
-    io.println("按空格开始游戏");
-    io.println("1/2/3 选择塔类型");
-    io.println("ESC 退出");
+    io.println "按空格开始游戏";
+    io.println "1/2/3 选择塔类型";
+    io.println "ESC 退出";
     gameLoop();
     shutdownPlatform();
-    io.println("游戏结束!");
+    io.println "游戏结束!";
 }

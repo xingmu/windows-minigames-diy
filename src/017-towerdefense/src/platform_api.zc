@@ -1,3 +1,4 @@
+import "io.zc";
 // platform_api.zc - 统一平台接口定义
 // 框架版本: 1.0.0
 
@@ -8,7 +9,7 @@ pub type WindowHandle = rawptr;
 pub type Color = u32;
 
 // 事件类型
-pub type MessageType = enum {
+enum MessageType {
     Quit,
     KeyDown,
     KeyUp,
@@ -20,7 +21,7 @@ pub type MessageType = enum {
 };
 
 // 键盘按键
-pub type VirtualKey = enum {
+enum VirtualKey {
     Escape,
     Space,
     Enter,
@@ -35,7 +36,7 @@ pub type VirtualKey = enum {
 };
 
 // 鼠标按钮
-pub type MouseButton = enum {
+enum MouseButton {
     Left,
     Right,
     Middle,
@@ -104,7 +105,7 @@ impl Color {
     pub fn Brown() -> Color { return 0xFF8B4513; }
     
     pub fn RGB(r: u8, g: u8, b: u8) -> Color {
-        return 0xFF000000 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+        return 0xFF000000 | (((u32)r) << 16) | (((u32)g) << 8) | ((u32)b);
     }
 }
 
@@ -118,7 +119,7 @@ impl Font {
 // 平台 API 函数声明
 extern fn createWindow(title: str, width: int, height: int) -> WindowHandle;
 extern fn closeWindow(window: WindowHandle);
-extern fn pollEvent(window: WindowHandle, event: &Event) -> bool;
+extern fn pollEvent(window: WindowHandle, event: Event*) -> bool;
 extern fn getFrameBuffer(window: WindowHandle) -> rawptr;
 extern fn getFrameBufferPitch(window: WindowHandle) -> int;
 extern fn presentFrame(window: WindowHandle);
@@ -129,6 +130,6 @@ extern fn shutdownPlatform();
 
 // 运行时链接检查
 fn _checkApi() {
-    var w = createWindow("test", 100, 100);
+    let w = createWindow("test", 100, 100);
     closeWindow(w);
 }

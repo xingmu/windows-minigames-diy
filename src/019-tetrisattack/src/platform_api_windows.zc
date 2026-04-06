@@ -58,12 +58,12 @@ fn getWindowSize(handle: WindowHandle) -> (int, int) {
 }
 
 // 事件处理
-fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
+fn pollEvent(handle: WindowHandle, event: Event*) -> bool {
     event.msg = MessageType.None;
     return false;
 }
 
-fn waitEvent(handle: WindowHandle, event: &Event) {
+fn waitEvent(handle: WindowHandle, event: Event*) {
 }
 
 fn isKeyDown(key: VirtualKey) -> bool {
@@ -111,7 +111,7 @@ pub struct FrameBufferData {
     buffer: rawptr,
 }
 
-pub var fb_data = FrameBufferData.{ valid: false, width: 0, height: 0, pitch: 0, buffer: null };
+pub let fb_data = FrameBufferData { valid: false, width: 0, height: 0, pitch: 0, buffer: null };
 
 pub fn fb_init(window: WindowHandle, width: int, height: int) {
     fb_data.valid = true;
@@ -126,8 +126,8 @@ pub fn fb_shutdown() {
 
 pub fn fb_clear(color: u32) {
     if !fb_data.valid { return; }
-    var pixels = fb_data.buffer as u32 mut;
-    var count = (fb_data.pitch * fb_data.height) / 4;
+    let pixels = fb_data.(u32)buffer mut;
+    let count = (fb_data.pitch * fb_data.height) / 4;
     for i in 0..count {
         pixels[i] = color;
     }
@@ -136,30 +136,30 @@ pub fn fb_clear(color: u32) {
 pub fn fb_set_pixel(x: int, y: int, color: u32) {
     if !fb_data.valid { return; }
     if x < 0 || x >= fb_data.width || y < 0 || y >= fb_data.height { return; }
-    var offset = y * (fb_data.pitch / 4) + x;
-    var pixels = fb_data.buffer as u32 mut;
+    let offset = y * (fb_data.pitch / 4) + x;
+    let pixels = fb_data.(u32)buffer mut;
     pixels[offset] = color;
 }
 
 pub fn fb_get_pixel(x: int, y: int) -> u32 {
     if !fb_data.valid { return 0xFF000000; }
     if x < 0 || x >= fb_data.width || y < 0 || y >= fb_data.height { return 0xFF000000; }
-    var offset = y * (fb_data.pitch / 4) + x;
-    var pixels = fb_data.buffer as u32;
+    let offset = y * (fb_data.pitch / 4) + x;
+    let pixels = fb_data.buffer as u32;
     return pixels[offset];
 }
 
 pub fn fb_draw_line(x1: int, y1: int, x2: int, y2: int, color: u32) {
-    var dx = abs(x2 - x1);
-    var dy = abs(y2 - y1);
-    var sx = if x1 < x2 { 1 } else { -1 };
-    var sy = if y1 < y2 { 1 } else { -1 };
-    var err = dx - dy;
+    let dx = abs(x2 - x1);
+    let dy = abs(y2 - y1);
+    let sx = if x1 < x2 { 1 } else { -1 };
+    let sy = if y1 < y2 { 1 } else { -1 };
+    let err = dx - dy;
     
     loop {
         fb_set_pixel(x1, y1, color);
         if x1 == x2 && y1 == y2 { break; }
-        var e2 = 2 * err;
+        let e2 = 2 * err;
         if e2 > -dy { err = err - dy; x1 = x1 + sx; }
         if e2 < dx { err = err + dx; y1 = y1 + sy; }
     }
@@ -181,9 +181,9 @@ pub fn fb_fill_rect(x: int, y: int, w: int, h: int, color: u32) {
 }
 
 pub fn fb_draw_circle(cx: int, cy: int, radius: int, color: u32) {
-    var d = 3 - 2 * radius;
-    var x = 0;
-    var y = radius;
+    let d = 3 - 2 * radius;
+    let x = 0;
+    let y = radius;
     
     loop {
         fb_set_pixel(cx + x, cy + y, color);
@@ -208,10 +208,10 @@ pub fn fb_draw_circle(cx: int, cy: int, radius: int, color: u32) {
 
 pub fn fb_draw_text_size(x: int, y: int, text: str, color: u32, size: int) {
     // 简化实现
-    var px = x;
-    var py = y;
-    var charW = size * 8 / 10;
-    var charH = size;
+    let px = x;
+    let py = y;
+    let charW = size * 8 / 10;
+    let charH = size;
     
     for i in 0..len(text) {
         if text[i] == '\n' {
@@ -266,12 +266,12 @@ pub type DestroyHandler = fn();
 pub type UpdateHandler = fn();
 
 // 事件处理器变量
-private var key_handler: KeyHandler = nil;
-private var timer_handler: TimerHandler = nil;
-private var paint_handler: PaintHandler = nil;
-private var mouse_handler: MouseHandler = nil;
-private var destroy_handler: DestroyHandler = nil;
-private var update_handler: UpdateHandler = nil;
+private let key_handler: KeyHandler = nil;
+private let timer_handler: TimerHandler = nil;
+private let paint_handler: PaintHandler = nil;
+private let mouse_handler: MouseHandler = nil;
+private let destroy_handler: DestroyHandler = nil;
+private let update_handler: UpdateHandler = nil;
 
 // 设置事件处理器
 pub fn set_key_handler(handler: KeyHandler) {
@@ -299,7 +299,7 @@ pub fn set_update_handler(handler: UpdateHandler) {
 }
 
 // 键盘码
-pub type KeyCode = enum {
+enum KeyCode {
     None = 0,
     Escape = 0x1B,
     Space = 0x20,
@@ -349,7 +349,7 @@ pub type KeyCode = enum {
 };
 
 // 鼠标按钮
-pub type MouseButton = enum {
+enum MouseButton {
     None = 0,
     Left = 1,
     Right = 2,
@@ -372,5 +372,5 @@ fn abs(x: int) -> int {
 }
 
 fn rgb(r: u8, g: u8, b: u8) -> u32 {
-    return 0xFF000000 as u32 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+    return (u32)0xFF000000 | (((u32)r) << 16) | (((u32)g) << 8) | ((u32)b);
 }

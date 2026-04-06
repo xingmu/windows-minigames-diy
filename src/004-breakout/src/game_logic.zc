@@ -1,29 +1,29 @@
 // game_logic.zc - Zen-C Breakout（打砖块）游戏核心逻辑
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 800;
-const GAME_HEIGHT: i32 = 600;
-const PADDLE_WIDTH: i32 = 100;
-const PADDLE_HEIGHT: i32 = 15;
-const PADDLE_Y: i32 = GAME_HEIGHT - 40;
-const BALL_RADIUS: i32 = 8;
-const BALL_SPEED: i32 = 5;
-const BRICK_ROWS: i32 = 5;
-const BRICK_COLS: i32 = 10;
-const BRICK_WIDTH: i32 = 70;
-const BRICK_HEIGHT: i32 = 25;
-const BRICK_PADDING: i32 = 5;
-const BRICK_TOP_OFFSET: i32 = 60;
-const BRICK_LEFT_OFFSET: i32 = 30;
-const POINTS_PER_BRICK: i32 = 10;
-const INITIAL_LIVES: i32 = 3;
+def GAME_WIDTH: i32 = 800;
+def GAME_HEIGHT: i32 = 600;
+def PADDLE_WIDTH: i32 = 100;
+def PADDLE_HEIGHT: i32 = 15;
+def PADDLE_Y: i32 = GAME_HEIGHT - 40;
+def BALL_RADIUS: i32 = 8;
+def BALL_SPEED: i32 = 5;
+def BRICK_ROWS: i32 = 5;
+def BRICK_COLS: i32 = 10;
+def BRICK_WIDTH: i32 = 70;
+def BRICK_HEIGHT: i32 = 25;
+def BRICK_PADDING: i32 = 5;
+def BRICK_TOP_OFFSET: i32 = 60;
+def BRICK_LEFT_OFFSET: i32 = 30;
+def POINTS_PER_BRICK: i32 = 10;
+def INITIAL_LIVES: i32 = 3;
 
 // ==================== 砖块颜色 ====================
 
-const BRICK_COLORS: [BRICK_ROWS]Color = [
+def BRICK_COLORS: [BRICK_ROWS]Color = [
     Color { r: 255, g: 107, b: 107 },  // 红色
     Color { r: 255, g: 224, b: 102 },  // 黄色
     Color { r: 107, g: 203, b: 119 },  // 绿色
@@ -146,19 +146,19 @@ fn init_bricks(game: &mut BreakoutState) {
 // 处理键盘输入
 fn handle_input(game: &mut BreakoutState, key: KeyCode) -> bool {
     match key {
-        KeyCode.KeyLeft => {
+        KeyCode::KeyLeft => {
             game.paddle.x = game.paddle.x - game.paddle.speed;
             if game.paddle.x < 0 {
                 game.paddle.x = 0;
             }
         },
-        KeyCode.KeyRight => {
+        KeyCode::KeyRight => {
             game.paddle.x = game.paddle.x + game.paddle.speed;
             if game.paddle.x > GAME_WIDTH - game.paddle.width {
                 game.paddle.x = GAME_WIDTH - game.paddle.width;
             }
         },
-        KeyCode.KeySpace => {
+        KeyCode::KeySpace => {
             if game.status == GameStatus.Ready || 
                game.status == GameStatus.Lost || 
                game.status == GameStatus.Won {
@@ -171,12 +171,12 @@ fn handle_input(game: &mut BreakoutState, key: KeyCode) -> bool {
                 game.ball.vy = -BALL_SPEED;
             }
         },
-        KeyCode.KeyR => {
+        KeyCode::KeyR => {
             if game.status == GameStatus.Lost || game.status == GameStatus.Won {
                 init_game(game);
             }
         },
-        KeyCode.KeyEscape => {
+        KeyCode::KeyEscape => {
             return false;
         },
         _ => {}
@@ -303,17 +303,17 @@ fn update_game(game: &mut BreakoutState) -> bool {
 }
 
 // 获取分数
-fn get_score(game: &BreakoutState) -> i32 {
+fn get_score(game: BreakoutState*) -> i32 {
     game.score
 }
 
 // 获取状态文本
-fn get_status_text(game: &BreakoutState) -> string {
+fn get_status_text(game: BreakoutState*) -> string {
     match game.status {
-        GameStatus.Ready => return "按空格键开始游戏",
-        GameStatus.Playing => return "游戏中...",
-        GameStatus.Lost => return "游戏结束! 按 R 重新开始",
-        GameStatus.Won => return "恭喜通关! 按 R 重新开始",
+        GameStatus::Ready => return "按空格键开始游戏",
+        GameStatus::Playing => return "游戏中...",
+        GameStatus::Lost => return "游戏结束! 按 R 重新开始",
+        GameStatus::Won => return "恭喜通关! 按 R 重新开始",
     }
 }
 

@@ -1,31 +1,31 @@
 // game_logic.zc - LinkLink 连连看游戏逻辑
 // 框架版本: 1.0.0
 
-import std.io;
+import "io.zc";
 
 // ==================== 常量定义 ====================
 
 // 游戏尺寸
-const GRID_ROWS: int = 8;
-const GRID_COLS: int = 8;
-const TILE_TYPES: int = 18;  // 不同图案的数量
-const TILE_SIZE: int = 48;
-const TILE_GAP: int = 4;
-const GRID_OFFSET_X: int = 50;
-const GRID_OFFSET_Y: int = 60;
+def GRID_ROWS: int = 8;
+def GRID_COLS: int = 8;
+def TILE_TYPES: int = 18;  // 不同图案的数量
+def TILE_SIZE: int = 48;
+def TILE_GAP: int = 4;
+def GRID_OFFSET_X: int = 50;
+def GRID_OFFSET_Y: int = 60;
 
 // 游戏时间（秒）
-const GAME_TIME: int = 300;  // 5分钟
+def GAME_TIME: int = 300;  // 5分钟
 
 // 颜色定义
-const BG_COLOR = rgb(30, 30, 40);
-const TILE_BG_COLOR = rgb(60, 60, 80);
-const SELECTED_COLOR = rgb(255, 255, 100);
-const LINE_COLOR = rgb(0, 255, 100);
-const TEXT_COLOR = rgb(255, 255, 255);
+def BG_COLOR = rgb(30, 30, 40);
+def TILE_BG_COLOR = rgb(60, 60, 80);
+def SELECTED_COLOR = rgb(255, 255, 100);
+def LINE_COLOR = rgb(0, 255, 100);
+def TEXT_COLOR = rgb(255, 255, 255);
 
 // 方块颜色调色板
-const TILE_COLORS: [12]u32 = [
+def TILE_COLORS: [u32; 12] = [
     rgb(231, 76, 60),   // 红色
     rgb(52, 152, 219),  // 蓝色
     rgb(46, 204, 113),  // 绿色
@@ -67,14 +67,14 @@ pub struct LinkLinkState {
     gameWon: bool,      // 是否获胜
     tilesRemaining: int,// 剩余方块数
     lastMatch: bool,    // 上一次匹配是否成功
-    connectionPath: [4]PathPoint,  // 连接路径（最多3个点）
+    connectionPath: [PathPoint; 4],  // 连接路径（最多3个点）
     pathLength: int,    // 连接路径长度
 }
 
 // ==================== 辅助函数 ====================
 
 fn rgb(r: u8, g: u8, b: u8) -> u32 {
-    return 0xFF000000 as u32 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+    return (u32)0xFF000000 | (((u32)r) << 16) | (((u32)g) << 8) | ((u32)b);
 }
 
 fn abs(x: int) -> int {
@@ -100,8 +100,8 @@ pub fn init_game(state: &mut LinkLinkState) {
     let totalTiles = GRID_ROWS * GRID_COLS;
     let pairs = totalTiles / 2;
     
-    var types: [256]int;
-    var typeIndex = 0;
+    let types: [int; 256];
+    let typeIndex = 0;
     
     // 为每对方块分配图案
     for i in 0..pairs {
@@ -144,7 +144,7 @@ pub fn init_game(state: &mut LinkLinkState) {
 }
 
 // 获取方块位置（屏幕坐标）
-pub fn get_tile_position(state: &LinkLinkState, row: int, col: int) -> (int, int) {
+pub fn get_tile_position(state: LinkLinkState*, row: int, col: int) -> (int, int) {
     let x = GRID_OFFSET_X + col * (TILE_SIZE + TILE_GAP);
     let y = GRID_OFFSET_Y + row * (TILE_SIZE + TILE_GAP);
     return (x, y);
@@ -231,18 +231,18 @@ pub fn click_tile(state: &mut LinkLinkState, row: int, col: int) -> bool {
 // 路径结构
 struct Path {
     length: int;
-    points: [4]PathPoint,
+    points: [PathPoint; 4],
 }
 
 // 查找连接路径（最多2个拐角）
-fn find_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: int) -> Path {
-    var result = Path.{ length: 0, points: [PathPoint.{row:0, col:0}; 4] };
+fn find_path(state: LinkLinkState*, r1: int, c1: int, r2: int, c2: int) -> Path {
+    let result = Path { length: 0, points: [PathPoint {row:0, col:0}; 4] };
     
     // 如果相邻，直接连接
     if can_connect_direct(state, r1, c1, r2, c2) {
         result.length = 2;
-        result.points[0] = PathPoint.{ row: r1, col: c1 };
-        result.points[1] = PathPoint.{ row: r2, col: c2 };
+        result.points[0] = PathPoint { row: r1, col: c1 };
+        result.points[1] = PathPoint { row: r2, col: c2 };
         return result;
     }
     
@@ -262,7 +262,7 @@ fn find_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: int) -> Path 
 }
 
 // 判断两格是否可以直接连接（直线，中间无阻碍）
-fn can_connect_direct(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: int) -> bool {
+fn can_connect_direct(state: LinkLinkState*, r1: int, c1: int, r2: int, c2: int) -> bool {
     // 必须同行或同列
     if r1 != r2 && c1 != c2 {
         return false;
@@ -300,8 +300,8 @@ fn can_connect_direct(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: int)
 }
 
 // 查找一个拐角的路径
-fn find_one_corner_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: int) -> Path {
-    var result = Path.{ length: 0, points: [PathPoint.{row:0, col:0}; 4] };
+fn find_one_corner_path(state: LinkLinkState*, r1: int, c1: int, r2: int, c2: int) -> Path {
+    let result = Path { length: 0, points: [PathPoint {row:0, col:0}; 4] };
     
     // 尝试在 (r1, c2) 处拐弯
     if can_connect_direct(state, r1, c1, r1, c2) && can_connect_direct(state, r1, c2, r2, c2) {
@@ -309,9 +309,9 @@ fn find_one_corner_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: in
             // 如果拐角处是空地或终点
             if !state.tiles[r1][c2].visible {
                 result.length = 3;
-                result.points[0] = PathPoint.{ row: r1, col: c1 };
-                result.points[1] = PathPoint.{ row: r1, col: c2 };
-                result.points[2] = PathPoint.{ row: r2, col: c2 };
+                result.points[0] = PathPoint { row: r1, col: c1 };
+                result.points[1] = PathPoint { row: r1, col: c2 };
+                result.points[2] = PathPoint { row: r2, col: c2 };
                 return result;
             }
         }
@@ -321,9 +321,9 @@ fn find_one_corner_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: in
     if can_connect_direct(state, r1, c1, r2, c1) && can_connect_direct(state, r2, c1, r2, c2) {
         if !state.tiles[r2][c1].visible {
             result.length = 3;
-            result.points[0] = PathPoint.{ row: r1, col: c1 };
-            result.points[1] = PathPoint.{ row: r2, col: c1 };
-            result.points[2] = PathPoint.{ row: r2, col: c2 };
+            result.points[0] = PathPoint { row: r1, col: c1 };
+            result.points[1] = PathPoint { row: r2, col: c1 };
+            result.points[2] = PathPoint { row: r2, col: c2 };
             return result;
         }
     }
@@ -332,8 +332,8 @@ fn find_one_corner_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: in
 }
 
 // 查找两个拐角的路径
-fn find_two_corner_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: int) -> Path {
-    var result = Path.{ length: 0, points: [PathPoint.{row:0, col:0}; 4] };
+fn find_two_corner_path(state: LinkLinkState*, r1: int, c1: int, r2: int, c2: int) -> Path {
+    let result = Path { length: 0, points: [PathPoint {row:0, col:0}; 4] };
     
     // 尝试从边界绕行（同行扫描）
     // 向上扫描一行
@@ -342,10 +342,10 @@ fn find_two_corner_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: in
         // 检查是否可以通过 r1-1 行连接
         if can_connect_through_row(state, r1 - 1, c1, c2) {
             result.length = 4;
-            result.points[0] = PathPoint.{ row: r1, col: c1 };
-            result.points[1] = PathPoint.{ row: r1 - 1, col: c1 };
-            result.points[2] = PathPoint.{ row: r1 - 1, col: c2 };
-            result.points[3] = PathPoint.{ row: r2, col: c2 };
+            result.points[0] = PathPoint { row: r1, col: c1 };
+            result.points[1] = PathPoint { row: r1 - 1, col: c1 };
+            result.points[2] = PathPoint { row: r1 - 1, col: c2 };
+            result.points[3] = PathPoint { row: r2, col: c2 };
             return result;
         }
     }
@@ -355,10 +355,10 @@ fn find_two_corner_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: in
        can_connect_to_edge_horizontal(state, r2, c2, r1 + 1) {
         if can_connect_through_row(state, r1 + 1, c1, c2) {
             result.length = 4;
-            result.points[0] = PathPoint.{ row: r1, col: c1 };
-            result.points[1] = PathPoint.{ row: r1 + 1, col: c1 };
-            result.points[2] = PathPoint.{ row: r1 + 1, col: c2 };
-            result.points[3] = PathPoint.{ row: r2, col: c2 };
+            result.points[0] = PathPoint { row: r1, col: c1 };
+            result.points[1] = PathPoint { row: r1 + 1, col: c1 };
+            result.points[2] = PathPoint { row: r1 + 1, col: c2 };
+            result.points[3] = PathPoint { row: r2, col: c2 };
             return result;
         }
     }
@@ -368,10 +368,10 @@ fn find_two_corner_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: in
        can_connect_to_edge_vertical(state, c2, r2, c1 - 1) {
         if can_connect_through_col(state, c1 - 1, r1, r2) {
             result.length = 4;
-            result.points[0] = PathPoint.{ row: r1, col: c1 };
-            result.points[1] = PathPoint.{ row: r1, col: c1 - 1 };
-            result.points[2] = PathPoint.{ row: r2, col: c1 - 1 };
-            result.points[3] = PathPoint.{ row: r2, col: c2 };
+            result.points[0] = PathPoint { row: r1, col: c1 };
+            result.points[1] = PathPoint { row: r1, col: c1 - 1 };
+            result.points[2] = PathPoint { row: r2, col: c1 - 1 };
+            result.points[3] = PathPoint { row: r2, col: c2 };
             return result;
         }
     }
@@ -381,10 +381,10 @@ fn find_two_corner_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: in
        can_connect_to_edge_vertical(state, c2, r2, c1 + 1) {
         if can_connect_through_col(state, c1 + 1, r1, r2) {
             result.length = 4;
-            result.points[0] = PathPoint.{ row: r1, col: c1 };
-            result.points[1] = PathPoint.{ row: r1, col: c1 + 1 };
-            result.points[2] = PathPoint.{ row: r2, col: c1 + 1 };
-            result.points[3] = PathPoint.{ row: r2, col: c2 };
+            result.points[0] = PathPoint { row: r1, col: c1 };
+            result.points[1] = PathPoint { row: r1, col: c1 + 1 };
+            result.points[2] = PathPoint { row: r2, col: c1 + 1 };
+            result.points[3] = PathPoint { row: r2, col: c2 };
             return result;
         }
     }
@@ -393,7 +393,7 @@ fn find_two_corner_path(state: &LinkLinkState, r1: int, c1: int, r2: int, c2: in
 }
 
 // 检查是否能从 (r, c) 水平连接到边缘行 row
-fn can_connect_to_edge_horizontal(state: &LinkLinkState, r: int, c: int, edgeRow: int) -> bool {
+fn can_connect_to_edge_horizontal(state: LinkLinkState*, r: int, c: int, edgeRow: int) -> bool {
     // 检查从 (r, c) 到 (edgeRow, c) 的垂直路径
     if c < 0 || c >= GRID_COLS {
         return false;
@@ -415,7 +415,7 @@ fn can_connect_to_edge_horizontal(state: &LinkLinkState, r: int, c: int, edgeRow
 }
 
 // 检查是否能从 (r, c) 垂直连接到边缘列 col
-fn can_connect_to_edge_vertical(state: &LinkLinkState, c: int, r: int, edgeCol: int) -> bool {
+fn can_connect_to_edge_vertical(state: LinkLinkState*, c: int, r: int, edgeCol: int) -> bool {
     // 检查从 (r, c) 到 (r, edgeCol) 的水平路径
     if r < 0 || r >= GRID_ROWS {
         return false;
@@ -437,7 +437,7 @@ fn can_connect_to_edge_vertical(state: &LinkLinkState, c: int, r: int, edgeCol: 
 }
 
 // 检查在指定行上从 c1 到 c2 是否可以水平通行
-fn can_connect_through_row(state: &LinkLinkState, row: int, c1: int, c2: int) -> bool {
+fn can_connect_through_row(state: LinkLinkState*, row: int, c1: int, c2: int) -> bool {
     if row < 0 || row >= GRID_ROWS {
         return false;
     }
@@ -458,7 +458,7 @@ fn can_connect_through_row(state: &LinkLinkState, row: int, c1: int, c2: int) ->
 }
 
 // 检查在指定列上从 r1 到 r2 是否可以垂直通行
-fn can_connect_through_col(state: &LinkLinkState, col: int, r1: int, r2: int) -> bool {
+fn can_connect_through_col(state: LinkLinkState*, col: int, r1: int, r2: int) -> bool {
     if col < 0 || col >= GRID_COLS {
         return false;
     }
@@ -496,15 +496,15 @@ pub fn update_time(state: &mut LinkLinkState) -> bool {
 }
 
 // 检查是否有可消除的对
-pub fn has_possible_moves(state: &LinkLinkState) -> bool {
-    var visibleTiles: [64]PathPoint;
-    var count = 0;
+pub fn has_possible_moves(state: LinkLinkState*) -> bool {
+    let visibleTiles: [PathPoint; 64];
+    let count = 0;
     
     // 收集所有可见方块
     for r in 0..GRID_ROWS {
         for c in 0..GRID_COLS {
             if state.tiles[r][c].visible {
-                visibleTiles[count] = PathPoint.{ row: r, col: c };
+                visibleTiles[count] = PathPoint { row: r, col: c };
                 count = count + 1;
             }
         }
@@ -535,29 +535,29 @@ pub fn restart_game(state: &mut LinkLinkState) {
 }
 
 // 获取分数文本
-pub fn get_score_text(state: &LinkLinkState) -> str {
-    return "分数: " ++ state.score.toString();
+pub fn get_score_text(state: LinkLinkState*) -> str {
+    return "分数: {state}".score.toString();
 }
 
 // 获取时间文本
-pub fn get_time_text(state: &LinkLinkState) -> str {
+pub fn get_time_text(state: LinkLinkState*) -> str {
     let minutes = state.timeLeft / 60;
     let seconds = state.timeLeft % 60;
     return if minutes < 10 {
-        "0" ++ minutes.toString() ++ ":" ++ (if seconds < 10 { "0" } else { "" }) ++ seconds.toString()
+        "0{minutes}" ++ ":" ++ (if seconds < 10 { "0" } else { "" }) ++ seconds.toString()
     } else {
-        minutes.toString() ++ ":" ++ (if seconds < 10 { "0" } else { "" }) ++ seconds.toString()
+        "{minutes}:" ++ (if seconds < 10 { "0" } else { "" }) ++ seconds.toString()
     };
 }
 
 // 获取状态文本
-pub fn get_status_text(state: &LinkLinkState) -> str {
+pub fn get_status_text(state: LinkLinkState*) -> str {
     if state.gameWon {
-        return "恭喜通关！最终得分: " ++ state.score.toString();
+        return "恭喜通关！最终得分: {state}".score.toString();
     } else if state.gameOver {
-        return "时间到！游戏结束！得分: " ++ state.score.toString();
+        return "时间到！游戏结束！得分: {state}".score.toString();
     }
-    return "剩余方块: " ++ state.tilesRemaining.toString();
+    return "剩余方块: {state}".tilesRemaining.toString();
 }
 
 // 获取控制说明

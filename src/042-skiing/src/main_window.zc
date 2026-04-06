@@ -1,6 +1,6 @@
 // main_window.zc - Zen-C Skiing（滑雪）游戏主程序
 
-import std.io;
+import "io.zc";
 
 // 导入游戏逻辑
 import "platform_api.zc";
@@ -12,17 +12,17 @@ static mut game: SkiingState;
 static mut window: WindowHandle;
 static mut running: bool = true;
 static mut game_speed: u32 = 16;  // ~60 FPS
-static mut key_states: [2]bool = [false, false];  // 左、右键状态
+static mut key_states: [bool; 2] = [false, false];  // 左、右键状态
 
 // ==================== 事件处理 ====================
 
 fn on_key(key: KeyCode) -> bool {
     match key {
-        KeyCode.KeyLeft => {
+        KeyCode::KeyLeft => {
             key_states[0] = true;
             handle_input(&mut game, key);
         },
-        KeyCode.KeyRight => {
+        KeyCode::KeyRight => {
             key_states[1] = true;
             handle_input(&mut game, key);
         },
@@ -35,10 +35,10 @@ fn on_key(key: KeyCode) -> bool {
 
 fn on_key_up(key: KeyCode) {
     match key {
-        KeyCode.KeyLeft => {
+        KeyCode::KeyLeft => {
             key_states[0] = false;
         },
-        KeyCode.KeyRight => {
+        KeyCode::KeyRight => {
             key_states[1] = false;
         },
         _ => {}
@@ -86,7 +86,7 @@ fn on_paint(w: i32, h: i32) {
         let skier_x = game.skier.x + game.skier.width / 2;
         for i in 0..10 {
             let trail_y = (game.distance / 2 + i * 20) % h;
-            let offset = (i % 2 == 0) as i32 * 10 - 5;
+            let offset = (i32)(i % 2 == 0) * 10 - 5;
             fb_draw_rect(skier_x - 3 + offset, trail_y, 2, 15, COLOR_SKI_TRACK);
             fb_draw_rect(skier_x + 8 + offset, trail_y, 2, 15, COLOR_SKI_TRACK);
         }
@@ -143,7 +143,7 @@ fn on_paint(w: i32, h: i32) {
     fb_draw_rect(0, 0, w, 50, COLOR_UI_BG);
     
     // 绘制分数
-    let score_text = "分数: " ++ game.score.toString() ++ "  速度: " ++ game.speed.toString();
+    let score_text = "分数: {game}"."{score}  速度: {game}".speed.toString();
     fb_draw_text_size(10, 15, score_text, COLOR_TEXT, 16);
     
     // 绘制状态文本
@@ -154,7 +154,7 @@ fn on_paint(w: i32, h: i32) {
         fb_draw_text_size(30, 500, get_controls_text(), rgb(200, 200, 200), 14);
     } else if game.status == GameStatus.GameOver {
         fb_draw_text_size(80, 250, "游戏结束!", rgb(255, 50, 50), 32);
-        let final_score = "最终分数: " ++ game.score.toString();
+        let final_score = "最终分数: {game}".score.toString();
         fb_draw_text_size(100, 300, final_score, rgb(255, 255, 0), 24);
         let status = get_status_text(&game);
         fb_draw_text_size(40, 350, status, rgb(255, 255, 255), 18);
@@ -181,9 +181,9 @@ fn on_destroy() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C Skiing 滑雪游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C Skiing 滑雪游戏";
+    io.println "========================================";
 
     // 初始化游戏状态
     init_game(&mut game);
@@ -193,7 +193,7 @@ fn main() -> i32 {
     window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
@@ -220,10 +220,10 @@ fn main() -> i32 {
     // 设置游戏定时器
     set_game_timer(window, game_speed);
 
-    io.println("窗口创建成功!");
-    io.println("按空格键或点击鼠标开始游戏");
-    io.println("使用 ← → 方向键控制滑雪者移动");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "按空格键或点击鼠标开始游戏";
+    io.println "使用 ← → 方向键控制滑雪者移动";
+    io.println "========================================";
 
     // 初始绘制
     redraw_window(window);
@@ -231,9 +231,9 @@ fn main() -> i32 {
     // 运行事件循环
     run_event_loop(window);
 
-    io.println("游戏结束!");
-    io.println("最终分数: " ++ game.score.toString());
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println("最终分数: {game}".score.toString());
+    io.println "========================================";
 
     0
 }

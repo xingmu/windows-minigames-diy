@@ -3,60 +3,60 @@
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 900;
-const GAME_HEIGHT: i32 = 500;
+def GAME_WIDTH: i32 = 900;
+def GAME_HEIGHT: i32 = 500;
 
 // 台球桌尺寸
-const TABLE_LEFT: i32 = 40;
-const TABLE_TOP: i32 = 40;
-const TABLE_RIGHT: i32 = 860;
-const TABLE_BOTTOM: i32 = 460;
-const TABLE_WIDTH: i32 = TABLE_RIGHT - TABLE_LEFT;
-const TABLE_HEIGHT: i32 = TABLE_BOTTOM - TABLE_TOP;
+def TABLE_LEFT: i32 = 40;
+def TABLE_TOP: i32 = 40;
+def TABLE_RIGHT: i32 = 860;
+def TABLE_BOTTOM: i32 = 460;
+def TABLE_WIDTH: i32 = TABLE_RIGHT - TABLE_LEFT;
+def TABLE_HEIGHT: i32 = TABLE_BOTTOM - TABLE_TOP;
 
 // 边岸厚度
-const CUSHION_SIZE: i32 = 20;
+def CUSHION_SIZE: i32 = 20;
 
 // 球半径
-const BALL_RADIUS: i32 = 12;
+def BALL_RADIUS: i32 = 12;
 
 // 球的数量
-const MAX_BALLS: i32 = 22;
+def MAX_BALLS: i32 = 22;
 
 // 口袋半径
-const POCKET_RADIUS: i32 = 20;
+def POCKET_RADIUS: i32 = 20;
 
 // 摩擦系数 (每帧速度衰减)
-const FRICTION: i32 = 2;
+def FRICTION: i32 = 2;
 
 // 最大击球力度
-const MAX_POWER: i32 = 25;
+def MAX_POWER: i32 = 25;
 
 // 最小速度阈值
-const MIN_VELOCITY: i32 = 1;
+def MIN_VELOCITY: i32 = 1;
 
 // ==================== 球的颜色定义 ====================
 
 // 球的颜色
-const CUE_BALL_COLOR: Color = Color.RGB(255, 255, 240);  // 象牙白
+def CUE_BALL_COLOR: Color = Color.RGB(255, 255, 240);  // 象牙白
 
 // 红色球 (1-15球心位置，固定)
-const BALL_RED_COLOR: Color = Color.RGB(220, 30, 30);
-const BALL_YELLOW_COLOR: Color = Color.RGB(220, 200, 30);
-const BALL_GREEN_COLOR: Color = Color.RGB(30, 180, 30);
-const BALL_BROWN_COLOR: Color = Color.RGB(150, 90, 30);
-const BALL_BLUE_COLOR: Color = Color.RGB(30, 30, 220);
-const BALL_PINK_COLOR: Color = Color.RGB(255, 150, 200);
-const BALL_BLACK_COLOR: Color = Color.RGB(20, 20, 20);
+def BALL_RED_COLOR: Color = Color.RGB(220, 30, 30);
+def BALL_YELLOW_COLOR: Color = Color.RGB(220, 200, 30);
+def BALL_GREEN_COLOR: Color = Color.RGB(30, 180, 30);
+def BALL_BROWN_COLOR: Color = Color.RGB(150, 90, 30);
+def BALL_BLUE_COLOR: Color = Color.RGB(30, 30, 220);
+def BALL_PINK_COLOR: Color = Color.RGB(255, 150, 200);
+def BALL_BLACK_COLOR: Color = Color.RGB(20, 20, 20);
 
 // 袋口位置 (6个)
-const POCKET_POSITIONS: [6]PocketPos = [
-    PocketPos.{ x: TABLE_LEFT, y: TABLE_TOP },                          // 左上
-    PocketPos.{ x: (TABLE_LEFT + TABLE_RIGHT) / 2, y: TABLE_TOP - 5 },   // 上中
-    PocketPos.{ x: TABLE_RIGHT, y: TABLE_TOP },                          // 右上
-    PocketPos.{ x: TABLE_LEFT, y: TABLE_BOTTOM },                       // 左下
-    PocketPos.{ x: (TABLE_LEFT + TABLE_RIGHT) / 2, y: TABLE_BOTTOM + 5 },// 下中
-    PocketPos.{ x: TABLE_RIGHT, y: TABLE_BOTTOM },                       // 右下
+def POCKET_POSITIONS: [PocketPos; 6] = [
+    PocketPos { x: TABLE_LEFT, y: TABLE_TOP },                          // 左上
+    PocketPos { x: (TABLE_LEFT + TABLE_RIGHT) / 2, y: TABLE_TOP - 5 },   // 上中
+    PocketPos { x: TABLE_RIGHT, y: TABLE_TOP },                          // 右上
+    PocketPos { x: TABLE_LEFT, y: TABLE_BOTTOM },                       // 左下
+    PocketPos { x: (TABLE_LEFT + TABLE_RIGHT) / 2, y: TABLE_BOTTOM + 5 },// 下中
+    PocketPos { x: TABLE_RIGHT, y: TABLE_BOTTOM },                       // 右下
 ];
 
 struct PocketPos {
@@ -91,7 +91,7 @@ enum GameStatus {
 struct BilliardsState {
     balls: [MAX_BALLS]Ball,
     ballCount: i32,
-    cueBall: &Ball,      // 白色球引用
+    cueBall: Ball*,      // 白色球引用
     status: GameStatus,
     score: i32,
     shots: i32,           // 击球次数
@@ -128,7 +128,7 @@ fn dist2(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
 }
 
 // 判断两球是否碰撞 (基于圆心距离)
-fn ballsColliding(b1: &Ball, b2: &Ball) -> bool {
+fn ballsColliding(b1: Ball*, b2: Ball*) -> bool {
     if !b1.active || !b2.active || b1.pocketed || b2.pocketed {
         return false;
     }
@@ -137,7 +137,7 @@ fn ballsColliding(b1: &Ball, b2: &Ball) -> bool {
 }
 
 // 判断球是否在口袋中
-fn isInPocket(ball: &Ball) -> bool {
+fn isInPocket(ball: Ball*) -> bool {
     if ball.pocketed {
         return true;
     }
@@ -262,7 +262,7 @@ fn initBalls(state: &mut BilliardsState) {
     state.shots = 0;
 
     // 白球 (球号0)
-    state.balls[0] = Ball.{
+    state.balls[0] = Ball {
         x: TABLE_LEFT + 200,
         y: (TABLE_TOP + TABLE_BOTTOM) / 2,
         vx: 0,
@@ -294,11 +294,11 @@ fn initBalls(state: &mut BilliardsState) {
     // 简化: 使用三角形排列
     // 位置索引: 球号1-15为红球(三角形), 16=黄, 17=绿, 18=棕, 19=蓝, 20=粉, 21=黑
 
-    var ballIndex = 1;
+    let ballIndex = 1;
 
     // 放置彩色球 (接近顶岸)
     // 黄球 (1)
-    state.balls[ballIndex] = Ball.{
+    state.balls[ballIndex] = Ball {
         x: TABLE_LEFT + 300,
         y: (TABLE_TOP + TABLE_BOTTOM) / 2,
         vx: 0, vy: 0,
@@ -311,7 +311,7 @@ fn initBalls(state: &mut BilliardsState) {
     ballIndex = ballIndex + 1;
 
     // 绿球 (2)
-    state.balls[ballIndex] = Ball.{
+    state.balls[ballIndex] = Ball {
         x: TABLE_LEFT + 350,
         y: (TABLE_TOP + TABLE_BOTTOM) / 2,
         vx: 0, vy: 0,
@@ -324,7 +324,7 @@ fn initBalls(state: &mut BilliardsState) {
     ballIndex = ballIndex + 1;
 
     // 棕球 (3)
-    state.balls[ballIndex] = Ball.{
+    state.balls[ballIndex] = Ball {
         x: TABLE_LEFT + 400,
         y: (TABLE_TOP + TABLE_BOTTOM) / 2,
         vx: 0, vy: 0,
@@ -337,7 +337,7 @@ fn initBalls(state: &mut BilliardsState) {
     ballIndex = ballIndex + 1;
 
     // 蓝球 (4) - 中心点
-    state.balls[ballIndex] = Ball.{
+    state.balls[ballIndex] = Ball {
         x: (TABLE_LEFT + TABLE_RIGHT) / 2,
         y: (TABLE_TOP + TABLE_BOTTOM) / 2,
         vx: 0, vy: 0,
@@ -350,7 +350,7 @@ fn initBalls(state: &mut BilliardsState) {
     ballIndex = ballIndex + 1;
 
     // 粉球 (5)
-    state.balls[ballIndex] = Ball.{
+    state.balls[ballIndex] = Ball {
         x: TABLE_RIGHT - 250,
         y: (TABLE_TOP + TABLE_BOTTOM) / 2,
         vx: 0, vy: 0,
@@ -363,7 +363,7 @@ fn initBalls(state: &mut BilliardsState) {
     ballIndex = ballIndex + 1;
 
     // 黑球 (6)
-    state.balls[ballIndex] = Ball.{
+    state.balls[ballIndex] = Ball {
         x: TABLE_RIGHT - 150,
         y: (TABLE_TOP + TABLE_BOTTOM) / 2,
         vx: 0, vy: 0,
@@ -377,7 +377,7 @@ fn initBalls(state: &mut BilliardsState) {
 
     // 红球三角形 (1-15个)
     // 行0: 1个红球
-    state.balls[ballIndex] = Ball.{
+    state.balls[ballIndex] = Ball {
         x: apexX,
         y: apexY,
         vx: 0, vy: 0,
@@ -391,7 +391,7 @@ fn initBalls(state: &mut BilliardsState) {
 
     // 行1: 2个红球
     for i in 0..2 {
-        state.balls[ballIndex] = Ball.{
+        state.balls[ballIndex] = Ball {
             x: apexX - spacing,
             y: apexY - spacing / 2 + i * spacing,
             vx: 0, vy: 0,
@@ -406,7 +406,7 @@ fn initBalls(state: &mut BilliardsState) {
 
     // 行2: 3个红球
     for i in 0..3 {
-        state.balls[ballIndex] = Ball.{
+        state.balls[ballIndex] = Ball {
             x: apexX - spacing * 2,
             y: apexY - spacing + i * spacing,
             vx: 0, vy: 0,
@@ -421,7 +421,7 @@ fn initBalls(state: &mut BilliardsState) {
 
     // 行3: 4个红球
     for i in 0..4 {
-        state.balls[ballIndex] = Ball.{
+        state.balls[ballIndex] = Ball {
             x: apexX - spacing * 3,
             y: apexY - spacing * 3 / 2 + i * spacing,
             vx: 0, vy: 0,
@@ -436,7 +436,7 @@ fn initBalls(state: &mut BilliardsState) {
 
     // 行4: 5个红球
     for i in 0..5 {
-        state.balls[ballIndex] = Ball.{
+        state.balls[ballIndex] = Ball {
             x: apexX - spacing * 4,
             y: apexY - spacing * 2 + i * spacing,
             vx: 0, vy: 0,
@@ -470,7 +470,7 @@ fn init_game(state: &mut BilliardsState) {
 
 // 更新所有球的物理状态
 fn updateBalls(state: &mut BilliardsState) -> bool {
-    var anyMoving = false;
+    let anyMoving = false;
 
     for i in 0..state.ballCount {
         let mut ball = state.balls[i];
@@ -551,7 +551,7 @@ fn updateBalls(state: &mut BilliardsState) -> bool {
 }
 
 // 检查所有球是否静止
-fn allBallsStopped(state: &BilliardsState) -> bool {
+fn allBallsStopped(state: BilliardsState*) -> bool {
     for i in 0..state.ballCount {
         if state.balls[i].active && !state.balls[i].pocketed {
             if state.balls[i].vx != 0 || state.balls[i].vy != 0 {
@@ -638,13 +638,13 @@ fn onMouseUp(state: &mut BilliardsState, x: i32, y: i32) {
 
 // ==================== 状态查询 ====================
 
-fn getStatusText(state: &BilliardsState) -> string {
+fn getStatusText(state: BilliardsState*) -> string {
     match state.status {
-        GameStatus.Ready => return "点击并拖拽白球击球",
-        GameStatus.Aiming => return "瞄准中...",
-        GameStatus.Dragging => return "蓄力中: " ++ state.power.toString(),
-        GameStatus.Moving => return "球运动中...",
-        GameStatus.GameOver => return "游戏结束! 点击重新开始",
+        GameStatus::Ready => return "点击并拖拽白球击球",
+        GameStatus::Aiming => return "瞄准中...",
+        GameStatus::Dragging => return "蓄力中: {state}".power.toString(),
+        GameStatus::Moving => return "球运动中...",
+        GameStatus::GameOver => return "游戏结束! 点击重新开始",
     }
 }
 

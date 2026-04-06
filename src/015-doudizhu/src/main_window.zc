@@ -1,67 +1,67 @@
 // main_window.zc - 斗地主游戏主程序 (Zen-C Windows版)
 // 经典斗地主: 玩家 vs 电脑AI
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 import "platform_api.zc";
 import "game_logic.zc";
 
 // ==================== 游戏常量 ====================
 
-const WINDOW_WIDTH = 900;
-const WINDOW_HEIGHT = 700;
-const TITLE = "斗地主 v1.0";
+def WINDOW_WIDTH = 900;
+def WINDOW_HEIGHT = 700;
+def TITLE = "斗地主 v1.0";
 
 // 卡牌尺寸
-const CARD_WIDTH = 60;
-const CARD_HEIGHT = 85;
-const CARD_H_GAP = 5;  // 水平间距
+def CARD_WIDTH = 60;
+def CARD_HEIGHT = 85;
+def CARD_H_GAP = 5;  // 水平间距
 
 // 玩家手牌区域
-const PLAYER_CARD_Y = 520;
-const PLAYER_CARD_START_X = 50;
+def PLAYER_CARD_Y = 520;
+def PLAYER_CARD_START_X = 50;
 
 // 玩家出牌区域
-const PLAYER_PLAY_Y = 430;
+def PLAYER_PLAY_Y = 430;
 
 // 电脑1区域 (左侧)
-const CPU1_CARD_X = 20;
-const CPU1_CARD_Y = 200;
-const CPU1_CARD_GAP = 20;
+def CPU1_CARD_X = 20;
+def CPU1_CARD_Y = 200;
+def CPU1_CARD_GAP = 20;
 
 // 电脑2区域 (右侧)
-const CPU2_CARD_X = 700;
-const CPU2_CARD_Y = 200;
-const CPU2_CARD_GAP = 20;
+def CPU2_CARD_X = 700;
+def CPU2_CARD_Y = 200;
+def CPU2_CARD_GAP = 20;
 
 // 地主牌显示
-const LANDLORD_CARD_X = 380;
-const LANDLORD_CARD_Y = 10;
+def LANDLORD_CARD_X = 380;
+def LANDLORD_CARD_Y = 10;
 
 // 中央出牌区域
-const CENTER_PLAY_X = 350;
-const CENTER_PLAY_Y = 300;
+def CENTER_PLAY_X = 350;
+def CENTER_PLAY_Y = 300;
 
 // 叫分按钮
-const BID_BUTTON_Y = 420;
-const BID_PASS_X = 600;
-const BID1_X = 650;
-const BID2_X = 720;
-const BID3_X = 790;
+def BID_BUTTON_Y = 420;
+def BID_PASS_X = 600;
+def BID1_X = 650;
+def BID2_X = 720;
+def BID3_X = 790;
 
 // ==================== 颜色定义 ====================
 
-const C_BG = rgb(0, 100, 50);           // 桌面背景-绿色
-const C_TABLE = rgb(0, 80, 40);         // 牌桌颜色
-const C_CARD_BACK = rgb(30, 80, 200);   // 卡牌背面
-const C_CARD_FRONT = rgb(255, 255, 255); // 卡牌正面
-const C_CARD_SELECTED = rgb(255, 220, 0); // 选中高亮
-const C_TEXT = rgb(255, 255, 255);       // 白色文字
-const C_LANDLORD = rgb(255, 50, 50);    // 地主标记红色
-const C_PASS = rgb(200, 200, 200);      // 过-灰色
-const C_BUTTON = rgb(50, 150, 250);     // 按钮背景
-const C_BUTTON_TEXT = rgb(255, 255, 255);
-const C_PANEL = argb(200, 20, 60, 40);  // 信息面板背景
+def C_BG = rgb(0, 100, 50);           // 桌面背景-绿色
+def C_TABLE = rgb(0, 80, 40);         // 牌桌颜色
+def C_CARD_BACK = rgb(30, 80, 200);   // 卡牌背面
+def C_CARD_FRONT = rgb(255, 255, 255); // 卡牌正面
+def C_CARD_SELECTED = rgb(255, 220, 0); // 选中高亮
+def C_TEXT = rgb(255, 255, 255);       // 白色文字
+def C_LANDLORD = rgb(255, 50, 50);    // 地主标记红色
+def C_PASS = rgb(200, 200, 200);      // 过-灰色
+def C_BUTTON = rgb(50, 150, 250);     // 按钮背景
+def C_BUTTON_TEXT = rgb(255, 255, 255);
+def C_PANEL = argb(200, 20, 60, 40);  // 信息面板背景
 
 // ==================== 游戏状态变量 ====================
 
@@ -112,13 +112,13 @@ fn intToStr(n: i32) -> str {
 // 绘制卡牌
 fn drawCard(ctx: GraphicsContext, x: i32, y: i32, cardValue: i32, selected: bool, faceUp: bool) {
     // 卡牌边框
-    var borderColor = C_CARD_FRONT;
+    let borderColor = C_CARD_FRONT;
     if selected {
         borderColor = C_CARD_SELECTED;
     }
     
     // 选中时上移
-    var drawY = y;
+    let drawY = y;
     if selected {
         drawY = y - 20;
     }
@@ -143,9 +143,9 @@ fn drawCard(ctx: GraphicsContext, x: i32, y: i32, cardValue: i32, selected: bool
 
 // 绘制卡牌正面
 fn drawCardFace(ctx: GraphicsContext, x: i32, y: i32, cardValue: i32) {
-    var card = cardFromValue(cardValue);
+    let card = cardFromValue(cardValue);
     
-    var color: Color;
+    let color: Color;
     if card.suit == SUIT_HEARTS || card.suit == SUIT_DIAMONDS {
         color = rgb(220, 30, 30);  // 红色
     } else if card.suit == SUIT_SMALL_JOKER {
@@ -157,7 +157,7 @@ fn drawCardFace(ctx: GraphicsContext, x: i32, y: i32, cardValue: i32) {
     }
     
     // 绘制点数
-    var rankStr = "";
+    let rankStr = "";
     match card.rank {
         3 => rankStr = "3",
         4 => rankStr = "4",
@@ -178,7 +178,7 @@ fn drawCardFace(ctx: GraphicsContext, x: i32, y: i32, cardValue: i32) {
     }
     
     // 花色符号
-    var suitStr = "";
+    let suitStr = "";
     match card.suit {
         SUIT_SPADES => suitStr = "♠",
         SUIT_HEARTS => suitStr = "♥",
@@ -190,7 +190,7 @@ fn drawCardFace(ctx: GraphicsContext, x: i32, y: i32, cardValue: i32) {
     }
     
     // 绘制点数(左上角)
-    var textColor = color;
+    let textColor = color;
     if card.suit == SUIT_SMALL_JOKER {
         textColor = rgb(80, 80, 80);
     } else if card.suit == SUIT_BIG_JOKER {
@@ -209,7 +209,7 @@ fn drawCardFace(ctx: GraphicsContext, x: i32, y: i32, cardValue: i32) {
 // 绘制卡牌背面花纹
 fn drawCardBackPattern(ctx: GraphicsContext, x: i32, y: i32) {
     // 简单的背面样式
-    var patternColor = rgb(50, 100, 255);
+    let patternColor = rgb(50, 100, 255);
     // 中心圆
     draw_circle(ctx, x + CARD_WIDTH/2, y + CARD_HEIGHT/2, 15, patternColor);
     // 十字
@@ -218,18 +218,18 @@ fn drawCardBackPattern(ctx: GraphicsContext, x: i32, y: i32) {
 }
 
 // 绘制玩家手牌
-fn drawPlayerCards(ctx: GraphicsContext, gs: &GameState) {
-    var startX = PLAYER_CARD_START_X;
-    var cardCount = gs.player.cardCount;
+fn drawPlayerCards(ctx: GraphicsContext, gs: GameState*) {
+    let startX = PLAYER_CARD_START_X;
+    let cardCount = gs.player.cardCount;
     
     // 计算总宽度，居中显示
-    var totalWidth = cardCount * (CARD_WIDTH + CARD_H_GAP) - CARD_H_GAP;
+    let totalWidth = cardCount * (CARD_WIDTH + CARD_H_GAP) - CARD_H_GAP;
     startX = (WINDOW_WIDTH - totalWidth) / 2;
     if startX < 20 { startX = 20; }
     
     for i in 0..cardCount {
-        var cardX = startX + i * (CARD_WIDTH + CARD_H_GAP);
-        var isSelected = false;
+        let cardX = startX + i * (CARD_WIDTH + CARD_H_GAP);
+        let isSelected = false;
         
         for j in 0..g_selectedCount {
             if g_selected[j] == gs.player.cards[i] {
@@ -243,9 +243,9 @@ fn drawPlayerCards(ctx: GraphicsContext, gs: &GameState) {
 }
 
 // 绘制CPU手牌(背面)
-fn drawCpuCards(ctx: GraphicsContext, gs: &GameState, cpuIdx: i32) {
-    var player: &Player;
-    var startX: i32;
+fn drawCpuCards(ctx: GraphicsContext, gs: GameState*, cpuIdx: i32) {
+    let player: Player*;
+    let startX: i32;
     
     if cpuIdx == 1 {
         player = &gs.cpu1;
@@ -257,40 +257,40 @@ fn drawCpuCards(ctx: GraphicsContext, gs: &GameState, cpuIdx: i32) {
     
     // 绘制卡牌背面
     for i in 0..player.cardCount {
-        var x = startX;
-        var y = CPU1_CARD_Y;
+        let x = startX;
+        let y = CPU1_CARD_Y;
         
         if cpuIdx == 2 {
             y = CPU2_CARD_Y;
         }
         
-        var offsetX = i * CPU1_CARD_GAP;
+        let offsetX = i * CPU1_CARD_GAP;
         drawCard(ctx, x + offsetX, y, 0, false, false);
     }
     
     // 显示数量
-    var nameX = startX;
-    var nameY = CPU1_CARD_Y - 25;
+    let nameX = startX;
+    let nameY = CPU1_CARD_Y - 25;
     if cpuIdx == 2 {
         nameY = CPU2_CARD_Y - 25;
     }
     
-    var label = player.name;
+    let label = player.name;
     if player.isLandlord {
-        label = label ++ " [地主]";
+        label = "{label} [地主]";
     }
-    label = label ++ " (" ++ player.cardCount.to_string() ++ "张)";
+    label = "{label} ({player}".cardCount.to_string() ++ "张)";
     
     draw_text(ctx, nameX, nameY, label, C_TEXT);
 }
 
 // 绘制地主牌
-fn drawLandlordCards(ctx: GraphicsContext, gs: &GameState) {
+fn drawLandlordCards(ctx: GraphicsContext, gs: GameState*) {
     // 显示谁是地主
-    var landlordName = "等待叫地主...";
+    let landlordName = "等待叫地主...";
     if gs.phase == PHASE_PLAYING {
-        var landlord = getPlayer(gs, gs.landlordPlayer);
-        landlordName = "地主: " ++ landlord.name;
+        let landlord = getPlayer(gs, gs.landlordPlayer);
+        landlordName = "地主: {landlord}".name;
     }
     
     draw_text(ctx, LANDLORD_CARD_X, LANDLORD_CARD_Y, landlordName, C_LANDLORD);
@@ -298,37 +298,37 @@ fn drawLandlordCards(ctx: GraphicsContext, gs: &GameState) {
     // 绘制三张底牌
     if gs.phase == PHASE_PLAYING || gs.phase == PHASE_GAME_OVER {
         for i in 0..3 {
-            var x = LANDLORD_CARD_X + i * (CARD_WIDTH + 10);
-            var y = LANDLORD_CARD_Y + 25;
+            let x = LANDLORD_CARD_X + i * (CARD_WIDTH + 10);
+            let y = LANDLORD_CARD_Y + 25;
             drawCard(ctx, x, y, gs.landlordCards[i], false, true);
         }
     }
 }
 
 // 绘制中央出牌区
-fn drawCenterPlayArea(ctx: GraphicsContext, gs: &GameState) {
+fn drawCenterPlayArea(ctx: GraphicsContext, gs: GameState*) {
     // 当前出牌玩家
-    var label = "等待出牌...";
+    let label = "等待出牌...";
     if gs.phase == PHASE_PLAYING {
-        var current = getPlayer(gs, gs.currentPlayer);
-        label = "出牌: " ++ current.name;
+        let current = getPlayer(gs, gs.currentPlayer);
+        label = "出牌: {current}".name;
     }
     
     draw_text(ctx, CENTER_PLAY_X, CENTER_PLAY_Y - 30, label, C_TEXT);
     
     // 显示上次出的牌
     if gs.lastPlayGroup.cardType != CT_INVALID {
-        var lastPlayer = getPlayer(gs, gs.lastPlayPlayer);
-        var cardNames = "";
+        let lastPlayer = getPlayer(gs, gs.lastPlayPlayer);
+        let cardNames = "";
         for i in 0..gs.lastPlayGroup.count {
             cardNames = cardNames ++ getCardName(gs.lastPlayGroup.cards[i]) ++ " ";
         }
         
-        var cardX = CENTER_PLAY_X;
-        var cardY = CENTER_PLAY_Y;
+        let cardX = CENTER_PLAY_X;
+        let cardY = CENTER_PLAY_Y;
         
         // 如果是玩家出的，显示正面；否则显示背面
-        var faceUp = (gs.lastPlayPlayer == 0);
+        let faceUp = (gs.lastPlayPlayer == 0);
         
         for i in 0..gs.lastPlayGroup.count {
             drawCard(ctx, cardX + i * (CARD_WIDTH/2 + 2), cardY,
@@ -338,18 +338,18 @@ fn drawCenterPlayArea(ctx: GraphicsContext, gs: &GameState) {
 }
 
 // 绘制叫分按钮
-fn drawBidUI(ctx: GraphicsContext, gs: &GameState) {
+fn drawBidUI(ctx: GraphicsContext, gs: GameState*) {
     if gs.phase != PHASE_BIDDING {
         return;
     }
     
     // 显示当前叫分状态
-    var statusText = "当前最高: ";
+    let statusText = "当前最高: ";
     if gs.highestBid == 0 {
-        statusText = statusText ++ "无人叫分";
+        statusText = "{statusText}无人叫分";
     } else {
-        var highest = getPlayer(gs, gs.highestBidder);
-        statusText = statusText ++ highest.name ++ " 叫 " ++ gs.highestBid.to_string() ++ " 分";
+        let highest = getPlayer(gs, gs.highestBidder);
+        statusText = statusText ++ highest."{name} 叫 {gs}".highestBid.to_string() ++ " 分";
     }
     
     draw_text(ctx, 300, 350, statusText, C_TEXT);
@@ -362,8 +362,8 @@ fn drawBidUI(ctx: GraphicsContext, gs: &GameState) {
     
     // 如果是玩家叫分，显示按钮
     if gs.currentBidder == 0 {
-        var currentPlayer = getPlayer(gs, 0);
-        var prompt = currentPlayer.name ++ ", 请叫分:";
+        let currentPlayer = getPlayer(gs, 0);
+        let prompt = currentPlayer."{name}, 请叫分:";
         draw_text(ctx, BID_BUTTON_Y, BID_BUTTON_Y - 30, prompt, C_TEXT);
         
         // 不叫按钮
@@ -388,13 +388,13 @@ fn drawBidUI(ctx: GraphicsContext, gs: &GameState) {
             draw_text(ctx, BID3_X + 10, BID_BUTTON_Y + 8, "3分", C_BUTTON_TEXT);
         }
     } else {
-        var current = getPlayer(gs, gs.currentBidder);
-        draw_text(ctx, 300, BID_BUTTON_Y, current.name ++ " 正在叫分...", C_TEXT);
+        let current = getPlayer(gs, gs.currentBidder);
+        draw_text(ctx, 300, BID_BUTTON_Y, current."{name} 正在叫分...", C_TEXT);
     }
 }
 
 // 绘制玩家出牌提示
-fn drawPlayHint(ctx: GraphicsContext, gs: &GameState) {
+fn drawPlayHint(ctx: GraphicsContext, gs: GameState*) {
     if gs.phase != PHASE_PLAYING {
         return;
     }
@@ -404,15 +404,15 @@ fn drawPlayHint(ctx: GraphicsContext, gs: &GameState) {
         if gs.lastPlayPlayer != 0 {
             // 跟牌模式
             if gs.lastPlayGroup.cardType != CT_INVALID {
-                var lastPlayer = getPlayer(gs, gs.lastPlayPlayer);
+                let lastPlayer = getPlayer(gs, gs.lastPlayPlayer);
                 draw_text(ctx, 300, PLAYER_PLAY_Y - 10,
-                    "跟牌 - " ++ lastPlayer.name ++ " 出: " ++ cardTypeToString(gs.lastPlayGroup.cardType),
+                    "跟牌 - {lastPlayer}"."{name} 出: {cardTypeToString}"(gs.lastPlayGroup.cardType),
                     C_TEXT);
             }
             
             // 提示选中牌能否打过
             if g_selectedCount > 0 {
-                var group = buildGroupFromSelection(gs, g_selected, g_selectedCount);
+                let group = buildGroupFromSelection(gs, g_selected, g_selectedCount);
                 if canBeat(group, gs.lastPlayGroup) {
                     draw_text(ctx, 300, PLAYER_PLAY_Y + 15, "✓ 可以打过", rgb(0, 255, 0));
                 } else {
@@ -429,18 +429,18 @@ fn drawPlayHint(ctx: GraphicsContext, gs: &GameState) {
         
     } else {
         // CPU正在出牌
-        var current = getPlayer(gs, gs.currentPlayer);
-        draw_text(ctx, 300, PLAYER_PLAY_Y, current.name ++ " 正在出牌...", C_TEXT);
+        let current = getPlayer(gs, gs.currentPlayer);
+        draw_text(ctx, 300, PLAYER_PLAY_Y, current."{name} 正在出牌...", C_TEXT);
     }
 }
 
 // 绘制游戏结束信息
-fn drawGameOver(ctx: GraphicsContext, gs: &GameState) {
+fn drawGameOver(ctx: GraphicsContext, gs: GameState*) {
     if gs.phase != PHASE_GAME_OVER {
         return;
     }
     
-    var resultText = "";
+    let resultText = "";
     if gs.landlordWon {
         resultText = "★★★ 地主获胜! ★★★";
     } else {
@@ -456,20 +456,20 @@ fn drawGameOver(ctx: GraphicsContext, gs: &GameState) {
 }
 
 // 绘制游戏标题和基本信息
-fn drawInfo(ctx: GraphicsContext, gs: &GameState) {
-    var title = "斗地主 v1.0";
+fn drawInfo(ctx: GraphicsContext, gs: GameState*) {
+    let title = "斗地主 v1.0";
     draw_text(ctx, 10, 10, title, C_TEXT);
     
     // 地主信息
     if gs.landlordPlayer >= 0 {
-        var landlord = getPlayer(gs, gs.landlordPlayer);
-        var info = "地主: " ++ landlord.name;
+        let landlord = getPlayer(gs, gs.landlordPlayer);
+        let info = "地主: {landlord}".name;
         draw_text(ctx, 700, 10, info, C_LANDLORD);
     }
     
     // 叫分
     if gs.phase == PHASE_BIDDING {
-        draw_text(ctx, 700, 35, "叫分: " ++ gs.highestBid.to_string(), C_TEXT);
+        draw_text(ctx, 700, 35, "叫分: {gs}".highestBid.to_string(), C_TEXT);
     }
 }
 
@@ -495,27 +495,27 @@ fn cardTypeToString(ct: i32) -> str {
 
 // ==================== 鼠标点击检测 ====================
 
-fn handleCardClick(x: i32, y: i32, gs: &GameState) {
+fn handleCardClick(x: i32, y: i32, gs: GameState*) {
     if gs.phase != PHASE_PLAYING || gs.currentPlayer != 0 {
         return;
     }
     
-    var cardCount = gs.player.cardCount;
-    var totalWidth = cardCount * (CARD_WIDTH + CARD_H_GAP) - CARD_H_GAP;
-    var startX = (WINDOW_WIDTH - totalWidth) / 2;
+    let cardCount = gs.player.cardCount;
+    let totalWidth = cardCount * (CARD_WIDTH + CARD_H_GAP) - CARD_H_GAP;
+    let startX = (WINDOW_WIDTH - totalWidth) / 2;
     if startX < 20 { startX = 20; }
     
     // 检查点击了哪张卡
     for i in 0..cardCount {
-        var cardX = startX + i * (CARD_WIDTH + CARD_H_GAP);
+        let cardX = startX + i * (CARD_WIDTH + CARD_H_GAP);
         
         if x >= cardX && x <= cardX + CARD_WIDTH &&
            y >= PLAYER_CARD_Y && y <= PLAYER_CARD_Y + CARD_HEIGHT {
             
-            var cardVal = gs.player.cards[i];
+            let cardVal = gs.player.cards[i];
             
             // 切换选中状态
-            var found = false;
+            let found = false;
             for j in 0..g_selectedCount {
                 if g_selected[j] == cardVal {
                     // 取消选中
@@ -592,7 +592,7 @@ fn handleSpaceKey(gs: &mut GameState) {
         return;
     }
     
-    var group = buildGroupFromSelection(gs, g_selected, g_selectedCount);
+    let group = buildGroupFromSelection(gs, g_selected, g_selectedCount);
     
     if group.cardType == CT_INVALID {
         return;
@@ -620,7 +620,7 @@ fn handlePassKey(gs: &mut GameState) {
     
     // 如果是跟牌，可以过
     if gs.lastPlayPlayer != 0 {
-        var passGroup = createCardGroup();
+        let passGroup = createCardGroup();
         playCards(gs, 0, passGroup);
         g_selectedCount = 0;
     }
@@ -644,8 +644,8 @@ fn resetGame() {
     g_phaseText = "叫地主阶段";
     g_actionTimer = 0;
     
-    println("========== 新游戏开始 ==========");
-    println("发牌完成，等待叫地主...");
+    println "========== 新游戏开始 ==========";
+    println "发牌完成，等待叫地主...";
 }
 
 // ==================== CPU自动行动 ====================
@@ -656,7 +656,7 @@ fn updateCpuAction(gs: &mut GameState, dt: i32) {
         if gs.currentBidder != 0 {
             g_actionTimer = g_actionTimer + dt;
             if g_actionTimer > 1000 {  // 1秒延迟
-                var bid = aiBid(gs, gs.currentBidder);
+                let bid = aiBid(gs, gs.currentBidder);
                 if bid > 0 {
                     doBid(gs, gs.currentBidder, bid);
                 } else {
@@ -665,7 +665,7 @@ fn updateCpuAction(gs: &mut GameState, dt: i32) {
                     gs.roundCount = gs.roundCount + 1;
                     
                     // 检查是否都跳过
-                    var allPassed = true;
+                    let allPassed = true;
                     for i in 0..3 {
                         if !gs.bidPassed[i] && gs.highestBid == 0 {
                             allPassed = false;
@@ -689,7 +689,7 @@ fn updateCpuAction(gs: &mut GameState, dt: i32) {
                         gs.landlordPlayer = gs.highestBidder;
                         gs.landlordBid = gs.highestBid;
                         
-                        var landlord = getPlayer(gs, gs.landlordPlayer);
+                        let landlord = getPlayer(gs, gs.landlordPlayer);
                         landlord.isLandlord = true;
                         
                         for i in 0..3 {
@@ -704,7 +704,7 @@ fn updateCpuAction(gs: &mut GameState, dt: i32) {
                         gs.roundCount = 0;
                         g_phaseText = "出牌阶段";
                         
-                        println("地主: " ++ landlord.name ++ ", 叫分: " ++ gs.landlordBid.to_string());
+                        println("地主: {landlord}"."{name}, 叫分: {gs}".landlordBid.to_string());
                     } else {
                         gs.currentBidder = (gs.currentBidder + 1) % 3;
                     }
@@ -717,7 +717,7 @@ fn updateCpuAction(gs: &mut GameState, dt: i32) {
         if gs.currentPlayer != 0 {
             g_actionTimer = g_actionTimer + dt;
             if g_actionTimer > 800 {  // 0.8秒延迟
-                var cpuGroup = aiPlay(gs, gs.currentPlayer);
+                let cpuGroup = aiPlay(gs, gs.currentPlayer);
                 playCards(gs, gs.currentPlayer, cpuGroup);
                 g_actionTimer = 0;
             }
@@ -728,44 +728,44 @@ fn updateCpuAction(gs: &mut GameState, dt: i32) {
 // ==================== 事件处理 ====================
 
 fn processInput() {
-    var event = Event.{};
+    let event = Event{};
     
     while pollEvent(g_window, &event) {
         match event.msg {
-            EventType.EventKeyDown => {
+            EventType::EventKeyDown => {
                 match event.key {
-                    VirtualKey.Space => {
+                    VirtualKey::Space => {
                         if !g_keySpaceHeld {
                             g_keySpaceHeld = true;
                             handleSpaceKey(&g_game);
                         }
                     }
-                    VirtualKey.KeyQ => {
+                    VirtualKey::KeyQ => {
                         handlePassKey(&g_game);
                     }
-                    VirtualKey.KeyR => {
+                    VirtualKey::KeyR => {
                         if g_game.phase == PHASE_GAME_OVER {
                             resetGame();
                         }
                     }
-                    VirtualKey.Escape => {
+                    VirtualKey::Escape => {
                         g_running = false;
                     }
                     _ => {}
                 }
             }
-            EventType.EventKeyUp => {
+            EventType::EventKeyUp => {
                 if event.key == VirtualKey.Space {
                     g_keySpaceHeld = false;
                 }
             }
-            EventType.EventMouseDown => {
+            EventType::EventMouseDown => {
                 if event.button == MouseButton.Left {
                     handleCardClick(event.mouse_x, event.mouse_y, &g_game);
                     handleBidClick(event.mouse_x, event.mouse_y, &g_game);
                 }
             }
-            EventType.EventWindowClose => {
+            EventType::EventWindowClose => {
                 g_running = false;
             }
             _ => {}
@@ -776,7 +776,7 @@ fn processInput() {
 // ==================== 主渲染函数 ====================
 
 fn render() {
-    var ctx = getBackBuffer();
+    let ctx = getBackBuffer();
     
     // 清屏
     clear_screen(ctx, C_BG);
@@ -816,7 +816,7 @@ fn render() {
 // ==================== 主循环 ====================
 
 fn gameLoop() {
-    var lastTime = 0;
+    let lastTime = 0;
     
     while g_running {
         // 处理输入
@@ -836,10 +836,10 @@ fn gameLoop() {
 // ==================== 入口 ====================
 
 pub fn main() {
-    println("========================================");
-    println("  斗地主 v1.0");
-    println("  Zen-C + 003-framework");
-    println("========================================");
+    println "========================================";
+    println "  斗地主 v1.0";
+    println "  Zen-C + 003-framework";
+    println "========================================";
     
     // 初始化
     initPlatform();
@@ -847,7 +847,7 @@ pub fn main() {
     // 创建窗口
     g_window = createWindow(TITLE, WINDOW_WIDTH, WINDOW_HEIGHT);
     if g_window == null {
-        println("错误: 无法创建窗口");
+        println "错误: 无法创建窗口";
         shutdownPlatform();
         return;
     }
@@ -864,5 +864,5 @@ pub fn main() {
     // 清理
     shutdownPlatform();
     
-    println("游戏结束，感谢游玩!");
+    println "游戏结束，感谢游玩!";
 }

@@ -1,14 +1,14 @@
 // game_logic.zc - 纯Zen-C数独游戏逻辑模块
 // 所有平台共用相同的游戏逻辑代码
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
-const GRID_SIZE: i32 = 9;
-const CELL_SIZE: i32 = 60;
-const BOARD_SIZE: i32 = GRID_SIZE * CELL_SIZE;
+def GRID_SIZE: i32 = 9;
+def CELL_SIZE: i32 = 60;
+def BOARD_SIZE: i32 = GRID_SIZE * CELL_SIZE;
 
 // 数独难度
 enum Difficulty {
@@ -126,7 +126,7 @@ fn generatePuzzle(game: &mut SudokuGame, difficulty: Difficulty) {
     
     // 生成完整解
     let seed = time.now().nanos() as i32;
-    math.srand(seed as u32);
+    math.srand((u32)seed);
     
     // 填充对角线三个3x3宫格（它们互不影响）
     fillDiagonalBlocks(game.grid.values);
@@ -216,7 +216,7 @@ fn init_game(game: &mut SudokuGame, difficulty: Difficulty) {
 }
 
 // 获取当前选中的值
-fn getSelectedValue(game: &SudokuGame) -> i32 {
+fn getSelectedValue(game: SudokuGame*) -> i32 {
     if game.selected_row >= 0 && game.selected_row < GRID_SIZE &&
        game.selected_col >= 0 && game.selected_col < GRID_SIZE {
         return game.grid.values[game.selected_row][game.selected_col];
@@ -303,7 +303,7 @@ fn useHint(game: &mut SudokuGame) -> bool {
 }
 
 // 检查是否胜利
-fn checkWin(game: &SudokuGame) -> bool {
+fn checkWin(game: SudokuGame*) -> bool {
     for r in 0..GRID_SIZE {
         for c in 0..GRID_SIZE {
             if game.grid.values[r][c] != game.solution[r][c] {
@@ -340,7 +340,7 @@ fn getDifficultyName(difficulty: Difficulty) -> string {
 }
 
 // 计算游戏区域在窗口中的位置
-fn calculateGameArea(game: &SudokuGame, offset_x: &mut i32, offset_y: &mut i32) {
+fn calculateGameArea(game: SudokuGame*, offset_x: &mut i32, offset_y: &mut i32) {
     let game_width = BOARD_SIZE;
     let game_height = BOARD_SIZE;
     
@@ -359,7 +359,7 @@ fn updateTimer(game: &mut SudokuGame, dt: u32) {
 }
 
 // 获取计时器文本 (格式: MM:SS)
-fn getTimerText(game: &SudokuGame) -> string {
+fn getTimerText(game: SudokuGame*) -> string {
     let total_seconds = (game.timer / 1000) as i32;
     let minutes = total_seconds / 60;
     let seconds = total_seconds % 60;

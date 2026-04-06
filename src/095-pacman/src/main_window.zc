@@ -1,8 +1,8 @@
 // main_window.zc - Zen-C Pacman 主程序
 // 跨平台窗体版本
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 
 // 导入游戏逻辑和平台API
 import "game_logic.zc";
@@ -17,7 +17,7 @@ static mut running: bool = true;
 // ==================== 颜色辅助函数 ====================
 
 fn rgb(r: u8, g: u8, b: u8) -> u32 {
-    return (r as u32) | ((g as u32) << 8) | ((b as u32) << 16);
+    return ((u32)r) | (((u32)g) << 8) | (((u32)b) << 16);
 }
 
 // ==================== 绘制函数 ====================
@@ -167,7 +167,7 @@ fn draw_ghosts(ctx: GraphicsContext, offset_x: i32, offset_y: i32) {
     }
 }
 
-fn get_ghost_color(ghost: &Ghost) -> u32 {
+fn get_ghost_color(ghost: Ghost*) -> u32 {
     match ghost.state {
         GhostState::Normal => {
             match ghost.type {
@@ -233,11 +233,11 @@ fn draw_game(ctx: GraphicsContext, window_width: i32, window_height: i32) {
     draw_ui_panel(ctx, offset_x, panel_y, game_width, panel_height);
     
     // 输出游戏信息到控制台
-    io.println("========================================");
+    io.println "========================================";
     io.println(get_score_text(&game));
     io.println(get_game_status_text(&game));
     io.println(get_controls_text());
-    io.println("========================================");
+    io.println "========================================";
 }
 
 // ==================== 事件处理 ====================
@@ -262,10 +262,10 @@ fn on_timer() -> bool {
 extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
     match uMsg {
         WM_PAINT => {
-            let mut ps: [64]u8 = [0; 64];
+            let mut ps: [u8; 64] = [0; 64];
             let hdc = BeginPaint(hwnd, &ps);
             
-            let mut rect: [4]i32 = [0; 4];
+            let mut rect: [i32; 4] = [0; 4];
             GetClientRect(hwnd, &rect);
             let width = rect[2] - rect[0];
             let height = rect[3] - rect[1];
@@ -277,7 +277,7 @@ extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) ->
         },
         
         WM_KEYDOWN => {
-            let continue_game = on_key(wParam as i32);
+            let continue_game = on_key((i32)wParam);
             if !continue_game {
                 running = false;
                 PostQuitMessage(0);
@@ -321,9 +321,9 @@ fn handle_events(window: WindowHandle) {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C Pacman - 吃豆人游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C Pacman - 吃豆人游戏";
+    io.println "========================================";
     io.println("平台: {}", 
         #if IS_WINDOWS
             "Windows"
@@ -335,7 +335,7 @@ fn main() -> i32 {
             "未知"
         #endif
     );
-    io.println("========================================");
+    io.println "========================================";
     
     // 初始化游戏
     game = GameState {
@@ -369,7 +369,7 @@ fn main() -> i32 {
     window = create_window(window_title, 800, 700);
     
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
     
@@ -379,19 +379,19 @@ fn main() -> i32 {
     // 设置游戏定时器
     set_game_timer(window, 80);
     
-    io.println("窗口创建成功!");
+    io.println "窗口创建成功!";
     io.println("分数: {}", game.score);
-    io.println("使用 W/A/S/D 控制吃豆人移动");
-    io.println("按 ESC 退出游戏");
-    io.println("========================================");
+    io.println "使用 W/A/S/D 控制吃豆人移动";
+    io.println "按 ESC 退出游戏";
+    io.println "========================================";
     
     // 运行事件循环
     run_event_loop(window);
     
-    io.println("游戏结束!");
+    io.println "游戏结束!";
     io.println("最终分数: {}", game.score);
-    io.println("谢谢游玩 Zen-C Pacman!");
-    io.println("========================================");
+    io.println "谢谢游玩 Zen-C Pacman!";
+    io.println "========================================";
     
     quit_application();
     

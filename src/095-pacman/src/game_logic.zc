@@ -1,27 +1,27 @@
 // game_logic.zc - Zen-C Pacman 游戏逻辑
 // 经典吃豆人游戏
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
-const MAZE_WIDTH: i32 = 28;
-const MAZE_HEIGHT: i32 = 31;
-const CELL_SIZE: i32 = 16;
+def MAZE_WIDTH: i32 = 28;
+def MAZE_HEIGHT: i32 = 31;
+def CELL_SIZE: i32 = 16;
 
 // 颜色定义
-const COLOR_WALL = 0xFF1A1A2E;       // 深蓝墙
-const COLOR_PATH = 0xFF0F0F23;       // 深色路径
-const COLOR_PELLET = 0xFFFFD93D;     // 金色豆子
-const COLOR_POWER = 0xFFFF6B6B;      // 红色大力丸
-const COLOR_PACMAN = 0xFFFFE66D;     // 黄色吃豆人
-const COLOR_GHOST_RED = 0xFFFF4757;   // 红色幽灵
-const COLOR_GHOST_PINK = 0xFFFF9FF3; // 粉色幽灵
-const COLOR_GHOST_CYAN = 0xFF54A0FF;  // 青色幽灵
-const COLOR_GHOST_ORANGE = 0xFFFFA502; // 橙色幽灵
-const COLOR_GHOST_VULNERABLE = 0xFF3742FA; // 蓝色脆弱幽灵
-const COLOR_GHOST_FLASH = 0xFFFFFFFF; // 白色闪烁
+def COLOR_WALL = 0xFF1A1A2E;       // 深蓝墙
+def COLOR_PATH = 0xFF0F0F23;       // 深色路径
+def COLOR_PELLET = 0xFFFFD93D;     // 金色豆子
+def COLOR_POWER = 0xFFFF6B6B;      // 红色大力丸
+def COLOR_PACMAN = 0xFFFFE66D;     // 黄色吃豆人
+def COLOR_GHOST_RED = 0xFFFF4757;   // 红色幽灵
+def COLOR_GHOST_PINK = 0xFFFF9FF3; // 粉色幽灵
+def COLOR_GHOST_CYAN = 0xFF54A0FF;  // 青色幽灵
+def COLOR_GHOST_ORANGE = 0xFFFFA502; // 橙色幽灵
+def COLOR_GHOST_VULNERABLE = 0xFF3742FA; // 蓝色脆弱幽灵
+def COLOR_GHOST_FLASH = 0xFFFFFFFF; // 白色闪烁
 
 // ==================== 方向枚举 ====================
 
@@ -77,7 +77,7 @@ struct GameState {
     pacman_dir: Direction,
     next_dir: Direction,
     pacman_anim_frame: i32,
-    ghosts: [4]Ghost,
+    ghosts: [Ghost; 4],
     score: i32,
     lives: i32,
     pellets_eaten: i32,
@@ -96,7 +96,7 @@ struct GameState {
 }
 
 // 迷宫定义 (0=路径, 1=墙, 2=豆子, 3=大力丸, 4=空, 5=老家)
-const MAZE_TEMPLATE: [MAZE_HEIGHT][MAZE_WIDTH]i32 = [
+def MAZE_TEMPLATE: [MAZE_HEIGHT][MAZE_WIDTH]i32 = [
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
     [1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,1],
     [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
@@ -210,7 +210,7 @@ fn get_ghost_scatter_target(t: GhostType) -> Position {
 fn handle_input(game: &mut GameState, key: i32) -> bool {
     match key {
         // 上方向
-        38 | 87 | 119 => { // 上箭头、W、w
+        38 || 87 || 119 => { // 上箭头、W、w
             if can_move(&game.maze, game.pacman_pos.x, game.pacman_pos.y, Direction::DirUp) {
                 game.pacman_dir = Direction::DirUp;
             }
@@ -218,7 +218,7 @@ fn handle_input(game: &mut GameState, key: i32) -> bool {
         },
         
         // 下方向
-        40 | 83 | 115 => { // 下箭头、S、s
+        40 || 83 || 115 => { // 下箭头、S、s
             if can_move(&game.maze, game.pacman_pos.x, game.pacman_pos.y, Direction::DirDown) {
                 game.pacman_dir = Direction::DirDown;
             }
@@ -226,7 +226,7 @@ fn handle_input(game: &mut GameState, key: i32) -> bool {
         },
         
         // 左方向
-        37 | 65 | 97 => { // 左箭头、A、a
+        37 || 65 || 97 => { // 左箭头、A、a
             if can_move(&game.maze, game.pacman_pos.x, game.pacman_pos.y, Direction::DirLeft) {
                 game.pacman_dir = Direction::DirLeft;
             }
@@ -234,7 +234,7 @@ fn handle_input(game: &mut GameState, key: i32) -> bool {
         },
         
         // 右方向
-        39 | 68 | 100 => { // 右箭头、D、d
+        39 || 68 || 100 => { // 右箭头、D、d
             if can_move(&game.maze, game.pacman_pos.x, game.pacman_pos.y, Direction::DirRight) {
                 game.pacman_dir = Direction::DirRight;
             }
@@ -249,7 +249,7 @@ fn handle_input(game: &mut GameState, key: i32) -> bool {
         },
         
         // R键 - 重新开始
-        82 | 114 => { // R、r
+        82 || 114 => { // R、r
             if game.game_over {
                 init_game(game);
                 return true;
@@ -445,7 +445,7 @@ fn move_ghost_home(ghost: &mut Ghost, maze: &[MAZE_HEIGHT][MAZE_WIDTH]i32) {
     }
 }
 
-fn move_ghost(ghost: &mut Ghost, game: &GameState) {
+fn move_ghost(ghost: &mut Ghost, game: GameState*) {
     // 每隔几帧移动一次（速度控制）
     if game.last_update % 2 != 0 && ghost.state == GhostState::Normal {
         return;
@@ -455,7 +455,7 @@ fn move_ghost(ghost: &mut Ghost, game: &GameState) {
     let target = get_ghost_target(ghost, game);
     
     // 获取可移动方向
-    let mut dirs: [4]Direction;
+    let mut dirs: [Direction; 4];
     let mut dir_count = 0;
     
     // 不能反向（除非是唯一选择）
@@ -549,7 +549,7 @@ fn get_opposite_dir(dir: Direction) -> Direction {
     }
 }
 
-fn get_ghost_target(ghost: &Ghost, game: &GameState) -> Position {
+fn get_ghost_target(ghost: Ghost*, game: GameState*) -> Position {
     // 根据状态和类型确定目标
     if ghost.state == GhostState::Vulnerable || ghost.state == GhostState::Recovering {
         // 脆弱状态：随机移动
@@ -629,7 +629,7 @@ fn reset_positions(game: &mut GameState) {
 
 // ==================== 获取状态文本 ====================
 
-fn get_game_status_text(game: &GameState) -> string {
+fn get_game_status_text(game: GameState*) -> string {
     if game.game_over {
         return "游戏结束! 按 R 键重新开始";
     } else if game.won {
@@ -645,7 +645,7 @@ fn get_controls_text() -> string {
     "控制: W/A/S/D 移动, 空格键 暂停, R 重新开始, ESC 退出"
 }
 
-fn get_score_text(game: &GameState) -> string {
+fn get_score_text(game: GameState*) -> string {
     format("分数: {}  生命: {}  豆子: {}/{}", game.score, game.lives, game.pellets_eaten, game.total_pellets)
 }
 

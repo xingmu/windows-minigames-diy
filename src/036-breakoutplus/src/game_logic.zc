@@ -1,19 +1,19 @@
 // game_logic.zc - Zen-C BreakoutPlus（打砖块增强版）核心逻辑
 // 多关卡 + 特殊道具系统
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 800;
-const GAME_HEIGHT: i32 = 600;
-const PADDLE_BASE_WIDTH: i32 = 100;
-const PADDLE_HEIGHT: i32 = 15;
-const PADDLE_Y: i32 = GAME_HEIGHT - 40;
-const BALL_RADIUS: i32 = 8;
-const BALL_BASE_SPEED: i32 = 5;
-const INITIAL_LIVES: i32 = 3;
-const MAX_LEVELS: i32 = 5;
+def GAME_WIDTH: i32 = 800;
+def GAME_HEIGHT: i32 = 600;
+def PADDLE_BASE_WIDTH: i32 = 100;
+def PADDLE_HEIGHT: i32 = 15;
+def PADDLE_Y: i32 = GAME_HEIGHT - 40;
+def BALL_RADIUS: i32 = 8;
+def BALL_BASE_SPEED: i32 = 5;
+def INITIAL_LIVES: i32 = 3;
+def MAX_LEVELS: i32 = 5;
 
 // ==================== 道具类型 ====================
 
@@ -29,7 +29,7 @@ enum PowerUpType {
     Laser,           // 激光
 }
 
-const POWERUP_TYPES: [7]PowerUpType = [
+def POWERUP_TYPES: [PowerUpType; 7] = [
     PowerUpType.ExpandPaddle,
     PowerUpType.ShrinkPaddle,
     PowerUpType.MultiBall,
@@ -39,7 +39,7 @@ const POWERUP_TYPES: [7]PowerUpType = [
     PowerUpType.StickyPaddle,
 ];
 
-const POWERUP_COLORS: [8]u32 = [
+def POWERUP_COLORS: [u32; 8] = [
     rgb(0, 255, 128),    // 绿色 - Expand
     rgb(255, 100, 100),  // 红色 - Shrink
     rgb(255, 255, 0),    // 黄色 - MultiBall
@@ -50,7 +50,7 @@ const POWERUP_COLORS: [8]u32 = [
     rgb(255, 0, 0),      // 亮红 - Laser
 ];
 
-const POWERUP_CHARS: [8]str = [
+def POWERUP_CHARS: [str; 8] = [
     "E",  // Expand
     "S",  // Shrink
     "M",  // Multi
@@ -139,13 +139,13 @@ struct LevelConfig {
 
 struct BreakoutState {
     paddle: Paddle,
-    balls: [5]Ball,
+    balls: [Ball; 5],
     ballCount: i32,
-    bricks: [50]Brick,
+    bricks: [Brick; 50],
     brickCount: i32,
-    powerUps: [10]PowerUp,
+    powerUps: [PowerUp; 10],
     powerUpCount: i32,
-    lasers: [10]Laser,
+    lasers: [Laser; 10],
     laserCount: i32,
     score: i32,
     lives: i32,
@@ -153,7 +153,7 @@ struct BreakoutState {
     status: GameStatus,
     width: i32,
     height: i32,
-    effects: [20]ParticleEffect,
+    effects: [ParticleEffect; 20],
     effectCount: i32,
 }
 
@@ -258,15 +258,15 @@ fn getBrickColor(row: i32, maxRows: i32) -> u32 {
 
 fn activatePowerUp(game: &mut BreakoutState, ptype: PowerUpType) {
     match ptype {
-        PowerUpType.ExpandPaddle => {
+        PowerUpType::ExpandPaddle => {
             game.paddle.width = (game.paddle.baseWidth * 1.5) as i32;
             game.paddle.powerUpTimer = 600;
         },
-        PowerUpType.ShrinkPaddle => {
+        PowerUpType::ShrinkPaddle => {
             game.paddle.width = (game.paddle.baseWidth * 0.6) as i32;
             game.paddle.powerUpTimer = 600;
         },
-        PowerUpType.MultiBall => {
+        PowerUpType::MultiBall => {
             if game.ballCount < 4 {
                 let baseBall = &game.balls[0];
                 for i in 1..3 {
@@ -283,7 +283,7 @@ fn activatePowerUp(game: &mut BreakoutState, ptype: PowerUpType) {
                 }
             }
         },
-        PowerUpType.SlowBall => {
+        PowerUpType::SlowBall => {
             for i in 0..game.ballCount {
                 let speed = math.sqrt(game.balls[i].vx * game.balls[i].vx + game.balls[i].vy * game.balls[i].vy);
                 if speed > 3.0 {
@@ -293,7 +293,7 @@ fn activatePowerUp(game: &mut BreakoutState, ptype: PowerUpType) {
                 }
             }
         },
-        PowerUpType.SpeedBall => {
+        PowerUpType::SpeedBall => {
             for i in 0..game.ballCount {
                 let speed = math.sqrt(game.balls[i].vx * game.balls[i].vx + game.balls[i].vy * game.balls[i].vy);
                 if speed < 10.0 {
@@ -303,16 +303,16 @@ fn activatePowerUp(game: &mut BreakoutState, ptype: PowerUpType) {
                 }
             }
         },
-        PowerUpType.ExtraLife => {
+        PowerUpType::ExtraLife => {
             if game.lives < 9 {
                 game.lives = game.lives + 1;
             }
         },
-        PowerUpType.StickyPaddle => {
+        PowerUpType::StickyPaddle => {
             game.paddle.sticky = true;
             game.paddle.powerUpTimer = 800;
         },
-        PowerUpType.Laser => {
+        PowerUpType::Laser => {
             game.paddle.hasLaser = true;
             game.paddle.powerUpTimer = 500;
         },
@@ -363,7 +363,7 @@ fn initLevel(game: &mut BreakoutState, level: i32) {
     game.level = level;
     game.brickCount = config.rows * config.cols;
 
-    var idx = 0;
+    let idx = 0;
     for row in 0..config.rows {
         for col in 0..config.cols {
             if idx < 50 {
@@ -441,7 +441,7 @@ fn addParticle(game: &mut BreakoutState, x: f32, y: f32, color: u32) {
 
 fn handleInput(game: &mut BreakoutState, key: KeyCode) -> bool {
     match key {
-        KeyCode.KeyLeft => {
+        KeyCode::KeyLeft => {
             game.paddle.x = game.paddle.x - game.paddle.speed;
             if game.paddle.x < 0 {
                 game.paddle.x = 0;
@@ -453,7 +453,7 @@ fn handleInput(game: &mut BreakoutState, key: KeyCode) -> bool {
                 }
             }
         },
-        KeyCode.KeyRight => {
+        KeyCode::KeyRight => {
             game.paddle.x = game.paddle.x + game.paddle.speed;
             if game.paddle.x > GAME_WIDTH - game.paddle.width {
                 game.paddle.x = GAME_WIDTH - game.paddle.width;
@@ -464,7 +464,7 @@ fn handleInput(game: &mut BreakoutState, key: KeyCode) -> bool {
                 }
             }
         },
-        KeyCode.KeySpace => {
+        KeyCode::KeySpace => {
             if game.status == GameStatus.Ready {
                 game.status = GameStatus.Playing;
                 for i in 0..game.ballCount {
@@ -487,20 +487,20 @@ fn handleInput(game: &mut BreakoutState, key: KeyCode) -> bool {
                 init_game(game);
             }
         },
-        KeyCode.KeyP => {
+        KeyCode::KeyP => {
             if game.status == GameStatus.Playing {
                 game.status = GameStatus.Paused;
             } else if game.status == GameStatus.Paused {
                 game.status = GameStatus.Playing;
             }
         },
-        KeyCode.KeyR => {
+        KeyCode::KeyR => {
             if game.status == GameStatus.Lost || game.status == GameStatus.Won || game.status == GameStatus.GameComplete {
                 game.level = 1;
                 init_game(game);
             }
         },
-        KeyCode.KeyEscape => {
+        KeyCode::KeyEscape => {
             return false;
         },
         _ => {}
@@ -567,8 +567,8 @@ fn update_game(game: &mut BreakoutState) -> bool {
         }
     }
 
-    var allBallsLost = true;
-    var bricksRemaining = 0;
+    let allBallsLost = true;
+    let bricksRemaining = 0;
 
     // 更新每个球
     for ballIdx in 0..game.ballCount {
@@ -618,7 +618,7 @@ fn update_game(game: &mut BreakoutState) -> bool {
             let paddleBottom = (game.paddle.y + game.paddle.height) as f32;
 
             if ballRight >= paddleLeft && ballLeft <= paddleRight &&
-               ballBottom >= paddleTop && ballBottom <= paddleBottom + abs(ball.vy as i32) as f32 {
+               ballBottom >= paddleTop && ballBottom <= paddleBottom + abs(ball.(i32)vy) as f32 {
                 ball.y = paddleTop - ball.radius;
 
                 let hitPos = (ball.x - (game.paddle.x as f32 + game.paddle.width as f32 / 2.0)) / game.paddle.width as f32;
@@ -631,7 +631,7 @@ fn update_game(game: &mut BreakoutState) -> bool {
                 ball.vx = speed * math.sin(angle);
                 ball.vy = -speed * math.cos(angle);
 
-                if abs(ball.vy as i32) < 3 {
+                if abs(ball.(i32)vy) < 3 {
                     ball.vy = if ball.vy < 0.0 { -3.0 } else { 3.0 };
                 }
 
@@ -699,7 +699,7 @@ fn update_game(game: &mut BreakoutState) -> bool {
                 // 检查是否产生道具
                 if brick.hasPowerUp && brick.powerUpType != PowerUpType.None {
                     if game.powerUpCount < 10 {
-                        var found = false;
+                        let found = false;
                         for pi in 0..10 {
                             if !game.powerUps[pi].active {
                                 game.powerUps[pi].x = brick.x as f32 + brick.width as f32 / 2.0;
@@ -777,15 +777,15 @@ fn absF(n: f32) -> f32 {
     if n < 0.0 { -n } else { n }
 }
 
-fn getStatusText(game: &BreakoutState) -> str {
+fn getStatusText(game: BreakoutState*) -> str {
     match game.status {
-        GameStatus.Ready => return "按空格键开始",
-        GameStatus.Playing => return "游戏中... (P暂停)",
-        GameStatus.Paused => return "游戏暂停 - 按P继续",
-        GameStatus.LevelComplete => return "关卡完成! 按空格进入下一关",
-        GameStatus.Lost => return "游戏结束! 按R重新开始",
-        GameStatus.Won => return "恭喜通关! 按R重新开始",
-        GameStatus.GameComplete => return "全部关卡完成! 你是大师! 按R重玩",
+        GameStatus::Ready => return "按空格键开始",
+        GameStatus::Playing => return "游戏中... (P暂停)",
+        GameStatus::Paused => return "游戏暂停 - 按P继续",
+        GameStatus::LevelComplete => return "关卡完成! 按空格进入下一关",
+        GameStatus::Lost => return "游戏结束! 按R重新开始",
+        GameStatus::Won => return "恭喜通关! 按R重新开始",
+        GameStatus::GameComplete => return "全部关卡完成! 你是大师! 按R重玩",
     }
 }
 

@@ -1,6 +1,6 @@
 // main_window.zc - Zen-C Pinball（弹球机）游戏主程序
 
-import std.io;
+import "io.zc";
 
 // 导入游戏逻辑
 import "platform_api.zc";
@@ -15,13 +15,13 @@ static mut game_speed: u32 = 16;  // ~60 FPS
 
 // ==================== 绘制辅助函数 ====================
 
-fn draw_flipper(flipper: &Flipper) {
+fn draw_flipper(flipper: Flipper*) {
     let end_x = flipper.pivot_x + (math.cos(flipper.angle) * flipper.length as f32) as i32;
     let end_y = flipper.pivot_y + (math.sin(flipper.angle) * flipper.length as f32) as i32;
     fb_draw_line(flipper.pivot_x, flipper.pivot_y, end_x, end_y, rgb(220, 220, 220), flipper.width);
 }
 
-fn draw_bumper(bumper: &Bumper) {
+fn draw_bumper(bumper: Bumper*) {
     let color = if bumper.hit || bumper.hit_timer > 0 {
         rgb(255, 200, 50)
     } else {
@@ -32,7 +32,7 @@ fn draw_bumper(bumper: &Bumper) {
     fb_draw_circle(bumper.x, bumper.y, bumper.radius - 6, rgb(255, 150, 150));
 }
 
-fn draw_target(target: &Target) {
+fn draw_target(target: Target*) {
     if target.hit {
         // 被击中后的灰色
         fb_draw_rect(target.x, target.y, target.width, target.height, rgb(80, 80, 80));
@@ -41,7 +41,7 @@ fn draw_target(target: &Target) {
     }
 }
 
-fn draw_slingshot(sling: &Slingshot) {
+fn draw_slingshot(sling: Slingshot*) {
     let color = if sling.hit_timer > 0 {
         rgb(255, 200, 50)
     } else {
@@ -53,7 +53,7 @@ fn draw_slingshot(sling: &Slingshot) {
     fb_draw_line(sling.x3, sling.y3, sling.x1, sling.y1, color, 4);
 }
 
-fn draw_spinner(spinner: &Spinner) {
+fn draw_spinner(spinner: Spinner*) {
     let len = 20;
     let x1 = spinner.x as f32 - math.cos(spinner.angle) * len as f32;
     let y1 = spinner.y as f32 - math.sin(spinner.angle) * len as f32;
@@ -61,7 +61,7 @@ fn draw_spinner(spinner: &Spinner) {
     let y2 = spinner.y as f32 + math.sin(spinner.angle) * len as f32;
 
     fb_draw_circle(spinner.x, spinner.y, 6, rgb(100, 200, 255));
-    fb_draw_line(x1 as i32, y1 as i32, x2 as i32, y2 as i32, rgb(200, 240, 255), 3);
+    fb_draw_line((i32)x1, (i32)y1, (i32)x2, (i32)y2, rgb(200, 240, 255), 3);
 }
 
 // 绘制弹球机台面边框
@@ -94,7 +94,7 @@ fn draw_launch_lane() {
 }
 
 // 绘制弹簧发射器
-fn draw_plunger(plunger: &Plunger) {
+fn draw_plunger(plunger: Plunger*) {
     // 发射管
     fb_draw_rect(plunger.x - 5, plunger.y, plunger.width + 10, plunger.height, rgb(80, 80, 120));
     // 弹簧
@@ -153,15 +153,15 @@ fn on_paint(w: i32, h: i32) {
     draw_launch_lane();
 
     // 绘制分数显示
-    let score_str = "分数: " ++ game.score.toString();
+    let score_str = "分数: {game}".score.toString();
     fb_draw_text_size(10, 10, score_str, rgb(255, 255, 100), 22);
 
     // 倍数
-    let mult_str = "x" ++ game.multiplier.toString();
+    let mult_str = "x{game}".multiplier.toString();
     fb_draw_text_size(10, 38, mult_str, rgb(255, 200, 50), 18);
 
     // 剩余球数
-    let balls_str = "球: " ++ game.balls_remaining.toString();
+    let balls_str = "球: {game}".balls_remaining.toString();
     fb_draw_text_size(GAME_WIDTH - 80, 10, balls_str, rgb(200, 200, 200), 18);
 
     // Spinner
@@ -203,12 +203,12 @@ fn on_paint(w: i32, h: i32) {
                 let trail_alpha = (ball.trail_count / 4) as i32;
                 if trail_alpha < 6 {
                     let trail_color = rgb(255, 220, 100);
-                    fb_draw_circle(ball.x as i32, (ball.y + trail_alpha * 3) as i32, ball.radius - trail_alpha, trail_color);
+                    fb_draw_circle(i32)(ball.(i32)x, (ball.y + trail_alpha * 3), ball.radius - trail_alpha, trail_color);
                 }
             }
             // 球体（外圈高光）
-            fb_draw_circle(ball.x as i32, ball.y as i32, ball.radius, rgb(220, 220, 220));
-            fb_draw_circle(ball.x as i32 - 2, ball.y as i32 - 2, ball.radius - 3, rgb(255, 255, 255));
+            fb_draw_circle(ball.(i32)x, ball.(i32)y, ball.radius, rgb(220, 220, 220));
+            fb_draw_circle(ball.(i32)x - 2, ball.(i32)y - 2, ball.radius - 3, rgb(255, 255, 255));
         }
     }
 
@@ -250,9 +250,9 @@ fn on_destroy() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C Pinball 弹球机游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C Pinball 弹球机游戏";
+    io.println "========================================";
 
     // 初始化游戏状态
     init_game(&mut game);
@@ -262,7 +262,7 @@ fn main() -> i32 {
     window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
@@ -290,11 +290,11 @@ fn main() -> i32 {
     // 设置游戏定时器
     set_game_timer(window, game_speed);
 
-    io.println("窗口创建成功!");
-    io.println("按空格键拉弹簧发射弹珠");
-    io.println("使用 ↑ ↓ 调整发射力度");
-    io.println("使用 ← → 控制左右翻转器");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "按空格键拉弹簧发射弹珠";
+    io.println "使用 ↑ ↓ 调整发射力度";
+    io.println "使用 ← → 控制左右翻转器";
+    io.println "========================================";
 
     // 初始绘制
     redraw_window(window);
@@ -302,9 +302,9 @@ fn main() -> i32 {
     // 运行事件循环
     run_event_loop(window);
 
-    io.println("游戏结束!");
-    io.println("最终得分: " ++ game.score.toString());
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println("最终得分: {game}".score.toString());
+    io.println "========================================";
 
     0
 }

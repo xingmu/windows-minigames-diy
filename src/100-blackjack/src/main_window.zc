@@ -1,9 +1,9 @@
 // main_window.zc - 二十一点(Blackjack)主程序
 // 所有平台使用同一份Zen-C代码，通过条件编译处理平台差异
 
-import std.io;
-import std.string;
-import std.ffi;
+import "io.zc";
+import "string.zc";
+// import "ffi.zc";
 
 // 导入游戏逻辑和平台API
 import "game_logic.zc";
@@ -17,24 +17,24 @@ static mut running: bool = true;
 
 // ==================== 颜色定义 ====================
 
-const CARD_WIDTH: i32 = 70;
-const CARD_HEIGHT: i32 = 100;
-const CARD_SPACING: i32 = 20;
+def CARD_WIDTH: i32 = 70;
+def CARD_HEIGHT: i32 = 100;
+def CARD_SPACING: i32 = 20;
 
-const SUIT_RED = rgb(220, 20, 60);      // 红色(红心/方块)
-const SUIT_BLACK = rgb(20, 20, 20);     // 黑色(黑桃/梅花)
-const CARD_BG = rgb(255, 255, 255);     // 牌面白色
-const CARD_BACK = rgb(30, 80, 180);      // 牌背面蓝色
-const BUTTON_BG = rgb(50, 120, 200);     // 按钮背景
-const BUTTON_HOVER = rgb(70, 140, 220); // 按钮悬停
-const BUTTON_ACTIVE = rgb(30, 90, 160); // 按钮按下
-const TEXT_COLOR = rgb(255, 255, 255);   // 文字白色
-const GAMBLE_BG = rgb(15, 90, 45);       // 赌桌绿色
-const CHIP_10 = rgb(200, 180, 30);      // 10筹码金色
-const CHIP_50 = rgb(220, 40, 40);       // 50筹码红色
-const CHIP_100 = rgb(30, 120, 30);      // 100筹码绿色
-const CHIP_500 = rgb(30, 30, 30);       // 500筹码黑色
-const CHIP_1000 = rgb(180, 30, 180);    // 1000筹码紫色
+def SUIT_RED = rgb(220, 20, 60);      // 红色(红心/方块)
+def SUIT_BLACK = rgb(20, 20, 20);     // 黑色(黑桃/梅花)
+def CARD_BG = rgb(255, 255, 255);     // 牌面白色
+def CARD_BACK = rgb(30, 80, 180);      // 牌背面蓝色
+def BUTTON_BG = rgb(50, 120, 200);     // 按钮背景
+def BUTTON_HOVER = rgb(70, 140, 220); // 按钮悬停
+def BUTTON_ACTIVE = rgb(30, 90, 160); // 按钮按下
+def TEXT_COLOR = rgb(255, 255, 255);   // 文字白色
+def GAMBLE_BG = rgb(15, 90, 45);       // 赌桌绿色
+def CHIP_10 = rgb(200, 180, 30);      // 10筹码金色
+def CHIP_50 = rgb(220, 40, 40);       // 50筹码红色
+def CHIP_100 = rgb(30, 120, 30);      // 100筹码绿色
+def CHIP_500 = rgb(30, 30, 30);       // 500筹码黑色
+def CHIP_1000 = rgb(180, 30, 180);    // 1000筹码紫色
 
 // ==================== 按钮区域定义 ====================
 
@@ -48,17 +48,17 @@ struct Button {
 }
 
 // 按钮位置
-const BUTTON_HIT = Button { x: 80, y: 480, width: 100, height: 40, text: "要牌(H)", enabled: false };
-const BUTTON_STAND = Button { x: 200, y: 480, width: 100, height: 40, text: "停牌(S)", enabled: false };
-const BUTTON_DOUBLE = Button { x: 320, y: 480, width: 100, height: 40, text: "双倍(D)", enabled: false };
-const BUTTON_SPLIT = Button { x: 440, y: 480, width: 100, height: 40, text: "分裂(P)", enabled: false };
-const BUTTON_SURRENDER = Button { x: 560, y: 480, width: 100, height: 40, text: "投降(Q)", enabled: false };
-const BUTTON_DEAL = Button { x: 400, y: 380, width: 100, height: 40, text: "发牌", enabled: false };
-const BUTTON_NEW = Button { x: 750, y: 10, width: 100, height: 40, text: "新游戏", enabled: true };
-const BUTTON_DEAL_POS = Button { x: 400, y: 420, width: 100, height: 45, text: "下注并发牌", enabled: false };
+def BUTTON_HIT = Button { x: 80, y: 480, width: 100, height: 40, text: "要牌(H)", enabled: false };
+def BUTTON_STAND = Button { x: 200, y: 480, width: 100, height: 40, text: "停牌(S)", enabled: false };
+def BUTTON_DOUBLE = Button { x: 320, y: 480, width: 100, height: 40, text: "双倍(D)", enabled: false };
+def BUTTON_SPLIT = Button { x: 440, y: 480, width: 100, height: 40, text: "分裂(P)", enabled: false };
+def BUTTON_SURRENDER = Button { x: 560, y: 480, width: 100, height: 40, text: "投降(Q)", enabled: false };
+def BUTTON_DEAL = Button { x: 400, y: 380, width: 100, height: 40, text: "发牌", enabled: false };
+def BUTTON_NEW = Button { x: 750, y: 10, width: 100, height: 40, text: "新游戏", enabled: true };
+def BUTTON_DEAL_POS = Button { x: 400, y: 420, width: 100, height: 45, text: "下注并发牌", enabled: false };
 
 // 筹码位置
-const CHIP_POSITIONS = [
+def CHIP_POSITIONS = [
     [30, 530],   // 10
     [110, 530],  // 50
     [190, 530],  // 100
@@ -223,7 +223,7 @@ fn draw_game(ctx: GraphicsContext) {
         };
         draw_button(ctx, bet_btn, false);
         
-        io.println("请选择筹码下注, 然后点击[下注并发牌]");
+        io.println "请选择筹码下注, 然后点击[下注并发牌]";
     }
     
     // 回合结束 - 显示结果
@@ -247,11 +247,11 @@ fn draw_game(ctx: GraphicsContext) {
     }
     
     // 绘制状态信息
-    io.println("========================================");
+    io.println "========================================";
     io.println("{}", get_money_text(&game));
     io.println("{}", get_phase_text(&game));
     io.println("{}", get_controls_text());
-    io.println("========================================");
+    io.println "========================================";
     
     // 绘制新游戏按钮
     let new_btn = Button { x: 750, y: 10, width: 100, height: 40, text: "新游戏", enabled: true };
@@ -430,7 +430,7 @@ fn on_timer_event() {
 extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
     match uMsg {
         WM_PAINT => {
-            let mut ps: [64]u8 = [0; 64];
+            let mut ps: [u8; 64] = [0; 64];
             let hdc = BeginPaint(hwnd, &ps);
             
             draw_game(hdc);
@@ -440,7 +440,7 @@ extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) ->
         },
         
         WM_KEYDOWN => {
-            let continue_game = on_key_event(wParam as i32);
+            let continue_game = on_key_event((i32)wParam);
             if !continue_game {
                 running = false;
                 PostQuitMessage(0);
@@ -478,9 +478,9 @@ extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, uMsg: u32, wParam: u32
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 二十一点(Blackjack)游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 二十一点(Blackjack)游戏";
+    io.println "========================================";
     io.println("平台: {}", 
         #if IS_WINDOWS
             "Windows"
@@ -492,7 +492,7 @@ fn main() -> i32 {
             "未知"
         #endif
     );
-    io.println("========================================");
+    io.println "========================================";
     
     // 初始化游戏
     init_game(&mut game);
@@ -502,7 +502,7 @@ fn main() -> i32 {
     window = create_window(window_title, WINDOW_WIDTH, WINDOW_HEIGHT);
     
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
     
@@ -512,27 +512,27 @@ fn main() -> i32 {
     // 设置游戏定时器(用于刷新显示)
     set_game_timer(window, 100);
     
-    io.println("窗口创建成功!");
+    io.println "窗口创建成功!";
     io.println("初始金币: {}", game.player.money);
-    io.println("========================================");
-    io.println("游戏规则:");
-    io.println("1. 点击筹码下注,然后点击[下注并发牌]");
-    io.println("2. 要牌(H) - 再要一张牌");
-    io.println("3. 停牌(S) - 停止要牌");
-    io.println("4. 双倍(D) - 双倍下注,只能要一张牌");
-    io.println("5. 分裂(P) - 如果两张牌相同可分裂");
-    io.println("6. 投降(Q) - 放弃本局,退回一半赌注");
-    io.println("7. 超过21点爆牌输");
-    io.println("8. 21点以下比庄家大赢");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "游戏规则:";
+    io.println "1. 点击筹码下注,然后点击[下注并发牌]";
+    io.println "2. 要牌(H) - 再要一张牌";
+    io.println "3. 停牌(S) - 停止要牌";
+    io.println "4. 双倍(D) - 双倍下注,只能要一张牌";
+    io.println "5. 分裂(P) - 如果两张牌相同可分裂";
+    io.println "6. 投降(Q) - 放弃本局,退回一半赌注";
+    io.println "7. 超过21点爆牌输";
+    io.println "8. 21点以下比庄家大赢";
+    io.println "========================================";
     
     // 运行事件循环
     run_event_loop(window);
     
-    io.println("游戏结束!");
+    io.println "游戏结束!";
     io.println("最终金币: {}", game.player.money);
-    io.println("谢谢游玩 Zen-C 二十一点!");
-    io.println("========================================");
+    io.println "谢谢游玩 Zen-C 二十一点!";
+    io.println "========================================";
     
     quit_application();
     

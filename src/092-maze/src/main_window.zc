@@ -1,6 +1,6 @@
 // main_window.zc - Zen-C 迷宫游戏主程序
 
-import std.io;
+import "io.zc";
 
 // 导入游戏逻辑
 import "platform_api.zc";
@@ -49,10 +49,10 @@ fn on_paint(w: i32, h: i32) {
     fb_clear(COLOR_BG);
 
     // 计算迷宫绘制偏移（居中）
-    var mazePixelWidth = MAZE_WIDTH * CELL_SIZE;
-    var mazePixelHeight = MAZE_HEIGHT * CELL_SIZE;
-    var offsetX = (w - mazePixelWidth) / 2;
-    var offsetY = (h - mazePixelHeight) / 2;
+    let mazePixelWidth = MAZE_WIDTH * CELL_SIZE;
+    let mazePixelHeight = MAZE_HEIGHT * CELL_SIZE;
+    let offsetX = (w - mazePixelWidth) / 2;
+    let offsetY = (h - mazePixelHeight) / 2;
     
     if offsetX < 0 { offsetX = 0; }
     if offsetY < 0 { offsetY = 0; }
@@ -60,8 +60,8 @@ fn on_paint(w: i32, h: i32) {
     // 绘制迷宫背景（路径）
     for gy in 0..MAZE_HEIGHT {
         for gx in 0..MAZE_WIDTH {
-            var cellX = offsetX + gx * CELL_SIZE;
-            var cellY = offsetY + gy * CELL_SIZE;
+            let cellX = offsetX + gx * CELL_SIZE;
+            let cellY = offsetY + gy * CELL_SIZE;
             
             // 绘制单元格背景
             fb_draw_rect(cellX, cellY, CELL_SIZE, CELL_SIZE, COLOR_PATH);
@@ -69,22 +69,22 @@ fn on_paint(w: i32, h: i32) {
     }
 
     // 绘制起点
-    var startPx = offsetX + game.startX * CELL_SIZE;
-    var startPy = offsetY + game.startY * CELL_SIZE;
+    let startPx = offsetX + game.startX * CELL_SIZE;
+    let startPy = offsetY + game.startY * CELL_SIZE;
     fb_draw_rect(startPx + 4, startPy + 4, CELL_SIZE - 8, CELL_SIZE - 8, COLOR_START);
 
     // 绘制终点
-    var exitPx = offsetX + game.exitX * CELL_SIZE;
-    var exitPy = offsetY + game.exitY * CELL_SIZE;
+    let exitPx = offsetX + game.exitX * CELL_SIZE;
+    let exitPy = offsetY + game.exitY * CELL_SIZE;
     fb_draw_rect(exitPx + 4, exitPy + 4, CELL_SIZE - 8, CELL_SIZE - 8, COLOR_EXIT);
 
     // 绘制墙壁
     for gy in 0..MAZE_HEIGHT {
         for gx in 0..MAZE_WIDTH {
-            var cellIdx = getIndex(gx, gy);
-            var cell = &game.maze[cellIdx];
-            var cellX = offsetX + gx * CELL_SIZE;
-            var cellY = offsetY + gy * CELL_SIZE;
+            let cellIdx = getIndex(gx, gy);
+            let cell = &game.maze[cellIdx];
+            let cellX = offsetX + gx * CELL_SIZE;
+            let cellY = offsetY + gy * CELL_SIZE;
             
             // 北墙
             if cell.walls[0] {
@@ -106,20 +106,20 @@ fn on_paint(w: i32, h: i32) {
     }
 
     // 绘制玩家
-    var playerPx = offsetX + game.playerX * CELL_SIZE + CELL_SIZE / 2;
-    var playerPy = offsetY + game.playerY * CELL_SIZE + CELL_SIZE / 2;
-    var playerRadius = (CELL_SIZE / 3);
+    let playerPx = offsetX + game.playerX * CELL_SIZE + CELL_SIZE / 2;
+    let playerPy = offsetY + game.playerY * CELL_SIZE + CELL_SIZE / 2;
+    let playerRadius = (CELL_SIZE / 3);
     fb_draw_circle(playerPx, playerPy, playerRadius, COLOR_PLAYER);
 
     // 绘制分数和步数
-    var info = "步数: " ++ game.moves.toString();
+    let info = "步数: {game}".moves.toString();
     if game.gameWon {
-        info = info ++ " | 得分: " ++ game.score.toString();
+        info = "{info} | 得分: {game}".score.toString();
     }
     fb_draw_text_size(10, 10, info, rgb(255, 255, 255), 18);
 
     // 绘制状态文本
-    var status = getStatusText(&game);
+    let status = getStatusText(&game);
     fb_draw_text_size(w / 2 - 150, h - 50, status, rgb(255, 255, 0), 20);
 
     // 绘制控制说明
@@ -143,25 +143,25 @@ fn on_destroy() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 迷宫游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 迷宫游戏";
+    io.println "========================================";
 
     // 初始化游戏状态
     initGame(&mut game);
 
     // 创建窗口
-    var title = "Maze - 迷宫游戏";
+    let title = "Maze - 迷宫游戏";
     window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
     // 获取实际客户区大小
-    var mut cw = 0;
-    var mut ch = 0;
+    let mut cw = 0;
+    let mut ch = 0;
     get_window_client_size(window, &mut cw, &mut ch);
     if cw > 0 && ch > 0 {
         game.width = cw;
@@ -182,10 +182,10 @@ fn main() -> i32 {
     // 设置游戏定时器
     set_game_timer(window, game_speed);
 
-    io.println("窗口创建成功!");
-    io.println("按方向键或WASD开始游戏");
-    io.println("找到绿色出口获胜!");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "按方向键或WASD开始游戏";
+    io.println "找到绿色出口获胜!";
+    io.println "========================================";
 
     // 初始绘制
     redraw_window(window);
@@ -193,9 +193,9 @@ fn main() -> i32 {
     // 运行事件循环
     run_event_loop(window);
 
-    io.println("游戏结束!");
-    io.println("总移动步数: " ++ game.moves.toString());
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println("总移动步数: {game}".moves.toString());
+    io.println "========================================";
 
     0
 }

@@ -2,8 +2,8 @@
 // 使用 Zen-C + 003-framework 结构
 // 俯视角足球对战游戏
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 
 // 导入游戏逻辑和平台API
 import "game_logic.zc";
@@ -11,22 +11,22 @@ import "platform_api.zc";
 
 // ==================== 颜色常量 (ARGB) ====================
 
-const FIELD_COLOR = Color.rgb(34, 139, 34);           // 草绿色
-const FIELD_DARK = Color.rgb(30, 120, 30);           // 深草绿色
-const LINE_COLOR = Color.rgb(255, 255, 255);         // 白色线条
-const GOAL_POST_COLOR = Color.rgb(255, 255, 255);    // 球门柱白色
-const GOAL_NET_COLOR = Color.rgba(255, 255, 255, 100); // 球网半透明白
-const BALL_COLOR = Color.rgb(255, 255, 255);         // 球白色
-const PLAYER_COLOR = Color.rgb(0, 100, 255);         // 玩家蓝色
-const AI_COLOR = Color.rgb(255, 50, 50);              // AI红色
-const UI_BG = Color.rgb(25, 25, 45);                 // UI背景
-const UI_TEXT = Color.rgb(255, 255, 255);             // UI文字
-const GOAL_TEXT_COLOR = Color.rgb(255, 215, 0);      // 进球金色
+def FIELD_COLOR = Color.rgb(34, 139, 34);           // 草绿色
+def FIELD_DARK = Color.rgb(30, 120, 30);           // 深草绿色
+def LINE_COLOR = Color.rgb(255, 255, 255);         // 白色线条
+def GOAL_POST_COLOR = Color.rgb(255, 255, 255);    // 球门柱白色
+def GOAL_NET_COLOR = Color.rgba(255, 255, 255, 100); // 球网半透明白
+def BALL_COLOR = Color.rgb(255, 255, 255);         // 球白色
+def PLAYER_COLOR = Color.rgb(0, 100, 255);         // 玩家蓝色
+def AI_COLOR = Color.rgb(255, 50, 50);              // AI红色
+def UI_BG = Color.rgb(25, 25, 45);                 // UI背景
+def UI_TEXT = Color.rgb(255, 255, 255);             // UI文字
+def GOAL_TEXT_COLOR = Color.rgb(255, 215, 0);      // 进球金色
 
 // ==================== 常量 ====================
 
-const WINDOW_WIDTH = 800;
-const WINDOW_HEIGHT = 600;
+def WINDOW_WIDTH = 800;
+def WINDOW_HEIGHT = 600;
 
 // ==================== 全局变量 ====================
 
@@ -107,7 +107,7 @@ fn draw_field(ctx: GraphicsContext) {
 }
 
 // 绘制球门
-fn draw_goal(ctx: GraphicsContext, goal: &Goal) {
+fn draw_goal(ctx: GraphicsContext, goal: Goal*) {
     let post_width = 6;
     let net_depth = 15;
     
@@ -139,7 +139,7 @@ fn draw_goal(ctx: GraphicsContext, goal: &Goal) {
 }
 
 // 绘制球
-fn draw_ball(ctx: GraphicsContext, ball: &Ball) {
+fn draw_ball(ctx: GraphicsContext, ball: Ball*) {
     let x = ball.x as i32;
     let y = ball.y as i32;
     let r = ball.radius;
@@ -154,7 +154,7 @@ fn draw_ball(ctx: GraphicsContext, ball: &Ball) {
     // 足球花纹（黑色五边形）
     let pattern_color = Color.rgb(20, 20, 20);
     let pr = r / 2;
-    let angles: [5]f64 = [0.0, 1.256, 2.512, 3.768, 5.024];
+    let angles: [f64; 5] = [0.0, 1.256, 2.512, 3.768, 5.024];
     for i in 0..5 {
         let px = x + (math.cos(angles[i]) * pr as f64) as i32;
         let py = y + (math.sin(angles[i]) * pr as f64) as i32;
@@ -163,7 +163,7 @@ fn draw_ball(ctx: GraphicsContext, ball: &Ball) {
 }
 
 // 绘制球员
-fn draw_player(ctx: GraphicsContext, player: &Player, color: Color) {
+fn draw_player(ctx: GraphicsContext, player: Player*, color: Color) {
     let x = player.x as i32;
     let y = player.y as i32;
     let r = player.radius;
@@ -292,13 +292,13 @@ fn draw_game(ctx: GraphicsContext) {
     
     // 绘制特殊状态
     match game.phase {
-        GamePhase.Ready => {
+        GamePhase::Ready => {
             draw_ready_screen(ctx);
         },
-        GamePhase.Goal => {
+        GamePhase::Goal => {
             draw_goal_celebration(ctx);
         },
-        GamePhase.GameOver => {
+        GamePhase::GameOver => {
             draw_game_over_screen(ctx);
         },
         _ => {}
@@ -379,13 +379,13 @@ extern fn WindowProc(hwnd: WindowHandle, msg: u32, wParam: rawptr, lParam: rawpt
             return nil;
         },
         0x0100 => { // WM_KEYDOWN
-            handle_key_down(wParam as i32);
+            handle_key_down((i32)wParam);
             handle_kick();
             redraw_window(hwnd);
             return nil;
         },
         0x0101 => { // WM_KEYUP
-            handle_key_up(wParam as i32);
+            handle_key_up((i32)wParam);
             redraw_window(hwnd);
             return nil;
         },
@@ -402,17 +402,17 @@ extern fn WindowProc(hwnd: WindowHandle, msg: u32, wParam: rawptr, lParam: rawpt
 }
 
 extern "user32.dll" fn DefWindowProcA(hwnd: WindowHandle, msg: u32, wParam: rawptr, lParam: rawptr) -> rawptr;
-extern "user32.dll" fn BeginPaint(hwnd: WindowHandle, lpPaint: &PAINTSTRUCT) -> rawptr;
-extern "user32.dll" fn EndPaint(hwnd: WindowHandle, lpPaint: &PAINTSTRUCT) -> i32;
-extern "user32.dll" fn GetClientRect(hwnd: WindowHandle, lpRect: &RECT) -> i32;
+extern "user32.dll" fn BeginPaint(hwnd: WindowHandle, lpPaint: PAINTSTRUCT*) -> rawptr;
+extern "user32.dll" fn EndPaint(hwnd: WindowHandle, lpPaint: PAINTSTRUCT*) -> i32;
+extern "user32.dll" fn GetClientRect(hwnd: WindowHandle, lpRect: RECT*) -> i32;
 extern "user32.dll" fn InvalidateRect(hwnd: WindowHandle, lpRect: rawptr, bErase: i32) -> i32;
 extern "user32.dll" fn PostQuitMessage(exitCode: i32) -> void;
 
 extern "user32.dll" fn SetTimer(hwnd: WindowHandle, nIDEvent: u32, uElapse: u32, lpTimerFunc: rawptr) -> u32;
 extern "user32.dll" fn KillTimer(hwnd: WindowHandle, uIDEvent: u32) -> bool;
-extern "user32.dll" fn PeekMessageA(lpMsg: &MSG, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32, wRemoveMsg: u32) -> i32;
-extern "user32.dll" fn TranslateMessage(lpMsg: &MSG) -> i32;
-extern "user32.dll" fn DispatchMessageA(lpMsg: &MSG) -> rawptr;
+extern "user32.dll" fn PeekMessageA(lpMsg: MSG*, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32, wRemoveMsg: u32) -> i32;
+extern "user32.dll" fn TranslateMessage(lpMsg: MSG*) -> i32;
+extern "user32.dll" fn DispatchMessageA(lpMsg: MSG*) -> rawptr;
 
 extern "kernel32.dll" fn Sleep(ms: u32) -> void;
 
@@ -438,7 +438,7 @@ pub struct PAINTSTRUCT {
     rcPaint: RECT,
     fRestore: i32,
     fIncUpdate: i32,
-    rgbReserved: [32]u8,
+    rgbReserved: [u8; 32],
 }
 
 fn run_event_loop(window: WindowHandle) {
@@ -474,7 +474,7 @@ fn initPlatform() {
         let wc = WNDCLASSEXA {
             cbSize: 48,
             style: 0,
-            lpfnWndProc: &WindowProc,
+            lpfnWndProc: WindowProc*,
             cbClsExtra: 0,
             cbWndExtra: 0,
             hInstance: hInstance,
@@ -501,7 +501,7 @@ fn shutdownPlatform() {
 }
 
 #if IS_WINDOWS
-extern "user32.dll" fn RegisterClassExA(lpWndClass: &WNDCLASSEXA) -> u16;
+extern "user32.dll" fn RegisterClassExA(lpWndClass: WNDCLASSEXA*) -> u16;
 
 pub struct WNDCLASSEXA {
     cbSize: u32,
@@ -535,10 +535,10 @@ fn create_window(title: str, width: i32, height: i32) -> WindowHandle {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("  Zen-C 足球游戏");
-    io.println("  俯视角足球对战");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "  Zen-C 足球游戏";
+    io.println "  俯视角足球对战";
+    io.println "========================================";
     
     // 初始化平台
     initPlatform();
@@ -549,24 +549,24 @@ fn main() -> i32 {
     // 创建窗口
     window = create_window("Zen-C 足球游戏", WINDOW_WIDTH, WINDOW_HEIGHT);
     if window == nil {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
     
     // 设置计时器
     set_game_timer(window, 16); // ~60 FPS
     
-    io.println("窗口创建成功!");
-    io.println("");
-    io.println("控制说明:");
-    io.println("  W/A/S/D - 移动球员");
-    io.println("  空格 - 踢球");
-    io.println("  P - 暂停");
-    io.println("  R - 重新开始");
-    io.println("  ESC - 退出");
-    io.println("");
-    io.println("目标: 带球进入对方球门得分!");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "";
+    io.println "控制说明:";
+    io.println "  W/A/S/D - 移动球员";
+    io.println "  空格 - 踢球";
+    io.println "  P - 暂停";
+    io.println "  R - 重新开始";
+    io.println "  ESC - 退出";
+    io.println "";
+    io.println "目标: 带球进入对方球门得分!";
+    io.println "========================================";
     
     // 显示窗口
     show_window(window);
@@ -574,10 +574,10 @@ fn main() -> i32 {
     // 运行事件循环
     run_event_loop(window);
     
-    io.println("");
-    io.println("游戏结束!");
+    io.println "";
+    io.println "游戏结束!";
     io.println("最终比分: {} - {}", game.player_score, game.ai_score);
-    io.println("========================================");
+    io.println "========================================";
     
     shutdownPlatform();
     0

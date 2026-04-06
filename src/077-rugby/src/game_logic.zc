@@ -3,31 +3,31 @@
 
 // ==================== 游戏常量 ====================
 
-const WINDOW_WIDTH: int = 600;
-const WINDOW_HEIGHT: int = 900;
+def WINDOW_WIDTH: int = 600;
+def WINDOW_HEIGHT: int = 900;
 
-const FIELD_TOP: int = 100;
-const FIELD_BOTTOM: int = WINDOW_HEIGHT - 50;
-const FIELD_LEFT: int = 50;
-const FIELD_RIGHT: int = WINDOW_WIDTH - 50;
+def FIELD_TOP: int = 100;
+def FIELD_BOTTOM: int = WINDOW_HEIGHT - 50;
+def FIELD_LEFT: int = 50;
+def FIELD_RIGHT: int = WINDOW_WIDTH - 50;
 
-const TRY_ZONE_HEIGHT: int = 60;
-const TRY_ZONE_TOP: int = FIELD_TOP;
-const TRY_ZONE_BOTTOM: int = FIELD_TOP + TRY_ZONE_HEIGHT;
+def TRY_ZONE_HEIGHT: int = 60;
+def TRY_ZONE_TOP: int = FIELD_TOP;
+def TRY_ZONE_BOTTOM: int = FIELD_TOP + TRY_ZONE_HEIGHT;
 
-const PLAYER_RADIUS: int = 15;
-const BALL_RADIUS: int = 8;
+def PLAYER_RADIUS: int = 15;
+def BALL_RADIUS: int = 8;
 
-const PLAYER_SPEED: int = 5;
-const BALL_SPEED: int = 12;
+def PLAYER_SPEED: int = 5;
+def BALL_SPEED: int = 12;
 
-const TACKLE_DISTANCE: int = 30;
+def TACKLE_DISTANCE: int = 30;
 
-const MAX_TEAMMATES: int = 3;
-const MAX_DEFENDERS: int = 4;
+def MAX_TEAMMATES: int = 3;
+def MAX_DEFENDERS: int = 4;
 
-const TRY_POINTS: int = 5;
-const GAME_TIME: int = 120;
+def TRY_POINTS: int = 5;
+def GAME_TIME: int = 120;
 
 // ==================== 游戏阶段 ====================
 
@@ -156,7 +156,7 @@ pub class RugbyGame extends Game {
     }
     
     fn resetDefenders() {
-        var spacing = (FIELD_RIGHT - FIELD_LEFT) / (self.defenderCount + 1);
+        let spacing = (FIELD_RIGHT - FIELD_LEFT) / (self.defenderCount + 1);
         for i in 0..MAX_DEFENDERS {
             if i < self.defenderCount {
                 self.defenderX[i] = (FIELD_LEFT + spacing * (i + 1)) as float;
@@ -176,7 +176,7 @@ pub class RugbyGame extends Game {
         }
         
         // 计时器
-        var currentTime = getTickCount();
+        let currentTime = getTickCount();
         if currentTime - self.lastTimeUpdate >= 1000 {
             self.timeRemaining = self.timeRemaining - 1;
             self.lastTimeUpdate = currentTime;
@@ -216,7 +216,7 @@ pub class RugbyGame extends Game {
             return;
         }
         
-        var speed = PLAYER_SPEED as float;
+        let speed = PLAYER_SPEED as float;
         
         if self.keyLeft {
             self.playerVX = -speed;
@@ -245,17 +245,17 @@ pub class RugbyGame extends Game {
         self.playerY = self.playerY + self.playerVY;
         
         // 边界
-        if self.playerX < FIELD_LEFT as float + PLAYER_RADIUS as float {
-            self.playerX = FIELD_LEFT as float + PLAYER_RADIUS as float;
+        if self.playerX < (float)FIELD_LEFT + (float)PLAYER_RADIUS {
+            self.playerX = (float)FIELD_LEFT + PLAYER_RADIUS as float;
         }
-        if self.playerX > FIELD_RIGHT as float - PLAYER_RADIUS as float {
-            self.playerX = FIELD_RIGHT as float - PLAYER_RADIUS as float;
+        if self.playerX > (float)FIELD_RIGHT - (float)PLAYER_RADIUS {
+            self.playerX = (float)FIELD_RIGHT - PLAYER_RADIUS as float;
         }
-        if self.playerY < FIELD_TOP as float + PLAYER_RADIUS as float {
-            self.playerY = FIELD_TOP as float + PLAYER_RADIUS as float;
+        if self.playerY < (float)FIELD_TOP + (float)PLAYER_RADIUS {
+            self.playerY = (float)FIELD_TOP + PLAYER_RADIUS as float;
         }
-        if self.playerY > FIELD_BOTTOM as float - PLAYER_RADIUS as float {
-            self.playerY = FIELD_BOTTOM as float - PLAYER_RADIUS as float;
+        if self.playerY > (float)FIELD_BOTTOM - (float)PLAYER_RADIUS {
+            self.playerY = (float)FIELD_BOTTOM - PLAYER_RADIUS as float;
         }
         
         // 状态
@@ -275,31 +275,31 @@ pub class RugbyGame extends Game {
     fn updateTeammates(dt: u32) {
         for i in 0..self.teammateCount {
             // 队友AI：向达阵区跑动
-            var targetX = FIELD_LEFT + 100 + i * 120;
-            var targetY = FIELD_TOP + TRY_ZONE_HEIGHT + 30 + (i % 2) * 20;
+            let targetX = FIELD_LEFT + 100 + i * 120;
+            let targetY = FIELD_TOP + TRY_ZONE_HEIGHT + 30 + (i % 2) * 20;
             
-            var dx = targetX as float - self.teammateX[i];
-            var dy = targetY as float - self.teammateY[i];
-            var dist = self.sqrtF(dx * dx + dy * dy);
+            let dx = (float)targetX - self.teammateX[i];
+            let dy = (float)targetY - self.teammateY[i];
+            let dist = self.sqrtF(dx * dx + dy * dy);
             
             if dist > 5.0 {
-                var spd = 2.5;
+                let spd = 2.5;
                 self.teammateX[i] = self.teammateX[i] + (dx / dist) * spd;
                 self.teammateY[i] = self.teammateY[i] + (dy / dist) * spd;
             }
             
             // 边界
-            if self.teammateX[i] < FIELD_LEFT as float + PLAYER_RADIUS as float {
-                self.teammateX[i] = FIELD_LEFT as float + PLAYER_RADIUS as float;
+            if self.teammateX[i] < (float)FIELD_LEFT + (float)PLAYER_RADIUS {
+                self.teammateX[i] = (float)FIELD_LEFT + PLAYER_RADIUS as float;
             }
-            if self.teammateX[i] > FIELD_RIGHT as float - PLAYER_RADIUS as float {
-                self.teammateX[i] = FIELD_RIGHT as float - PLAYER_RADIUS as float;
+            if self.teammateX[i] > (float)FIELD_RIGHT - (float)PLAYER_RADIUS {
+                self.teammateX[i] = (float)FIELD_RIGHT - PLAYER_RADIUS as float;
             }
-            if self.teammateY[i] < FIELD_TOP as float + PLAYER_RADIUS as float {
-                self.teammateY[i] = FIELD_TOP as float + PLAYER_RADIUS as float;
+            if self.teammateY[i] < (float)FIELD_TOP + (float)PLAYER_RADIUS {
+                self.teammateY[i] = (float)FIELD_TOP + PLAYER_RADIUS as float;
             }
-            if self.teammateY[i] > FIELD_BOTTOM as float - PLAYER_RADIUS as float {
-                self.teammateY[i] = FIELD_BOTTOM as float - PLAYER_RADIUS as float;
+            if self.teammateY[i] > (float)FIELD_BOTTOM - (float)PLAYER_RADIUS {
+                self.teammateY[i] = (float)FIELD_BOTTOM - PLAYER_RADIUS as float;
             }
         }
     }
@@ -307,19 +307,19 @@ pub class RugbyGame extends Game {
     fn updateDefenders(dt: u32) {
         for i in 0..self.defenderCount {
             // 找到最近的持球者
-            var targetX: float;
-            var targetY: float;
+            let targetX: float;
+            let targetY: float;
             
             if self.playerHasBall {
                 targetX = self.playerX;
                 targetY = self.playerY;
             } else {
                 // 找最近的队友
-                var nearestIdx = 0;
-                var minDist = 1000.0;
+                let nearestIdx = 0;
+                let minDist = 1000.0;
                 for j in 0..self.teammateCount {
                     if self.teammateHasBall[j] {
-                        var d = self.dist(self.teammateX[j], self.teammateY[j], 
+                        let d = self.dist(self.teammateX[j], self.teammateY[j], 
                                         self.defenderX[i], self.defenderY[i]);
                         if d < minDist {
                             minDist = d;
@@ -331,28 +331,28 @@ pub class RugbyGame extends Game {
                 targetY = self.teammateY[nearestIdx];
             }
             
-            var dx = targetX - self.defenderX[i];
-            var dy = targetY - self.defenderY[i];
-            var dist = self.sqrtF(dx * dx + dy * dy);
+            let dx = targetX - self.defenderX[i];
+            let dy = targetY - self.defenderY[i];
+            let dist = self.sqrtF(dx * dx + dy * dy);
             
             if dist > 2.0 {
-                var spd = 2.8;
+                let spd = 2.8;
                 self.defenderX[i] = self.defenderX[i] + (dx / dist) * spd;
                 self.defenderY[i] = self.defenderY[i] + (dy / dist) * spd;
             }
             
             // 边界
-            if self.defenderX[i] < FIELD_LEFT as float + PLAYER_RADIUS as float {
-                self.defenderX[i] = FIELD_LEFT as float + PLAYER_RADIUS as float;
+            if self.defenderX[i] < (float)FIELD_LEFT + (float)PLAYER_RADIUS {
+                self.defenderX[i] = (float)FIELD_LEFT + PLAYER_RADIUS as float;
             }
-            if self.defenderX[i] > FIELD_RIGHT as float - PLAYER_RADIUS as float {
-                self.defenderX[i] = FIELD_RIGHT as float - PLAYER_RADIUS as float;
+            if self.defenderX[i] > (float)FIELD_RIGHT - (float)PLAYER_RADIUS {
+                self.defenderX[i] = (float)FIELD_RIGHT - PLAYER_RADIUS as float;
             }
-            if self.defenderY[i] < FIELD_TOP as float + PLAYER_RADIUS as float {
-                self.defenderY[i] = FIELD_TOP as float + PLAYER_RADIUS as float;
+            if self.defenderY[i] < (float)FIELD_TOP + (float)PLAYER_RADIUS {
+                self.defenderY[i] = (float)FIELD_TOP + PLAYER_RADIUS as float;
             }
-            if self.defenderY[i] > FIELD_BOTTOM as float - PLAYER_RADIUS as float {
-                self.defenderY[i] = FIELD_BOTTOM as float - PLAYER_RADIUS as float;
+            if self.defenderY[i] > (float)FIELD_BOTTOM - (float)PLAYER_RADIUS {
+                self.defenderY[i] = (float)FIELD_BOTTOM - PLAYER_RADIUS as float;
             }
             
             // 检查擒抱
@@ -363,15 +363,15 @@ pub class RugbyGame extends Game {
     fn checkTackle(defIdx: int) {
         // 检查擒抱玩家
         if self.playerHasBall {
-            var dist = self.dist(self.playerX, self.playerY, 
+            let dist = self.dist(self.playerX, self.playerY, 
                                self.defenderX[defIdx], self.defenderY[defIdx]);
-            if dist < (TACKLE_DISTANCE + PLAYER_RADIUS * 2) as float {
+            if dist < (float)(TACKLE_DISTANCE + PLAYER_RADIUS * 2) {
                 // 被擒抱！
                 self.playerHasBall = false;
                 self.playerState = PlayerState.Tackled;
                 
                 // 随机给一个队友球
-                var r = self.rand() % self.teammateCount;
+                let r = self.rand() % self.teammateCount;
                 self.teammateHasBall[r] = true;
                 
                 // 重置玩家位置
@@ -387,9 +387,9 @@ pub class RugbyGame extends Game {
         // 检查擒抱队友
         for i in 0..self.teammateCount {
             if self.teammateHasBall[i] {
-                var dist = self.dist(self.teammateX[i], self.teammateY[i],
+                let dist = self.dist(self.teammateX[i], self.teammateY[i],
                                    self.defenderX[defIdx], self.defenderY[defIdx]);
-                if dist < (TACKLE_DISTANCE + PLAYER_RADIUS * 2) as float {
+                if dist < (float)(TACKLE_DISTANCE + PLAYER_RADIUS * 2) {
                     self.teammateHasBall[i] = false;
                     
                     // 给玩家或最近队友
@@ -418,19 +418,19 @@ pub class RugbyGame extends Game {
             }
             
             // 边界
-            if self.ballX < FIELD_LEFT as float {
+            if self.ballX < (float)FIELD_LEFT {
                 self.ballX = FIELD_LEFT as float;
                 self.ballVX = -self.ballVX * 0.5;
             }
-            if self.ballX > FIELD_RIGHT as float {
+            if self.ballX > (float)FIELD_RIGHT {
                 self.ballX = FIELD_RIGHT as float;
                 self.ballVX = -self.ballVX * 0.5;
             }
-            if self.ballY < FIELD_TOP as float {
+            if self.ballY < (float)FIELD_TOP {
                 self.ballY = FIELD_TOP as float;
                 self.ballVY = -self.ballVY * 0.5;
             }
-            if self.ballY > FIELD_BOTTOM as float {
+            if self.ballY > (float)FIELD_BOTTOM {
                 self.ballY = FIELD_BOTTOM as float;
                 self.ballVY = -self.ballVY * 0.5;
             }
@@ -440,7 +440,7 @@ pub class RugbyGame extends Game {
     fn checkTry() {
         // 玩家达阵
         if self.playerHasBall && 
-           self.playerY < (FIELD_TOP + TRY_ZONE_HEIGHT) as float {
+           self.playerY < (float)(FIELD_TOP + TRY_ZONE_HEIGHT) {
             self.playerState = PlayerState.Scored;
             self.score = self.score + TRY_POINTS;
             self.tryX = self.playerX as int;
@@ -458,7 +458,7 @@ pub class RugbyGame extends Game {
         // 队友达阵
         for i in 0..self.teammateCount {
             if self.teammateHasBall[i] &&
-               self.teammateY[i] < (FIELD_TOP + TRY_ZONE_HEIGHT) as float {
+               self.teammateY[i] < (float)(FIELD_TOP + TRY_ZONE_HEIGHT) {
                 self.score = self.score + TRY_POINTS;
                 self.tryX = self.teammateX[i] as int;
                 self.tryY = self.teammateY[i] as int;
@@ -512,8 +512,8 @@ pub class RugbyGame extends Game {
     }
     
     fn drawField(canvas: Canvas) {
-        var fieldColor = Color.RGB(50, 120, 50);
-        var lineColor = Color.White();
+        let fieldColor = Color.RGB(50, 120, 50);
+        let lineColor = Color.White();
         
         // 球场
         canvas.fillRect(FIELD_LEFT, FIELD_TOP, FIELD_RIGHT - FIELD_LEFT,
@@ -530,24 +530,24 @@ pub class RugbyGame extends Game {
                        TRY_ZONE_HEIGHT, Color.Yellow());
         
         // 达阵区文字
-        var font = Font.("Arial", 20);
+        let font = Font("Arial", 20);
         canvas.drawText(WINDOW_WIDTH / 2 - 40, TRY_ZONE_TOP + 20, "TRY ZONE",
                        Color.Yellow(), font);
         
         // 中场线
-        var midY = (FIELD_TOP + FIELD_BOTTOM) / 2;
+        let midY = (FIELD_TOP + FIELD_BOTTOM) / 2;
         canvas.drawLine(FIELD_LEFT, midY, FIELD_RIGHT, midY, lineColor);
         
         // 10码线
         for i in 1..5 {
-            var y = FIELD_TOP + (FIELD_BOTTOM - FIELD_TOP) * i / 5;
+            let y = FIELD_TOP + (FIELD_BOTTOM - FIELD_TOP) * i / 5;
             canvas.drawLine(FIELD_LEFT, y, FIELD_RIGHT, y, Color.ARGB(100, 255, 255, 255));
         }
         
         // 球门柱
-        var goalX = WINDOW_WIDTH / 2;
-        var goalTop = FIELD_TOP - 30;
-        var goalWidth = 80;
+        let goalX = WINDOW_WIDTH / 2;
+        let goalTop = FIELD_TOP - 30;
+        let goalWidth = 80;
         
         canvas.fillRect(goalX - 5, goalTop, 10, 40, Color.Yellow());
         canvas.fillRect(goalX - goalWidth / 2, goalTop, 5, 30, Color.Yellow());
@@ -556,8 +556,8 @@ pub class RugbyGame extends Game {
     }
     
     fn drawPlayer(canvas: Canvas) {
-        var px = self.playerX as int;
-        var py = self.playerY as int;
+        let px = self.playerX as int;
+        let py = self.playerY as int;
         
         // 阴影
         canvas.fillCircle(px + 3, py + 3, PLAYER_RADIUS, Color.ARGB(80, 0, 0, 0));
@@ -570,9 +570,9 @@ pub class RugbyGame extends Game {
         
         // 方向指示
         if self.playerVX != 0.0 || self.playerVY != 0.0 {
-            var angle = self.atan2(self.playerVY, self.playerVX);
-            var tipX = px + (self.cos(angle) * PLAYER_RADIUS * 1.5) as int;
-            var tipY = py + (self.sin(angle) * PLAYER_RADIUS * 1.5) as int;
+            let angle = self.atan2(self.playerVY, self.playerVX);
+            let tipX = px + (self.cos(angle) * PLAYER_RADIUS * 1.5) as int;
+            let tipY = py + (self.sin(angle) * PLAYER_RADIUS * 1.5) as int;
             canvas.drawLine(px, py, tipX, tipY, Color.Yellow());
         }
         
@@ -584,8 +584,8 @@ pub class RugbyGame extends Game {
     
     fn drawTeammates(canvas: Canvas) {
         for i in 0..self.teammateCount {
-            var px = self.teammateX[i] as int;
-            var py = self.teammateY[i] as int;
+            let px = self.teammateX[i] as int;
+            let py = self.teammateY[i] as int;
             
             // 阴影
             canvas.fillCircle(px + 3, py + 3, PLAYER_RADIUS, Color.ARGB(80, 0, 0, 0));
@@ -594,8 +594,8 @@ pub class RugbyGame extends Game {
             canvas.fillCircle(px, py, PLAYER_RADIUS, Color.Cyan());
             
             // 号码
-            var font = Font.("Arial", 10);
-            var num = (i + 2) as str;
+            let font = Font("Arial", 10);
+            let num = (i + 2) as str;
             canvas.drawText(px - 4, py - 5, num, Color.Black(), font);
             
             // 持球
@@ -607,8 +607,8 @@ pub class RugbyGame extends Game {
     
     fn drawDefenders(canvas: Canvas) {
         for i in 0..self.defenderCount {
-            var px = self.defenderX[i] as int;
-            var py = self.defenderY[i] as int;
+            let px = self.defenderX[i] as int;
+            let py = self.defenderY[i] as int;
             
             // 阴影
             canvas.fillCircle(px + 3, py + 3, PLAYER_RADIUS, Color.ARGB(80, 0, 0, 0));
@@ -617,16 +617,16 @@ pub class RugbyGame extends Game {
             canvas.fillCircle(px, py, PLAYER_RADIUS, Color.Red());
             
             // 号码
-            var font = Font.("Arial", 10);
-            var num = (i + 1) as str;
+            let font = Font("Arial", 10);
+            let num = (i + 1) as str;
             canvas.drawText(px - 4, py - 5, num, Color.White(), font);
         }
     }
     
     fn drawBall(canvas: Canvas) {
         if self.ballActive {
-            var bx = self.ballX as int;
-            var by = self.ballY as int;
+            let bx = self.ballX as int;
+            let by = self.ballY as int;
             
             // 阴影
             canvas.fillOval(bx + 2, by + 2, BALL_RADIUS * 2, BALL_RADIUS, Color.ARGB(80, 0, 0, 0));
@@ -638,14 +638,14 @@ pub class RugbyGame extends Game {
             // 缝线
             canvas.drawLine(bx - BALL_RADIUS + 2, by, bx + BALL_RADIUS - 2, by, Color.White());
         } else if self.playerHasBall {
-            var hx = self.playerX as int;
-            var hy = self.playerY as int;
+            let hx = self.playerX as int;
+            let hy = self.playerY as int;
             canvas.fillCircle(hx, hy - PLAYER_RADIUS - 10, BALL_RADIUS, Color.Brown());
         } else {
             for i in 0..self.teammateCount {
                 if self.teammateHasBall[i] {
-                    var hx = self.teammateX[i] as int;
-                    var hy = self.teammateY[i] as int;
+                    let hx = self.teammateX[i] as int;
+                    let hy = self.teammateY[i] as int;
                     canvas.fillCircle(hx, hy - PLAYER_RADIUS - 10, BALL_RADIUS, Color.Brown());
                 }
             }
@@ -654,42 +654,42 @@ pub class RugbyGame extends Game {
     
     fn drawEffects(canvas: Canvas) {
         if self.tryEffectTimer > 0 {
-            var alpha = (self.tryEffectTimer * 4) as u8;
+            let alpha = (self.tryEffectTimer * 4) as u8;
             
             // 光芒
             for i in 0..8 {
-                var angle = i as float * 45.0;
-                var dist = (60 - self.tryEffectTimer) as float * 2.0;
-                var sx = self.tryX + (self.cos(angle) * dist) as int;
-                var sy = self.tryY + (self.sin(angle) * dist) as int;
+                let angle = (float)i * 45.0;
+                let dist = (float)(60 - self.tryEffectTimer) * 2.0;
+                let sx = self.tryX + (self.cos(angle) * dist) as int;
+                let sy = self.tryY + (self.sin(angle) * dist) as int;
                 canvas.fillCircle(sx, sy, 10, Color.ARGB(alpha, 255, 255, 0));
             }
             
             // 文字
-            var font = Font.("Arial", 36);
+            let font = Font("Arial", 36);
             canvas.drawText(WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT / 2, "TRY!",
                            Color.Yellow(), font);
         }
     }
     
     fn drawHUD(canvas: Canvas) {
-        var font = Font.("Arial", 16);
-        var bigFont = Font.("Arial", 24);
+        let font = Font("Arial", 16);
+        let bigFont = Font("Arial", 24);
         
         // 分数
-        canvas.drawText(20, 20, "Score: " ++ self.intToString(self.score),
+        canvas.drawText(20, 20, "Score: {self}".intToString(self.score),
                         Color.White(), bigFont);
         
         // 时间
-        var mins = self.timeRemaining / 60;
-        var secs = self.timeRemaining % 60;
-        var timeStr = self.intToString(mins) ++ ":" ++
+        let mins = self.timeRemaining / 60;
+        let secs = self.timeRemaining % 60;
+        let timeStr = self.intToString(mins) ++ ":" ++
                      (if secs < 10 { "0" } else { "" }) ++ self.intToString(secs);
         canvas.drawText(WINDOW_WIDTH - 100, 20, timeStr, Color.White(), bigFont);
         
         // 提示
         if self.gameStarted && !self.gameOver {
-            var hintFont = Font.("Arial", 12);
+            let hintFont = Font("Arial", 12);
             canvas.drawText(20, WINDOW_HEIGHT - 30,
                            "Arrow keys: Move | Space: Pass | Get to TRY ZONE!",
                            Color.ARGB(150, 255, 255, 255), hintFont);
@@ -699,8 +699,8 @@ pub class RugbyGame extends Game {
     fn drawStartScreen(canvas: Canvas) {
         canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(180, 0, 0, 0));
         
-        var titleFont = Font.("Arial", 48);
-        var font = Font.("Arial", 20);
+        let titleFont = Font("Arial", 48);
+        let font = Font("Arial", 20);
         
         canvas.drawText(WINDOW_WIDTH / 2 - 100, 200, "Rugby", Color.Green(), titleFont);
         
@@ -717,15 +717,15 @@ pub class RugbyGame extends Game {
     fn drawGameOver(canvas: Canvas) {
         canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(180, 0, 0, 0));
         
-        var titleFont = Font.("Arial", 48);
-        var font = Font.("Arial", 24);
+        let titleFont = Font("Arial", 48);
+        let font = Font("Arial", 24);
         
         canvas.drawText(WINDOW_WIDTH / 2 - 100, 200, "Game Over!", Color.Yellow(), titleFont);
         
-        canvas.drawText(WINDOW_WIDTH / 2 - 80, 300, "Final Score: " ++ self.intToString(self.score),
+        canvas.drawText(WINDOW_WIDTH / 2 - 80, 300, "Final Score: {self}".intToString(self.score),
                         Color.White(), font);
         
-        var rating = "";
+        let rating = "";
         if self.score >= 50 {
             rating = "Rugby Legend!";
         } else if self.score >= 30 {
@@ -760,17 +760,17 @@ pub class RugbyGame extends Game {
         }
         
         match key {
-            VirtualKey.Left => { self.keyLeft = true; }
-            VirtualKey.Right => { self.keyRight = true; }
-            VirtualKey.Up => { self.keyUp = true; }
-            VirtualKey.Down => { self.keyDown = true; }
-            VirtualKey.Space => {
+            VirtualKey::Left => { self.keyLeft = true; }
+            VirtualKey::Right => { self.keyRight = true; }
+            VirtualKey::Up => { self.keyUp = true; }
+            VirtualKey::Down => { self.keyDown = true; }
+            VirtualKey::Space => {
                 if self.playerHasBall && !self.keySpace {
                     self.doPass();
                 }
                 self.keySpace = true;
             }
-            VirtualKey.KeyR => {
+            VirtualKey::KeyR => {
                 if self.gameOver {
                     self.onInit();
                     self.gameStarted = true;
@@ -782,11 +782,11 @@ pub class RugbyGame extends Game {
     
     fn doPass() {
         // 找最近的队友
-        var nearestIdx = 0;
-        var minDist = 1000.0;
+        let nearestIdx = 0;
+        let minDist = 1000.0;
         
         for i in 0..self.teammateCount {
-            var d = self.dist(self.playerX, self.playerY,
+            let d = self.dist(self.playerX, self.playerY,
                             self.teammateX[i], self.teammateY[i]);
             if d < minDist {
                 minDist = d;
@@ -795,11 +795,11 @@ pub class RugbyGame extends Game {
         }
         
         // 传球
-        var tmX = self.teammateX[nearestIdx];
-        var tmY = self.teammateY[nearestIdx];
-        var dx = tmX - self.playerX;
-        var dy = tmY - self.playerY;
-        var dist = self.sqrtF(dx * dx + dy * dy);
+        let tmX = self.teammateX[nearestIdx];
+        let tmY = self.teammateY[nearestIdx];
+        let dx = tmX - self.playerX;
+        let dy = tmY - self.playerY;
+        let dist = self.sqrtF(dx * dx + dy * dy);
         
         if dist > 0.0 {
             self.ballActive = true;
@@ -814,11 +814,11 @@ pub class RugbyGame extends Game {
     // onKeyUp
     pub fn onKeyUp(key: VirtualKey) {
         match key {
-            VirtualKey.Left => { self.keyLeft = false; }
-            VirtualKey.Right => { self.keyRight = false; }
-            VirtualKey.Up => { self.keyUp = false; }
-            VirtualKey.Down => { self.keyDown = false; }
-            VirtualKey.Space => { self.keySpace = false; }
+            VirtualKey::Left => { self.keyLeft = false; }
+            VirtualKey::Right => { self.keyRight = false; }
+            VirtualKey::Up => { self.keyUp = false; }
+            VirtualKey::Down => { self.keyDown = false; }
+            VirtualKey::Space => { self.keySpace = false; }
             _ => {}
         }
     }
@@ -843,15 +843,15 @@ pub class RugbyGame extends Game {
     // ============ 辅助函数 ============
     
     fn dist(x1: float, y1: float, x2: float, y2: float) -> float {
-        var dx = x2 - x1;
-        var dy = y2 - y1;
+        let dx = x2 - x1;
+        let dy = y2 - y1;
         return self.sqrtF(dx * dx + dy * dy);
     }
     
     fn sqrtF(n: float) -> float {
         if n < 0.0 { return 0.0; }
-        var x = n;
-        var y = 1.0;
+        let x = n;
+        let y = 1.0;
         while y < x {
             x = (x + y) / 2.0;
             y = n / x;
@@ -864,9 +864,9 @@ pub class RugbyGame extends Game {
     }
     
     fn sin(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = rad;
-        var term = rad;
+        let rad = x * 3.14159 / 180.0;
+        let result = rad;
+        let term = rad;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
             result = result + term;
@@ -875,9 +875,9 @@ pub class RugbyGame extends Game {
     }
     
     fn cos(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = 1.0;
-        var term = 1.0;
+        let rad = x * 3.14159 / 180.0;
+        let result = 1.0;
+        let term = 1.0;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
             result = result + term;
@@ -902,8 +902,8 @@ pub class RugbyGame extends Game {
     
     fn atan(x: float) -> float {
         // 简化版 atan
-        var result = x;
-        var term = x;
+        let result = x;
+        let term = x;
         for i in 1..10 {
             term = term * (-x * x);
             result = result + term / (2 * i + 1);
@@ -912,18 +912,18 @@ pub class RugbyGame extends Game {
     }
     
     fn rand() -> u32 {
-        static var seed: u32 = 12345;
+        static let seed: u32 = 12345;
         seed = seed * 1103515245 + 12345;
         return seed;
     }
     
     fn intToString(n: int) -> str {
         if n == 0 { return "0"; }
-        var result = "";
-        var num = n;
+        let result = "";
+        let num = n;
         while num > 0 {
-            var digit = num % 10;
-            result = (digit as char + "") ++ result;
+            let digit = num % 10;
+            result = ((char)digit + "") ++ result;
             num = num / 10;
         }
         return result;

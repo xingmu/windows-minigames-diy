@@ -1,34 +1,34 @@
 // game_logic.zc - 足球点球游戏逻辑模块
 // 纯Zen-C代码，所有平台共用
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
 // 球门尺寸
-const GOAL_WIDTH: i32 = 300;
-const GOAL_HEIGHT: i32 = 100;
-const GOAL_Y: i32 = 50;  // 球门在游戏区域的Y位置
+def GOAL_WIDTH: i32 = 300;
+def GOAL_HEIGHT: i32 = 100;
+def GOAL_Y: i32 = 50;  // 球门在游戏区域的Y位置
 
 // 球参数
-const BALL_RADIUS: i32 = 12;
-const BALL_START_X: i32 = 400;
-const BALL_START_Y: i32 = 500;
-const BALL_SPEED: f64 = 15.0;
+def BALL_RADIUS: i32 = 12;
+def BALL_START_X: i32 = 400;
+def BALL_START_Y: i32 = 500;
+def BALL_SPEED: f64 = 15.0;
 
 // 守门员参数
-const KEEPER_WIDTH: i32 = 50;
-const KEEPER_HEIGHT: i32 = 70;
-const KEEPER_Y: i32 = GOAL_Y + GOAL_HEIGHT - KEEPER_HEIGHT;
-const KEEPER_SPEED: i32 = 8;
+def KEEPER_WIDTH: i32 = 50;
+def KEEPER_HEIGHT: i32 = 70;
+def KEEPER_Y: i32 = GOAL_Y + GOAL_HEIGHT - KEEPER_HEIGHT;
+def KEEPER_SPEED: i32 = 8;
 
 // 游戏区域
-const FIELD_WIDTH: i32 = 800;
-const FIELD_HEIGHT: i32 = 600;
+def FIELD_WIDTH: i32 = 800;
+def FIELD_HEIGHT: i32 = 600;
 
 // 射门次数
-const MAX_SHOTS: i32 = 5;
+def MAX_SHOTS: i32 = 5;
 
 // ==================== 数据结构 ====================
 
@@ -223,8 +223,8 @@ fn update_keeper(game: &mut GameState) {
     // 简化AI：根据球的速度预测落点
     if game.ball.active && game.ball.vy < 0.0 {
         // 球正在飞向球门
-        let predict_time = (KEEPER_Y - game.ball.y as i32) as f64 / (-game.ball.vy);
-        let predict_x = game.ball.x as i32 + (game.ball.vx * predict_time) as i32;
+        let predict_time = (KEEPER_Y - game.ball.(i32)y) as f64 / (-game.ball.vy);
+        let predict_x = game.ball.(i32)x + (game.ball.vx * predict_time) as i32;
         
         // 守门员向左或向右扑救
         let keeper_center = game.keeper.x + game.keeper.width / 2;
@@ -282,7 +282,7 @@ fn update_ball(game: &mut GameState) {
     if game.ball.y <= game.goal.y + game.goal.height {
         // 检查是否进球
         let ball_center_x = game.ball.x as i32;
-        let ball_top = game.ball.y as i32 - game.ball.radius;
+        let ball_top = game.ball.(i32)y - game.ball.radius;
         
         // 球必须完全越过球门线
         if ball_top <= game.goal.y + game.goal.height && ball_top >= game.goal.y {
@@ -293,8 +293,8 @@ fn update_ball(game: &mut GameState) {
                 // 检查是否被守门员扑出
                 let keeper_rect = rect_make(game.keeper.x - 10, game.keeper.y - 10, 
                                            game.keeper.width + 20, game.keeper.height + 20);
-                let ball_rect = rect_make(game.ball.x as i32 - game.ball.radius,
-                                          game.ball.y as i32 - game.ball.radius,
+                let ball_rect = rect_make(game.ball.(i32)x - game.ball.radius,
+                                          game.ball.(i32)y - game.ball.radius,
                                           game.ball.radius * 2, game.ball.radius * 2);
                 
                 if !rect_intersect(keeper_rect, ball_rect) {
@@ -369,17 +369,17 @@ fn restart_game(game: &mut GameState) {
 }
 
 // 获取当前状态文本
-fn get_status_text(game: &GameState) -> string {
+fn get_status_text(game: GameState*) -> string {
     match game.phase {
-        GamePhase.Aiming => "瞄准目标，点击射门！",
-        GamePhase.Shooting => "球飞行中...",
-        GamePhase.Result => if game.scored { "进球！🎉" } else { "扑出来了！守门员好样的！" },
-        GamePhase.GameEnd => "游戏结束！",
+        GamePhase::Aiming => "瞄准目标，点击射门！",
+        GamePhase::Shooting => "球飞行中...",
+        GamePhase::Result => if game.scored { "进球！🎉" } else { "扑出来了！守门员好样的！" },
+        GamePhase::GameEnd => "游戏结束！",
     }
 }
 
 // 获取比分文本
-fn get_score_text(game: &GameState) -> string {
+fn get_score_text(game: GameState*) -> string {
     format("进球: {} / 射门: {} ({}/{})", 
            game.score, game.shots, game.score, game.total_shots)
 }

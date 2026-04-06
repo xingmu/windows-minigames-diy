@@ -1,8 +1,8 @@
 // main_window.zc - Zen-C 9-Ball Pool 台球游戏主程序
 // 经典美式9球玩法
 
-import std.io;
-import std.math;
+import "io.zc";
+import "math.zc";
 
 // 导入平台API
 import "platform_api.zc";
@@ -27,7 +27,7 @@ fn fb_set_pixel(x: i32, y: i32, color: Color) {
         return;
     }
     let offset = y * (fb_pitch / 4) + x;
-    let pixels = fb_buffer as u32 mut;
+    let pixels = (u32)fb_buffer mut;
     pixels[offset] = color;
 }
 
@@ -166,7 +166,7 @@ fn sin(angle: i32) -> i32 {
 
 fn fb_clear(color: Color) {
     let count = fb_pitch * fb_height / 4;
-    let pixels = fb_buffer as u32 mut;
+    let pixels = (u32)fb_buffer mut;
     for i in 0..count {
         pixels[i] = color;
     }
@@ -180,7 +180,7 @@ fn fb_present() {
 
 // ==================== 绘制函数 ====================
 
-fn drawBall(ball: &Ball) {
+fn drawBall(ball: Ball*) {
     if !ball.active || ball.pocketed {
         return;
     }
@@ -278,7 +278,7 @@ fn draw_table() {
     fb_draw_rect(0, TABLE_BOTTOM + 5, GAME_WIDTH - 1, GAME_HEIGHT - TABLE_BOTTOM - 6, woodLight);
 }
 
-fn drawAimLine(state: &NineBallState) {
+fn drawAimLine(state: NineBallState*) {
     if !state.cueBall.pocketed && (state.phase == GamePhase.Dragging || state.phase == GamePhase.Aiming) {
         let cue = state.cueBall;
         
@@ -350,8 +350,8 @@ fn draw_text(x: i32, y: i32, text: string, color: Color, size: i32) {
     let charW = size * 3 / 4;
     let charH = size;
 
-    var px = x;
-    var py = y;
+    let px = x;
+    let py = y;
 
     for i in 0..len(text) {
         if text[i] == ' ' {
@@ -392,7 +392,7 @@ fn render_game() {
     drawAimLine(&game);
 
     // 绘制UI
-    let info = "分数: " ++ game.score.toString() ++ "  击球: " ++ game.shots.toString() ++ "  连击: " ++ game.combo.toString();
+    let info = "分数: {game}"."{score}  击球: {game}"."{shots}  连击: {game}".combo.toString();
     draw_text(10, 8, info, Color.Yellow(), 16);
 
     let title = "9-Ball Pool";
@@ -473,9 +473,9 @@ fn handle_timer() {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 9-Ball Pool 台球游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 9-Ball Pool 台球游戏";
+    io.println "========================================";
 
     // 初始化游戏
     init_game(&mut game);
@@ -485,7 +485,7 @@ fn main() -> i32 {
     window = createWindow(title, GAME_WIDTH, GAME_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
@@ -493,25 +493,25 @@ fn main() -> i32 {
     fb_buffer = getFrameBuffer(window);
     fb_pitch = getFrameBufferPitch(window);
 
-    io.println("窗口创建成功!");
-    io.println("目标: 按顺序打入1-9号球");
-    io.println("9号球进袋即获胜!");
-    io.println("按R重新开始, ESC退出");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "目标: 按顺序打入1-9号球";
+    io.println "9号球进袋即获胜!";
+    io.println "按R重新开始, ESC退出";
+    io.println "========================================";
 
     // 游戏主循环
-    var lastTick: u32 = 0;
+    let lastTick: u32 = 0;
     let frameTime: u32 = 16;  // ~60 FPS
 
     while running {
         // 处理事件
-        var event = Event.{};
+        let event = Event{};
         while pollEvent(window, &event) {
             match event.msg {
-                MessageType.Quit => {
+                MessageType::Quit => {
                     running = false;
                 }
-                MessageType.KeyDown => {
+                MessageType::KeyDown => {
                     if event.key.key == VirtualKey.Escape {
                         running = false;
                     } else if event.key.key == VirtualKey.KeyR {
@@ -526,19 +526,19 @@ fn main() -> i32 {
                     }
                     handle_key(event.key.key);
                 }
-                MessageType.KeyUp => {
+                MessageType::KeyUp => {
                     // handle_key_up(event.key.key);
                 }
-                MessageType.MouseDown => {
+                MessageType::MouseDown => {
                     handle_mouse_down(event.mouse.x, event.mouse.y, event.mouse.button);
                 }
-                MessageType.MouseUp => {
+                MessageType::MouseUp => {
                     handle_mouse_up(event.mouse.x, event.mouse.y, event.mouse.button);
                 }
-                MessageType.MouseMove => {
+                MessageType::MouseMove => {
                     handle_mouse_move(event.mouse.x, event.mouse.y);
                 }
-                MessageType.Resize => {
+                MessageType::Resize => {
                     fb_width = event.width;
                     fb_height = event.height;
                 }
@@ -565,7 +565,7 @@ fn main() -> i32 {
         closeWindow(window);
     }
 
-    io.println("游戏结束!");
+    io.println "游戏结束!";
     return 0;
 }
 

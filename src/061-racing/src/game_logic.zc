@@ -1,22 +1,22 @@
 // game_logic.zc - 俯视角赛车游戏纯逻辑
 // 所有平台共用相同的游戏逻辑代码
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
-const TRACK_WIDTH: i32 = 800;
-const TRACK_HEIGHT: i32 = 600;
-const CAR_WIDTH: i32 = 20;
-const CAR_HEIGHT: i32 = 32;
-const MAX_SPEED: f32 = 8.0;
-const ACCELERATION: f32 = 0.15;
-const BRAKE_POWER: f32 = 0.25;
-const FRICTION: f32 = 0.02;
-const TURN_SPEED: f32 = 0.06;
-const OFF_TRACK_SPEED_MULT: f32 = 0.4;
-const TOTAL_LAPS: i32 = 3;
+def TRACK_WIDTH: i32 = 800;
+def TRACK_HEIGHT: i32 = 600;
+def CAR_WIDTH: i32 = 20;
+def CAR_HEIGHT: i32 = 32;
+def MAX_SPEED: f32 = 8.0;
+def ACCELERATION: f32 = 0.15;
+def BRAKE_POWER: f32 = 0.25;
+def FRICTION: f32 = 0.02;
+def TURN_SPEED: f32 = 0.06;
+def OFF_TRACK_SPEED_MULT: f32 = 0.4;
+def TOTAL_LAPS: i32 = 3;
 
 // 车的状态
 enum CarState {
@@ -26,7 +26,7 @@ enum CarState {
 }
 
 // 检查点数量
-const NUM_CHECKPOINTS: i32 = 4;
+def NUM_CHECKPOINTS: i32 = 4;
 
 // ==================== 数据结构 ====================
 
@@ -85,15 +85,15 @@ struct GameState {
 // ==================== 赛道定义 ====================
 
 // 赛道边界 (矩形赛道带圆角)
-const TRACK_MARGIN: i32 = 60;       // 赛道外边距
-const TRACK_BORDER: i32 = 30;       // 边界线宽度
-const TRACK_CORNER_R: i32 = 80;     // 弯道半径
+def TRACK_MARGIN: i32 = 60;       // 赛道外边距
+def TRACK_BORDER: i32 = 30;       // 边界线宽度
+def TRACK_CORNER_R: i32 = 80;     // 弯道半径
 
 // 起点线位置
-const START_LINE_X: i32 = 400;
-const START_LINE_Y: i32 = 480;
-const START_LINE_W: i32 = 80;
-const START_LINE_H: i32 = 10;
+def START_LINE_X: i32 = 400;
+def START_LINE_Y: i32 = 480;
+def START_LINE_W: i32 = 80;
+def START_LINE_H: i32 = 10;
 
 // ==================== 游戏逻辑函数 ====================
 
@@ -156,19 +156,19 @@ fn init_game(game: &mut GameState) {
 fn handle_input(game: &mut GameState, key: i32, pressed: bool) -> bool {
     match key {
         // 上
-        38 | 87 | 119 => {
+        38 || 87 || 119 => {
             game.key_up = pressed;
         },
         // 下
-        40 | 83 | 115 => {
+        40 || 83 || 115 => {
             game.key_down = pressed;
         },
         // 左
-        37 | 65 | 97 => {
+        37 || 65 || 97 => {
             game.key_left = pressed;
         },
         // 右
-        39 | 68 | 100 => {
+        39 || 68 || 100 => {
             game.key_right = pressed;
         },
         // 空格 - 暂停
@@ -189,10 +189,10 @@ fn handle_input(game: &mut GameState, key: i32, pressed: bool) -> bool {
 // 设置按键状态 (用于持续按键检测)
 fn set_key_state(game: &mut GameState, key: i32, pressed: bool) {
     match key {
-        38 | 87 | 119 => game.key_up = pressed,
-        40 | 83 | 115 => game.key_down = pressed,
-        37 | 65 | 97 => game.key_left = pressed,
-        39 | 68 | 100 => game.key_right = pressed,
+        38 || 87 || 119 => game.key_up = pressed,
+        40 || 83 || 115 => game.key_down = pressed,
+        37 || 65 || 97 => game.key_left = pressed,
+        39 || 68 || 100 => game.key_right = pressed,
         _ => {}
     }
 }
@@ -244,7 +244,7 @@ fn update_car(game: &mut GameState) {
     }
     
     // 检查是否在赛道上
-    let on_track = is_on_track(game.car.x as i32, game.car.y as i32);
+    let on_track = is_on_track(game.car.(i32)x, game.car.(i32)y);
     if !on_track {
         game.car.state = CarState::OffTrack;
         // 赛道外减速
@@ -380,57 +380,57 @@ fn update_game(game: &mut GameState) {
 }
 
 // 获取赛车位置
-fn get_car_position(game: &GameState) -> Vec2 {
+fn get_car_position(game: GameState*) -> Vec2 {
     Vec2 { x: game.car.x, y: game.car.y }
 }
 
 // 获取赛车角度 (弧度)
-fn get_car_angle(game: &GameState) -> f32 {
+fn get_car_angle(game: GameState*) -> f32 {
     game.car.angle
 }
 
 // 获取赛车速度
-fn get_car_speed(game: &GameState) -> f32 {
+fn get_car_speed(game: GameState*) -> f32 {
     game.car.speed
 }
 
 // 获取赛车状态
-fn get_car_state(game: &GameState) -> CarState {
+fn get_car_state(game: GameState*) -> CarState {
     game.car.state
 }
 
 // 获取当前圈数
-fn get_lap(game: &GameState) -> i32 {
+fn get_lap(game: GameState*) -> i32 {
     game.lap
 }
 
 // 获取当前检查点索引
-fn get_current_checkpoint(game: &GameState) -> i32 {
+fn get_current_checkpoint(game: GameState*) -> i32 {
     game.current_checkpoint
 }
 
 // 获取比赛是否完成
-fn is_race_finished(game: &GameState) -> bool {
+fn is_race_finished(game: GameState*) -> bool {
     game.race_finished
 }
 
 // 获取暂停状态
-fn is_paused(game: &GameState) -> bool {
+fn is_paused(game: GameState*) -> bool {
     game.paused
 }
 
 // 获取游戏是否结束
-fn is_game_over(game: &GameState) -> bool {
+fn is_game_over(game: GameState*) -> bool {
     game.game_over
 }
 
 // 获取最后圈时间 (毫秒)
-fn get_last_lap_time(game: &GameState) -> i64 {
+fn get_last_lap_time(game: GameState*) -> i64 {
     game.last_lap_time
 }
 
 // 获取最佳圈时间 (毫秒)
-fn get_best_lap_time(game: &GameState) -> i64 {
+fn get_best_lap_time(game: GameState*) -> i64 {
     game.best_lap_time
 }
 
@@ -449,28 +449,28 @@ fn format_time(ms: i64) -> string {
 }
 
 // 获取速度百分比 (0-100)
-fn get_speed_percent(game: &GameState) -> i32 {
+fn get_speed_percent(game: GameState*) -> i32 {
     let percent = (math.abs(game.car.speed) / MAX_SPEED * 100.0) as i32;
     if percent > 100 { 100 } else { percent }
 }
 
 // 获取圈数文本
-fn get_lap_text(game: &GameState) -> string {
+fn get_lap_text(game: GameState*) -> string {
     format("LAP {}/{}", game.lap, TOTAL_LAPS)
 }
 
 // 获取检查点文本
-fn get_checkpoint_text(game: &GameState) -> string {
+fn get_checkpoint_text(game: GameState*) -> string {
     format("CP {}/{}", game.current_checkpoint, NUM_CHECKPOINTS)
 }
 
 // 获取速度文本
-fn get_speed_text(game: &GameState) -> string {
+fn get_speed_text(game: GameState*) -> string {
     format("{} km/h", get_speed_percent(game) * 2)
 }
 
 // 获取游戏状态文本
-fn get_game_status_text(game: &GameState) -> string {
+fn get_game_status_text(game: GameState*) -> string {
     if game.race_finished {
         return "🏁 比赛完成!";
     } else if game.paused {

@@ -1,12 +1,12 @@
 // mahjong_logic.zc - 麻将游戏核心逻辑
 // 麻将牌定义、AI、吃碰杠胡判定
 
-import std.io;
+import "io.zc";
 
 // ==================== 麻将牌定义 ====================
 
 // 牌的类型
-pub type TileType = enum {
+enum TileType {
     // 万子 1-9
     Wan1, Wan2, Wan3, Wan4, Wan5, Wan6, Wan7, Wan8, Wan9,
     // 筒子 1-9
@@ -20,7 +20,7 @@ pub type TileType = enum {
 };
 
 // 牌的花色
-pub type TileSuit = enum {
+enum TileSuit {
     Wan,    // 万子
     Tong,   // 筒子
     Suo,    // 索子
@@ -31,20 +31,20 @@ pub type TileSuit = enum {
 // 获取牌的花色
 pub fn getTileSuit(tile: TileType) -> TileSuit {
     match tile {
-        TileType.Wan1...TileType.Wan9 => return TileSuit.Wan,
-        TileType.Tong1...TileType.Tong9 => return TileSuit.Tong,
-        TileType.Suo1...TileType.Suo9 => return TileSuit.Suo,
-        TileType.Dong...TileType.Bei => return TileSuit.Feng,
-        TileType.Zhong, TileType.Fa, TileType.Bai => return TileSuit.Yuan,
+        TileType.Wan1...TileType::Wan9 => return TileSuit.Wan,
+        TileType.Tong1...TileType::Tong9 => return TileSuit.Tong,
+        TileType.Suo1...TileType::Suo9 => return TileSuit.Suo,
+        TileType.Dong...TileType::Bei => return TileSuit.Feng,
+        TileType.Zhong, TileType.Fa, TileType::Bai => return TileSuit.Yuan,
     }
 }
 
 // 获取牌的值（1-9对于数牌，0对于字牌）
 pub fn getTileValue(tile: TileType) -> int {
     match tile {
-        TileType.Wan1...TileType.Wan9 => return (tile as int - TileType.Wan1 as int) + 1,
-        TileType.Tong1...TileType.Tong9 => return (tile as int - TileType.Tong1 as int) + 1,
-        TileType.Suo1...TileType.Suo9 => return (tile as int - TileType.Suo1 as int) + 1,
+        TileType.Wan1...TileType::Wan9 => return ((int)tile - TileType(int)Wan1) + 1,
+        TileType.Tong1...TileType::Tong9 => return ((int)tile - TileType(int)Tong1) + 1,
+        TileType.Suo1...TileType::Suo9 => return ((int)tile - TileType(int)Suo1) + 1,
         _ => return 0,
     }
 }
@@ -52,98 +52,98 @@ pub fn getTileValue(tile: TileType) -> int {
 // 获取牌的名称
 pub fn getTileName(tile: TileType) -> str {
     match tile {
-        TileType.Wan1 => return "一万",
-        TileType.Wan2 => return "二万",
-        TileType.Wan3 => return "三万",
-        TileType.Wan4 => return "四万",
-        TileType.Wan5 => return "五万",
-        TileType.Wan6 => return "六万",
-        TileType.Wan7 => return "七万",
-        TileType.Wan8 => return "八万",
-        TileType.Wan9 => return "九万",
-        TileType.Tong1 => return "一筒",
-        TileType.Tong2 => return "二筒",
-        TileType.Tong3 => return "三筒",
-        TileType.Tong4 => return "四筒",
-        TileType.Tong5 => return "五筒",
-        TileType.Tong6 => return "六筒",
-        TileType.Tong7 => return "七筒",
-        TileType.Tong8 => return "八筒",
-        TileType.Tong9 => return "九筒",
-        TileType.Suo1 => return "一条",
-        TileType.Suo2 => return "二条",
-        TileType.Suo3 => return "三条",
-        TileType.Suo4 => return "四条",
-        TileType.Suo5 => return "五条",
-        TileType.Suo6 => return "六条",
-        TileType.Suo7 => return "七条",
-        TileType.Suo8 => return "八条",
-        TileType.Suo9 => return "九条",
-        TileType.Dong => return "东风",
-        TileType.Nan => return "南风",
-        TileType.Xi => return "西风",
-        TileType.Bei => return "北风",
-        TileType.Zhong => return "红中",
-        TileType.Fa => return "发财",
-        TileType.Bai => return "白板",
+        TileType::Wan1 => return "一万",
+        TileType::Wan2 => return "二万",
+        TileType::Wan3 => return "三万",
+        TileType::Wan4 => return "四万",
+        TileType::Wan5 => return "五万",
+        TileType::Wan6 => return "六万",
+        TileType::Wan7 => return "七万",
+        TileType::Wan8 => return "八万",
+        TileType::Wan9 => return "九万",
+        TileType::Tong1 => return "一筒",
+        TileType::Tong2 => return "二筒",
+        TileType::Tong3 => return "三筒",
+        TileType::Tong4 => return "四筒",
+        TileType::Tong5 => return "五筒",
+        TileType::Tong6 => return "六筒",
+        TileType::Tong7 => return "七筒",
+        TileType::Tong8 => return "八筒",
+        TileType::Tong9 => return "九筒",
+        TileType::Suo1 => return "一条",
+        TileType::Suo2 => return "二条",
+        TileType::Suo3 => return "三条",
+        TileType::Suo4 => return "四条",
+        TileType::Suo5 => return "五条",
+        TileType::Suo6 => return "六条",
+        TileType::Suo7 => return "七条",
+        TileType::Suo8 => return "八条",
+        TileType::Suo9 => return "九条",
+        TileType::Dong => return "东风",
+        TileType::Nan => return "南风",
+        TileType::Xi => return "西风",
+        TileType::Bei => return "北风",
+        TileType::Zhong => return "红中",
+        TileType::Fa => return "发财",
+        TileType::Bai => return "白板",
     }
 }
 
 // 获取牌的显示字符（用于UI）
 pub fn getTileChar(tile: TileType) -> str {
     match tile {
-        TileType.Wan1 => return "1W",
-        TileType.Wan2 => return "2W",
-        TileType.Wan3 => return "3W",
-        TileType.Wan4 => return "4W",
-        TileType.Wan5 => return "5W",
-        TileType.Wan6 => return "6W",
-        TileType.Wan7 => return "7W",
-        TileType.Wan8 => return "8W",
-        TileType.Wan9 => return "9W",
-        TileType.Tong1 => return "1T",
-        TileType.Tong2 => return "2T",
-        TileType.Tong3 => return "3T",
-        TileType.Tong4 => return "4T",
-        TileType.Tong5 => return "5T",
-        TileType.Tong6 => return "6T",
-        TileType.Tong7 => return "7T",
-        TileType.Tong8 => return "8T",
-        TileType.Tong9 => return "9T",
-        TileType.Suo1 => return "1S",
-        TileType.Suo2 => return "2S",
-        TileType.Suo3 => return "3S",
-        TileType.Suo4 => return "4S",
-        TileType.Suo5 => return "5S",
-        TileType.Suo6 => return "6S",
-        TileType.Suo7 => return "7S",
-        TileType.Suo8 => return "8S",
-        TileType.Suo9 => return "9S",
-        TileType.Dong => return "D",
-        TileType.Nan => return "N",
-        TileType.Xi => return "X",
-        TileType.Bei => return "B",
-        TileType.Zhong => return "Z",
-        TileType.Fa => return "F",
-        TileType.Bai => return "W",
+        TileType::Wan1 => return "1W",
+        TileType::Wan2 => return "2W",
+        TileType::Wan3 => return "3W",
+        TileType::Wan4 => return "4W",
+        TileType::Wan5 => return "5W",
+        TileType::Wan6 => return "6W",
+        TileType::Wan7 => return "7W",
+        TileType::Wan8 => return "8W",
+        TileType::Wan9 => return "9W",
+        TileType::Tong1 => return "1T",
+        TileType::Tong2 => return "2T",
+        TileType::Tong3 => return "3T",
+        TileType::Tong4 => return "4T",
+        TileType::Tong5 => return "5T",
+        TileType::Tong6 => return "6T",
+        TileType::Tong7 => return "7T",
+        TileType::Tong8 => return "8T",
+        TileType::Tong9 => return "9T",
+        TileType::Suo1 => return "1S",
+        TileType::Suo2 => return "2S",
+        TileType::Suo3 => return "3S",
+        TileType::Suo4 => return "4S",
+        TileType::Suo5 => return "5S",
+        TileType::Suo6 => return "6S",
+        TileType::Suo7 => return "7S",
+        TileType::Suo8 => return "8S",
+        TileType::Suo9 => return "9S",
+        TileType::Dong => return "D",
+        TileType::Nan => return "N",
+        TileType::Xi => return "X",
+        TileType::Bei => return "B",
+        TileType::Zhong => return "Z",
+        TileType::Fa => return "F",
+        TileType::Bai => return "W",
     }
 }
 
 // 牌的颜色（用于UI显示）
 pub fn getTileColor(tile: TileType) -> (u8, u8, u8) {
-    var suit = getTileSuit(tile);
+    let suit = getTileSuit(tile);
     match suit {
-        TileSuit.Wan => return (200, 100, 100),    // 红色系
-        TileSuit.Tong => return (100, 150, 220),   // 蓝色系
-        TileSuit.Suo => return (100, 180, 100),    // 绿色系
-        TileSuit.Feng => return (180, 180, 180),   // 灰色
-        TileSuit.Yuan => return (220, 200, 100),   // 金色
+        TileSuit::Wan => return (200, 100, 100),    // 红色系
+        TileSuit::Tong => return (100, 150, 220),   // 蓝色系
+        TileSuit::Suo => return (100, 180, 100),    // 绿色系
+        TileSuit::Feng => return (180, 180, 180),   // 灰色
+        TileSuit::Yuan => return (220, 200, 100),   // 金色
     }
 }
 
 // ==================== 操作类型 ====================
 
-pub type OperationType = enum {
+enum OperationType {
     None,   // 无操作
     Chi,    // 吃
     Peng,   // 碰
@@ -184,21 +184,21 @@ pub struct PlayerOperation {
 // ==================== 玩家数据 ====================
 
 // 手牌（已排序）
-const MAX_HAND_TILES = 16;
+def MAX_HAND_TILES = 16;
 
 // 玩家的牌组（吃、碰、杠的牌）
 pub struct Melds {
-    pub chi: [TileType; 3];       // 吃牌（3张）
-    pub peng: [TileType; 3];       // 碰牌（3张）
-    pub gang: [TileType; 4];       // 杠牌（4张）
-    pub hasChi: bool;
-    pub hasPeng: bool;
-    pub hasGang: bool;
+    chi: [TileType; 3];       // 吃牌（3张）
+    peng: [TileType; 3];       // 碰牌（3张）
+    gang: [TileType; 4];       // 杠牌（4张）
+    hasChi: bool;
+    hasPeng: bool;
+    hasGang: bool;
 }
 
 pub impl Melds {
     pub fn new() -> Melds {
-        return Melds.{
+        return Melds {
             chi: [TileType.Wan1, TileType.Wan1, TileType.Wan1],
             peng: [TileType.Wan1, TileType.Wan1, TileType.Wan1],
             gang: [TileType.Wan1, TileType.Wan1, TileType.Wan1, TileType.Wan1],
@@ -211,7 +211,7 @@ pub impl Melds {
 
 // ==================== 牌堆管理 ====================
 
-const WALL_SIZE = 144;  // 正式麻将144张
+def WALL_SIZE = 144;  // 正式麻将144张
 
 // 牌墙
 pub struct TileWall {
@@ -222,7 +222,7 @@ pub struct TileWall {
 
 pub impl TileWall {
     pub fn new() -> TileWall {
-        return TileWall.{
+        return TileWall {
             tiles: [TileType.Wan1; WALL_SIZE],
             top: WALL_SIZE,
             dice: [0, 0],
@@ -232,7 +232,7 @@ pub impl TileWall {
     // 初始化牌墙（洗牌）
     pub fn shuffle(&mut self) {
         // 初始化所有牌
-        var index = 0;
+        let index = 0;
         // 每种牌4张
         for t in TileType.Wan1...TileType.Wan9 {
             for i in 0..4 {
@@ -268,8 +268,8 @@ pub impl TileWall {
         // 洗牌（Fisher-Yates算法）
         setRandomSeed(getTickCount());
         for i in (WALL_SIZE - 1)..0 {
-            var j = randInt(0, i);
-            var temp = self.tiles[i];
+            let j = randInt(0, i);
+            let temp = self.tiles[i];
             self.tiles[i] = self.tiles[j];
             self.tiles[j] = temp;
         }
@@ -288,7 +288,7 @@ pub impl TileWall {
         if self.top < 0 {
             return TileType.Wan1;  // 无牌可摸
         }
-        var tile = self.tiles[self.top];
+        let tile = self.tiles[self.top];
         self.top = self.top - 1;
         return tile;
     }
@@ -301,7 +301,7 @@ pub impl TileWall {
 
 // ==================== 胡牌判定 ====================
 
-const MAX_HAND_SIZE = 16;
+def MAX_HAND_SIZE = 16;
 
 // 牌组计数
 struct TileCount {
@@ -309,7 +309,7 @@ struct TileCount {
 }
 
 fn newTileCount() -> TileCount {
-    return TileCount.{ counts: [0; 34] };
+    return TileCount { counts: [0; 34] };
 }
 
 fn tileToIndex(t: TileType) -> int {
@@ -322,9 +322,9 @@ fn indexToTile(idx: int) -> TileType {
 
 // 统计手牌
 fn countTiles(hand: &[TileType; MAX_HAND_SIZE], handSize: int) -> TileCount {
-    var count = newTileCount();
+    let count = newTileCount();
     for i in 0..handSize {
-        var idx = tileToIndex(hand[i]);
+        let idx = tileToIndex(hand[i]);
         count.counts[idx] = count.counts[idx] + 1;
     }
     return count;
@@ -340,7 +340,7 @@ pub fn canHu(hand: &[TileType; MAX_HAND_SIZE], handSize: int) -> bool {
         return false;
     }
     
-    var count = countTiles(hand, handSize);
+    let count = countTiles(hand, handSize);
     
     // 首先尝试找到一个对子作为将牌
     for i in 0..34 {
@@ -364,7 +364,7 @@ pub fn canHu(hand: &[TileType; MAX_HAND_SIZE], handSize: int) -> bool {
 // 检查能否组成所有面子（递归版本）
 fn canFormMeld(counts: &[int; 34]) -> bool {
     // 找到第一个有牌的索引
-    var first = -1;
+    let first = -1;
     for i in 0..34 {
         if counts[i] > 0 {
             first = i;
@@ -376,11 +376,11 @@ fn canFormMeld(counts: &[int; 34]) -> bool {
         return true;  // 所有牌都处理完了
     }
     
-    var count = counts[first];
+    let count = counts[first];
     
     // 刻子（3张相同的牌）
     if count >= 3 {
-        var newCounts = counts;
+        let newCounts = counts;
         newCounts[first] = newCounts[first] - 3;
         return canFormMeld(newCounts);
     }
@@ -388,17 +388,17 @@ fn canFormMeld(counts: &[int; 34]) -> bool {
     // 顺子（对于数牌，1-9同花色连续3张）
     // Wan: 0-8, Tong: 9-17, Suo: 18-26
     if first <= 24 {  // 可以组成顺子的范围
-        var suit = first / 9;
-        var value = first % 9;
+        let suit = first / 9;
+        let value = first % 9;
         
         // 检查是否是数牌
         if suit < 3 {
             // 检查能否组成顺子
-            var next1 = suit * 9 + value + 1;
-            var next2 = suit * 9 + value + 2;
+            let next1 = suit * 9 + value + 1;
+            let next2 = suit * 9 + value + 2;
             
             if value <= 6 && counts[next1] > 0 && counts[next2] > 0 {
-                var newCounts = counts;
+                let newCounts = counts;
                 newCounts[first] = newCounts[first] - 1;
                 newCounts[next1] = newCounts[next1] - 1;
                 newCounts[next2] = newCounts[next2] - 1;
@@ -420,18 +420,18 @@ pub fn canChi(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
         return false;
     }
     
-    var suit = getTileSuit(discardedTile);
+    let suit = getTileSuit(discardedTile);
     
     // 字牌不能吃
     if suit == TileSuit.Feng || suit == TileSuit.Yuan {
         return false;
     }
     
-    var value = getTileValue(discardedTile);
+    let value = getTileValue(discardedTile);
     
     // 统计手牌
-    var count = countTiles(hand, handSize);
-    var idx = tileToIndex(discardedTile);
+    let count = countTiles(hand, handSize);
+    let idx = tileToIndex(discardedTile);
     
     // 检查是否能组成顺子
     // 对于吃的牌，有3种情况：
@@ -441,10 +441,10 @@ pub fn canChi(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
     
     // 情况1: [X-1, X, X+1] - 吃的牌在中间
     if value >= 2 && value <= 8 {
-        var suitIdx = suit as int * 9;
-        var idx1 = suitIdx + value - 2;  // X-1
-        var idx2 = suitIdx + value - 1;  // X (这张是摸的)
-        var idx3 = suitIdx + value;      // X+1
+        let suitIdx = (int)suit * 9;
+        let idx1 = suitIdx + value - 2;  // X-1
+        let idx2 = suitIdx + value - 1;  // X (这张是摸的)
+        let idx3 = suitIdx + value;      // X+1
         
         if count.counts[idx1] >= 1 && count.counts[idx3] >= 1 {
             return true;
@@ -453,10 +453,10 @@ pub fn canChi(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
     
     // 情况2: 吃的牌是最小的那张，如吃2，需要1,2,3中的2
     if value >= 2 && value <= 9 {
-        var suitIdx = suit as int * 9;
-        var idx1 = suitIdx + value - 2;  // value-1 (需要这张)
-        var idx2 = suitIdx + value - 1;  // value (摸的牌)
-        var idx3 = suitIdx + value;      // value+1
+        let suitIdx = (int)suit * 9;
+        let idx1 = suitIdx + value - 2;  // value-1 (需要这张)
+        let idx2 = suitIdx + value - 1;  // value (摸的牌)
+        let idx3 = suitIdx + value;      // value+1
         
         if value <= 7 && count.counts[idx1] >= 1 && count.counts[idx3] >= 1 {
             return true;
@@ -465,10 +465,10 @@ pub fn canChi(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
     
     // 情况3: 吃的牌是最大的那张，如吃4，需要2,3,4中的4
     if value >= 1 && value <= 8 {
-        var suitIdx = suit as int * 9;
-        var idx1 = suitIdx + value - 1;  // value-1
-        var idx2 = suitIdx + value;       // value (摸的牌)
-        var idx3 = suitIdx + value + 1;   // value+1 (需要这张)
+        let suitIdx = (int)suit * 9;
+        let idx1 = suitIdx + value - 1;  // value-1
+        let idx2 = suitIdx + value;       // value (摸的牌)
+        let idx3 = suitIdx + value + 1;   // value+1 (需要这张)
         
         if value >= 2 && count.counts[idx1] >= 1 && count.counts[idx3] >= 1 {
             return true;
@@ -481,19 +481,19 @@ pub fn canChi(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
 // 获取吃牌的具体组合
 pub fn getChiCombinations(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
                           discardedTile: TileType) -> [[TileType; 2]; 3] {
-    var result: [[TileType; 2]; 3] = [[TileType.Wan1, TileType.Wan1], 
+    let result: [[TileType; 2]; 3] = [[TileType.Wan1, TileType.Wan1], 
                                        [TileType.Wan1, TileType.Wan1],
                                        [TileType.Wan1, TileType.Wan1]];
-    var count = 0;
+    let count = 0;
     
-    var suit = getTileSuit(discardedTile);
-    var value = getTileValue(discardedTile);
-    var suitIdx = suit as int * 9;
+    let suit = getTileSuit(discardedTile);
+    let value = getTileValue(discardedTile);
+    let suitIdx = (int)suit * 9;
     
     // 情况1: [X-1, X, X+1] - X在中间
     if value >= 2 && value <= 8 {
-        var idx1 = suitIdx + value - 2;
-        var idx3 = suitIdx + value;
+        let idx1 = suitIdx + value - 2;
+        let idx3 = suitIdx + value;
         
         if countTiles(hand, handSize).counts[idx1] >= 1 && 
            countTiles(hand, handSize).counts[idx3] >= 1 {
@@ -504,8 +504,8 @@ pub fn getChiCombinations(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
     
     // 情况2: 吃的牌是最小的
     if value >= 2 && value <= 7 {
-        var idx1 = suitIdx + value - 2;
-        var idx3 = suitIdx + value;
+        let idx1 = suitIdx + value - 2;
+        let idx3 = suitIdx + value;
         
         if countTiles(hand, handSize).counts[idx1] >= 1 && 
            countTiles(hand, handSize).counts[idx3] >= 1 {
@@ -516,8 +516,8 @@ pub fn getChiCombinations(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
     
     // 情况3: 吃的牌是最大的
     if value >= 3 && value <= 8 {
-        var idx1 = suitIdx + value - 2;
-        var idx3 = suitIdx + value;
+        let idx1 = suitIdx + value - 2;
+        let idx3 = suitIdx + value;
         
         if countTiles(hand, handSize).counts[idx1] >= 1 && 
            countTiles(hand, handSize).counts[idx3] >= 1 {
@@ -534,8 +534,8 @@ pub fn getChiCombinations(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
 // 检查能否碰
 pub fn canPeng(hand: &[TileType; MAX_HAND_SIZE], handSize: int, 
                discardedTile: TileType) -> bool {
-    var count = countTiles(hand, handSize);
-    var idx = tileToIndex(discardedTile);
+    let count = countTiles(hand, handSize);
+    let idx = tileToIndex(discardedTile);
     return count.counts[idx] >= 2;
 }
 
@@ -544,17 +544,17 @@ pub fn canPeng(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
 // 检查能否杠（手牌中有3张相同）
 pub fn canGang(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
                discardedTile: TileType) -> bool {
-    var count = countTiles(hand, handSize);
-    var idx = tileToIndex(discardedTile);
+    let count = countTiles(hand, handSize);
+    let idx = tileToIndex(discardedTile);
     return count.counts[idx] >= 3;
 }
 
 // 检查能否暗杠（手牌中有4张相同）
 pub fn canAnGang(hand: &[TileType; MAX_HAND_SIZE], handSize: int) -> [TileType; 4] {
-    var result: [TileType; 4] = [TileType.Wan1, TileType.Wan1, TileType.Wan1, TileType.Wan1];
-    var count = 0;
+    let result: [TileType; 4] = [TileType.Wan1, TileType.Wan1, TileType.Wan1, TileType.Wan1];
+    let count = 0;
     
-    var tileCount = countTiles(hand, handSize);
+    let tileCount = countTiles(hand, handSize);
     for i in 0..34 {
         if tileCount.counts[i] >= 4 {
             result[count] = indexToTile(i);
@@ -574,11 +574,11 @@ pub fn canAnGang(hand: &[TileType; MAX_HAND_SIZE], handSize: int) -> [TileType; 
 // 获取可杠的牌列表
 pub fn getGangTiles(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
                     lastTile: TileType) -> [bool; 34] {
-    var result: [bool; 34] = [false; 34];
+    let result: [bool; 34] = [false; 34];
     
     // 明杠：手牌有3张和摸来的牌相同
-    var count = countTiles(hand, handSize);
-    var idx = tileToIndex(lastTile);
+    let count = countTiles(hand, handSize);
+    let idx = tileToIndex(lastTile);
     if count.counts[idx] >= 3 {
         result[idx] = true;
     }
@@ -596,7 +596,7 @@ pub fn getGangTiles(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
 // ==================== AI 逻辑 ====================
 
 // AI难度级别
-pub type AILevel = enum {
+enum AILevel {
     Easy,    // 简单：随机出牌
     Normal, // 普通：避免放炮
     Hard,   // 困难：优化胡牌
@@ -612,17 +612,17 @@ pub struct AIDecision {
 
 // 根据AI级别做决策
 pub fn aiDecision(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
-                  aiLevel: AILevel, gameState: &GameState) -> AIDecision {
+                  aiLevel: AILevel, gameState: GameState*) -> AIDecision {
     match aiLevel {
-        AILevel.Easy => return aiEasyDecision(hand, handSize),
-        AILevel.Normal => return aiNormalDecision(hand, handSize),
-        AILevel.Hard => return aiHardDecision(hand, handSize, gameState),
+        AILevel::Easy => return aiEasyDecision(hand, handSize),
+        AILevel::Normal => return aiNormalDecision(hand, handSize),
+        AILevel::Hard => return aiHardDecision(hand, handSize, gameState),
     }
 }
 
 // 简单AI：随机出牌
 fn aiEasyDecision(hand: &[TileType; MAX_HAND_SIZE], handSize: int) -> AIDecision {
-    var decision: AIDecision;
+    let decision: AIDecision;
     decision.discardTile = hand[randInt(0, handSize - 1)];
     decision.wantGang = false;
     decision.gangTile = TileType.Wan1;
@@ -632,30 +632,30 @@ fn aiEasyDecision(hand: &[TileType; MAX_HAND_SIZE], handSize: int) -> AIDecision
 
 // 普通AI：避免放炮
 fn aiNormalDecision(hand: &[TileType; MAX_HAND_SIZE], handSize: int) -> AIDecision {
-    var decision: AIDecision;
+    let decision: AIDecision;
     decision.wantGang = false;
     decision.wantHu = false;
     
     // 统计手牌
-    var count = countTiles(hand, handSize);
+    let count = countTiles(hand, handSize);
     
     // 优先打孤张（只在手牌中出现1次的牌）
-    var safeTile = hand[0];
-    var minCount = 999;
+    let safeTile = hand[0];
+    let minCount = 999;
     
     for i in 0..handSize {
-        var idx = tileToIndex(hand[i]);
-        var c = count.counts[idx];
+        let idx = tileToIndex(hand[i]);
+        let c = count.counts[idx];
         
         // 字牌和数牌边缘的张更安全
-        var isSafe = true;
+        let isSafe = true;
         if c >= 2 {
             isSafe = false;  // 有对子的牌不安全
         }
         
         // 检查是否是有效牌的边张
-        var suit = getTileSuit(hand[i]);
-        var value = getTileValue(hand[i]);
+        let suit = getTileSuit(hand[i]);
+        let value = getTileValue(hand[i]);
         if suit == TileSuit.Wan || suit == TileSuit.Tong || suit == TileSuit.Suo {
             // 1和9风险较高
             if value == 1 || value == 9 {
@@ -676,7 +676,7 @@ fn aiNormalDecision(hand: &[TileType; MAX_HAND_SIZE], handSize: int) -> AIDecisi
     // 如果没有找到孤张，打出现次数最少的
     if minCount == 999 {
         for i in 0..handSize {
-            var idx = tileToIndex(hand[i]);
+            let idx = tileToIndex(hand[i]);
             if count.counts[idx] < minCount {
                 minCount = count.counts[idx];
                 safeTile = hand[i];
@@ -690,42 +690,42 @@ fn aiNormalDecision(hand: &[TileType; MAX_HAND_SIZE], handSize: int) -> AIDecisi
 
 // 困难AI：优化胡牌机会
 fn aiHardDecision(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
-                  gameState: &GameState) -> AIDecision {
-    var decision: AIDecision;
+                  gameState: GameState*) -> AIDecision {
+    let decision: AIDecision;
     decision.wantGang = false;
     decision.wantHu = false;
     
     // 统计手牌
-    var count = countTiles(hand, handSize);
+    let count = countTiles(hand, handSize);
     
     // 计算每张牌的"价值"
-    var bestTile = hand[0];
-    var bestScore = -999;
+    let bestTile = hand[0];
+    let bestScore = -999;
     
     for i in 0..handSize {
-        var idx = tileToIndex(hand[i]);
-        var score = 0;
+        let idx = tileToIndex(hand[i]);
+        let score = 0;
         
         // 基本分数：与其它牌的关联
-        var suit = getTileSuit(hand[i]);
-        var value = getTileValue(hand[i]);
+        let suit = getTileSuit(hand[i]);
+        let value = getTileValue(hand[i]);
         
         if suit == TileSuit.Wan || suit == TileSuit.Tong || suit == TileSuit.Suo {
             // 数牌：与相邻牌的关联
             if value >= 2 {
-                var idx1 = idx - 1;
+                let idx1 = idx - 1;
                 score = score + count.counts[idx1] * 2;
             }
             if value <= 8 {
-                var idx1 = idx + 1;
+                let idx1 = idx + 1;
                 score = score + count.counts[idx1] * 2;
             }
             if value >= 3 {
-                var idx1 = idx - 2;
+                let idx1 = idx - 2;
                 score = score + count.counts[idx1];
             }
             if value <= 7 {
-                var idx1 = idx + 2;
+                let idx1 = idx + 2;
                 score = score + count.counts[idx1];
             }
             
@@ -781,10 +781,10 @@ pub fn sortHand(hand: &mut [TileType; MAX_HAND_SIZE], handSize: int) {
     // 简单的冒泡排序
     for i in 0..handSize {
         for j in (i + 1)..handSize {
-            var idx1 = tileToIndex(hand[i]);
-            var idx2 = tileToIndex(hand[j]);
+            let idx1 = tileToIndex(hand[i]);
+            let idx2 = tileToIndex(hand[j]);
             if idx1 > idx2 {
-                var temp = hand[i];
+                let temp = hand[i];
                 hand[i] = hand[j];
                 hand[j] = temp;
             }
@@ -811,10 +811,10 @@ pub fn removeFromHand(hand: &mut [TileType; MAX_HAND_SIZE], handSize: int,
 // 检查操作优先级
 pub fn getOperationPriority(op: OperationType) -> int {
     match op {
-        OperationType.Hu => return 4;    // 胡最高
-        OperationType.Gang => return 3; // 杠次之
-        OperationType.Peng => return 2; // 碰
-        OperationType.Chi => return 1;  // 吃最低
+        OperationType::Hu => return 4;    // 胡最高
+        OperationType::Gang => return 3; // 杠次之
+        OperationType::Peng => return 2; // 碰
+        OperationType::Chi => return 1;  // 吃最低
         _ => return 0;
     }
 }

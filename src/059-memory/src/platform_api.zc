@@ -1,3 +1,4 @@
+import "io.zc";
 // platform_api.zc - Zen-C Windows GUI 平台 API 封装
 // 框架版本: 1.0.0
 // 复制自 003-framework
@@ -6,7 +7,7 @@
 pub type WindowHandle = rawptr;
 
 // 消息类型
-pub type MessageType = enum {
+enum MessageType {
     None = 0,
     Quit = 1,
     MouseMove = 2,
@@ -19,7 +20,7 @@ pub type MessageType = enum {
 };
 
 // 鼠标按钮
-pub type MouseButton = enum {
+enum MouseButton {
     None = 0,
     Left = 1,
     Right = 2,
@@ -27,7 +28,7 @@ pub type MouseButton = enum {
 };
 
 // 虚拟键码
-pub type VirtualKey = enum {
+enum VirtualKey {
     None = 0,
     Escape = 0x1B,
     Space = 0x20,
@@ -103,11 +104,11 @@ pub impl Color {
     pub static fn Pink() -> Color { return 0xFFFFC0CB; }
     
     pub static fn RGB(r: u8, g: u8, b: u8) -> Color {
-        return 0xFF000000 as Color | (r as Color << 16) | (g as Color << 8) | b as Color;
+        return 0xFF000000| (r<< 16) | (g<< 8) | b as Color;
     }
     
     pub static fn ARGB(a: u8, r: u8, g: u8, b: u8) -> Color {
-        return (a as Color << 24) | (r as Color << 16) | (g as Color << 8) | b as Color;
+        return (a<< 24) | (r<< 16) | (g<< 8) | b as Color;
     }
 }
 
@@ -120,7 +121,7 @@ pub struct Font {
 
 pub impl Font {
     pub fn new(name: str, size: int) -> Font {
-        return Font.{ name: name, size: size, bold: false };
+        return Font { name: name, size: size, bold: false };
     }
     
     pub fn withBold(self, bold: bool) -> Font {
@@ -131,15 +132,15 @@ pub impl Font {
 
 // 矩形区域
 pub struct Rect {
-    pub x: int,
-    pub y: int,
-    pub width: int,
-    pub height: int,
+    x: int,
+    y: int,
+    width: int,
+    height: int,
 }
 
 pub impl Rect {
     pub fn new(x: int, y: int, w: int, h: int) -> Rect {
-        return Rect.{ x: x, y: y, width: w, height: h };
+        return Rect { x: x, y: y, width: w, height: h };
     }
     
     pub fn contains(self, px: int, py: int) -> bool {
@@ -168,8 +169,8 @@ pub fn createWindow(title: str, width: int, height: int) -> WindowHandle;
 pub fn closeWindow(handle: WindowHandle);
 pub fn setWindowTitle(handle: WindowHandle, title: str);
 pub fn getWindowSize(handle: WindowHandle) -> (int, int);
-pub fn pollEvent(handle: WindowHandle, event: &Event) -> bool;
-pub fn waitEvent(handle: WindowHandle, event: &Event);
+pub fn pollEvent(handle: WindowHandle, event: Event*) -> bool;
+pub fn waitEvent(handle: WindowHandle, event: Event*);
 pub fn postQuitMessage(handle: WindowHandle);
 pub fn getTickCount() -> u32;
 pub fn sleep(ms: u32);
@@ -193,8 +194,8 @@ pub fn max(a: int, b: int) -> int {
 
 pub fn sqrt(n: int) -> int {
     if n < 0 { return 0; }
-    var x = n;
-    var y = 1;
+    let x = n;
+    let y = 1;
     while y < x {
         x = (x + y) / 2;
         y = n / x;
@@ -202,7 +203,7 @@ pub fn sqrt(n: int) -> int {
     return x;
 }
 
-private var rng_seed: u32 = 1;
+private let rng_seed: u32 = 1;
 
 pub fn setRandomSeed(seed: u32) {
     rng_seed = seed;
@@ -214,6 +215,6 @@ pub fn rand() -> u32 {
 }
 
 pub fn randInt(min: int, max: int) -> int {
-    var r = rand() % (max - min + 1);
+    let r = rand() % (max - min + 1);
     return min + r;
 }

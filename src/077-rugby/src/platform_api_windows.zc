@@ -2,25 +2,25 @@
 // 框架版本: 1.0.0
 
 // Windows API 常量
-const WM_QUIT: u32 = 0x0012;
-const WM_PAINT: u32 = 0x000F;
-const WM_SIZE: u32 = 0x0005;
-const WM_KEYDOWN: u32 = 0x0100;
-const WM_KEYUP: u32 = 0x0101;
-const WM_LBUTTONDOWN: u32 = 0x0201;
-const WM_LBUTTONUP: u32 = 0x0202;
-const WM_RBUTTONDOWN: u32 = 0x0204;
-const WM_RBUTTONUP: u32 = 0x0205;
-const WM_MBUTTONDOWN: u32 = 0x0207;
-const WM_MBUTTONUP: u32 = 0x0208;
-const WM_MOUSEMOVE: u32 = 0x0200;
+def WM_QUIT: u32 = 0x0012;
+def WM_PAINT: u32 = 0x000F;
+def WM_SIZE: u32 = 0x0005;
+def WM_KEYDOWN: u32 = 0x0100;
+def WM_KEYUP: u32 = 0x0101;
+def WM_LBUTTONDOWN: u32 = 0x0201;
+def WM_LBUTTONUP: u32 = 0x0202;
+def WM_RBUTTONDOWN: u32 = 0x0204;
+def WM_RBUTTONUP: u32 = 0x0205;
+def WM_MBUTTONDOWN: u32 = 0x0207;
+def WM_MBUTTONUP: u32 = 0x0208;
+def WM_MOUSEMOVE: u32 = 0x0200;
 
-const VK_ESCAPE: u32 = 0x1B;
-const VK_SPACE: u32 = 0x20;
-const VK_LEFT: u32 = 0x25;
-const VK_UP: u32 = 0x26;
-const VK_RIGHT: u32 = 0x27;
-const VK_DOWN: u32 = 0x28;
+def VK_ESCAPE: u32 = 0x1B;
+def VK_SPACE: u32 = 0x20;
+def VK_LEFT: u32 = 0x25;
+def VK_UP: u32 = 0x26;
+def VK_RIGHT: u32 = 0x27;
+def VK_DOWN: u32 = 0x28;
 
 // 外部 Windows API 函数（通过 FFI）
 // 这些是占位符，实际实现需要编译器运行时支持
@@ -29,13 +29,13 @@ const VK_DOWN: u32 = 0x28;
 // 平台初始化
 pub fn initPlatform() {
     // Windows 平台初始化
-    println("Windows 平台初始化");
+    println "Windows 平台初始化";
 }
 
 // 平台关闭
 pub fn shutdownPlatform() {
     // Windows 平台清理
-    println("Windows 平台关闭");
+    println "Windows 平台关闭";
 }
 
 // 创建窗口
@@ -61,14 +61,14 @@ pub fn getWindowSize(handle: WindowHandle) -> (int, int) {
 }
 
 // 轮询事件
-pub fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
+pub fn pollEvent(handle: WindowHandle, event: Event*) -> bool {
     // 模拟事件循环
     // 实际实现会调用 Windows API GetMessage/PeekMessage
     return false;
 }
 
 // 等待事件
-pub fn waitEvent(handle: WindowHandle, event: &Event) {
+pub fn waitEvent(handle: WindowHandle, event: Event*) {
     // 调用 Windows API WaitMessage/GetMessage
 }
 

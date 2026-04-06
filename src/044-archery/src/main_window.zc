@@ -1,8 +1,8 @@
 // main_window.zc - 射箭游戏主程序
 // Archery Game - 鼠标瞄准，蓄力射击
 
-import std.io;
-import std.math;
+import "io.zc";
+import "math.zc";
 
 import "platform_api.zc";
 import "platform_api_windows.zc";
@@ -10,115 +10,115 @@ import "game_logic.zc";
 
 // ==================== 常量 ====================
 
-const WINDOW_WIDTH = 800;
-const WINDOW_HEIGHT = 600;
+def WINDOW_WIDTH = 800;
+def WINDOW_HEIGHT = 600;
 
 // ==================== 绘制函数 ====================
 
 fn draw_background() {
     // 天空渐变
-    var skyTop = rgb(135 as u8, 206 as u8, 235 as u8);
-    var skyBottom = rgb(255 as u8, 255 as u8, 200 as u8);
+    let skyTop = rgb((u8)135, (u8)206, (u8)235);
+    let skyBottom = rgb((u8)255, (u8)255, (u8)200);
     
     for y in 0..(WINDOW_HEIGHT - 100) {
-        var t = y as float / (WINDOW_HEIGHT - 100) as float;
-        var r = (skyTop.r as float * (1.0 - t) + skyBottom.r as float * t) as u8;
-        var g = (skyTop.g as float * (1.0 - t) + skyBottom.g as float * t) as u8;
-        var b = (skyTop.b as float * (1.0 - t) + skyBottom.b as float * t) as u8;
+        let t = (float)y / (WINDOW_HEIGHT - 100) as float;
+        let r = (skyTop(float)r * (1.0 - t) + skyBottom(float)r * t) as u8;
+        let g = (skyTop(float)g * (1.0 - t) + skyBottom(float)g * t) as u8;
+        let b = (skyTop(float)b * (1.0 - t) + skyBottom(float)b * t) as u8;
         fb_draw_rect(0, y, WINDOW_WIDTH, 1, color_to_u32(rgb(r, g, b)));
     }
     
     // 远山剪影
-    fb_draw_rect(0, WINDOW_HEIGHT - 150, WINDOW_WIDTH, 70, rgb(100 as u8, 120 as u8, 100 as u8));
+    fb_draw_rect(0, WINDOW_HEIGHT - 150, WINDOW_WIDTH, 70, rgb((u8)100, (u8)120, (u8)100));
     
     // 草地
-    fb_draw_rect(0, WINDOW_HEIGHT - 100, WINDOW_WIDTH, 100, rgb(60 as u8, 140 as u8, 60 as u8));
-    fb_draw_rect(0, WINDOW_HEIGHT - 100, WINDOW_WIDTH, 4, rgb(80 as u8, 180 as u8, 80 as u8));
+    fb_draw_rect(0, WINDOW_HEIGHT - 100, WINDOW_WIDTH, 100, rgb((u8)60, (u8)140, (u8)60));
+    fb_draw_rect(0, WINDOW_HEIGHT - 100, WINDOW_WIDTH, 4, rgb((u8)80, (u8)180, (u8)80));
     
     // 射箭台
-    fb_draw_rect(WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT - 95, 120, 50, rgb(80 as u8, 60 as u8, 40 as u8));
-    fb_draw_rect(WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT - 95, 120, 5, rgb(120 as u8, 90 as u8, 60 as u8));
+    fb_draw_rect(WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT - 95, 120, 50, rgb((u8)80, (u8)60, (u8)40));
+    fb_draw_rect(WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT - 95, 120, 5, rgb((u8)120, (u8)90, (u8)60));
     
     // 地面装饰
     for i in 0..20 {
-        var x = i * 45 + 10;
-        fb_draw_rect(x, WINDOW_HEIGHT - 55, 3, 10, rgb(50 as u8, 120 as u8, 50 as u8));
+        let x = i * 45 + 10;
+        fb_draw_rect(x, WINDOW_HEIGHT - 55, 3, 10, rgb((u8)50, (u8)120, (u8)50));
     }
 }
 
-fn draw_bow(game: &ArcheryState) {
-    var bx = game.bow.x;
-    var by = game.bow.y;
-    var angle = game.bow.angle;
+fn draw_bow(game: ArcheryState*) {
+    let bx = game.bow.x;
+    let by = game.bow.y;
+    let angle = game.bow.angle;
     
     // Bow body (arc)
-    var bowLength = 50;
+    let bowLength = 50;
     for i in -60..61 {
-        var a = i as float * 3.14159 / 180.0;
-        var px = bx as float + cos(a) * bowLength as float * 0.3;
-        var py = by as float + sin(a) * bowLength as float;
-        fb_draw_pixel(px as i32, py as i32, rgb(139 as u8, 90 as u8, 43 as u8));
+        let a = (float)i * 3.14159 / 180.0;
+        let px = (float)bx + cos(a) * (float)bowLength * 0.3;
+        let py = (float)by + sin(a) * bowLength as float;
+        fb_draw_pixel((i32)px, (i32)py, rgb((u8)139, (u8)90, (u8)43));
     }
     
     // Bow handle
-    var handleX = bx as float + cos(angle) * 10.0;
-    var handleY = by as float + sin(angle) * 10.0;
-    fb_draw_rect(handleX as i32 - 3, handleY as i32 - 3, 6, 6, rgb(101 as u8, 67 as u8, 33 as u8));
+    let handleX = (float)bx + cos(angle) * 10.0;
+    let handleY = (float)by + sin(angle) * 10.0;
+    fb_draw_rect((i32)handleX - 3, (i32)handleY - 3, 6, 6, rgb((u8)101, (u8)67, (u8)33));
     
     // Bowstring
     if game.bow.drawing {
-        var pullBack = (game.bow.power - MIN_POWER) / (MAX_POWER - MIN_POWER);
-        var stringX = bx as float - cos(angle) * pullBack * 25.0;
-        var stringY = by as float - sin(angle) * pullBack * 25.0;
+        let pullBack = (game.bow.power - MIN_POWER) / (MAX_POWER - MIN_POWER);
+        let stringX = (float)bx - cos(angle) * pullBack * 25.0;
+        let stringY = (float)by - sin(angle) * pullBack * 25.0;
         
         // Draw curved bowstring
         for i in 0..20 {
-            var t = i as float / 19.0;
-            var sx = bx as float + (stringX - bx as float) * t;
-            var sy = by as float + (stringY - by as float) * t + sin(t * 3.14159) * 8.0;
-            fb_draw_pixel(sx as i32, sy as i32, rgb(200 as u8, 200 as u8, 200 as u8));
+            let t = (float)i / 19.0;
+            let sx = (float)bx + (stringX - (float)bx) * t;
+            let sy = (float)by + (stringY - (float)by) * t + sin(t * 3.14159) * 8.0;
+            fb_draw_pixel((i32)sx, (i32)sy, rgb((u8)200, (u8)200, (u8)200));
         }
         
         // Arrow on bow
-        var arrowTipX = bx as float + cos(angle) * 30.0;
-        var arrowTipY = by as float + sin(angle) * 30.0;
-        var arrowTailX = stringX;
-        var arrowTailY = stringY;
+        let arrowTipX = (float)bx + cos(angle) * 30.0;
+        let arrowTipY = (float)by + sin(angle) * 30.0;
+        let arrowTailX = stringX;
+        let arrowTailY = stringY;
         
         // Arrow shaft
-        fb_draw_line(arrowTipX as i32, arrowTipY as i32, arrowTailX as i32, arrowTailY as i32, rgb(139 as u8, 90 as u8, 43 as u8));
+        fb_draw_line((i32)arrowTipX, (i32)arrowTipY, (i32)arrowTailX, (i32)arrowTailY, rgb((u8)139, (u8)90, (u8)43));
         
         // Arrow head
-        var headSize = 6;
+        let headSize = 6;
         for dy in (-headSize)..headSize {
             for dx in (-headSize)..headSize {
                 if dx*dx + dy*dy <= headSize*headSize {
-                    var hx = arrowTipX as i32 + dx;
-                    var hy = arrowTipY as i32 + dy;
-                    fb_draw_pixel(hx, hy, rgb(192 as u8, 192 as u8, 192 as u8));
+                    let hx = (i32)arrowTipX + dx;
+                    let hy = (i32)arrowTipY + dy;
+                    fb_draw_pixel(hx, hy, rgb((u8)192, (u8)192, (u8)192));
                 }
             }
         }
         
         // Fletching
-        var fletchX = arrowTailX as i32;
-        var fletchY = arrowTailY as i32;
-        fb_draw_pixel(fletchX - 2, fletchY - 2, rgb(200 as u8, 50 as u8, 50 as u8));
-        fb_draw_pixel(fletchX - 2, fletchY + 2, rgb(200 as u8, 50 as u8, 50 as u8));
-        fb_draw_pixel(fletchX - 3, fletchY, rgb(200 as u8, 50 as u8, 50 as u8));
+        let fletchX = arrowTailX as i32;
+        let fletchY = arrowTailY as i32;
+        fb_draw_pixel(fletchX - 2, fletchY - 2, rgb((u8)200, (u8)50, (u8)50));
+        fb_draw_pixel(fletchX - 2, fletchY + 2, rgb((u8)200, (u8)50, (u8)50));
+        fb_draw_pixel(fletchX - 3, fletchY, rgb((u8)200, (u8)50, (u8)50));
     } else {
         // Resting bowstring
-        var stringEnd1X = bx as float + cos(-60.0 * 3.14159 / 180.0) * bowLength as float * 0.5;
-        var stringEnd1Y = by as float + sin(-60.0 * 3.14159 / 180.0) * bowLength as float;
-        var stringEnd2X = bx as float + cos(60.0 * 3.14159 / 180.0) * bowLength as float * 0.5;
-        var stringEnd2Y = by as float + sin(60.0 * 3.14159 / 180.0) * bowLength as float;
+        let stringEnd1X = (float)bx + cos(-60.0 * 3.14159 / 180.0) * (float)bowLength * 0.5;
+        let stringEnd1Y = (float)by + sin(-60.0 * 3.14159 / 180.0) * bowLength as float;
+        let stringEnd2X = (float)bx + cos(60.0 * 3.14159 / 180.0) * (float)bowLength * 0.5;
+        let stringEnd2Y = (float)by + sin(60.0 * 3.14159 / 180.0) * bowLength as float;
         
-        fb_draw_line(stringEnd1X as i32, stringEnd1Y as i32, bx as i32, by as i32, rgb(200 as u8, 200 as u8, 200 as u8));
-        fb_draw_line(bx as i32, by as i32, stringEnd2X as i32, stringEnd2Y as i32, rgb(200 as u8, 200 as u8, 200 as u8));
+        fb_draw_line((i32)stringEnd1X, (i32)stringEnd1Y, (i32)bx, (i32)by, rgb((u8)200, (u8)200, (u8)200));
+        fb_draw_line((i32)bx, (i32)by, (i32)stringEnd2X, (i32)stringEnd2Y, rgb((u8)200, (u8)200, (u8)200));
     }
 }
 
-fn draw_arrow(arrow: &Arrow) {
+fn draw_arrow(arrow: Arrow*) {
     if !arrow.active {
         return;
     }
@@ -126,159 +126,159 @@ fn draw_arrow(arrow: &Arrow) {
     // Draw trail
     if arrow.trailCount > 1 {
         for i in 0..(arrow.trailCount - 1) {
-            var alpha = (i as float / arrow.trailCount as float * 0.5) as u8;
-            var trailColor = rgb(alpha, alpha, alpha);
-            fb_draw_pixel(arrow.trail[i].x as i32, arrow.trail[i].y as i32, color_to_u32(trailColor));
+            let alpha = ((float)i / arrow.(float)trailCount * 0.5) as u8;
+            let trailColor = rgb(alpha, alpha, alpha);
+            fb_draw_pixel(arrow.trail[i].(i32)x, arrow.trail[i].(i32)y, color_to_u32(trailColor));
         }
     }
     
     // Arrow body
-    var tipX = arrow.x + cos(arrow.angle) * 15.0;
-    var tipY = arrow.y + sin(arrow.angle) * 15.0;
-    var tailX = arrow.x - cos(arrow.angle) * 20.0;
-    var tailY = arrow.y - sin(arrow.angle) * 20.0;
+    let tipX = arrow.x + cos(arrow.angle) * 15.0;
+    let tipY = arrow.y + sin(arrow.angle) * 15.0;
+    let tailX = arrow.x - cos(arrow.angle) * 20.0;
+    let tailY = arrow.y - sin(arrow.angle) * 20.0;
     
-    fb_draw_line(tipX as i32, tipY as i32, tailX as i32, tailY as i32, rgb(139 as u8, 90 as u8, 43 as u8));
+    fb_draw_line((i32)tipX, (i32)tipY, (i32)tailX, (i32)tailY, rgb((u8)139, (u8)90, (u8)43));
     
     // Arrow head
-    var headSize = 5;
+    let headSize = 5;
     for dy in (-headSize)..headSize {
         for dx in (-headSize)..headSize {
             if dx*dx + dy*dy <= headSize*headSize {
-                fb_draw_pixel(tipX as i32 + dx, tipY as i32 + dy, rgb(192 as u8, 192 as u8, 192 as u8));
+                fb_draw_pixel((i32)tipX + dx, (i32)tipY + dy, rgb((u8)192, (u8)192, (u8)192));
             }
         }
     }
     
     // Fletching
-    var fletchX = tailX as i32;
-    var fletchY = tailY as i32;
-    var perpAngle = arrow.angle + 3.14159 / 2.0;
-    fb_draw_pixel(fletchX as i32, fletchY as i32, rgb(200 as u8, 50 as u8, 50 as u8));
-    fb_draw_pixel(fletchX as i32 + (cos(perpAngle) * 3.0) as i32, fletchY as i32 + (sin(perpAngle) * 3.0) as i32, rgb(200 as u8, 50 as u8, 50 as u8));
+    let fletchX = tailX as i32;
+    let fletchY = tailY as i32;
+    let perpAngle = arrow.angle + 3.14159 / 2.0;
+    fb_draw_pixel((i32)fletchX, (i32)fletchY, rgb((u8)200, (u8)50, (u8)50));
+    fb_draw_pixel((i32)fletchX + (cos(perpAngle) * 3.0) as i32, (i32)fletchY + (sin(perpAngle) * 3.0) as i32, rgb((u8)200, (u8)50, (u8)50));
 }
 
-fn draw_target(target: &Target) {
+fn draw_target(target: Target*) {
     if !target.alive {
         return;
     }
     
-    var x = target.x;
-    var y = target.y;
+    let x = target.x;
+    let y = target.y;
     
     // Target stand
-    fb_draw_rect(x - 3, y + OUTER_RING_RADIUS, 6, 40, rgb(101 as u8, 67 as u8, 33 as u8));
-    fb_draw_rect(x - 15, y + OUTER_RING_RADIUS + 35, 30, 8, rgb(80 as u8, 50 as u8, 25 as u8));
+    fb_draw_rect(x - 3, y + OUTER_RING_RADIUS, 6, 40, rgb((u8)101, (u8)67, (u8)33));
+    fb_draw_rect(x - 15, y + OUTER_RING_RADIUS + 35, 30, 8, rgb((u8)80, (u8)50, (u8)25));
     
     // Outer ring (white)
-    fb_fill_circle(x, y, OUTER_RING_RADIUS, rgb(240 as u8, 240 as u8, 240 as u8));
-    fb_draw_circle(x, y, OUTER_RING_RADIUS, rgb(180 as u8, 180 as u8, 180 as u8));
+    fb_fill_circle(x, y, OUTER_RING_RADIUS, rgb((u8)240, (u8)240, (u8)240));
+    fb_draw_circle(x, y, OUTER_RING_RADIUS, rgb((u8)180, (u8)180, (u8)180));
     
     // Middle ring (black)
-    fb_fill_circle(x, y, INNER_RING_RADIUS, rgb(30 as u8, 30 as u8, 30 as u8));
-    fb_draw_circle(x, y, INNER_RING_RADIUS, rgb(60 as u8, 60 as u8, 60 as u8));
+    fb_fill_circle(x, y, INNER_RING_RADIUS, rgb((u8)30, (u8)30, (u8)30));
+    fb_draw_circle(x, y, INNER_RING_RADIUS, rgb((u8)60, (u8)60, (u8)60));
     
     // Inner ring (blue)
-    fb_fill_circle(x, y, BULLSEYE_RADIUS, rgb(30 as u8, 30 as u8, 200 as u8));
-    fb_draw_circle(x, y, BULLSEYE_RADIUS, rgb(60 as u8, 60 as u8, 220 as u8));
+    fb_fill_circle(x, y, BULLSEYE_RADIUS, rgb((u8)30, (u8)30, (u8)200));
+    fb_draw_circle(x, y, BULLSEYE_RADIUS, rgb((u8)60, (u8)60, (u8)220));
     
     // Bullseye (gold)
-    fb_fill_circle(x, y, 5, rgb(255 as u8, 215 as u8, 0 as u8));
+    fb_fill_circle(x, y, 5, rgb((u8)255, (u8)215, (u8)0));
     
     // Ring lines
-    fb_draw_circle(x, y, INNER_RING_RADIUS, rgb(255 as u8, 255 as u8, 255 as u8));
-    fb_draw_circle(x, y, OUTER_RING_RADIUS, rgb(200 as u8, 200 as u8, 200 as u8));
+    fb_draw_circle(x, y, INNER_RING_RADIUS, rgb((u8)255, (u8)255, (u8)255));
+    fb_draw_circle(x, y, OUTER_RING_RADIUS, rgb((u8)200, (u8)200, (u8)200));
 }
 
-fn draw_power_bar(game: &ArcheryState) {
+fn draw_power_bar(game: ArcheryState*) {
     if !game.bow.drawing {
         return;
     }
     
-    var barX = 20;
-    var barY = WINDOW_HEIGHT - 40;
-    var barW = 150;
-    var barH = 15;
+    let barX = 20;
+    let barY = WINDOW_HEIGHT - 40;
+    let barW = 150;
+    let barH = 15;
     
     // Background
-    fb_draw_rect(barX, barY, barW, barH, rgb(50 as u8, 50 as u8, 50 as u8));
-    fb_draw_rect(barX - 1, barY - 1, barW + 2, barH + 2, rgb(100 as u8, 100 as u8, 100 as u8));
+    fb_draw_rect(barX, barY, barW, barH, rgb((u8)50, (u8)50, (u8)50));
+    fb_draw_rect(barX - 1, barY - 1, barW + 2, barH + 2, rgb((u8)100, (u8)100, (u8)100));
     
     // Power fill
-    var powerRatio = (game.bow.power - MIN_POWER) / (MAX_POWER - MIN_POWER);
-    var fillW = (barW as float * powerRatio) as i32;
+    let powerRatio = (game.bow.power - MIN_POWER) / (MAX_POWER - MIN_POWER);
+    let fillW = ((float)barW * powerRatio) as i32;
     
     // Color based on power
-    var fillColor: Color;
+    let fillColor: Color;
     if powerRatio < 0.5 {
-        fillColor = rgb(50 as u8, 200 as u8, 50 as u8);
+        fillColor = rgb((u8)50, (u8)200, (u8)50);
     } else if powerRatio < 0.8 {
-        fillColor = rgb(200 as u8, 200 as u8, 50 as u8);
+        fillColor = rgb((u8)200, (u8)200, (u8)50);
     } else {
-        fillColor = rgb(200 as u8, 50 as u8, 50 as u8);
+        fillColor = rgb((u8)200, (u8)50, (u8)50);
     }
     
     fb_draw_rect(barX, barY, fillW, barH, color_to_u32(fillColor));
     
     // Power text
-    var powerText = "POWER: " ++ (powerRatio * 100.0) as i32 .toString() ++ "%";
-    fb_draw_text_size(barX, barY - 18, powerText, rgb(255 as u8, 255 as u8, 255 as u8), 12);
+    let powerText = "POWER: " ++ (i32)(powerRatio * 100.0) .toString() ++ "%";
+    fb_draw_text_size(barX, barY - 18, powerText, rgb((u8)255, (u8)255, (u8)255), 12);
 }
 
-fn draw_wind_indicator(game: &ArcheryState) {
-    var x = WINDOW_WIDTH - 80;
-    var y = 50;
+fn draw_wind_indicator(game: ArcheryState*) {
+    let x = WINDOW_WIDTH - 80;
+    let y = 50;
     
     // Background
-    fb_draw_rect(x - 30, y - 15, 60, 30, rgb(30 as u8, 30 as u8, 30 as u8));
-    fb_draw_rect(x - 30, y - 15, 60, 30, rgb(80 as u8, 80 as u8, 80 as u8));
+    fb_draw_rect(x - 30, y - 15, 60, 30, rgb((u8)30, (u8)30, (u8)30));
+    fb_draw_rect(x - 30, y - 15, 60, 30, rgb((u8)80, (u8)80, (u8)80));
     
     // Center mark
-    fb_draw_rect(x - 1, y - 12, 2, 24, rgb(150 as u8, 150 as u8, 150 as u8));
+    fb_draw_rect(x - 1, y - 12, 2, 24, rgb((u8)150, (u8)150, (u8)150));
     
     // Wind arrow
-    var windStrength = game.wind * 20.0;
-    var arrowLen = windStrength as i32;
+    let windStrength = game.wind * 20.0;
+    let arrowLen = windStrength as i32;
     if arrowLen > 0 {
-        fb_draw_line(x, y, x + arrowLen, y, rgb(100 as u8, 200 as u8, 255 as u8));
-        fb_draw_pixel(x + arrowLen, y, rgb(100 as u8, 200 as u8, 255 as u8));
+        fb_draw_line(x, y, x + arrowLen, y, rgb((u8)100, (u8)200, (u8)255));
+        fb_draw_pixel(x + arrowLen, y, rgb((u8)100, (u8)200, (u8)255));
     } else if arrowLen < 0 {
-        fb_draw_line(x, y, x + arrowLen, y, rgb(100 as u8, 200 as u8, 255 as u8));
-        fb_draw_pixel(x + arrowLen, y, rgb(100 as u8, 200 as u8, 255 as u8));
+        fb_draw_line(x, y, x + arrowLen, y, rgb((u8)100, (u8)200, (u8)255));
+        fb_draw_pixel(x + arrowLen, y, rgb((u8)100, (u8)200, (u8)255));
     }
     
     // Label
-    fb_draw_text_size(x - 25, y + 20, "WIND", rgb(150 as u8, 150 as u8, 150 as u8), 10);
+    fb_draw_text_size(x - 25, y + 20, "WIND", rgb((u8)150, (u8)150, (u8)150), 10);
 }
 
-fn draw_ui(game: &ArcheryState) {
+fn draw_ui(game: ArcheryState*) {
     // Top bar
-    fb_draw_rect(0, 0, WINDOW_WIDTH, 40, rgb(0 as u8, 0 as u8, 0 as u8));
-    fb_draw_rect(0, 40, WINDOW_WIDTH, 2, rgb(80 as u8, 80 as u8, 80 as u8));
+    fb_draw_rect(0, 0, WINDOW_WIDTH, 40, rgb((u8)0, (u8)0, (u8)0));
+    fb_draw_rect(0, 40, WINDOW_WIDTH, 2, rgb((u8)80, (u8)80, (u8)80));
     
     // Score
-    var scoreStr = "SCORE: " ++ game.score.toString();
-    fb_draw_text_size(15, 12, scoreStr, rgb(255 as u8, 215 as u8, 0 as u8), 16);
+    let scoreStr = "SCORE: {game}".score.toString();
+    fb_draw_text_size(15, 12, scoreStr, rgb((u8)255, (u8)215, (u8)0), 16);
     
     // Round
-    var roundStr = "ROUND " ++ game.round.toString() ++ "/5";
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 45, 12, roundStr, rgb(200 as u8, 200 as u8, 200 as u8), 16);
+    let roundStr = "ROUND {game}"."{round}/5";
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 45, 12, roundStr, rgb((u8)200, (u8)200, (u8)200), 16);
     
     // Arrows left
-    var arrowsStr = "ARROWS: " ++ game.arrowsLeft.toString();
-    fb_draw_text_size(WINDOW_WIDTH - 110, 12, arrowsStr, rgb(255 as u8, 100 as u8, 100 as u8), 16);
+    let arrowsStr = "ARROWS: {game}".arrowsLeft.toString();
+    fb_draw_text_size(WINDOW_WIDTH - 110, 12, arrowsStr, rgb((u8)255, (u8)100, (u8)100), 16);
     
     // Bottom info bar
-    fb_draw_rect(0, WINDOW_HEIGHT - 25, WINDOW_WIDTH, 25, rgb(0 as u8, 0 as u8, 0 as u8));
-    fb_draw_rect(0, WINDOW_HEIGHT - 25, WINDOW_WIDTH, 2, rgb(80 as u8, 80 as u8, 80 as u8));
+    fb_draw_rect(0, WINDOW_HEIGHT - 25, WINDOW_WIDTH, 25, rgb((u8)0, (u8)0, (u8)0));
+    fb_draw_rect(0, WINDOW_HEIGHT - 25, WINDOW_WIDTH, 2, rgb((u8)80, (u8)80, (u8)80));
     
     // Instructions
-    fb_draw_text_size(15, WINDOW_HEIGHT - 18, "AIM with mouse  |  HOLD LMB to charge  |  RELEASE to shoot", rgb(150 as u8, 150 as u8, 150 as u8), 12);
+    fb_draw_text_size(15, WINDOW_HEIGHT - 18, "AIM with mouse  |  HOLD LMB to charge  |  RELEASE to shoot", rgb((u8)150, (u8)150, (u8)150), 12);
     
     // Combo indicator
     if game.combo > 1 {
-        var comboStr = "COMBO x" ++ game.combo.toString() ++ "!";
-        fb_draw_text_size(WINDOW_WIDTH / 2 - 40, WINDOW_HEIGHT - 50, comboStr, rgb(255 as u8, 100 as u8, 255 as u8), 20);
+        let comboStr = "COMBO x{game}"."{combo}!";
+        fb_draw_text_size(WINDOW_WIDTH / 2 - 40, WINDOW_HEIGHT - 50, comboStr, rgb((u8)255, (u8)100, (u8)255), 20);
     }
     
     // Draw power bar if charging
@@ -289,8 +289,8 @@ fn draw_ui(game: &ArcheryState) {
 }
 
 fn draw_crosshair(x: i32, y: i32) {
-    var color = rgb(255 as u8, 255 as u8, 255 as u8);
-    var size = 15;
+    let color = rgb((u8)255, (u8)255, (u8)255);
+    let size = 15;
     
     // Horizontal line
     fb_draw_rect(x - size, y - 1, size - size / 3, 2, color);
@@ -301,68 +301,68 @@ fn draw_crosshair(x: i32, y: i32) {
     fb_draw_rect(x - 1, y + size / 3, 2, size - size / 3, color);
     
     // Center dot
-    fb_draw_pixel(x, y, rgb(255 as u8, 50 as u8, 50 as u8));
+    fb_draw_pixel(x, y, rgb((u8)255, (u8)50, (u8)50));
 }
 
 fn draw_ready_screen() {
-    fb_clear(color_to_u32(rgb(20 as u8, 30 as u8, 50 as u8)));
+    fb_clear(color_to_u32(rgb((u8)20, (u8)30, (u8)50)));
     
     // Title
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 80, "ARCHERY", rgb(255 as u8, 215 as u8, 0 as u8), 40);
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 70, 125, "TARGET SHOOTING", rgb(200 as u8, 200 as u8, 200 as u8), 18);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 80, "ARCHERY", rgb((u8)255, (u8)215, (u8)0), 40);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 70, 125, "TARGET SHOOTING", rgb((u8)200, (u8)200, (u8)200), 18);
     
     // Divider
-    fb_draw_rect(WINDOW_WIDTH / 2 - 150, 160, 300, 2, rgb(100 as u8, 100 as u8, 100 as u8));
+    fb_draw_rect(WINDOW_WIDTH / 2 - 150, 160, 300, 2, rgb((u8)100, (u8)100, (u8)100));
     
     // Target preview
-    var tx = WINDOW_WIDTH / 2;
-    var ty = 260;
-    fb_fill_circle(tx, ty, OUTER_RING_RADIUS, rgb(240 as u8, 240 as u8, 240 as u8));
-    fb_fill_circle(tx, ty, INNER_RING_RADIUS, rgb(30 as u8, 30 as u8, 30 as u8));
-    fb_fill_circle(tx, ty, BULLSEYE_RADIUS, rgb(30 as u8, 30 as u8, 200 as u8));
-    fb_fill_circle(tx, ty, 5, rgb(255 as u8, 215 as u8, 0 as u8));
+    let tx = WINDOW_WIDTH / 2;
+    let ty = 260;
+    fb_fill_circle(tx, ty, OUTER_RING_RADIUS, rgb((u8)240, (u8)240, (u8)240));
+    fb_fill_circle(tx, ty, INNER_RING_RADIUS, rgb((u8)30, (u8)30, (u8)30));
+    fb_fill_circle(tx, ty, BULLSEYE_RADIUS, rgb((u8)30, (u8)30, (u8)200));
+    fb_fill_circle(tx, ty, 5, rgb((u8)255, (u8)215, (u8)0));
     
     // Score info
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 320, "SCORING:", rgb(255 as u8, 255 as u8, 255 as u8), 16);
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 80, 350, "BULLSEYE (Gold) = 50 pts", rgb(255 as u8, 215 as u8, 0 as u8), 14);
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 80, 375, "INNER RING (Blue) = 30 pts", rgb(100 as u8, 100 as u8, 255 as u8), 14);
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 80, 400, "OUTER RING (White) = 10 pts", rgb(200 as u8, 200 as u8, 200 as u8), 14);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 320, "SCORING:", rgb((u8)255, (u8)255, (u8)255), 16);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 80, 350, "BULLSEYE (Gold) = 50 pts", rgb((u8)255, (u8)215, (u8)0), 14);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 80, 375, "INNER RING (Blue) = 30 pts", rgb((u8)100, (u8)100, (u8)255), 14);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 80, 400, "OUTER RING (White) = 10 pts", rgb((u8)200, (u8)200, (u8)200), 14);
     
     // Combo bonus
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 80, 430, "COMBO BONUS: +5 pts per streak", rgb(255 as u8, 100 as u8, 255 as u8), 14);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 80, 430, "COMBO BONUS: +5 pts per streak", rgb((u8)255, (u8)100, (u8)255), 14);
     
     // Divider
-    fb_draw_rect(WINDOW_WIDTH / 2 - 150, 460, 300, 2, rgb(100 as u8, 100 as u8, 100 as u8));
+    fb_draw_rect(WINDOW_WIDTH / 2 - 150, 460, 300, 2, rgb((u8)100, (u8)100, (u8)100));
     
     // Controls
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 480, "CONTROLS:", rgb(255 as u8, 255 as u8, 255 as u8), 16);
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 505, "Mouse to Aim", rgb(180 as u8, 180 as u8, 180 as u8), 14);
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 525, "Hold Left Click to Charge", rgb(180 as u8, 180 as u8, 180 as u8), 14);
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 545, "Release to Shoot", rgb(180 as u8, 180 as u8, 180 as u8), 14);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 480, "CONTROLS:", rgb((u8)255, (u8)255, (u8)255), 16);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 505, "Mouse to Aim", rgb((u8)180, (u8)180, (u8)180), 14);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 525, "Hold Left Click to Charge", rgb((u8)180, (u8)180, (u8)180), 14);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 545, "Release to Shoot", rgb((u8)180, (u8)180, (u8)180), 14);
     
     // Start prompt
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 80, 580, "CLICK TO START", rgb(255 as u8, 255 as u8, 255 as u8), 22);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 80, 580, "CLICK TO START", rgb((u8)255, (u8)255, (u8)255), 22);
 }
 
-fn draw_gameover_screen(game: &ArcheryState) {
-    fb_clear(color_to_u32(rgb(20 as u8, 20 as u8, 40 as u8)));
+fn draw_gameover_screen(game: ArcheryState*) {
+    fb_clear(color_to_u32(rgb((u8)20, (u8)20, (u8)40)));
     
     // Title
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 60, "GAME OVER", rgb(255 as u8, 100 as u8, 100 as u8), 40);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 100, 60, "GAME OVER", rgb((u8)255, (u8)100, (u8)100), 40);
     
     // Divider
-    fb_draw_rect(WINDOW_WIDTH / 2 - 180, 120, 360, 2, rgb(100 as u8, 100 as u8, 100 as u8));
+    fb_draw_rect(WINDOW_WIDTH / 2 - 180, 120, 360, 2, rgb((u8)100, (u8)100, (u8)100));
     
     // Final score
-    var scoreStr = "FINAL SCORE: " ++ game.score.toString();
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 90, 160, scoreStr, rgb(255 as u8, 215 as u8, 0 as u8), 32);
+    let scoreStr = "FINAL SCORE: {game}".score.toString();
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 90, 160, scoreStr, rgb((u8)255, (u8)215, (u8)0), 32);
     
     // Rounds completed
-    var roundsStr = "ROUNDS COMPLETED: " ++ (game.round - 1).toString();
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 85, 210, roundsStr, rgb(200 as u8, 200 as u8, 200 as u8), 18);
+    let roundsStr = "ROUNDS COMPLETED: " ++ (game.round - 1).toString();
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 85, 210, roundsStr, rgb((u8)200, (u8)200, (u8)200), 18);
     
     // Performance rating
-    var rating: str;
+    let rating: str;
     if game.score >= 1000 {
         rating = "MASTER ARCHER!";
     } else if game.score >= 700 {
@@ -375,13 +375,13 @@ fn draw_gameover_screen(game: &ArcheryState) {
         rating = "NOVICE ARCHER";
     }
     
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 80, 260, rating, rgb(100 as u8, 255 as u8, 100 as u8), 24);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 80, 260, rating, rgb((u8)100, (u8)255, (u8)100), 24);
     
     // Divider
-    fb_draw_rect(WINDOW_WIDTH / 2 - 180, 310, 360, 2, rgb(100 as u8, 100 as u8, 100 as u8));
+    fb_draw_rect(WINDOW_WIDTH / 2 - 180, 310, 360, 2, rgb((u8)100, (u8)100, (u8)100));
     
     // Restart prompt
-    fb_draw_text_size(WINDOW_WIDTH / 2 - 110, 360, "CLICK TO PLAY AGAIN", rgb(200 as u8, 200 as u8, 200 as u8), 18);
+    fb_draw_text_size(WINDOW_WIDTH / 2 - 110, 360, "CLICK TO PLAY AGAIN", rgb((u8)200, (u8)200, (u8)200), 18);
 }
 
 // ==================== 事件处理器 ====================
@@ -389,17 +389,17 @@ fn draw_gameover_screen(game: &ArcheryState) {
 fn on_mouse_down(x: i32, y: i32, button: MouseButton) {
     if button == MouseButton.Left {
         match game.status {
-            GameStatus.Ready => {
+            GameStatus::Ready => {
                 reset_game(&mut game);
                 game.status = GameStatus.Playing;
                 game.chargeStartTime = get_tick_count();
                 game.bow.drawing = true;
             }
-            GameStatus.Playing => {
+            GameStatus::Playing => {
                 game.chargeStartTime = get_tick_count();
                 game.bow.drawing = true;
             }
-            GameStatus.GameOver => {
+            GameStatus::GameOver => {
                 reset_game(&mut game);
                 game.status = GameStatus.Playing;
             }
@@ -440,10 +440,10 @@ fn on_paint(w: i32, h: i32) {
     }
     
     match game.status {
-        GameStatus.Ready => {
+        GameStatus::Ready => {
             draw_ready_screen();
         }
-        GameStatus.Playing, GameStatus.Reloading => {
+        GameStatus.Playing, GameStatus::Reloading => {
             draw_background();
             
             // Draw targets
@@ -469,10 +469,10 @@ fn on_paint(w: i32, h: i32) {
             
             // Reloading message
             if game.status == GameStatus.Reloading {
-                fb_draw_text_size(WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2, "NEXT ROUND...", rgb(255 as u8, 255 as u8, 0 as u8), 24);
+                fb_draw_text_size(WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2, "NEXT ROUND...", rgb((u8)255, (u8)255, (u8)0), 24);
             }
         }
-        GameStatus.GameOver => {
+        GameStatus::GameOver => {
             draw_background();
             draw_gameover_screen(&game);
         }
@@ -493,9 +493,9 @@ static mut window: WindowHandle;
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("  Zen-C Archery 射箭游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "  Zen-C Archery 射箭游戏";
+    io.println "========================================";
     
     // Initialize random seed
     srand(12345);
@@ -504,17 +504,17 @@ fn main() -> i32 {
     init_game(&mut game, WINDOW_WIDTH, WINDOW_HEIGHT);
     
     // Create window
-    var title = "Archery - 射箭游戏";
+    let title = "Archery - 射箭游戏";
     window = createWindow(title, WINDOW_WIDTH, WINDOW_HEIGHT);
     
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
     
     // Get client area size
-    var mut cw = 0;
-    var mut ch = 0;
+    let mut cw = 0;
+    let mut ch = 0;
     getWindowSize(window, &mut cw, &mut ch);
     if cw > 0 && ch > 0 {
         game.width = cw;
@@ -524,7 +524,7 @@ fn main() -> i32 {
     
     // Initialize framebuffer
     if !fb_init(window, WINDOW_WIDTH, WINDOW_HEIGHT) {
-        io.println("错误: 无法初始化帧缓冲");
+        io.println "错误: 无法初始化帧缓冲";
         return 1;
     }
     
@@ -542,9 +542,9 @@ fn main() -> i32 {
     // Set game timer (16ms ~60fps)
     setGameTimer(window, 16);
     
-    io.println("窗口创建成功!");
-    io.println("鼠标瞄准，左键蓄力射击");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "鼠标瞄准，左键蓄力射击";
+    io.println "========================================";
     
     // Initial draw
     redrawWindow(window);
@@ -552,8 +552,8 @@ fn main() -> i32 {
     // Run event loop
     runEventLoop(window, &mut game);
     
-    io.println("游戏结束!");
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println "========================================";
     
     0
 }

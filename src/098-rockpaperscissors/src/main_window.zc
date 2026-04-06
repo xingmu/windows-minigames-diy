@@ -1,26 +1,26 @@
 // main_window.zc - 石头剪刀布游戏主程序
 // Zen-C Windows GUI 版本
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 
 import "game_logic.zc";
 import "platform_api.zc";
 
 // ==================== 颜色定义 ====================
 
-const COLOR_BACKGROUND = rgb(30, 30, 46);
-const COLOR_PANEL = rgb(40, 40, 60);
-const COLOR_BORDER = rgb(80, 80, 120);
-const COLOR_TEXT = rgb(236, 240, 241);
-const COLOR_TEXT_DIM = rgb(149, 165, 166);
-const COLOR_ACCENT = rgb(46, 204, 113);
-const COLOR_WARNING = rgb(231, 76, 60);
-const COLOR_DRAW = rgb(241, 196, 15);
+def COLOR_BACKGROUND = rgb(30, 30, 46);
+def COLOR_PANEL = rgb(40, 40, 60);
+def COLOR_BORDER = rgb(80, 80, 120);
+def COLOR_TEXT = rgb(236, 240, 241);
+def COLOR_TEXT_DIM = rgb(149, 165, 166);
+def COLOR_ACCENT = rgb(46, 204, 113);
+def COLOR_WARNING = rgb(231, 76, 60);
+def COLOR_DRAW = rgb(241, 196, 15);
 
-const COLOR_ROCK = rgb(147, 196, 125);
-const COLOR_PAPER = rgb(109, 158, 235);
-const COLOR_SCISSORS = rgb(237, 145, 73);
+def COLOR_ROCK = rgb(147, 196, 125);
+def COLOR_PAPER = rgb(109, 158, 235);
+def COLOR_SCISSORS = rgb(237, 145, 73);
 
 // ==================== 全局变量 ====================
 
@@ -134,7 +134,7 @@ fn printf(format: str, args: rawptr) {
 }
 
 fn rgb(r: u8, g: u8, b: u8) -> u32 {
-    return 0xFF000000 as u32 | (r as u32 << 16) | (g as u32 << 8) | b as u32;
+    return (u32)0xFF000000 | ((u32)r << 16) | ((u32)g << 8) | b as u32;
 }
 
 // ==================== 游戏界面绘制 ====================
@@ -223,8 +223,8 @@ fn draw_result_panel(ctx: rawptr, x: i32, y: i32, w: i32, h: i32, result: GameRe
     draw_text_centered(ctx, x, y + 20, w, 40, result_text, text_color);
     
     // 显示双方选择
-    let player_text = "你的选择: " ++ choice_to_string(game.player_choice);
-    let cpu_text = "CPU的选择: " ++ choice_to_string(game.cpu_choice);
+    let player_text = "你的选择: {choice_to_string}"(game.player_choice);
+    let cpu_text = "CPU的选择: {choice_to_string}"(game.cpu_choice);
     draw_text(ctx, x + 20, y + 60, player_text, COLOR_TEXT);
     draw_text(ctx, x + 20, y + 80, cpu_text, COLOR_TEXT);
 }
@@ -236,14 +236,14 @@ fn draw_score_panel(ctx: rawptr, x: i32, y: i32, w: i32, h: i32) {
     draw_rect_outline(ctx, x, y, w, h, COLOR_BORDER);
     
     // 分数文字
-    let score_text = "分数: 你 " ++ int_to_string(game.player_score) ++ 
-                     " - " ++ int_to_string(game.cpu_score) ++ " CPU";
+    let score_text = "分数: 你 {int_to_string}"(game.player_score) ++ 
+                     " - {int_to_string}"(game.cpu_score) ++ " CPU";
     draw_text_centered(ctx, x, y, w, h, score_text, COLOR_TEXT);
 }
 
 // 绘制回合数
 fn draw_round_info(ctx: rawptr, x: i32, y: i32, w: i32, h: i32) {
-    let round_text = "回合: " ++ int_to_string(game.round_count);
+    let round_text = "回合: {int_to_string}"(game.round_count);
     draw_text(ctx, x, y, round_text, COLOR_TEXT_DIM);
 }
 
@@ -307,7 +307,7 @@ fn int_to_string(n: i32) -> str {
     }
     
     if negative {
-        result = "-" ++ result;
+        result = "-{result}";
     }
     
     return result;
@@ -330,8 +330,8 @@ fn render_game(ctx: rawptr, width: i32, height: i32) {
     // 计算缩放
     let scale = if width < height { width as f32 / GAME_WIDTH as f32 } 
                 else { height as f32 / GAME_HEIGHT as f32 };
-    let offset_x = (width - GAME_WIDTH as i32 * scale as i32) / 2;
-    let offset_y = (height - GAME_HEIGHT as i32 * scale as i32) / 2;
+    let offset_x = (width - (i32)GAME_WIDTH * (i32)scale) / 2;
+    let offset_y = (height - (i32)GAME_HEIGHT * (i32)scale) / 2;
     
     // 绘制标题
     let title = "石头剪刀布";
@@ -421,11 +421,11 @@ fn handle_mouse_click(x: i32, y: i32, button: MouseButton) {
 // ==================== 主函数 ====================
 
 pub fn main() {
-    println("===========================================");
-    println("  石头剪刀布 - Zen-C 游戏");
-    println("  现代系统编程，简洁优雅");
-    println("===========================================");
-    println("");
+    println "===========================================";
+    println "  石头剪刀布 - Zen-C 游戏";
+    println "  现代系统编程，简洁优雅";
+    println "===========================================";
+    println "";
     
     // 初始化游戏
     init_game(&mut game);
@@ -433,7 +433,7 @@ pub fn main() {
     // 创建窗口
     window = createWindow("石头剪刀布", GAME_WIDTH, GAME_HEIGHT);
     if window == nil {
-        println("错误: 无法创建窗口");
+        println "错误: 无法创建窗口";
         return;
     }
     
@@ -442,7 +442,7 @@ pub fn main() {
     
     // 消息循环
     while running {
-        var event = Event.{};
+        let event = Event{};
         
         // 处理事件
         while pollEvent(window, &event) {
@@ -490,8 +490,8 @@ pub fn main() {
     // 关闭窗口
     closeWindow(window);
     
-    println("");
-    println("游戏结束!");
-    println("最终分数: 你 " ++ int_to_string(game.player_score) ++ 
-            " - " ++ int_to_string(game.cpu_score) ++ " CPU");
+    println "";
+    println "游戏结束!";
+    println("最终分数: 你 {int_to_string}"(game.player_score) ++ 
+            " - {int_to_string}"(game.cpu_score) ++ " CPU");
 }

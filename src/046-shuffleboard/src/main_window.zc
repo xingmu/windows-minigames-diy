@@ -1,7 +1,7 @@
 // main_window.zc - Zen-C 沙狐球游戏主程序
 // Shuffleboard - 滑动蓄力发射
 
-import std.io;
+import "io.zc";
 
 // 导入平台API
 import "platform_api.zc";
@@ -10,10 +10,10 @@ import "game_logic.zc";
 // ==================== 常量 ====================
 
 // 游戏颜色
-const TABLE_COLOR: Color = Color.RGB(60, 100, 60);    // 台面绿
-const RAIL_COLOR: Color = Color.RGB(139, 90, 43);       // 木色边框
-const LINE_COLOR: Color = Color.RGB(255, 255, 255);    // 白色线
-const BG_COLOR: Color = Color.RGB(30, 30, 40);         // 背景色
+def TABLE_COLOR: Color = Color.RGB(60, 100, 60);    // 台面绿
+def RAIL_COLOR: Color = Color.RGB(139, 90, 43);       // 木色边框
+def LINE_COLOR: Color = Color.RGB(255, 255, 255);    // 白色线
+def BG_COLOR: Color = Color.RGB(30, 30, 40);         // 背景色
 
 // ==================== 全局变量 ====================
 
@@ -34,7 +34,7 @@ fn fb_set_pixel(x: i32, y: i32, color: Color) {
         return;
     }
     let offset = y * (fb_pitch / 4) + x;
-    let pixels = fb_buffer as u32 mut;
+    let pixels = (u32)fb_buffer mut;
     pixels[offset] = color;
 }
 
@@ -136,7 +136,7 @@ fn fb_fill_circle(cx: i32, cy: i32, radius: i32, color: Color) {
 
 fn fb_clear(color: Color) {
     let count = fb_pitch * fb_height / 4;
-    let pixels = fb_buffer as u32 mut;
+    let pixels = (u32)fb_buffer mut;
     for i in 0..count {
         pixels[i] = color;
     }
@@ -292,7 +292,7 @@ fn render_game() {
         fb_fill_rect(barX, barY, fillW, barHeight, powerColor);
         
         // 力度文字
-        draw_text(barX + barWidth + 10, barY, "Power: " ++ game.power.toString(), Color.White(), 12);
+        draw_text(barX + barWidth + 10, barY, "Power: {game}".power.toString(), Color.White(), 12);
     }
 
     // 绘制UI信息
@@ -357,14 +357,14 @@ fn drawUI() {
     
     // 玩家1分数 (红色)
     fb_fill_rect(20, scoreY, 120, 35, Color.RGB(60, 30, 30));
-    draw_text(25, scoreY + 3, "红队: " ++ game.score1.toString(), PUCK_RED, 18);
+    draw_text(25, scoreY + 3, "红队: {game}".score1.toString(), PUCK_RED, 18);
     
     // 玩家2分数 (蓝色)
     fb_fill_rect(GAME_WIDTH - 140, scoreY, 120, 35, Color.RGB(30, 30, 60));
-    draw_text(GAME_WIDTH - 135, scoreY + 3, "蓝队: " ++ game.score2.toString(), PUCK_BLUE, 18);
+    draw_text(GAME_WIDTH - 135, scoreY + 3, "蓝队: {game}".score2.toString(), PUCK_BLUE, 18);
     
     // 回合信息
-    let roundText = "回合: " ++ game.round.toString() ++ "/" ++ game.maxRounds.toString();
+    let roundText = "回合: {game}"."{round}/{game}".maxRounds.toString();
     draw_text(GAME_WIDTH / 2 - 40, scoreY, roundText, Color.White(), 16);
     
     // 当前玩家指示
@@ -386,8 +386,8 @@ fn draw_text(x: i32, y: i32, text: string, color: Color, size: i32) {
     let charW = size * 2 / 3;
     let charH = size;
 
-    var px = x;
-    var py = y;
+    let px = x;
+    let py = y;
 
     for i in 0..len(text) {
         if text[i] == ' ' {
@@ -426,9 +426,9 @@ fn draw_text(x: i32, y: i32, text: string, color: Color, size: i32) {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 沙狐球游戏 - Shuffleboard");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 沙狐球游戏 - Shuffleboard";
+    io.println "========================================";
 
     // 初始化游戏
     init_game(&mut game);
@@ -438,13 +438,13 @@ fn main() -> i32 {
     window = createWindow(title, GAME_WIDTH, GAME_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
-    io.println("窗口创建成功!");
-    io.println("点击并向上拖拽蓄力发射!");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "点击并向上拖拽蓄力发射!";
+    io.println "========================================";
 
     0
 }

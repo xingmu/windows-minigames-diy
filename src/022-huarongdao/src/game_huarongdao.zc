@@ -1,24 +1,24 @@
 // game_huarongdao.zc - 华容道游戏核心逻辑
 // 华容道 Klotski - 移动方块让曹操逃出
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
 // 棋盘尺寸
-const BOARD_ROWS = 4;
-const BOARD_COLS = 5;
+def BOARD_ROWS = 4;
+def BOARD_COLS = 5;
 
 // 胜利位置 - 曹操(大方块)移动到这里即胜利
-const WIN_ROW = 2;
-const WIN_COL = 2;
+def WIN_ROW = 2;
+def WIN_COL = 2;
 
 // 方块类型
-const BLOCK_BIG = 0;      // 2x2 曹操
-const BLOCK_VERT = 1;     // 1x2 竖直
-const BLOCK_HORIZ = 2;    // 2x1 水平
-const BLOCK_SOLDIER = 3;  // 1x1 士兵
+def BLOCK_BIG = 0;      // 2x2 曹操
+def BLOCK_VERT = 1;     // 1x2 竖直
+def BLOCK_HORIZ = 2;    // 2x1 水平
+def BLOCK_SOLDIER = 3;  // 1x1 士兵
 
 // 方块定义
 struct Block {
@@ -40,7 +40,7 @@ fn is_cell_occupied(board: &[BOARD_ROWS * BOARD_COLS]i32, row: i32, col: i32) ->
 }
 
 // 检查方块是否可以移动到指定位置
-fn can_move_to(board: &[BOARD_ROWS * BOARD_COLS]i32, block: &Block, new_row: i32, new_col: i32) -> bool {
+fn can_move_to(board: &[BOARD_ROWS * BOARD_COLS]i32, block: Block*, new_row: i32, new_col: i32) -> bool {
     // 检查所有占用格子
     for r in 0..block.height {
         for c in 0..block.width {
@@ -55,7 +55,7 @@ fn can_move_to(board: &[BOARD_ROWS * BOARD_COLS]i32, block: &Block, new_row: i32
 }
 
 // 移动方块到新位置
-fn move_block(board: &mut [BOARD_ROWS * BOARD_COLS]i32, blocks: &mut [10]Block, block_id: i32, new_row: i32, new_col: i32) {
+fn move_block(board: &mut [BOARD_ROWS * BOARD_COLS]i32, blocks: &mut [Block; 10], block_id: i32, new_row: i32, new_col: i32) {
     let mut block: Block = blocks[block_id];
     
     // 清除旧位置
@@ -87,7 +87,7 @@ fn move_block(board: &mut [BOARD_ROWS * BOARD_COLS]i32, blocks: &mut [10]Block, 
 }
 
 // 检查是否胜利 - 曹操(大方块)到达出口
-fn check_win(blocks: &[10]Block) -> bool {
+fn check_win(blocks: &[Block; 10]) -> bool {
     // 找到大方块(id=0)
     let big = blocks[0];
     // 胜利条件: 大方块左上角在 (WIN_ROW, WIN_COL)
@@ -106,7 +106,7 @@ fn get_block_color(block_type: i32) -> u32 {
 }
 
 // 初始化游戏板
-fn init_board(board: &mut [BOARD_ROWS * BOARD_COLS]i32, blocks: &mut [10]Block) {
+fn init_board(board: &mut [BOARD_ROWS * BOARD_COLS]i32, blocks: &mut [Block; 10]) {
     // 全部初始化为-1(空)
     for i in 0..(BOARD_ROWS * BOARD_COLS) {
         board[i] = -1;
@@ -114,38 +114,38 @@ fn init_board(board: &mut [BOARD_ROWS * BOARD_COLS]i32, blocks: &mut [10]Block) 
     
     // 创建方块定义
     // 0: 大方块 2x2 (曹操) - 初始位置 (0,1)
-    blocks[0] = Block.{ id: 0, type: BLOCK_BIG, row: 0, col: 1, width: 2, height: 2, color: get_block_color(BLOCK_BIG) };
+    blocks[0] = Block { id: 0, type: BLOCK_BIG, row: 0, col: 1, width: 2, height: 2, color: get_block_color(BLOCK_BIG) };
     
     // 1: 竖直1x2 - 关羽 (0,0)
-    blocks[1] = Block.{ id: 1, type: BLOCK_VERT, row: 0, col: 0, width: 1, height: 2, color: get_block_color(BLOCK_VERT) };
+    blocks[1] = Block { id: 1, type: BLOCK_VERT, row: 0, col: 0, width: 1, height: 2, color: get_block_color(BLOCK_VERT) };
     
     // 2: 竖直1x2 - 张飞 (0,3)
-    blocks[2] = Block.{ id: 2, type: BLOCK_VERT, row: 0, col: 3, width: 1, height: 2, color: get_block_color(BLOCK_VERT) };
+    blocks[2] = Block { id: 2, type: BLOCK_VERT, row: 0, col: 3, width: 1, height: 2, color: get_block_color(BLOCK_VERT) };
     
     // 3: 横2x1 - 黄忠 (0,0) 但在右边 -> 调整: (0,4)
     // 实际放: (0,4) 横向
-    blocks[3] = Block.{ id: 3, type: BLOCK_VERT, row: 0, col: 4, width: 1, height: 2, color: get_block_color(BLOCK_VERT) };
+    blocks[3] = Block { id: 3, type: BLOCK_VERT, row: 0, col: 4, width: 1, height: 2, color: get_block_color(BLOCK_VERT) };
     
     // 4: 竖直1x2 - 赵云 (2,0)
-    blocks[4] = Block.{ id: 4, type: BLOCK_VERT, row: 2, col: 0, width: 1, height: 2, color: get_block_color(BLOCK_VERT) };
+    blocks[4] = Block { id: 4, type: BLOCK_VERT, row: 2, col: 0, width: 1, height: 2, color: get_block_color(BLOCK_VERT) };
     
     // 5: 横2x1 - 魏延 (2,1)
-    blocks[5] = Block.{ id: 5, type: BLOCK_HORIZ, row: 2, col: 1, width: 2, height: 1, color: get_block_color(BLOCK_HORIZ) };
+    blocks[5] = Block { id: 5, type: BLOCK_HORIZ, row: 2, col: 1, width: 2, height: 1, color: get_block_color(BLOCK_HORIZ) };
     
     // 6: 横2x1 - 马超 (2,3)
-    blocks[6] = Block.{ id: 6, type: BLOCK_HORIZ, row: 2, col: 3, width: 2, height: 1, color: get_block_color(BLOCK_HORIZ) };
+    blocks[6] = Block { id: 6, type: BLOCK_HORIZ, row: 2, col: 3, width: 2, height: 1, color: get_block_color(BLOCK_HORIZ) };
     
     // 7: 竖直1x2 - 黄忠 (2,4)
-    blocks[7] = Block.{ id: 7, type: BLOCK_VERT, row: 2, col: 4, width: 1, height: 2, color: get_block_color(BLOCK_VERT) };
+    blocks[7] = Block { id: 7, type: BLOCK_VERT, row: 2, col: 4, width: 1, height: 2, color: get_block_color(BLOCK_VERT) };
     
     // 8: 士兵 1x1 (1,3)
-    blocks[8] = Block.{ id: 8, type: BLOCK_SOLDIER, row: 1, col: 3, width: 1, height: 1, color: get_block_color(BLOCK_SOLDIER) };
+    blocks[8] = Block { id: 8, type: BLOCK_SOLDIER, row: 1, col: 3, width: 1, height: 1, color: get_block_color(BLOCK_SOLDIER) };
     
     // 9: 士兵 1x1 (1,0) - 但0,0被占了 -> 改: (1,4) 也被占了
     // 调整: 用士兵填空 (1,0)位置其实空的因为大方块占1,1和1,2
     // 大方块在(0,1)所以(1,1)和(1,2)被占
     // (1,0)空的
-    blocks[9] = Block.{ id: 9, type: BLOCK_SOLDIER, row: 1, col: 0, width: 1, height: 1, color: get_block_color(BLOCK_SOLDIER) };
+    blocks[9] = Block { id: 9, type: BLOCK_SOLDIER, row: 1, col: 0, width: 1, height: 1, color: get_block_color(BLOCK_SOLDIER) };
     
     // 更新棋盘
     for i in 0..10 {
@@ -171,7 +171,7 @@ fn get_block_at(board: &[BOARD_ROWS * BOARD_COLS]i32, row: i32, col: i32) -> i32
 }
 
 // 检查是否可以向某方向移动
-fn can_move_direction(board: &[BOARD_ROWS * BOARD_COLS]i32, blocks: &[10]Block, block_id: i32, d_row: i32, d_col: i32) -> bool {
+fn can_move_direction(board: &[BOARD_ROWS * BOARD_COLS]i32, blocks: &[Block; 10], block_id: i32, d_row: i32, d_col: i32) -> bool {
     if block_id < 0 || block_id >= 10 {
         return false;
     }

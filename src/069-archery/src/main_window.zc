@@ -1,6 +1,6 @@
 // main_window.zc - Zen-C Archery（射箭）游戏主程序
 
-import std.io;
+import "io.zc";
 
 // 导入游戏逻辑
 import "platform_api.zc";
@@ -15,31 +15,31 @@ static mut game_speed: u32 = 16;  // ~60 FPS
 
 // ==================== 常量定义 ====================
 
-const SKY_BLUE = Color { r: 135, g: 206, b: 235 };
-const GRASS_GREEN = Color { r: 34, g: 139, b: 34 };
-const BOW_BROWN = Color { r: 139, g: 69, b: 19 };
-const ARROW_BROWN = Color { r: 160, g: 82, b: 45 };
-const TARGET_RED_COLOR = Color { r: 220, g: 20, b: 60 };
-const TARGET_WHITE_COLOR = Color { r: 255, g: 255, b: 255 };
-const BULLSEYE_GOLD = Color { r: 255, g: 215, b: 0 };
-const STRING_COLOR = Color { r: 200, g: 200, b: 200 };
-const TRAJ_COLOR = Color { r: 200, g: 200, b: 100 };
+def SKY_BLUE = Color { r: 135, g: 206, b: 235 };
+def GRASS_GREEN = Color { r: 34, g: 139, b: 34 };
+def BOW_BROWN = Color { r: 139, g: 69, b: 19 };
+def ARROW_BROWN = Color { r: 160, g: 82, b: 45 };
+def TARGET_RED_COLOR = Color { r: 220, g: 20, b: 60 };
+def TARGET_WHITE_COLOR = Color { r: 255, g: 255, b: 255 };
+def BULLSEYE_GOLD = Color { r: 255, g: 215, b: 0 };
+def STRING_COLOR = Color { r: 200, g: 200, b: 200 };
+def TRAJ_COLOR = Color { r: 200, g: 200, b: 100 };
 
 // ==================== 事件处理 ====================
 
 fn on_key(key: KeyCode) -> bool {
     match key {
-        KeyCode.KeySpace => {
+        KeyCode::KeySpace => {
             if game.status == GameStatus.RoundEnd {
                 next_round(&mut game);
                 redraw_window(window);
             }
         },
-        KeyCode.KeyR => {
+        KeyCode::KeyR => {
             restart_game(&mut game);
             redraw_window(window);
         },
-        KeyCode.KeyEscape => {
+        KeyCode::KeyEscape => {
             return false;
         },
         _ => {}
@@ -96,7 +96,7 @@ fn draw_background() {
 }
 
 // 绘制目标
-fn draw_target(target: &Target) {
+fn draw_target(target: Target*) {
     if target.hit {
         // 已击中显示效果
         fb_draw_circle(
@@ -165,7 +165,7 @@ fn draw_bow() {
 }
 
 // 绘制弓箭
-fn draw_arrow(arrow: &Arrow) {
+fn draw_arrow(arrow: Arrow*) {
     if !arrow.active {
         return;
     }
@@ -246,10 +246,10 @@ fn draw_trajectory_preview() {
         // 渐隐效果
         let alpha = 1.0 - (i as f32 / 30.0);
         if i % 3 == 0 {
-            fb_draw_circle(p.x, p.y, 2, Color { 
-                r: (200 * alpha) as u8, 
-                g: (200 * alpha) as u8, 
-                b: (100 * alpha) as u8 
+            fb_draw_circle(u8)(p.x, p.y, 2, Color { 
+                r: (200 * alpha), 
+                g: (u8)(200 * alpha), 
+                b: (u8)(100 * alpha) 
             });
         }
     }
@@ -262,11 +262,11 @@ fn draw_ui() {
     fb_draw_rect(7, 7, 196, 56, Color { r: 50, g: 50, b: 80 });
     
     // 分数
-    let score_text = "分数: " ++ game.score.toString();
+    let score_text = "分数: {game}".score.toString();
     fb_draw_text_size(15, 12, score_text, Color { r: 255, g: 255, b: 0 }, 18);
     
     // 回合和弓箭
-    let info_text = "回合: " ++ game.round.toString() ++ "  弓箭: " ++ game.arrows_left.toString();
+    let info_text = "回合: {game}"."{round}  弓箭: {game}".arrows_left.toString();
     fb_draw_text_size(15, 35, info_text, Color { r: 255, g: 255, b: 255 }, 16);
     
     // 风力面板
@@ -303,11 +303,11 @@ fn draw_game_over() {
     fb_draw_text_size(GAME_WIDTH / 2 - 60, GAME_HEIGHT / 2 - 60, "游戏结束!", Color { r: 255, g: 215, b: 0 }, 28);
     
     // 分数
-    let final_score = "最终分数: " ++ game.score.toString();
+    let final_score = "最终分数: {game}".score.toString();
     fb_draw_text_size(GAME_WIDTH / 2 - 70, GAME_HEIGHT / 2 - 20, final_score, Color { r: 255, g: 255, b: 255 }, 20);
     
     // 回合
-    let rounds = "回合数: " ++ game.round.toString();
+    let rounds = "回合数: {game}".round.toString();
     fb_draw_text_size(GAME_WIDTH / 2 - 60, GAME_HEIGHT / 2 + 10, rounds, Color { r: 200, g: 200, b: 200 }, 18);
     
     // 重新开始提示
@@ -362,9 +362,9 @@ fn on_paint(w: i32, h: i32) {
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C Archery 射箭游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C Archery 射箭游戏";
+    io.println "========================================";
 
     // 初始化随机数种子
     let seed = 12345;  // 固定种子以便调试
@@ -378,7 +378,7 @@ fn main() -> i32 {
     window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
 
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
 
@@ -404,11 +404,11 @@ fn main() -> i32 {
     // 设置游戏定时器
     set_game_timer(window, game_speed);
 
-    io.println("窗口创建成功!");
-    io.println("使用鼠标瞄准，点击射箭");
-    io.println("按空格键进入下一轮");
-    io.println("按 R 重新开始游戏");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "使用鼠标瞄准，点击射箭";
+    io.println "按空格键进入下一轮";
+    io.println "按 R 重新开始游戏";
+    io.println "========================================";
 
     // 初始绘制
     redraw_window(window);
@@ -416,9 +416,9 @@ fn main() -> i32 {
     // 运行事件循环
     run_event_loop(window);
 
-    io.println("游戏结束!");
-    io.println("最终得分: " ++ game.score.toString());
-    io.println("========================================");
+    io.println "游戏结束!";
+    io.println("最终得分: {game}".score.toString());
+    io.println "========================================";
 
     0
 }

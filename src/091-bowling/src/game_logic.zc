@@ -4,24 +4,24 @@
 // ==================== 常量定义 ====================
 
 // 球瓶排列 - 10个球瓶的三角形位置 (前排1个，后排2个，以此类推)
-const PIN_ROWS = 4;
-const TOTAL_PINS = 10;
+def PIN_ROWS = 4;
+def TOTAL_PINS = 10;
 
 // 球道尺寸
-const LANE_WIDTH = 200;
-const LANE_LENGTH = 500;
-const PIN_SPACING = 25;
+def LANE_WIDTH = 200;
+def LANE_LENGTH = 500;
+def PIN_SPACING = 25;
 
 // 保龄球半径和速度
-const BALL_RADIUS = 12;
-const PIN_RADIUS = 8;
-const MAX_POWER = 15;
-const MIN_POWER = 5;
-const FRICTION = 0.985;
+def BALL_RADIUS = 12;
+def PIN_RADIUS = 8;
+def MAX_POWER = 15;
+def MIN_POWER = 5;
+def FRICTION = 0.985;
 
 // 投球区位置
-const THROW_X = 300;
-const THROW_Y = 420;
+def THROW_X = 300;
+def THROW_Y = 420;
 
 // ==================== 数据结构 ====================
 
@@ -35,7 +35,7 @@ pub struct Pin {
 
 impl Pin {
     pub fn new(x: int, y: int) -> Pin {
-        return Pin.{
+        return Pin {
             x: x,
             y: y,
             standing: true,
@@ -64,9 +64,9 @@ pub struct Ball {
 
 impl Ball {
     pub fn new(x: int, y: int) -> Ball {
-        return Ball.{
-            x: x as float,
-            y: y as float,
+        return Ball {
+            x: (float)x,
+            y: (float)y,
             vx: 0.0,
             vy: 0.0,
             radius: BALL_RADIUS,
@@ -126,7 +126,7 @@ pub struct ScoreBoard {
 
 impl ScoreBoard {
     pub fn new() -> ScoreBoard {
-        return ScoreBoard.{
+        return ScoreBoard {
             rolls: [0; 21],
             currentRoll: 0,
             currentFrame: 0,
@@ -153,8 +153,8 @@ impl ScoreBoard {
     }
     
     pub fn calculateScore(&mut self) -> int {
-        var total = 0;
-        var rollIndex = 0;
+        let total = 0;
+        let rollIndex = 0;
         
         for frame in 0..10 {
             if rollIndex >= 21 {
@@ -190,7 +190,7 @@ impl ScoreBoard {
     }
     
     pub fn getScore(&self) -> int {
-        var total = 0;
+        let total = 0;
         for i in 0..10 {
             total = total + self.frameScores[i];
         }
@@ -218,7 +218,7 @@ impl ScoreBoard {
 }
 
 // 游戏状态
-pub type GamePhase = enum {
+enum GamePhase {
     Aiming,      // 瞄准阶段
     Throwing,    // 投球阶段
     Rolling,     // 球滚动阶段
@@ -254,7 +254,7 @@ pub class BowlingGame {
     
     // 构造
     pub fn create() -> BowlingGame {
-        var game = BowlingGame.{};
+        let game = BowlingGame{};
         game.initPins();
         game.reset();
         return game;
@@ -264,15 +264,15 @@ pub class BowlingGame {
     fn initPins(&mut self) {
         // 球瓶三角形排列
         // 第一排(顶部)1个，后面依次2,3,4个
-        var index = 0;
-        var pinY = 80; // 顶部Y坐标
+        let index = 0;
+        let pinY = 80; // 顶部Y坐标
         
         for row in 1..(PIN_ROWS + 1) {
-            var pinsInRow = row;
-            var startX = 350 - (pinsInRow - 1) * PIN_SPACING / 2;
+            let pinsInRow = row;
+            let startX = 350 - (pinsInRow - 1) * PIN_SPACING / 2;
             
             for col in 0..pinsInRow {
-                var pinX = startX + col * PIN_SPACING;
+                let pinX = startX + col * PIN_SPACING;
                 self.originalPins[index] = (pinX, pinY);
                 index = index + 1;
             }
@@ -284,7 +284,7 @@ pub class BowlingGame {
     pub fn reset(&mut self) {
         // 重置球瓶
         for i in 0..TOTAL_PINS {
-            var pos = self.originalPins[i];
+            let pos = self.originalPins[i];
             self.pins[i].reset(pos[0], pos[1]);
         }
         
@@ -346,14 +346,14 @@ pub class BowlingGame {
     // 更新游戏逻辑
     pub fn update(&mut self) {
         match self.phase {
-            GamePhase.Aiming => {
+            GamePhase::Aiming => {
                 // 等待玩家投球
             }
-            GamePhase.Throwing => {
+            GamePhase::Throwing => {
                 // 开始滚动
                 self.phase = GamePhase.Rolling;
             }
-            GamePhase.Rolling => {
+            GamePhase::Rolling => {
                 // 更新球位置
                 self.ball.update();
                 
@@ -366,19 +366,19 @@ pub class BowlingGame {
                     self.animTimer = 30; // 等待动画
                 }
             }
-            GamePhase.Knocking => {
+            GamePhase::Knocking => {
                 // 等待球瓶倒下动画
                 self.animTimer = self.animTimer - 1;
                 if self.animTimer <= 0 {
                     self.phase = GamePhase.Scoring;
                 }
             }
-            GamePhase.Scoring => {
+            GamePhase::Scoring => {
                 // 计算得分
                 this.calculateKnockedPins();
                 
                 // 记录投球
-                var knocked = TOTAL_PINS - self.standingPins;
+                let knocked = TOTAL_PINS - self.standingPins;
                 self.scoreBoard.recordRoll(knocked);
                 self.scoreBoard.calculateScore();
                 
@@ -391,7 +391,7 @@ pub class BowlingGame {
                 // 准备下一球
                 this.prepareNextThrow();
             }
-            GamePhase.GameOver => {
+            GamePhase::GameOver => {
                 // 游戏结束，等待重新开始
             }
         }
@@ -408,25 +408,25 @@ pub class BowlingGame {
                 continue;
             }
             
-            var dx = self.ball.x - self.pins[i].x as float;
-            var dy = self.ball.y - self.pins[i].y as float;
-            var dist = sqrt_float(dx * dx + dy * dy);
+            let dx = self.ball.x - self.pins[i].x as float;
+            let dy = self.ball.y - self.pins[i].y as float;
+            let dist = sqrt_float(dx * dx + dy * dy);
             
-            if dist < (BALL_RADIUS + PIN_RADIUS) as float {
+            if dist < (float)(BALL_RADIUS + PIN_RADIUS) {
                 // 碰撞发生
                 this.knockPin(i);
                 
                 // 改变球的方向
-                var nx = dx / dist;
-                var ny = dy / dist;
-                var speed = sqrt_float(self.ball.vx * self.ball.vx + self.ball.vy * self.ball.vy);
+                let nx = dx / dist;
+                let ny = dy / dist;
+                let speed = sqrt_float(self.ball.vx * self.ball.vx + self.ball.vy * self.ball.vy);
                 self.ball.vx = self.ball.vx + nx * 2.0;
                 self.ball.vy = self.ball.vy + ny * 2.0;
                 
                 // 减少速度
-                var newSpeed = sqrt_float(self.ball.vx * self.ball.vx + self.ball.vy * self.ball.vy);
+                let newSpeed = sqrt_float(self.ball.vx * self.ball.vx + self.ball.vy * self.ball.vy);
                 if newSpeed > 0.1 {
-                    var ratio = (newSpeed - 2.0) / newSpeed;
+                    let ratio = (newSpeed - 2.0) / newSpeed;
                     self.ball.vx = self.ball.vx * ratio;
                     self.ball.vy = self.ball.vy * ratio;
                 }
@@ -444,9 +444,9 @@ pub class BowlingGame {
                     continue;
                 }
                 
-                var dx = self.pins[i].x - self.pins[j].x;
-                var dy = self.pins[i].y - self.pins[j].y;
-                var dist = sqrt_int(dx * dx + dy * dy);
+                let dx = self.pins[i].x - self.pins[j].x;
+                let dy = self.pins[i].y - self.pins[j].y;
+                let dist = sqrt_int(dx * dx + dy * dy);
                 
                 if dist < PIN_RADIUS * 2 {
                     // 球瓶碰撞，互相击倒
@@ -467,7 +467,7 @@ pub class BowlingGame {
     
     // 计算击倒的球瓶数
     fn calculateKnockedPins(&mut self) {
-        var count = 0;
+        let count = 0;
         for i in 0..TOTAL_PINS {
             if !self.pins[i].standing {
                 count = count + 1;
@@ -489,9 +489,9 @@ pub class BowlingGame {
             return false;
         } else {
             // 第10回合
-            var roll1 = self.scoreBoard.rolls[18];
-            var roll2 = self.scoreBoard.rolls[19];
-            var roll3 = self.scoreBoard.rolls[20];
+            let roll1 = self.scoreBoard.rolls[18];
+            let roll2 = self.scoreBoard.rolls[19];
+            let roll3 = self.scoreBoard.rolls[20];
             
             if roll1 == 10 {
                 // 第一球全中，需要第三球
@@ -509,7 +509,7 @@ pub class BowlingGame {
     // 准备下一球
     fn prepareNextThrow(&mut self) {
         // 记录本球击倒数
-        var knocked = TOTAL_PINS - self.standingPins;
+        let knocked = TOTAL_PINS - self.standingPins;
         
         if self.currentFrame < 10 {
             // 普通回合
@@ -569,7 +569,7 @@ pub class BowlingGame {
         // 只重置被击倒的球瓶到原位
         for i in 0..TOTAL_PINS {
             if !self.pins[i].standing {
-                var pos = self.originalPins[i];
+                let pos = self.originalPins[i];
                 self.pins[i].x = pos[0];
                 self.pins[i].y = pos[1];
                 self.pins[i].standing = true;
@@ -640,8 +640,8 @@ fn sqrt_float(n: float) -> float {
         return 0.0;
     }
     
-    var x = n;
-    var y = 1.0;
+    let x = n;
+    let y = 1.0;
     
     while y < x {
         x = (x + y) / 2.0;
@@ -656,8 +656,8 @@ fn sqrt_int(n: int) -> int {
         return 0;
     }
     
-    var x = n;
-    var y = 1;
+    let x = n;
+    let y = 1;
     
     while y < x {
         x = (x + y) / 2;

@@ -1,48 +1,48 @@
 // BaseballGame.zc - 棒球游戏核心逻辑
 // Zen-C 棒球游戏 v1.0.0
 
-import std.io;
-import std.math;
+import "io.zc";
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
 // 场地尺寸
-const FIELD_WIDTH = 800;
-const FIELD_HEIGHT = 600;
+def FIELD_WIDTH = 800;
+def FIELD_HEIGHT = 600;
 
 // 投手丘位置
-const PITCHER_X = 400;
-const PITCHER_Y = 200;
+def PITCHER_X = 400;
+def PITCHER_Y = 200;
 
 // 本垒板位置
-const HOME_X = 400;
-const HOME_Y = 480;
+def HOME_X = 400;
+def HOME_Y = 480;
 
 // 场地颜色
-const FIELD_COLOR = rgb(46, 139, 87);       // 草坪绿
-const DIRT_COLOR = rgb(139, 119, 101);       // 泥土色
-const BASE_COLOR = rgb(255, 255, 255);       // 白色
-const FOUL_LINE_COLOR = rgb(255, 255, 255);
+def FIELD_COLOR = rgb(46, 139, 87);       // 草坪绿
+def DIRT_COLOR = rgb(139, 119, 101);       // 泥土色
+def BASE_COLOR = rgb(255, 255, 255);       // 白色
+def FOUL_LINE_COLOR = rgb(255, 255, 255);
 
 // 球颜色
-const BALL_COLOR = rgb(255, 255, 255);
-const BALL_OUTLINE = rgb(200, 200, 200);
+def BALL_COLOR = rgb(255, 255, 255);
+def BALL_OUTLINE = rgb(200, 200, 200);
 
 // 球员颜色
-const PITCHER_COLOR = rgb(0, 0, 139);        // 深蓝
-const BATTER_COLOR = rgb(139, 0, 0);         // 深红
-const FIELDER_COLOR = rgb(0, 100, 0);       // 深绿
+def PITCHER_COLOR = rgb(0, 0, 139);        // 深蓝
+def BATTER_COLOR = rgb(139, 0, 0);         // 深红
+def FIELDER_COLOR = rgb(0, 100, 0);       // 深绿
 
 // UI颜色
-const UI_BG = rgb(25, 25, 25);
-const UI_TEXT = rgb(255, 255, 255);
-const STRIKE_COLOR = rgb(255, 0, 0);
-const BALL_COLOR_UI = rgb(0, 255, 0);
-const OUT_COLOR = rgb(255, 165, 0);
+def UI_BG = rgb(25, 25, 25);
+def UI_TEXT = rgb(255, 255, 255);
+def STRIKE_COLOR = rgb(255, 0, 0);
+def BALL_COLOR_UI = rgb(0, 255, 0);
+def OUT_COLOR = rgb(255, 165, 0);
 
 // ==================== 游戏状态枚举 ====================
 
-pub type GamePhase = enum {
+enum GamePhase {
     Title,          // 标题画面
     Pitching,       // 投球阶段
     BallInFlight,   // 球飞行中
@@ -52,7 +52,7 @@ pub type GamePhase = enum {
     GameOver,       // 游戏结束
 };
 
-pub type PitchType = enum {
+enum PitchType {
     FastBall,       // 快速球
     CurveBall,      // 曲球
     ChangeUp,       // 变速球
@@ -72,7 +72,7 @@ pub struct Ball {
     hit_type: HitType,
 }
 
-pub type HitType = enum {
+enum HitType {
     None,
     Foul,
     GroundBall,
@@ -120,7 +120,7 @@ pub struct BaseballState {
     hit_result_timer: f32,
     
     // 飞球轨迹点
-    hit_trajectory: [128]Position,
+    hit_trajectory: [Position; 128],
     hit_trajectory_len: int,
     ball_land_x: int,
     ball_land_y: int,
@@ -195,9 +195,9 @@ pub fn update_pitch(state: &mut BaseballState, dt: f32) {
     
     // 球速: 快速球 1.2秒, 曲球 1.8秒, 变速球 2.0秒
     let pitch_duration = match state.pitch_type {
-        PitchType.FastBall => 1.2,
-        PitchType.CurveBall => 1.8,
-        PitchType.ChangeUp => 2.0,
+        PitchType::FastBall => 1.2,
+        PitchType::CurveBall => 1.8,
+        PitchType::ChangeUp => 2.0,
     };
     
     // 球的位置 (从投手到本垒的抛物线)
@@ -208,9 +208,9 @@ pub fn update_pitch(state: &mut BaseballState, dt: f32) {
     
     // 抛物线高度
     let arc_height = match state.pitch_type {
-        PitchType.FastBall => 30.0,
-        PitchType.CurveBall => 80.0,
-        PitchType.ChangeUp => 20.0,
+        PitchType::FastBall => 30.0,
+        PitchType::CurveBall => 80.0,
+        PitchType::ChangeUp => 20.0,
     };
     state.ball.z = arc_height * 4.0 * t * (1.0 - t);
     
@@ -316,12 +316,12 @@ fn calculate_trajectory(state: &mut BaseballState) {
     state.hit_trajectory_len = 0;
     
     // 模拟飞行轨迹
-    var x = state.ball.x;
-    var y = state.ball.y;
-    var z = state.ball.z;
-    var vx = state.ball.vx;
-    var vy = state.ball.vy;
-    var vz = state.ball.vz;
+    let x = state.ball.x;
+    let y = state.ball.y;
+    let z = state.ball.z;
+    let vx = state.ball.vx;
+    let vy = state.ball.vy;
+    let vz = state.ball.vz;
     
     for i in 0..128 {
         let dt = 0.05;
@@ -362,16 +362,16 @@ pub fn update_ball_flight(state: &mut BaseballState, dt: f32) {
 
 fn handle_hit_result(state: &mut BaseballState) {
     match state.hit_result {
-        HitType.Foul => {
+        HitType::Foul => {
             state.strikes = min(state.strikes + 1, 2);
         }
-        HitType.GroundBall => {
+        HitType::GroundBall => {
             // 地滚球, 50%概率出局
             if rand() % 2 == 0 {
                 state.outs = state.outs + 1;
             }
         }
-        HitType.FlyBall => {
+        HitType::FlyBall => {
             // 高飞球, 检查是否接杀
             // 简化: 如果飞行距离远则是全垒打, 否则可能接杀
             if state.ball_land_y < 50 {
@@ -388,7 +388,7 @@ fn handle_hit_result(state: &mut BaseballState) {
                 }
             }
         }
-        HitType.LineDrive => {
+        HitType::LineDrive => {
             // 直线球, 通常是安打
             // 简化: 必定上垒
         }
@@ -481,6 +481,6 @@ fn rand() -> i32 {
     return (seed >> 16) & 0x7FFF;
 }
 
-const PI: f32 = 3.14159265;
-const cos = f32::cos;
-const sin = f32::sin;
+def PI: f32 = 3.14159265;
+def cos = f32::cos;
+def sin = f32::sin;

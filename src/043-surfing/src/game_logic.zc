@@ -1,42 +1,42 @@
 // game_logic.zc - Zen-C Surfing（冲浪）游戏核心逻辑
 // 在海浪上保持平衡，收集分数
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 800;
-const GAME_HEIGHT: i32 = 600;
-const SURFER_WIDTH: i32 = 40;
-const SURFER_HEIGHT: i32 = 20;
-const GRAVITY: i32 = 2;
-const WAVE_AMPLITUDE: i32 = 80;
-const WAVE_FREQUENCY: f64 = 0.015;
-const WAVE_SPEED: i32 = 2;
-const BALANCE_MAX: i32 = 100;
-const BALANCE_DANGER: i32 = 30;
-const BALANCE_LOSS_RATE: i32 = 1;
-const BALANCE_GAIN_RATE: i32 = 2;
-const COLLECTIBLE_COUNT: i32 = 5;
-const COLLECTIBLE_RADIUS: i32 = 12;
-const POINTS_PER_COLLECT: i32 = 100;
-const SPEED_INCREASE_INTERVAL: i32 = 1000; // 每1000分加速
-const INITIAL_LIVES: i32 = 3;
+def GAME_WIDTH: i32 = 800;
+def GAME_HEIGHT: i32 = 600;
+def SURFER_WIDTH: i32 = 40;
+def SURFER_HEIGHT: i32 = 20;
+def GRAVITY: i32 = 2;
+def WAVE_AMPLITUDE: i32 = 80;
+def WAVE_FREQUENCY: f64 = 0.015;
+def WAVE_SPEED: i32 = 2;
+def BALANCE_MAX: i32 = 100;
+def BALANCE_DANGER: i32 = 30;
+def BALANCE_LOSS_RATE: i32 = 1;
+def BALANCE_GAIN_RATE: i32 = 2;
+def COLLECTIBLE_COUNT: i32 = 5;
+def COLLECTIBLE_RADIUS: i32 = 12;
+def POINTS_PER_COLLECT: i32 = 100;
+def SPEED_INCREASE_INTERVAL: i32 = 1000; // 每1000分加速
+def INITIAL_LIVES: i32 = 3;
 
 // ==================== 颜色定义 ====================
 
-const COLOR_SKY: Color = Color.RGB(135, 206, 235);        // 天蓝色
-const COLOR_OCEAN_DEEP: Color = Color.RGB(0, 105, 148);   // 深海蓝
-const COLOR_OCEAN_SURFACE: Color = Color.RGB(0, 150, 200);// 海面蓝
-const COLOR_WAVE_FOAM: Color = Color.RGB(255, 255, 255);   // 浪花白
-const COLOR_WAVE_BODY: Color = Color.RGB(30, 144, 200);    // 浪体蓝
-const COLOR_SURFER: Color = Color.RGB(255, 140, 0);        // 橙色冲浪者
-const COLOR_SURFER_BOARD: Color = Color.RGB(255, 255, 0);  // 黄色冲浪板
-const COLOR_STAR: Color = Color.RGB(255, 215, 0);          // 金色星星
-const COLOR_DANGER: Color = Color.RGB(255, 69, 0);         // 危险红色
-const COLOR_BALANCE_BAR: Color = Color.RGB(50, 205, 50);   // 平衡条绿色
-const COLOR_UI_TEXT: Color = Color.RGB(255, 255, 255);    // 白色文字
-const COLOR_CLOUD: Color = Color.RGB(255, 255, 255);       // 白云
+def COLOR_SKY: Color = Color.RGB(135, 206, 235);        // 天蓝色
+def COLOR_OCEAN_DEEP: Color = Color.RGB(0, 105, 148);   // 深海蓝
+def COLOR_OCEAN_SURFACE: Color = Color.RGB(0, 150, 200);// 海面蓝
+def COLOR_WAVE_FOAM: Color = Color.RGB(255, 255, 255);   // 浪花白
+def COLOR_WAVE_BODY: Color = Color.RGB(30, 144, 200);    // 浪体蓝
+def COLOR_SURFER: Color = Color.RGB(255, 140, 0);        // 橙色冲浪者
+def COLOR_SURFER_BOARD: Color = Color.RGB(255, 255, 0);  // 黄色冲浪板
+def COLOR_STAR: Color = Color.RGB(255, 215, 0);          // 金色星星
+def COLOR_DANGER: Color = Color.RGB(255, 69, 0);         // 危险红色
+def COLOR_BALANCE_BAR: Color = Color.RGB(50, 205, 50);   // 平衡条绿色
+def COLOR_UI_TEXT: Color = Color.RGB(255, 255, 255);    // 白色文字
+def COLOR_CLOUD: Color = Color.RGB(255, 255, 255);       // 白云
 
 // ==================== 数据结构 ====================
 
@@ -87,7 +87,7 @@ struct SurfingState {
     wave_speed: i32,        // 波浪速度
     surfer: Surfer,
     collectibles: [COLLECTIBLE_COUNT]Collectible,
-    clouds: [5]Cloud,
+    clouds: [Cloud; 5],
     time: i32,
     game_over_reason: str,
 }
@@ -186,35 +186,35 @@ fn start_game(state: &mut SurfingState) {
 // 处理输入
 fn handle_input(state: &mut SurfingState, key: i32) -> bool {
     match state.status {
-        GameStatus.Ready => {
+        GameStatus::Ready => {
             if key == 32 || key == 13 { // 空格或回车
                 start_game(state);
                 return true;
             }
         },
-        GameStatus.Playing => {
+        GameStatus::Playing => {
             match key {
-                32 | 80 | 112 => { // 空格/P 暂停
+                32 || 80 || 112 => { // 空格/P 暂停
                     state.status = GameStatus.Paused;
                     return true;
                 },
                 // 左方向/A
-                37 | 65 | 97 => {
+                37 || 65 || 97 => {
                     state.surfer.lean = -1;
                 },
                 // 右方向/D
-                39 | 68 | 100 => {
+                39 || 68 || 100 => {
                     state.surfer.lean = 1;
                 },
                 // 上方向/W
-                38 | 87 | 119 => {
+                38 || 87 || 119 => {
                     state.surfer.vx = state.surfer.vx + 2;
                 },
                 // 下方向/S
-                40 | 83 | 115 => {
+                40 || 83 || 115 => {
                     state.surfer.vx = state.surfer.vx - 2;
                 },
-                82 | 114 => { // R 重新开始
+                82 || 114 => { // R 重新开始
                     start_game(state);
                     return true;
                 },
@@ -224,7 +224,7 @@ fn handle_input(state: &mut SurfingState, key: i32) -> bool {
                 _ => {}
             }
         },
-        GameStatus.Paused => {
+        GameStatus::Paused => {
             if key == 32 || key == 80 || key == 112 { // 空格/P 继续
                 state.status = GameStatus.Playing;
                 return true;
@@ -237,7 +237,7 @@ fn handle_input(state: &mut SurfingState, key: i32) -> bool {
                 return false;
             }
         },
-        GameStatus.GameOver => {
+        GameStatus::GameOver => {
             if key == 32 || key == 13 || key == 82 || key == 114 { // 空格/回车/R 重新开始
                 start_game(state);
                 return true;
@@ -256,17 +256,17 @@ fn release_input(state: &mut SurfingState, key: i32) {
         return;
     }
     match key {
-        37 | 65 | 97 => { // 左方向/A
+        37 || 65 || 97 => { // 左方向/A
             if state.surfer.lean == -1 {
                 state.surfer.lean = 0;
             }
         },
-        39 | 68 | 100 => { // 右方向/D
+        39 || 68 || 100 => { // 右方向/D
             if state.surfer.lean == 1 {
                 state.surfer.lean = 0;
             }
         },
-        38 | 87 | 119 | 40 | 83 | 115 => {
+        38 || 87 || 119 || 40 || 83 || 115 => {
             state.surfer.vx = 0;
         },
         _ => {}
@@ -404,7 +404,7 @@ fn update_game(state: &mut SurfingState, dt: u32) -> bool {
     // 更新云朵
     for i in 0..5 {
         state.clouds[i].x = state.clouds[i].x + state.clouds[i].speed;
-        if state.clouds[i].x > GAME_WIDTH as i32 + 100 {
+        if state.clouds[i].x > (i32)GAME_WIDTH + 100 {
             state.clouds[i].x = -state.clouds[i].width;
         }
     }
@@ -420,7 +420,7 @@ fn update_game(state: &mut SurfingState, dt: u32) -> bool {
 }
 
 // 统计活跃收集物数量
-fn count_active_collectibles(state: &SurfingState) -> i32 {
+fn count_active_collectibles(state: SurfingState*) -> i32 {
     let count = 0;
     for i in 0..COLLECTIBLE_COUNT {
         if state.collectibles[i].active {
@@ -445,56 +445,56 @@ fn get_wave_color(y: i32, base_y: i32) -> Color {
 // ==================== 导出函数（供渲染使用）====================
 
 // 获取冲浪者位置
-fn get_surfer(state: &SurfingState) -> Surfer {
+fn get_surfer(state: SurfingState*) -> Surfer {
     return state.surfer;
 }
 
 // 获取分数
-fn get_score(state: &SurfingState) -> i32 {
+fn get_score(state: SurfingState*) -> i32 {
     return state.score;
 }
 
 // 获取生命数
-fn get_lives(state: &SurfingState) -> i32 {
+fn get_lives(state: SurfingState*) -> i32 {
     return state.lives;
 }
 
 // 获取等级
-fn get_level(state: &SurfingState) -> i32 {
+fn get_level(state: SurfingState*) -> i32 {
     return state.level;
 }
 
 // 获取游戏状态
-fn get_game_status(state: &SurfingState) -> GameStatus {
+fn get_game_status(state: SurfingState*) -> GameStatus {
     return state.status;
 }
 
 // 获取波浪偏移
-fn get_wave_offset(state: &SurfingState) -> i32 {
+fn get_wave_offset(state: SurfingState*) -> i32 {
     return state.wave_offset;
 }
 
 // 获取波浪速度
-fn get_wave_speed(state: &SurfingState) -> i32 {
+fn get_wave_speed(state: SurfingState*) -> i32 {
     return state.wave_speed;
 }
 
 // 获取收集物品
-fn get_collectibles(state: &SurfingState) -> [COLLECTIBLE_COUNT]Collectible {
+fn get_collectibles(state: SurfingState*) -> [COLLECTIBLE_COUNT]Collectible {
     return state.collectibles;
 }
 
 // 获取云朵
-fn get_clouds(state: &SurfingState) -> [5]Cloud {
+fn get_clouds(state: SurfingState*) -> [Cloud; 5] {
     return state.clouds;
 }
 
 // 获取游戏结束原因
-fn get_game_over_reason(state: &SurfingState) -> str {
+fn get_game_over_reason(state: SurfingState*) -> str {
     return state.game_over_reason;
 }
 
 // 获取高分
-fn get_high_score(state: &SurfingState) -> i32 {
+fn get_high_score(state: SurfingState*) -> i32 {
     return state.high_score;
 }

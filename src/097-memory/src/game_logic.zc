@@ -2,47 +2,47 @@
 // Zen-C 游戏框架 v1.0.0
 // 097-Memory - 增强版记忆翻牌 (5x4 网格, 10对)
 
-import std.io;
+import "io.zc";
 
 // ==================== 常量定义 ====================
 
 // 游戏尺寸 - 5x4 = 20 cards = 10 pairs
-const GRID_ROWS: int = 4;
-const GRID_COLS: int = 5;
-const TOTAL_CARDS: int = GRID_ROWS * GRID_COLS;
-const TOTAL_PAIRS: int = TOTAL_CARDS / 2;
+def GRID_ROWS: int = 4;
+def GRID_COLS: int = 5;
+def TOTAL_CARDS: int = GRID_ROWS * GRID_COLS;
+def TOTAL_PAIRS: int = TOTAL_CARDS / 2;
 
 // 卡牌尺寸
-const CARD_WIDTH: int = 70;
-const CARD_HEIGHT: int = 85;
-const CARD_GAP: int = 8;
+def CARD_WIDTH: int = 70;
+def CARD_HEIGHT: int = 85;
+def CARD_GAP: int = 8;
 
 // 布局
-const GRID_OFFSET_X: int = 20;
-const GRID_OFFSET_Y: int = 95;
+def GRID_OFFSET_X: int = 20;
+def GRID_OFFSET_Y: int = 95;
 
 // 卡牌图案数量 (10种不同图案)
-const PATTERN_TYPES: int = 10;
+def PATTERN_TYPES: int = 10;
 
 // 匹配后消失延迟
-const MATCH_DELAY: int = 600;
+def MATCH_DELAY: int = 600;
 
 // ==================== 颜色定义 ====================
 
-const BG_COLOR = rgb(25, 25, 40);
-const HEADER_BG = rgb(35, 35, 55);
-const CARD_BACK_COLOR = rgb(65, 85, 115);
-const CARD_FRONT_COLOR = rgb(45, 55, 75);
-const CARD_BORDER_COLOR = rgb(100, 130, 160);
-const CARD_FLIP_BORDER = rgb(255, 215, 0);
-const MATCH_GLOW = rgb(50, 220, 130);
-const TEXT_COLOR = rgb(255, 255, 255);
-const TEXT_DIM = rgb(180, 180, 200);
-const GOLD_COLOR = rgb(255, 215, 0);
-const GREEN_COLOR = rgb(50, 220, 130);
+def BG_COLOR = rgb(25, 25, 40);
+def HEADER_BG = rgb(35, 35, 55);
+def CARD_BACK_COLOR = rgb(65, 85, 115);
+def CARD_FRONT_COLOR = rgb(45, 55, 75);
+def CARD_BORDER_COLOR = rgb(100, 130, 160);
+def CARD_FLIP_BORDER = rgb(255, 215, 0);
+def MATCH_GLOW = rgb(50, 220, 130);
+def TEXT_COLOR = rgb(255, 255, 255);
+def TEXT_DIM = rgb(180, 180, 200);
+def GOLD_COLOR = rgb(255, 215, 0);
+def GREEN_COLOR = rgb(50, 220, 130);
 
 // 卡牌颜色调色板 (10种颜色)
-const PATTERN_COLORS: [10]u32 = [
+def PATTERN_COLORS: [u32; 10] = [
     rgb(220, 60, 60),    // 红色
     rgb(60, 150, 220),   // 蓝色
     rgb(60, 200, 120),   // 绿色
@@ -96,7 +96,7 @@ pub struct MemoryGameState {
 // ==================== 辅助函数 ====================
 
 fn rgb(r: u8, g: u8, b: u8) -> u32 {
-    return 0xFF000000 as u32 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+    return (u32)0xFF000000 | (((u32)r) << 16) | (((u32)g) << 8) | ((u32)b);
 }
 
 // ==================== 游戏逻辑 ====================
@@ -115,8 +115,8 @@ pub fn init_game(state: &mut MemoryGameState) {
     }
     
     // 生成配对的卡牌
-    var types: [TOTAL_CARDS]int;
-    var typeIndex = 0;
+    let types: [TOTAL_CARDS]int;
+    let typeIndex = 0;
     
     for i in 0..TOTAL_PAIRS {
         let tileType = i % PATTERN_TYPES;
@@ -163,7 +163,7 @@ pub fn init_game(state: &mut MemoryGameState) {
 }
 
 // 获取卡牌位置(屏幕坐标)
-pub fn get_card_position(state: &MemoryGameState, row: int, col: int) -> (int, int) {
+pub fn get_card_position(state: MemoryGameState*, row: int, col: int) -> (int, int) {
     let x = GRID_OFFSET_X + col * (CARD_WIDTH + CARD_GAP);
     let y = GRID_OFFSET_Y + row * (CARD_HEIGHT + CARD_GAP);
     return (x, y);
@@ -340,30 +340,30 @@ pub fn restart_game(state: &mut MemoryGameState) {
 }
 
 // 获取分数文本
-pub fn get_score_text(state: &MemoryGameState) -> str {
-    return "得分: " ++ state.score.toString();
+pub fn get_score_text(state: MemoryGameState*) -> str {
+    return "得分: {state}".score.toString();
 }
 
 // 获取移动次数文本
-pub fn get_moves_text(state: &MemoryGameState) -> str {
-    return "步数: " ++ state.moves.toString();
+pub fn get_moves_text(state: MemoryGameState*) -> str {
+    return "步数: {state}".moves.toString();
 }
 
 // 获取剩余对数文本
-pub fn get_pairs_text(state: &MemoryGameState) -> str {
+pub fn get_pairs_text(state: MemoryGameState*) -> str {
     let remaining = TOTAL_PAIRS - state.pairsFound;
-    return "剩余: " ++ remaining.toString() ++ " 对";
+    return "剩余: {remaining}" ++ " 对";
 }
 
 // 获取状态文本
-pub fn get_status_text(state: &MemoryGameState) -> str {
+pub fn get_status_text(state: MemoryGameState*) -> str {
     if state.gameWon {
         return "🎉 恭喜通关! 🎉";
     }
     if state.pairsFound == 0 {
         return "找出所有配对!";
     }
-    return "已找到 " ++ state.pairsFound.toString() ++ " / " ++ TOTAL_PAIRS.toString() ++ " 对";
+    return "已找到 {state}"."{pairsFound} / {TOTAL_PAIRS}" ++ " 对";
 }
 
 // 获取控制说明
@@ -377,7 +377,7 @@ pub fn get_pattern_color(pattern: int) -> u32 {
 }
 
 // 绘制卡牌图案 - 10种不同图案
-pub fn draw_pattern(canvas: &Canvas, cx: int, cy: int, pattern: int) {
+pub fn draw_pattern(canvas: Canvas*, cx: int, cy: int, pattern: int) {
     let color = get_pattern_color(pattern);
     let r = 16;
     

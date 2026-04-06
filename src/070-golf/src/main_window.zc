@@ -6,15 +6,15 @@ import "game_logic.zc";
 
 // 主函数
 pub fn main() {
-    println("===========================================");
-    println("  Zen-C 高尔夫游戏 v1.0.0");
-    println("  鼠标力度方向击球");
-    println("===========================================");
-    println("");
+    println "===========================================";
+    println "  Zen-C 高尔夫游戏 v1.0.0";
+    println "  鼠标力度方向击球";
+    println "===========================================";
+    println "";
     
     initPlatform();
     
-    var game = GolfGame.("Golf", GAME_WIDTH, GAME_HEIGHT, 60);
+    let game = GolfGame("Golf", GAME_WIDTH, GAME_HEIGHT, 60);
     game.run();
     game.destroy();
     

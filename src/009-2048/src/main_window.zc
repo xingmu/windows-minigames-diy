@@ -1,9 +1,9 @@
 // main_window.zc - 2048游戏主窗口
 // 继承自Game类，框架版本: 1.0.0
 
-import std.io;
-import std.string;
-import std.time;
+import "io.zc";
+import "string.zc";
+// import "time.zc";
 
 // 导入框架和游戏逻辑
 import "platform_api.zc";
@@ -13,40 +13,40 @@ import "game2048.zc";
 // ==================== 常量定义 ====================
 
 // 窗口尺寸
-const WINDOW_WIDTH = 480;
-const WINDOW_HEIGHT = 640;
+def WINDOW_WIDTH = 480;
+def WINDOW_HEIGHT = 640;
 
 // 游戏区域
-const GRID_OFFSET_X = 40;
-const GRID_OFFSET_Y = 120;
-const CELL_SIZE = 100;
-const CELL_GAP = 10;
-const GRID_SIZE = 4;
+def GRID_OFFSET_X = 40;
+def GRID_OFFSET_Y = 120;
+def CELL_SIZE = 100;
+def CELL_GAP = 10;
+def GRID_SIZE = 4;
 
 // ==================== 颜色定义 ====================
 
 // 方块颜色
-const TILE_2 = 0xFFEEE4DA;      // 2 - 米白
-const TILE_4 = 0xFFEDE0C8;      // 4 - 浅黄
-const TILE_8 = 0xFFF2B179;      // 8 - 橙色
-const TILE_16 = 0xFFF59563;    // 16 - 深橙
-const TILE_32 = 0xFFF67C5F;     // 32 - 红色橙
-const TILE_64 = 0xFFF65E3B;     // 64 - 红色
-const TILE_128 = 0xFFEDCF72;    // 128 - 金色
-const TILE_256 = 0xFFEDCC61;   // 256 - 深金
-const TILE_512 = 0xFFEDC850;   // 512 - 更深金
-const TILE_1024 = 0xFFEDC53F;  // 1024 - 橙金
-const TILE_2048 = 0xFFEDC22E;  // 2048 - 亮金
-const TILE_SUPER = 0xFF3C3A32; // 4096+ - 深色
+def TILE_2 = 0xFFEEE4DA;      // 2 - 米白
+def TILE_4 = 0xFFEDE0C8;      // 4 - 浅黄
+def TILE_8 = 0xFFF2B179;      // 8 - 橙色
+def TILE_16 = 0xFFF59563;    // 16 - 深橙
+def TILE_32 = 0xFFF67C5F;     // 32 - 红色橙
+def TILE_64 = 0xFFF65E3B;     // 64 - 红色
+def TILE_128 = 0xFFEDCF72;    // 128 - 金色
+def TILE_256 = 0xFFEDCC61;   // 256 - 深金
+def TILE_512 = 0xFFEDC850;   // 512 - 更深金
+def TILE_1024 = 0xFFEDC53F;  // 1024 - 橙金
+def TILE_2048 = 0xFFEDC22E;  // 2048 - 亮金
+def TILE_SUPER = 0xFF3C3A32; // 4096+ - 深色
 
 // 背景和网格
-const BACKGROUND_COLOR = 0xFFBBADA0;
-const GRID_BACKGROUND = 0xFFCDC1B4;
-const CELL_EMPTY = 0xFFCCC0B4;
+def BACKGROUND_COLOR = 0xFFBBADA0;
+def GRID_BACKGROUND = 0xFFCDC1B4;
+def CELL_EMPTY = 0xFFCCC0B4;
 
 // 文字颜色
-const TEXT_DARK = 0xFF776E65;   // 深色文字
-const TEXT_LIGHT = 0xFFF9F6F2;  // 浅色文字
+def TEXT_DARK = 0xFF776E65;   // 深色文字
+def TEXT_LIGHT = 0xFFF9F6F2;  // 浅色文字
 
 // ==================== 游戏类 ====================
 
@@ -56,7 +56,7 @@ class Game2048 extends Game {
     // 构造函数
     pub fn create(title: str, width: int, height: int, fps: int) {
         super.create(title, width, height, fps);
-        self.game_data = GameData.{ board: Board.{ cells: [0; 16] }, score: 0, won: false, game_over: false, moved: false };
+        self.game_data = GameData { board: Board { cells: [0; 16] }, score: 0, won: false, game_over: false, moved: false };
     }
     
     fn onInit() {
@@ -64,20 +64,20 @@ class Game2048 extends Game {
         self.score = 0;
         init_game(&mut self.game_data);
         
-        io.println("[2048] Game initialized!");
-        io.println("[2048] Use arrow keys to move tiles");
-        io.println("[2048] Press R to restart, ESC to exit");
+        io.println "[Game; 2048] initialized!";
+        io.println "[Use; 2048] arrow keys to move tiles";
+        io.println "[Press; 2048] R to restart, ESC to exit";
     }
     
     fn onShutdown() {
-        io.println("[2048] Game exited!");
+        io.println "[Game; 2048] exited!";
     }
     
     fn onUpdate(dt: u32) {
         // 游戏逻辑在输入时处理
     }
     
-    fn onRender(canvas: &Canvas) {
+    fn onRender(canvas: Canvas*) {
         // 绘制背景
         canvas.clear(BACKGROUND_COLOR);
         
@@ -119,13 +119,13 @@ class Game2048 extends Game {
             return;
         }
         
-        var key_code: int = 0;
+        let key_code: int = 0;
         
         match key {
-            VirtualKey.Left => key_code = 37,
-            VirtualKey.Up => key_code = 38,
-            VirtualKey.Right => key_code = 39,
-            VirtualKey.Down => key_code = 40,
+            VirtualKey::Left => key_code = 37,
+            VirtualKey::Up => key_code = 38,
+            VirtualKey::Right => key_code = 39,
+            VirtualKey::Down => key_code = 40,
             _ => key_code = 0
         }
         
@@ -144,7 +144,7 @@ class Game2048 extends Game {
 
 // ==================== 绘图函数 ====================
 
-fn draw_title(canvas: &Canvas) {
+fn draw_title(canvas: Canvas*) {
     // 绘制标题背景
     canvas.fillRect(GRID_OFFSET_X, 20, CELL_SIZE * 4 + CELL_GAP * 3, 80, 0xFFEDC22E);
     
@@ -181,7 +181,7 @@ fn draw_title(canvas: &Canvas) {
     canvas.fillRect(offset_x + 20, text_y, 10, 60, TEXT_LIGHT);
 }
 
-fn draw_score(canvas: &Canvas) {
+fn draw_score(canvas: Canvas*) {
     // 分数背景
     let score_bg_x = GRID_OFFSET_X + CELL_SIZE * 2 + CELL_GAP * 2 + 20;
     canvas.fillRect(score_bg_x, 25, 140, 70, GRID_BACKGROUND);
@@ -237,7 +237,7 @@ fn draw_score(canvas: &Canvas) {
     }
 }
 
-fn draw_grid(canvas: &Canvas) {
+fn draw_grid(canvas: Canvas*) {
     // 绘制网格背景
     let grid_x = GRID_OFFSET_X;
     let grid_y = GRID_OFFSET_Y;
@@ -256,7 +256,7 @@ fn draw_grid(canvas: &Canvas) {
     }
 }
 
-fn draw_tiles(canvas: &Canvas) {
+fn draw_tiles(canvas: Canvas*) {
     let grid_x = GRID_OFFSET_X;
     let grid_y = GRID_OFFSET_Y;
     
@@ -319,7 +319,7 @@ fn get_font_size(value: i32) -> i32 {
     }
 }
 
-fn draw_hints(canvas: &Canvas) {
+fn draw_hints(canvas: Canvas*) {
     let hint_y = GRID_OFFSET_Y + CELL_SIZE * 4 + CELL_GAP * 4 + 20;
     
     // 提示：按方向键移动
@@ -351,7 +351,7 @@ fn draw_hints(canvas: &Canvas) {
     canvas.fillRect(arrow_x4 + 5, hint_y + 22, 10, 10, TEXT_DARK);
 }
 
-fn draw_win_message(canvas: &Canvas) {
+fn draw_win_message(canvas: Canvas*) {
     // 半透明覆盖
     for py in 0..WINDOW_HEIGHT {
         for px in 0..WINDOW_WIDTH {
@@ -377,7 +377,7 @@ fn draw_win_message(canvas: &Canvas) {
     canvas.fillRect(tx + 5, text_y + 15, 20, 5, TEXT_LIGHT);
 }
 
-fn draw_gameover_message(canvas: &Canvas) {
+fn draw_gameover_message(canvas: Canvas*) {
     // 半透明覆盖
     for py in 0..WINDOW_HEIGHT {
         for px in 0..WINDOW_WIDTH {
@@ -410,13 +410,13 @@ fn int_to_string(n: i32) -> string {
         return "0";
     }
     
-    var num = n;
+    let num = n;
     if num < 0 {
         num = -num;
     }
     
-    var digits: [20]u8;
-    var count = 0;
+    let digits: [u8; 20];
+    let count = 0;
     
     while num > 0 {
         digits[count] = (num % 10 + '0') as u8;
@@ -424,14 +424,14 @@ fn int_to_string(n: i32) -> string {
         num = num / 10;
     }
     
-    var s = "";
+    let s = "";
     for i in 0..count {
         let d = digits[count - 1 - i];
-        s = s ++ string(1, d as char);
+        s = s ++ string(1, (char)d);
     }
     
     if n < 0 {
-        s = "-" ++ s;
+        s = "-{s}";
     }
     
     return s;
@@ -441,15 +441,15 @@ fn int_to_string(n: i32) -> string {
 
 // Zen-C程序入口点
 pub fn main() {
-    io.println("===========================================");
-    io.println("  Zen-C 2048 Game");
-    io.println("  Framework v1.0.0");
-    io.println("===========================================");
+    io.println "===========================================";
+    io.println "  Zen-C 2048 Game";
+    io.println "  Framework v1.0.0";
+    io.println "===========================================";
     
     // 创建并运行游戏
-    var game = Game2048.("2048 Game", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    let game = Game2048("2048 Game", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
     game.run();
     game.destroy();
     
-    io.println("Goodbye!");
+    io.println "Goodbye!";
 }

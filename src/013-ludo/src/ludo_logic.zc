@@ -1,33 +1,33 @@
 // ludo_logic.zc - 飞行棋游戏逻辑
 // Zen-C 飞行棋游戏
 
-import std.io;
+import "io.zc";
 import "platform_api.zc";
 
 // ============================================================================
 // 常量定义
 // ============================================================================
 
-const PLAYER_HUMAN: int = 0;
-const PLAYER_CPU: int = 1;
-const PLAYER_COUNT: int = 2;
+def PLAYER_HUMAN: int = 0;
+def PLAYER_CPU: int = 1;
+def PLAYER_COUNT: int = 2;
 
-const HUMAN_COLOR: Color = Color.RGB(255, 100, 100);
-const CPU_COLOR: Color = Color.RGB(100, 100, 255);
-const TRACK_COLOR: Color = Color.RGB(220, 220, 180);
-const TRACK_BORDER_COLOR: Color = Color.RGB(150, 150, 120);
-const HOME_BG_COLOR: Color = Color.RGB(240, 220, 180);
-const CENTER_COLOR: Color = Color.RGB(255, 230, 150);
+def HUMAN_COLOR: Color = Color.RGB(255, 100, 100);
+def CPU_COLOR: Color = Color.RGB(100, 100, 255);
+def TRACK_COLOR: Color = Color.RGB(220, 220, 180);
+def TRACK_BORDER_COLOR: Color = Color.RGB(150, 150, 120);
+def HOME_BG_COLOR: Color = Color.RGB(240, 220, 180);
+def CENTER_COLOR: Color = Color.RGB(255, 230, 150);
 
-const PIECES_PER_PLAYER: int = 4;
-const TRACK_LENGTH: int = 52;
+def PIECES_PER_PLAYER: int = 4;
+def TRACK_LENGTH: int = 52;
 
 // 玩家起点 (红在0, 蓝在13)
-const PLAYER_START: [int] = [0, 13];
+def PLAYER_START: [int] = [0, 13];
 
 // 棋盘尺寸
-const BOARD_SIZE: int = 450;
-const CELL_SIZE: int = 30;
+def BOARD_SIZE: int = 450;
+def CELL_SIZE: int = 30;
 
 // ============================================================================
 // 数据结构
@@ -74,55 +74,55 @@ struct LudoGame {
 // ============================================================================
 
 fn getTrackPos(player: int, trackIndex: int) -> int {
-    var start = PLAYER_START[player];
+    let start = PLAYER_START[player];
     return (start + trackIndex) % TRACK_LENGTH;
 }
 
 fn getPixelFromTrackPos(trackPos: int, player: int) -> (int, int) {
-    var cx = BOARD_SIZE / 2;
-    var cy = BOARD_SIZE / 2;
-    var half = 6;
+    let cx = BOARD_SIZE / 2;
+    let cy = BOARD_SIZE / 2;
+    let half = 6;
 
     if trackPos <= 6 {
         return (cx - half * CELL_SIZE + trackPos * CELL_SIZE, cy - half * CELL_SIZE);
     } else if trackPos <= 12 {
-        var idx = trackPos - 7;
+        let idx = trackPos - 7;
         return (cx - half * CELL_SIZE + (7 + idx) * CELL_SIZE, cy - half * CELL_SIZE);
     } else if trackPos == 13 {
         return (cx + half * CELL_SIZE, cy - half * CELL_SIZE);
     } else if trackPos <= 19 {
-        var idx = trackPos - 14;
+        let idx = trackPos - 14;
         return (cx + half * CELL_SIZE, cy - half * CELL_SIZE + (1 + idx) * CELL_SIZE);
     } else if trackPos <= 25 {
-        var idx = trackPos - 20;
+        let idx = trackPos - 20;
         return (cx + half * CELL_SIZE, cy - half * CELL_SIZE + (6 + idx) * CELL_SIZE);
     } else if trackPos == 26 {
         return (cx + half * CELL_SIZE, cy + half * CELL_SIZE);
     } else if trackPos <= 32 {
-        var idx = trackPos - 27;
+        let idx = trackPos - 27;
         return (cx + half * CELL_SIZE - (1 + idx) * CELL_SIZE, cy + half * CELL_SIZE);
     } else if trackPos <= 38 {
-        var idx = trackPos - 33;
+        let idx = trackPos - 33;
         return (cx + half * CELL_SIZE - (6 + idx) * CELL_SIZE, cy + half * CELL_SIZE);
     } else if trackPos == 39 {
         return (cx - half * CELL_SIZE, cy + half * CELL_SIZE);
     } else if trackPos <= 45 {
-        var idx = trackPos - 40;
+        let idx = trackPos - 40;
         return (cx - half * CELL_SIZE, cy + half * CELL_SIZE - (1 + idx) * CELL_SIZE);
     } else {
-        var idx = trackPos - 46;
+        let idx = trackPos - 46;
         return (cx - half * CELL_SIZE, cy + half * CELL_SIZE - (6 + idx) * CELL_SIZE);
     }
 }
 
 fn getHomePosition(player: int, index: int) -> (int, int) {
-    var offsets: [(int, int)] = [
+    let offsets: [(int, int)] = [
         (-72, -72),
         (72, 72),
     ];
-    var off = offsets[player];
-    var col = index % 2;
-    var row = index / 2;
+    let off = offsets[player];
+    let col = index % 2;
+    let row = index / 2;
     return (off.0 + col * 20, off.1 + row * 20);
 }
 
@@ -137,15 +137,15 @@ fn isSafePosition(trackPos: int) -> bool {
 // 游戏初始化和逻辑
 // ============================================================================
 
-fn initGame(game: &LudoGame) {
-    game.players[PLAYER_HUMAN] = Player.{
+fn initGame(game: LudoGame*) {
+    game.players[PLAYER_HUMAN] = Player {
         color: HUMAN_COLOR,
         isHuman: true,
         pieces: [PIECES_PER_PLAYER]Piece,
         piecesInGoal: 0,
         name: "玩家",
     };
-    game.players[PLAYER_CPU] = Player.{
+    game.players[PLAYER_CPU] = Player {
         color: CPU_COLOR,
         isHuman: false,
         pieces: [PIECES_PER_PLAYER]Piece,
@@ -155,8 +155,8 @@ fn initGame(game: &LudoGame) {
 
     for p in 0..PLAYER_COUNT {
         for i in 0..PIECES_PER_PLAYER {
-            var homePos = getHomePosition(p, i);
-            game.players[p].pieces[i] = Piece.{
+            let homePos = getHomePosition(p, i);
+            game.players[p].pieces[i] = Piece {
                 state: PieceState.InHome,
                 trackPos: 0,
                 pixelX: homePos.0,
@@ -178,7 +178,7 @@ fn initGame(game: &LudoGame) {
     game.consecutiveSixes = 0;
 }
 
-fn rollDice(game: &LudoGame) {
+fn rollDice(game: LudoGame*) {
     if !game.canRoll || game.diceRolled {
         return;
     }
@@ -186,10 +186,10 @@ fn rollDice(game: &LudoGame) {
     game.diceValue = ((rng_seed / 7) % 6) + 1;
     game.diceRolled = true;
 
-    io.println(game.players[game.currentPlayer].name ++ " 掷出: " ++ game.diceValue.toString());
+    io.println(game.players[game.currentPlayer]."{name} 掷出: {game}".diceValue.toString());
 
     if !hasMovablePiece(game) {
-        io.println("没有可移动的棋子!");
+        io.println "没有可移动的棋子!";
         game.consecutiveSixes = 0;
         game.canRoll = true;
         game.diceRolled = false;
@@ -200,10 +200,10 @@ fn rollDice(game: &LudoGame) {
     }
 }
 
-fn hasMovablePiece(game: &LudoGame) -> bool {
-    var player = game.currentPlayer;
+fn hasMovablePiece(game: LudoGame*) -> bool {
+    let player = game.currentPlayer;
     for i in 0..PIECES_PER_PLAYER {
-        var piece = &game.players[player].pieces[i];
+        let piece = &game.players[player].pieces[i];
         if piece.state == PieceState.InGoal {
             continue;
         }
@@ -220,22 +220,22 @@ fn hasMovablePiece(game: &LudoGame) -> bool {
     return false;
 }
 
-fn selectPiece(game: &LudoGame, pieceIndex: int) {
+fn selectPiece(game: LudoGame*, pieceIndex: int) {
     if !game.waitingForPiece || pieceIndex < 0 || pieceIndex >= PIECES_PER_PLAYER {
         return;
     }
 
-    var player = game.currentPlayer;
-    var piece = &game.players[player].pieces[pieceIndex];
+    let player = game.currentPlayer;
+    let piece = &game.players[player].pieces[pieceIndex];
 
     if piece.state == PieceState.InHome {
         if game.diceValue != 6 {
-            io.println("需要掷到6才能出动棋子!");
+            io.println "需要掷到6才能出动棋子!";
             return;
         }
     } else if piece.state == PieceState.OnTrack {
         if piece.trackPos + game.diceValue > TRACK_LENGTH + 5 {
-            io.println("棋子无法到达终点!");
+            io.println "棋子无法到达终点!";
             return;
         }
     } else {
@@ -245,26 +245,26 @@ fn selectPiece(game: &LudoGame, pieceIndex: int) {
     movePiece(game, pieceIndex);
 }
 
-fn movePiece(game: &LudoGame, pieceIndex: int) {
-    var player = game.currentPlayer;
-    var piece = &game.players[player].pieces[pieceIndex];
-    var dice = game.diceValue;
+fn movePiece(game: LudoGame*, pieceIndex: int) {
+    let player = game.currentPlayer;
+    let piece = &game.players[player].pieces[pieceIndex];
+    let dice = game.diceValue;
 
     if piece.state == PieceState.InHome {
         piece.state = PieceState.OnTrack;
         piece.trackPos = 0;
-        var pos = getPixelFromTrackPos(0, player);
+        let pos = getPixelFromTrackPos(0, player);
         piece.pixelX = pos.0;
         piece.pixelY = pos.1;
-        io.println(game.players[player].name ++ " 棋子 " ++ (pieceIndex + 1).toString() ++ " 出动了!");
+        io.println(game.players[player]."{name} 棋子 " ++ (pieceIndex + 1).toString() ++ " 出动了!");
 
     } else if piece.state == PieceState.OnTrack {
-        var newPos = piece.trackPos + dice;
+        let newPos = piece.trackPos + dice;
 
         if newPos >= TRACK_LENGTH {
-            var goalSteps = newPos - TRACK_LENGTH;
+            let goalSteps = newPos - TRACK_LENGTH;
             if goalSteps > 5 {
-                io.println("超过终点, 不能移动!");
+                io.println "超过终点, 不能移动!";
                 game.waitingForPiece = false;
                 game.canRoll = true;
                 game.diceRolled = false;
@@ -274,18 +274,18 @@ fn movePiece(game: &LudoGame, pieceIndex: int) {
             if goalSteps == 5 {
                 piece.state = PieceState.InGoal;
                 game.players[player].piecesInGoal = game.players[player].piecesInGoal + 1;
-                io.println(game.players[player].name ++ " 棋子 " ++ (pieceIndex + 1).toString() ++ " 到达终点!");
+                io.println(game.players[player]."{name} 棋子 " ++ (pieceIndex + 1).toString() ++ " 到达终点!");
                 if game.players[player].piecesInGoal >= PIECES_PER_PLAYER {
                     game.gameOver = true;
                     game.winner = player;
-                    io.println("====================");
-                    io.println(game.players[player].name ++ " 胜利!");
-                    io.println("====================");
+                    io.println "====================";
+                    io.println(game.players[player]."{name} 胜利!");
+                    io.println "====================";
                 }
             } else {
-                var cx = BOARD_SIZE / 2;
-                var cy = BOARD_SIZE / 2;
-                var half = 6;
+                let cx = BOARD_SIZE / 2;
+                let cy = BOARD_SIZE / 2;
+                let half = 6;
                 if player == 0 {
                     piece.pixelX = cx - half * CELL_SIZE + 6 * CELL_SIZE + 5;
                     piece.pixelY = cy - half * CELL_SIZE + (5 - goalSteps) * CELL_SIZE + 5;
@@ -295,25 +295,25 @@ fn movePiece(game: &LudoGame, pieceIndex: int) {
                 }
             }
         } else {
-            var absPos = getTrackPos(player, newPos);
+            let absPos = getTrackPos(player, newPos);
             piece.trackPos = newPos;
 
-            var opp = 1 - player;
+            let opp = 1 - player;
             for i in 0..PIECES_PER_PLAYER {
-                var oppPiece = &game.players[opp].pieces[i];
+                let oppPiece = &game.players[opp].pieces[i];
                 if oppPiece.state == PieceState.OnTrack {
-                    var oppAbsPos = getTrackPos(opp, oppPiece.trackPos);
+                    let oppAbsPos = getTrackPos(opp, oppPiece.trackPos);
                     if oppAbsPos == absPos && !isSafePosition(absPos) {
                         oppPiece.state = PieceState.InHome;
-                        var homePos = getHomePosition(opp, oppPiece.homeIndex);
+                        let homePos = getHomePosition(opp, oppPiece.homeIndex);
                         oppPiece.pixelX = homePos.0;
                         oppPiece.pixelY = homePos.1;
-                        io.println("吃掉对手棋子!");
+                        io.println "吃掉对手棋子!";
                     }
                 }
             }
 
-            var pos = getPixelFromTrackPos(absPos, player);
+            let pos = getPixelFromTrackPos(absPos, player);
             piece.pixelX = pos.0;
             piece.pixelY = pos.1;
         }
@@ -325,11 +325,11 @@ fn movePiece(game: &LudoGame, pieceIndex: int) {
     if game.diceValue == 6 && !game.gameOver {
         game.consecutiveSixes = game.consecutiveSixes + 1;
         if game.consecutiveSixes >= 3 {
-            io.println("连续3次掷到6, 强制切换!");
+            io.println "连续3次掷到6, 强制切换!";
             game.consecutiveSixes = 0;
             switchPlayer(game);
         } else {
-            io.println("掷到6, 继续!");
+            io.println "掷到6, 继续!";
             game.canRoll = true;
             game.diceRolled = false;
         }
@@ -339,7 +339,7 @@ fn movePiece(game: &LudoGame, pieceIndex: int) {
     }
 }
 
-fn switchPlayer(game: &LudoGame) {
+fn switchPlayer(game: LudoGame*) {
     game.currentPlayer = 1 - game.currentPlayer;
     game.turnCount = game.turnCount + 1;
     game.canRoll = true;
@@ -347,20 +347,20 @@ fn switchPlayer(game: &LudoGame) {
     game.waitingForPiece = false;
     game.selectedPiece = -1;
 
-    io.println("--- " ++ game.players[game.currentPlayer].name ++ " 的回合 ---");
+    io.println("--- {game}".players[game.currentPlayer]."{name} 的回合 ---");
 }
 
-fn cpuThink(game: &LudoGame) {
+fn cpuThink(game: LudoGame*) {
     if !game.waitingForPiece || game.players[game.currentPlayer].isHuman {
         return;
     }
 
-    var bestPiece = -1;
-    var bestScore = -1;
+    let bestPiece = -1;
+    let bestScore = -1;
 
     for i in 0..PIECES_PER_PLAYER {
-        var piece = &game.players[PLAYER_CPU].pieces[i];
-        var score = 0;
+        let piece = &game.players[PLAYER_CPU].pieces[i];
+        let score = 0;
 
         if piece.state == PieceState.InHome {
             if game.diceValue == 6 {
@@ -371,21 +371,21 @@ fn cpuThink(game: &LudoGame) {
         } else if piece.state == PieceState.InGoal {
             score = -1000;
         } else {
-            var newPos = piece.trackPos + game.diceValue;
+            let newPos = piece.trackPos + game.diceValue;
             if newPos > TRACK_LENGTH + 5 {
                 score = -100;
             } else if newPos >= TRACK_LENGTH {
                 score = 90 + (newPos - TRACK_LENGTH);
             } else {
                 score = 30 + piece.trackPos;
-                var absPos = getTrackPos(PLAYER_CPU, newPos);
+                let absPos = getTrackPos(PLAYER_CPU, newPos);
                 if isSafePosition(absPos) {
                     score = score + 10;
                 }
                 for j in 0..PIECES_PER_PLAYER {
-                    var oppPiece = &game.players[PLAYER_HUMAN].pieces[j];
+                    let oppPiece = &game.players[PLAYER_HUMAN].pieces[j];
                     if oppPiece.state == PieceState.OnTrack {
-                        var oppAbsPos = getTrackPos(PLAYER_HUMAN, oppPiece.trackPos);
+                        let oppAbsPos = getTrackPos(PLAYER_HUMAN, oppPiece.trackPos);
                         if oppAbsPos == absPos && !isSafePosition(absPos) {
                             score = score + 50;
                         }
@@ -411,9 +411,9 @@ fn cpuThink(game: &LudoGame) {
 // ============================================================================
 
 fn drawBoard(ctx: rawptr, pitch: int, buffer: rawptr) {
-    var cx = BOARD_SIZE / 2;
-    var cy = BOARD_SIZE / 2;
-    var half = 6;
+    let cx = BOARD_SIZE / 2;
+    let cy = BOARD_SIZE / 2;
+    let half = 6;
 
     // 上边
     drawRect(ctx, cx - half * CELL_SIZE, cy - half * CELL_SIZE, 7 * CELL_SIZE, CELL_SIZE, pitch, buffer, TRACK_COLOR);
@@ -438,14 +438,14 @@ fn drawBoard(ctx: rawptr, pitch: int, buffer: rawptr) {
 }
 
 fn drawTrackCells(ctx: rawptr, pitch: int, buffer: rawptr) {
-    var cx = BOARD_SIZE / 2;
-    var cy = BOARD_SIZE / 2;
-    var half = 6;
+    let cx = BOARD_SIZE / 2;
+    let cy = BOARD_SIZE / 2;
+    let half = 6;
 
     // 上边
     for i in 0..7 {
-        var x = cx - half * CELL_SIZE + i * CELL_SIZE;
-        var y = cy - half * CELL_SIZE;
+        let x = cx - half * CELL_SIZE + i * CELL_SIZE;
+        let y = cy - half * CELL_SIZE;
         drawRect(ctx, x, y, CELL_SIZE, CELL_SIZE, pitch, buffer, TRACK_BORDER_COLOR);
         if i == 6 {
             fillRect(ctx, x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4, pitch, buffer, HUMAN_COLOR);
@@ -454,8 +454,8 @@ fn drawTrackCells(ctx: rawptr, pitch: int, buffer: rawptr) {
 
     // 右边
     for i in 7..13 {
-        var x = cx + half * CELL_SIZE - CELL_SIZE;
-        var y = cy - half * CELL_SIZE + (i - 6) * CELL_SIZE;
+        let x = cx + half * CELL_SIZE - CELL_SIZE;
+        let y = cy - half * CELL_SIZE + (i - 6) * CELL_SIZE;
         drawRect(ctx, x, y, CELL_SIZE, CELL_SIZE, pitch, buffer, TRACK_BORDER_COLOR);
         if i == 13 {
             fillRect(ctx, x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4, pitch, buffer, CPU_COLOR);
@@ -464,26 +464,26 @@ fn drawTrackCells(ctx: rawptr, pitch: int, buffer: rawptr) {
 
     // 下边
     for i in 0..6 {
-        var x = cx + half * CELL_SIZE - i * CELL_SIZE;
-        var y = cy + half * CELL_SIZE - CELL_SIZE;
+        let x = cx + half * CELL_SIZE - i * CELL_SIZE;
+        let y = cy + half * CELL_SIZE - CELL_SIZE;
         drawRect(ctx, x, y, CELL_SIZE, CELL_SIZE, pitch, buffer, TRACK_BORDER_COLOR);
     }
 
     // 左边
     for i in 0..6 {
-        var x = cx - half * CELL_SIZE;
-        var y = cy + half * CELL_SIZE - i * CELL_SIZE;
+        let x = cx - half * CELL_SIZE;
+        let y = cy + half * CELL_SIZE - i * CELL_SIZE;
         drawRect(ctx, x, y, CELL_SIZE, CELL_SIZE, pitch, buffer, TRACK_BORDER_COLOR);
     }
 }
 
 fn drawDice(ctx: rawptr, pitch: int, buffer: rawptr, value: int, x: int, y: int) {
-    var size = 40;
+    let size = 40;
     fillRect(ctx, x, y, size, size, pitch, buffer, Color.White());
     drawRect(ctx, x, y, size, size, pitch, buffer, Color.Black());
 
-    var dotColor = Color.Black();
-    var dotR = 4;
+    let dotColor = Color.Black();
+    let dotR = 4;
 
     if value == 1 {
         fillCircle(ctx, x + size/2, y + size/2, dotR, pitch, buffer, dotColor);
@@ -515,23 +515,23 @@ fn drawDice(ctx: rawptr, pitch: int, buffer: rawptr, value: int, x: int, y: int)
     }
 }
 
-fn drawStatus(ctx: rawptr, pitch: int, buffer: rawptr, game: &LudoGame) {
-    var statusY = BOARD_SIZE + 10;
-    var currentText = "当前: " ++ game.players[game.currentPlayer].name;
+fn drawStatus(ctx: rawptr, pitch: int, buffer: rawptr, game: LudoGame*) {
+    let statusY = BOARD_SIZE + 10;
+    let currentText = "当前: {game}".players[game.currentPlayer].name;
     if game.players[game.currentPlayer].isHuman {
-        currentText = currentText ++ " (你)";
+        currentText = "{currentText} (你)";
     }
     drawTextSimple(ctx, 10, statusY, currentText, pitch, buffer, game.players[game.currentPlayer].color);
 
-    var turnText = "回合: " ++ game.turnCount.toString();
+    let turnText = "回合: {game}".turnCount.toString();
     drawTextSimple(ctx, 160, statusY, turnText, pitch, buffer, Color.Gray());
 
-    var humanHome = "红: " ++ game.players[PLAYER_HUMAN].piecesInGoal.toString() ++ "/4";
-    var cpuHome = "蓝: " ++ game.players[PLAYER_CPU].piecesInGoal.toString() ++ "/4";
+    let humanHome = "红: {game}".players[PLAYER_HUMAN]."{piecesInGoal}/4";
+    let cpuHome = "蓝: {game}".players[PLAYER_CPU]."{piecesInGoal}/4";
     drawTextSimple(ctx, 10, statusY + 20, humanHome, pitch, buffer, HUMAN_COLOR);
     drawTextSimple(ctx, 100, statusY + 20, cpuHome, pitch, buffer, CPU_COLOR);
 
-    var hint = "";
+    let hint = "";
     if !game.diceRolled && game.canRoll {
         hint = "按 空格键 掷骰子";
     } else if game.waitingForPiece {
@@ -548,10 +548,10 @@ fn drawStatus(ctx: rawptr, pitch: int, buffer: rawptr, game: &LudoGame) {
     }
 }
 
-fn drawGameOver(ctx: rawptr, pitch: int, buffer: rawptr, game: &LudoGame) {
+fn drawGameOver(ctx: rawptr, pitch: int, buffer: rawptr, game: LudoGame*) {
     fillRect(ctx, 0, 0, BOARD_SIZE, BOARD_SIZE, pitch, buffer, Color.ARGB(180, 0, 0, 0));
-    var winnerName = game.players[game.winner].name;
-    var winText = winnerName ++ " 胜利!";
+    let winnerName = game.players[game.winner].name;
+    let winText = "{winnerName} 胜利!";
     drawTextSimple(ctx, BOARD_SIZE/2 - 50, BOARD_SIZE/2 - 20, winText, pitch, buffer, game.players[game.winner].color);
     drawTextSimple(ctx, BOARD_SIZE/2 - 70, BOARD_SIZE/2 + 20, "按 ESC 退出", pitch, buffer, Color.White());
 }
@@ -564,8 +564,8 @@ fn setPixel(ctx: rawptr, x: int, y: int, pitch: int, buffer: rawptr, color: Colo
     if x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE + 80 {
         return;
     }
-    var offset = y * (pitch / 4) + x;
-    var pixels = buffer as u32 mut;
+    let offset = y * (pitch / 4) + x;
+    let pixels = (u32)buffer mut;
     pixels[offset] = color;
 }
 
@@ -606,10 +606,10 @@ fn fillCircle(ctx: rawptr, cx: int, cy: int, radius: int, pitch: int, buffer: ra
 }
 
 fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, pitch: int, buffer: rawptr, color: Color) {
-    var charW = 8;
-    var charH = 8;
-    var px = x;
-    var py = y;
+    let charW = 8;
+    let charH = 8;
+    let px = x;
+    let py = y;
     for i in 0..len(text) {
         if text[i] == '\n' {
             py = py + charH;
@@ -618,9 +618,9 @@ fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, pitch: int, buffer: ra
         }
         for cy in 0..charH {
             for cx in 0..charW {
-                var charCode = text[i] as u32;
+                let charCode = text[i] as u32;
                 if charCode > 32 {
-                    var isFilled = ((charCode + cx * 3 + cy * 7) % 5) != 0;
+                    let isFilled = ((charCode + cx * 3 + cy * 7) % 5) != 0;
                     if isFilled {
                         setPixel(ctx, px + cx, py + cy, pitch, buffer, color);
                     }

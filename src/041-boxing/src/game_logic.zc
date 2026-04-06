@@ -38,7 +38,7 @@ private val GRAVITY = 1;
 // 招数类型
 // ============================================================================
 
-pub type AttackType = enum {
+enum AttackType {
     None,
     Jab,           // 直拳
     Cross,         // 摆拳
@@ -156,8 +156,8 @@ class Fighter {
     pub fn checkCombo(damage: int) -> bool {
         // 检查连击输入
         if self.inputIndex >= 2 {
-            var last = self.inputBuffer[self.inputIndex - 1];
-            var prev = self.inputBuffer[self.inputIndex - 2];
+            let last = self.inputBuffer[self.inputIndex - 1];
+            let prev = self.inputBuffer[self.inputIndex - 2];
             
             // ←→A = 冲刺直拳 (15伤害)
             if prev == VirtualKey.Left && last == VirtualKey.Right {
@@ -197,12 +197,12 @@ class Fighter {
         return false;
     }
     
-    pub fn attack(type: AttackType, damage: int, opponent: &Fighter) {
+    pub fn attack(type: AttackType, damage: int, opponent: Fighter*) {
         if self.attackTimer > 0 || self.stunTimer > 0 {
             return;
         }
         
-        var dist = abs(self.x - opponent.x);
+        let dist = abs(self.x - opponent.x);
         
         if dist < ATTACK_RANGE {
             self.currentAttack = type;
@@ -211,7 +211,7 @@ class Fighter {
             
             // 检查防御
             if opponent.isBlocking {
-                var reducedDamage = damage / 3;
+                let reducedDamage = damage / 3;
                 opponent.takeDamage(reducedDamage);
                 self.addHitEffect(opponent.x, opponent.y, "BLOCKED!", Color.Cyan());
             } else if opponent.hitCooldown == 0 {
@@ -232,7 +232,7 @@ class Fighter {
                 }
                 
                 // 击退效果
-                var knockback = if self.facingRight { 30 } else { -30 };
+                let knockback = if self.facingRight { 30 } else { -30 };
                 opponent.x = opponent.x + knockback;
                 opponent.hitCooldown = 200;
             }
@@ -248,7 +248,7 @@ class Fighter {
     
     pub fn addHitEffect(fx: int, fy: int, text: str, color: Color) {
         if self.effectCount < 10 {
-            self.hitEffects[self.effectCount] = HitEffect.{
+            self.hitEffects[self.effectCount] = HitEffect {
                 x: fx,
                 y: fy,
                 text: text,
@@ -303,7 +303,7 @@ class Fighter {
         }
         
         // 清理过期特效
-        var newCount = 0;
+        let newCount = 0;
         for i in 0..self.effectCount {
             if self.hitEffects[i].timer > 0 {
                 self.hitEffects[newCount] = self.hitEffects[i];
@@ -506,7 +506,7 @@ class BoxingGame extends Game {
     }
     
     pub fn handlePlayer1Input() {
-        var comboHit = self.player1.checkCombo(0);
+        let comboHit = self.player1.checkCombo(0);
         (void)comboHit;
         
         // 移动
@@ -529,10 +529,10 @@ class BoxingGame extends Game {
         self.player1.block(self.p1C && !self.player1.isAttacking());
         
         // 组合键攻击检测
-        var comboDamage = 0;
+        let comboDamage = 0;
         if self.player1.inputIndex >= 2 {
-            var last = self.player1.inputBuffer[self.player1.inputIndex - 1];
-            var prev = self.player1.inputBuffer[self.player1.inputIndex - 2];
+            let last = self.player1.inputBuffer[self.player1.inputIndex - 1];
+            let prev = self.player1.inputBuffer[self.player1.inputIndex - 2];
             
             // ←→A = 冲刺直拳 (15伤害)
             if prev == VirtualKey.Left && last == VirtualKey.Right && self.player1.attackTimer == 0 {
@@ -613,7 +613,7 @@ class BoxingGame extends Game {
     
     pub fn handlePlayer2AI() {
         // 简单AI：接近玩家并随机攻击
-        var dist = abs(self.player2.x - self.player1.x);
+        let dist = abs(self.player2.x - self.player1.x);
         
         // 距离判断
         if dist > 150 {
@@ -631,8 +631,8 @@ class BoxingGame extends Game {
         }
         
         // 随机攻击
-        var randVal = 0;
-        var i = 0;
+        let randVal = 0;
+        let i = 0;
         while i < 10 {
             randVal = randVal + i;
             i = i + 1;
@@ -640,7 +640,7 @@ class BoxingGame extends Game {
         randVal = randVal % 100;
         
         if randVal < 2 && !self.player2.isAttacking() && self.player2.stunTimer == 0 {
-            var atkType = randVal % 4;
+            let atkType = randVal % 4;
             if atkType == 0 {
                 self.player2.attack(AttackType.Jab, 6, &self.player1);
             } else if atkType == 1 {
@@ -661,7 +661,7 @@ class BoxingGame extends Game {
     }
     
     pub fn checkWinCondition() {
-        var winner = -1;
+        let winner = -1;
         
         if self.player1.hp <= 0 {
             winner = 2;
@@ -701,7 +701,7 @@ class BoxingGame extends Game {
         }
     }
     
-    pub fn onRender(canvas: &Canvas) {
+    pub fn onRender(canvas: Canvas*) {
         canvas.clear(COLOR_BG);
         self.drawArena(canvas);
         self.drawFighter(canvas, &self.player1, true);
@@ -716,13 +716,13 @@ class BoxingGame extends Game {
         self.drawCombo(canvas);
     }
     
-    pub fn drawArena(canvas: &Canvas) {
+    pub fn drawArena(canvas: Canvas*) {
         canvas.fillRect(0, 450, SCREEN_WIDTH, 150, COLOR_ARENA);
         canvas.drawRect(30, 350, SCREEN_WIDTH - 60, 200, COLOR_ROPE);
         
-        var i = 0;
+        let i = 0;
         while i < 3 {
-            var y = 360 + i * 30;
+            let y = 360 + i * 30;
             canvas.drawLine(30, y, SCREEN_WIDTH - 30, y, COLOR_ROPE);
             i = i + 1;
         }
@@ -731,22 +731,22 @@ class BoxingGame extends Game {
         canvas.fillRect(SCREEN_WIDTH - 35, 350, 10, 100, COLOR_ROPE);
     }
     
-    pub fn drawFighter(canvas: &Canvas, fighter: &Fighter, isPlayer1: bool) {
-        var color = if isPlayer1 { COLOR_PLAYER1 } else { COLOR_PLAYER2 };
-        var x = fighter.x;
-        var y = fighter.y;
+    pub fn drawFighter(canvas: Canvas*, fighter: Fighter*, isPlayer1: bool) {
+        let color = if isPlayer1 { COLOR_PLAYER1 } else { COLOR_PLAYER2 };
+        let x = fighter.x;
+        let y = fighter.y;
         
         if self.uiShake > 0 {
             x = x + (self.randInt(0, 7) - 3);
             y = y + (self.randInt(0, 7) - 3);
         }
         
-        var bodyColor = color;
+        let bodyColor = color;
         if fighter.isHit {
             bodyColor = Color.White();
         }
         
-        var state = fighter.animState;
+        let state = fighter.animState;
         
         if state == "idle" {
             canvas.fillCircle(x, y - 60, 20, bodyColor);
@@ -774,7 +774,7 @@ class BoxingGame extends Game {
             canvas.fillRect(x - 15, y - 40, 30, 50, bodyColor);
             canvas.fillCircle(x + 30, y - 25, 15, Color.Red());
             canvas.fillCircle(x - 30, y - 35, 15, Color.Red());
-            var legOffset = (getTickCount() / 100) as int % 10 - 5;
+            let legOffset = (getTickCount() / 100) as int % 10 - 5;
             canvas.fillRect(x - 12 + legOffset, y + 10, 10, 40, bodyColor);
             canvas.fillRect(x + 2 - legOffset, y + 10, 10, 40, bodyColor);
         } else if state == "jump" {
@@ -801,10 +801,10 @@ class BoxingGame extends Game {
         }
     }
     
-    pub fn drawEffects(canvas: &Canvas) {
-        var i = 0;
+    pub fn drawEffects(canvas: Canvas*) {
+        let i = 0;
         while i < self.player1.effectCount {
-            var eff = &self.player1.hitEffects[i];
+            let eff = &self.player1.hitEffects[i];
             if eff.timer > 0 {
                 canvas.fillRect(eff.x - 30, eff.y - 10, 60, 20, eff.color);
             }
@@ -813,7 +813,7 @@ class BoxingGame extends Game {
         
         i = 0;
         while i < self.player2.effectCount {
-            var eff = &self.player2.hitEffects[i];
+            let eff = &self.player2.hitEffects[i];
             if eff.timer > 0 {
                 canvas.fillRect(eff.x - 30, eff.y - 10, 60, 20, eff.color);
             }
@@ -821,15 +821,15 @@ class BoxingGame extends Game {
         }
     }
     
-    pub fn drawUI(canvas: &Canvas) {
+    pub fn drawUI(canvas: Canvas*) {
         // 玩家1血条
         canvas.drawText(20, 20, "P1", Color.White(), Font.new("Arial", 16));
         canvas.fillRect(60, 15, 250, 25, COLOR_HP_BG);
-        var hpWidth1 = (self.player1.hp as int * 250) / MAX_HP;
+        let hpWidth1 = (self.player1.(int)hp * 250) / MAX_HP;
         canvas.fillRect(60, 15, hpWidth1, 25, COLOR_HP_P1);
         
         // P1 胜利标记
-        var i = 0;
+        let i = 0;
         while i < self.wins1 {
             canvas.drawCircle(330 + i * 25, 27, 10, Color.Yellow());
             i = i + 1;
@@ -838,7 +838,7 @@ class BoxingGame extends Game {
         // 玩家2血条
         canvas.drawText(SCREEN_WIDTH - 280, 20, "CPU", Color.White(), Font.new("Arial", 16));
         canvas.fillRect(SCREEN_WIDTH - 230, 15, 250, 25, COLOR_HP_BG);
-        var hpWidth2 = (self.player2.hp as int * 250) / MAX_HP;
+        let hpWidth2 = (self.player2.(int)hp * 250) / MAX_HP;
         canvas.fillRect(SCREEN_WIDTH - 230, 15, hpWidth2, 25, COLOR_HP_P2);
         
         // P2 胜利标记
@@ -849,17 +849,17 @@ class BoxingGame extends Game {
         }
         
         // 回合
-        var roundStr = "ROUND ";
+        let roundStr = "ROUND ";
         roundStr = roundStr ++ self.round.toString();
         canvas.drawText(SCREEN_WIDTH / 2 - 30, 20, roundStr, Color.White(), Font.new("Arial", 20));
         
         // 时间
-        var seconds = self.roundTimer / 1000;
-        var timeStr = (seconds / 60).toString();
-        timeStr = timeStr ++ ":";
-        var sec = seconds % 60;
+        let seconds = self.roundTimer / 1000;
+        let timeStr = (seconds / 60).toString();
+        timeStr = "{timeStr}:";
+        let sec = seconds % 60;
         if sec < 10 {
-            timeStr = timeStr ++ "0";
+            timeStr = "{timeStr}0";
         }
         timeStr = timeStr ++ (seconds % 60).toString();
         canvas.drawText(SCREEN_WIDTH / 2 - 20, 50, timeStr, Color.White(), Font.new("Arial", 16));
@@ -869,11 +869,11 @@ class BoxingGame extends Game {
         canvas.drawText(20, SCREEN_HEIGHT - 60, "Combos: <-+A, ->+A, A+A, A+B", Color.LightGray(), Font.new("Arial", 12));
     }
     
-    pub fn drawCountdown(canvas: &Canvas) {
+    pub fn drawCountdown(canvas: Canvas*) {
         if self.countdown > 0 {
-            var text = self.countdown.toString();
-            var centerX = SCREEN_WIDTH / 2 - 50;
-            var centerY = SCREEN_HEIGHT / 2 - 50;
+            let text = self.countdown.toString();
+            let centerX = SCREEN_WIDTH / 2 - 50;
+            let centerY = SCREEN_HEIGHT / 2 - 50;
             canvas.fillRect(centerX, centerY, 100, 100, Color.ARGB(200, 255, 200, 100));
             canvas.drawText(centerX + 35, centerY + 30, text, Color.Red(), Font.new("Arial", 72));
         } else {
@@ -881,16 +881,16 @@ class BoxingGame extends Game {
         }
     }
     
-    pub fn drawCombo(canvas: &Canvas) {
+    pub fn drawCombo(canvas: Canvas*) {
         if self.player1.comboCount > 1 {
-            var comboText = self.player1.comboCount.toString();
-            comboText = comboText ++ " HITS!";
+            let comboText = self.player1.comboCount.toString();
+            comboText = "{comboText} HITS!";
             canvas.drawText(100, 80, comboText, Color.Yellow(), Font.new("Arial", 24));
         }
         
         if self.player2.comboCount > 1 {
-            var comboText = self.player2.comboCount.toString();
-            comboText = comboText ++ " HITS!";
+            let comboText = self.player2.comboCount.toString();
+            comboText = "{comboText} HITS!";
             canvas.drawText(SCREEN_WIDTH - 200, 80, comboText, Color.Yellow(), Font.new("Arial", 24));
         }
     }

@@ -1,22 +1,22 @@
 // game_logic.zc - 篮球游戏逻辑
 // 所有平台共用相同的游戏逻辑代码
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const GRAVITY: f32 = 0.4;
-const BALL_RADIUS: i32 = 12;
-const HOOP_X: i32 = 620;
-const HOOP_Y: i32 = 150;
-const HOOP_WIDTH: i32 = 60;
-const BOARD_WIDTH: i32 = 15;
-const BOARD_HEIGHT: i32 = 90;
-const GROUND_Y: i32 = 450;
-const BACKBOARD_X: i32 = 650;
-const BACKBOARD_TOP_Y: i32 = 100;
-const RIM_RADIUS: i32 = 8;
-const MAX_SCORE: i32 = 100;
+def GRAVITY: f32 = 0.4;
+def BALL_RADIUS: i32 = 12;
+def HOOP_X: i32 = 620;
+def HOOP_Y: i32 = 150;
+def HOOP_WIDTH: i32 = 60;
+def BOARD_WIDTH: i32 = 15;
+def BOARD_HEIGHT: i32 = 90;
+def GROUND_Y: i32 = 450;
+def BACKBOARD_X: i32 = 650;
+def BACKBOARD_TOP_Y: i32 = 100;
+def RIM_RADIUS: i32 = 8;
+def MAX_SCORE: i32 = 100;
 
 // ==================== 数据结构 ====================
 
@@ -67,7 +67,7 @@ struct GameState {
 
 fn init_game(game: &mut GameState, width: int, height: int) {
     // 初始化球
-    game.ball = Ball.{
+    game.ball = Ball {
         x: 100.0,
         y: 350.0,
         vx: 0.0,
@@ -79,7 +79,7 @@ fn init_game(game: &mut GameState, width: int, height: int) {
     };
 
     // 初始化篮筐位置
-    game.hoop = Hoop.{
+    game.hoop = Hoop {
         rimLeftX: HOOP_X - HOOP_WIDTH / 2,
         rimRightX: HOOP_X + HOOP_WIDTH / 2,
         rimY: HOOP_Y,
@@ -124,21 +124,21 @@ fn start_new_shot(game: &mut GameState) {
 
 fn aim_ball(game: &mut GameState, startX: int, startY: int, endX: int, endY: int) {
     // 根据拖拽方向和距离计算投篮力度和角度
-    var dx = startX - endX;
-    var dy = startY - endY;
+    let dx = startX - endX;
+    let dy = startY - endY;
 
     // 反向施力
-    var power = math.sqrt(dx * dx + dy * dy) as f32;
+    let power = math.sqrt(dx * dx + dy * dy) as f32;
     power = math.min(power, 200.0);
 
     if power < 10.0 {
         return;
     }
 
-    var angle = math.atan2(dy as f32, dx as f32);
+    let angle = math.atan2(dy as f32, dx as f32);
 
     // 标准化力度
-    var normalizedPower = power / 200.0;
+    let normalizedPower = power / 200.0;
 
     game.ball.vx = math.cos(angle) * normalizedPower * 15.0;
     game.ball.vy = math.sin(angle) * normalizedPower * 15.0;
@@ -228,14 +228,14 @@ fn update_ball(game: &mut GameState) {
 }
 
 fn check_hoop_collision(game: &mut GameState) {
-    var ballCx = game.ball.x as i32;
-    var ballCy = game.ball.y as i32;
+    let ballCx = game.ball.x as i32;
+    let ballCy = game.ball.y as i32;
 
     // 检测球是否通过篮筐（进球）
     // 篮筐入口检测：球从上方落入篮筐区域
-    var rimLeftX = game.hoop.rimLeftX;
-    var rimRightX = game.hoop.rimRightX;
-    var rimY = game.hoop.rimY;
+    let rimLeftX = game.hoop.rimLeftX;
+    let rimRightX = game.hoop.rimRightX;
+    let rimY = game.hoop.rimY;
 
     // 简单的进球检测：球中心穿过篮筐线
     if !game.ballEnteredHoop &&
@@ -254,17 +254,17 @@ fn check_hoop_collision(game: &mut GameState) {
 
     // 篮筐边缘碰撞
     // 左边缘
-    var distLeft = math.sqrt(
+    let distLeft = math.sqrt(
         (ballCx - rimLeftX) * (ballCx - rimLeftX) +
         (ballCy - rimY) * (ballCy - rimY)
     );
     if distLeft < BALL_RADIUS + RIM_RADIUS {
         // 碰撞反弹
-        var angle = math.atan2(
+        let angle = math.atan2(
             (ballCy - rimY) as f32,
             (ballCx - rimLeftX) as f32
         );
-        var speed = math.sqrt(
+        let speed = math.sqrt(
             game.ball.vx * game.ball.vx +
             game.ball.vy * game.ball.vy
         );
@@ -273,16 +273,16 @@ fn check_hoop_collision(game: &mut GameState) {
     }
 
     // 右边缘
-    var distRight = math.sqrt(
+    let distRight = math.sqrt(
         (ballCx - rimRightX) * (ballCx - rimRightX) +
         (ballCy - rimY) * (ballCy - rimY)
     );
     if distRight < BALL_RADIUS + RIM_RADIUS {
-        var angle = math.atan2(
+        let angle = math.atan2(
             (ballCy - rimY) as f32,
             (ballCx - rimRightX) as f32
         );
-        var speed = math.sqrt(
+        let speed = math.sqrt(
             game.ball.vx * game.ball.vx +
             game.ball.vy * game.ball.vy
         );
@@ -306,27 +306,27 @@ fn update_game(game: &mut GameState) {
 
 // ==================== 投掷轨迹预览 ====================
 
-fn calculate_trajectory(game: &GameState, startX: int, startY: int, endX: int, endY: int, points: &mut [(i32, i32)], maxPoints: int) -> int {
-    var dx = startX - endX;
-    var dy = startY - endY;
+fn calculate_trajectory(game: GameState*, startX: int, startY: int, endX: int, endY: int, points: &mut [(i32, i32)], maxPoints: int) -> int {
+    let dx = startX - endX;
+    let dy = startY - endY;
 
-    var power = math.sqrt(dx * dx + dy * dy) as f32;
+    let power = math.sqrt(dx * dx + dy * dy) as f32;
     power = math.min(power, 200.0);
 
     if power < 10.0 {
         return 0;
     }
 
-    var angle = math.atan2(dy as f32, dx as f32);
-    var normalizedPower = power / 200.0;
+    let angle = math.atan2(dy as f32, dx as f32);
+    let normalizedPower = power / 200.0;
 
-    var vx = math.cos(angle) * normalizedPower * 15.0;
-    var vy = math.sin(angle) * normalizedPower * 15.0;
+    let vx = math.cos(angle) * normalizedPower * 15.0;
+    let vy = math.sin(angle) * normalizedPower * 15.0;
 
-    var x = startX as f32;
-    var y = startY as f32;
+    let x = startX as f32;
+    let y = startY as f32;
 
-    var count = 0;
+    let count = 0;
     for i in 0..maxPoints {
         vy = vy + GRAVITY;
         x = x + vx;
@@ -336,7 +336,7 @@ fn calculate_trajectory(game: &GameState, startX: int, startY: int, endX: int, e
             break;
         }
 
-        points[i] = (x as i32, y as i32);
+        points[i] = ((i32)x, (i32)y);
         count = count + 1;
     }
 

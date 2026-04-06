@@ -1,3 +1,4 @@
+import "io.zc";
 // platform_api.zc - 平台API封装
 // 从003-framework导入
 import "../../003-framework/src/platform_api.zc";

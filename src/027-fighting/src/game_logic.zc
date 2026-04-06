@@ -1,43 +1,43 @@
 // game_logic.zc - 格斗游戏逻辑
 // 027-FightingGame 玩家 vs 电脑
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
-const WINDOW_WIDTH: int = 800;
-const WINDOW_HEIGHT: int = 600;
+def WINDOW_WIDTH: int = 800;
+def WINDOW_HEIGHT: int = 600;
 
-const GROUND_Y: int = 480;        // 地面Y位置
-const GRAVITY: int = 2;            // 重力
-const JUMP_FORCE: int = -18;      // 跳跃力度
+def GROUND_Y: int = 480;        // 地面Y位置
+def GRAVITY: int = 2;            // 重力
+def JUMP_FORCE: int = -18;      // 跳跃力度
 
-const PLAYER_WIDTH: int = 60;
-const PLAYER_HEIGHT: int = 100;
-const PLAYER_SPEED: int = 6;
-const PLAYER_START_X: int = 150;
-const PLAYER_START_X2: int = 590;
+def PLAYER_WIDTH: int = 60;
+def PLAYER_HEIGHT: int = 100;
+def PLAYER_SPEED: int = 6;
+def PLAYER_START_X: int = 150;
+def PLAYER_START_X2: int = 590;
 
-const CPU_START_X: int = 590;
+def CPU_START_X: int = 590;
 
 // 攻击参数
-const PUNCH_RANGE: int = 80;       // 拳攻击范围
-const PUNCH_DAMAGE: int = 8;       // 拳伤害
-const PUNCH_DURATION: int = 15;    // 拳持续帧数
-const KICK_RANGE: int = 100;       // 脚攻击范围
-const KICK_DAMAGE: int = 12;       // 脚伤害
-const KICK_DURATION: int = 20;     // 脚持续帧数
-const ATTACK_COOLDOWN: int = 20;   // 攻击冷却
+def PUNCH_RANGE: int = 80;       // 拳攻击范围
+def PUNCH_DAMAGE: int = 8;       // 拳伤害
+def PUNCH_DURATION: int = 15;    // 拳持续帧数
+def KICK_RANGE: int = 100;       // 脚攻击范围
+def KICK_DAMAGE: int = 12;       // 脚伤害
+def KICK_DURATION: int = 20;     // 脚持续帧数
+def ATTACK_COOLDOWN: int = 20;   // 攻击冷却
 
 // 防御参数
-const BLOCK_DAMAGE_REDUCTION: int = 0.7;  // 防御减伤比例
+def BLOCK_DAMAGE_REDUCTION: int = 0.7;  // 防御减伤比例
 
-const MAX_HP: int = 100;           // 最大生命值
-const WIN_HP: int = 0;            // 获胜血量
+def MAX_HP: int = 100;           // 最大生命值
+def WIN_HP: int = 0;            // 获胜血量
 
-const AI_REACTION_DELAY: int = 200;
-const AI_ATTACK_DELAY: int = 500;
+def AI_REACTION_DELAY: int = 200;
+def AI_ATTACK_DELAY: int = 500;
 
 // ==================== 角色数据结构 ====================
 
@@ -328,15 +328,15 @@ pub class FightingGame extends Game {
     
     // 更新CPU AI
     private fn updateCPU(dt: u32) {
-        var currentTime = getTickCount();
+        let currentTime = getTickCount();
         
         // 决策间隔
-        if currentTime - self.aiLastDecision < AI_REACTION_DELAY as u32 {
+        if currentTime - self.aiLastDecision < (u32)AI_REACTION_DELAY {
             return;
         }
         self.aiLastDecision = currentTime;
         
-        var distToPlayer = self.absInt(self.playerX - self.cpuX);
+        let distToPlayer = self.absInt(self.playerX - self.cpuX);
         
         // 距离判断
         if distToPlayer > PUNCH_RANGE + 20 {
@@ -368,7 +368,7 @@ pub class FightingGame extends Game {
                     self.cpuAttackTimer = PUNCH_DURATION;
                     self.cpuAttackCooldown = ATTACK_COOLDOWN;
                 }
-                self.aiNextAttack = currentTime + (AI_ATTACK_DELAY as u32) + (math.rand() % 500 as u32);
+                self.aiNextAttack = currentTime + ((u32)AI_ATTACK_DELAY) + (math.rand() % (u32)500);
             } else if distToPlayer <= KICK_RANGE {
                 // 在脚范围内
                 if math.rand() % 2 == 0 {
@@ -411,9 +411,9 @@ pub class FightingGame extends Game {
     private fn checkAttackCollision() {
         // 玩家攻击CPU
         if self.playerIsPunching && self.playerAttackTimer == PUNCH_DURATION - 3 {
-            var damage = PUNCH_DAMAGE;
+            let damage = PUNCH_DAMAGE;
             if self.cpuIsBlocking {
-                damage = (damage as float * BLOCK_DAMAGE_REDUCTION as float) as int;
+                damage = ((float)damage * (float)BLOCK_DAMAGE_REDUCTION) as int;
             }
             if self.isInRange(self.playerX, PLAYER_WIDTH, self.cpuX, PUNCH_RANGE) {
                 if !self.cpuIsHit {
@@ -427,9 +427,9 @@ pub class FightingGame extends Game {
             }
         }
         if self.playerIsKicking && self.playerAttackTimer == KICK_DURATION - 3 {
-            var damage = KICK_DAMAGE;
+            let damage = KICK_DAMAGE;
             if self.cpuIsBlocking {
-                damage = (damage as float * BLOCK_DAMAGE_REDUCTION as float) as int;
+                damage = ((float)damage * (float)BLOCK_DAMAGE_REDUCTION) as int;
             }
             if self.isInRange(self.playerX, PLAYER_WIDTH, self.cpuX, KICK_RANGE) {
                 if !self.cpuIsHit {
@@ -445,9 +445,9 @@ pub class FightingGame extends Game {
         
         // CPU攻击玩家
         if self.cpuIsPunching && self.cpuAttackTimer == PUNCH_DURATION - 3 {
-            var damage = PUNCH_DAMAGE;
+            let damage = PUNCH_DAMAGE;
             if self.playerIsBlocking {
-                damage = (damage as float * BLOCK_DAMAGE_REDUCTION as float) as int;
+                damage = ((float)damage * (float)BLOCK_DAMAGE_REDUCTION) as int;
             }
             if self.isInRange(self.cpuX, PLAYER_WIDTH, self.playerX, PUNCH_RANGE) {
                 if !self.playerIsHit {
@@ -461,9 +461,9 @@ pub class FightingGame extends Game {
             }
         }
         if self.cpuIsKicking && self.cpuAttackTimer == KICK_DURATION - 3 {
-            var damage = KICK_DAMAGE;
+            let damage = KICK_DAMAGE;
             if self.playerIsBlocking {
-                damage = (damage as float * BLOCK_DAMAGE_REDUCTION as float) as int;
+                damage = ((float)damage * (float)BLOCK_DAMAGE_REDUCTION) as int;
             }
             if self.isInRange(self.cpuX, PLAYER_WIDTH, self.playerX, KICK_RANGE) {
                 if !self.playerIsHit {
@@ -488,9 +488,9 @@ pub class FightingGame extends Game {
     
     // 检查范围
     private fn isInRange(attackerX: int, attackerW: int, targetX: int, range: int) -> bool {
-        var attackerCenter = attackerX + attackerW / 2;
-        var targetCenter = targetX + PLAYER_WIDTH / 2;
-        var dist = self.absInt(attackerCenter - targetCenter);
+        let attackerCenter = attackerX + attackerW / 2;
+        let targetCenter = targetX + PLAYER_WIDTH / 2;
+        let dist = self.absInt(attackerCenter - targetCenter);
         return dist < range;
     }
     
@@ -545,11 +545,11 @@ pub class FightingGame extends Game {
     private fn drawBackground(canvas: Canvas) {
         // 渐变背景
         for y in 0..(GROUND_Y) {
-            var ratio = y as float / GROUND_Y as float;
-            var r = (30.0 * ratio + 20.0) as int;
-            var g = (30.0 * ratio + 20.0) as int;
-            var b = (60.0 * ratio + 80.0) as int;
-            canvas.drawLine(0, y, self.width, y, Color.RGB(r as u8, g as u8, b as u8));
+            let ratio = (float)y / GROUND_Y as float;
+            let r = (30.0 * ratio + 20.0) as int;
+            let g = (30.0 * ratio + 20.0) as int;
+            let b = (60.0 * ratio + 80.0) as int;
+            canvas.drawLine(0, y, self.width, y, Color.RGB((u8)r, (u8)g, (u8)b));
         }
     }
     
@@ -569,14 +569,14 @@ pub class FightingGame extends Game {
     
     // 绘制HP条
     private fn drawHPBar(canvas: Canvas) {
-        var barWidth = 250;
-        var barHeight = 20;
-        var barY = 15;
+        let barWidth = 250;
+        let barHeight = 20;
+        let barY = 15;
         
         // 玩家HP背景
         canvas.fillRect(20, barY, barWidth, barHeight, Color.RGB(40, 40, 40));
         // 玩家HP
-        var playerHpWidth = (self.playerHp as float / MAX_HP as float * barWidth as float) as int;
+        let playerHpWidth = ((float)(self.playerHp) / (float)MAX_HP * (float)barWidth) as int;
         canvas.fillRect(20, barY, playerHpWidth, barHeight, Color.Red());
         // 玩家HP边框
         canvas.drawRect(20, barY, barWidth, barHeight, Color.White());
@@ -584,13 +584,13 @@ pub class FightingGame extends Game {
         // CPU HP背景
         canvas.fillRect(self.width - 20 - barWidth, barY, barWidth, barHeight, Color.RGB(40, 40, 40));
         // CPU HP
-        var cpuHpWidth = (self.cpuHp as float / MAX_HP as float * barWidth as float) as int;
+        let cpuHpWidth = ((float)(self.cpuHp) / (float)MAX_HP * (float)barWidth) as int;
         canvas.fillRect(self.width - 20 - barWidth, barY, cpuHpWidth, barHeight, Color.Red());
         // CPU HP边框
         canvas.drawRect(self.width - 20 - barWidth, barY, barWidth, barHeight, Color.White());
         
         // 标签
-        var font = Font.("Arial", 14);
+        let font = Font("Arial", 14);
         canvas.drawText(25, barY + 3, "玩家", Color.White(), font);
         canvas.drawText(self.width - 25 - 30, barY + 3, "CPU", Color.White(), font);
     }
@@ -598,8 +598,8 @@ pub class FightingGame extends Game {
     // 绘制角色
     private fn drawFighter(canvas: Canvas, x: int, y: int, facingRight: bool,
                           isPunching: bool, isKicking: bool, isBlocking: bool, isHit: bool, isPlayer: bool) {
-        var bodyColor: Color;
-        var accentColor: Color;
+        let bodyColor: Color;
+        let accentColor: Color;
         
         if isPlayer {
             bodyColor = Color.RGB(50, 120, 220);   // 蓝色
@@ -616,33 +616,33 @@ pub class FightingGame extends Game {
         }
         
         // 身体
-        var bodyX = x + 10;
-        var bodyY = y;
-        var bodyW = PLAYER_WIDTH - 20;
-        var bodyH = PLAYER_HEIGHT - 20;
+        let bodyX = x + 10;
+        let bodyY = y;
+        let bodyW = PLAYER_WIDTH - 20;
+        let bodyH = PLAYER_HEIGHT - 20;
         canvas.fillRect(bodyX, bodyY, bodyW, bodyH, bodyColor);
         
         // 头
-        var headX = x + 15;
-        var headY = y - 25;
-        var headSize = 30;
+        let headX = x + 15;
+        let headY = y - 25;
+        let headSize = 30;
         canvas.fillCircle(headX + headSize / 2, headY + headSize / 2, headSize / 2, bodyColor);
         
         // 眼睛方向
-        var eyeOffsetX = if facingRight { 5 } else { -5 };
+        let eyeOffsetX = if facingRight { 5 } else { -5 };
         canvas.fillRect(headX + 8 + eyeOffsetX, headY + 10, 4, 4, Color.White());
         canvas.fillRect(headX + 18 + eyeOffsetX, headY + 10, 4, 4, Color.White());
         
         // 手臂/腿
         if isPunching {
             // 出拳
-            var armX = if facingRight { x + PLAYER_WIDTH - 5 } else { x - PUNCH_RANGE + 10 };
+            let armX = if facingRight { x + PLAYER_WIDTH - 5 } else { x - PUNCH_RANGE + 10 };
             canvas.fillRect(armX, y + 15, PUNCH_RANGE - 20, 12, accentColor);
             // 拳头
             canvas.fillCircle(armX + (if facingRight { PUNCH_RANGE - 25 } else { 5 }), y + 21, 8, bodyColor);
         } else if isKicking {
             // 出脚
-            var legX = if facingRight { x + PLAYER_WIDTH - 10 } else { x - KICK_RANGE + 15 };
+            let legX = if facingRight { x + PLAYER_WIDTH - 10 } else { x - KICK_RANGE + 15 };
             canvas.fillRect(legX, y + bodyH - 20, KICK_RANGE - 20, 14, accentColor);
             // 脚
             canvas.fillRect(legX + (if facingRight { KICK_RANGE - 25 } else { 5 }), y + bodyH - 18, 15, 10, bodyColor);
@@ -661,8 +661,8 @@ pub class FightingGame extends Game {
         
         // 防御护盾效果
         if isBlocking {
-            var shieldColor = Color.ARGB(100, 255, 255, 100);
-            var shieldX = if facingRight { x + PLAYER_WIDTH - 5 } else { x - 10 };
+            let shieldColor = Color.ARGB(100, 255, 255, 100);
+            let shieldX = if facingRight { x + PLAYER_WIDTH - 5 } else { x - 10 };
             canvas.drawLine(shieldX, y + 5, shieldX, y + bodyH, shieldColor);
             canvas.drawLine(shieldX + 5, y + 5, shieldX + 5, y + bodyH, shieldColor);
         }
@@ -670,14 +670,14 @@ pub class FightingGame extends Game {
     
     // 绘制命中特效
     private fn drawHitEffect(canvas: Canvas) {
-        var size = 20 + (12 - self.hitEffectTimer) * 3;
+        let size = 20 + (12 - self.hitEffectTimer) * 3;
         canvas.drawCircle(self.hitEffectX, self.hitEffectY, size / 2, Color.Yellow());
         canvas.drawCircle(self.hitEffectX, self.hitEffectY, size / 3, Color.White());
     }
     
     // 绘制动作指示
     private fn drawActionIndicator(canvas: Canvas) {
-        var font = Font.("Arial", 12);
+        let font = Font("Arial", 12);
         
         // 玩家当前动作
         if self.playerIsPunching {
@@ -704,8 +704,8 @@ pub class FightingGame extends Game {
     
     // 绘制控制说明
     private fn drawControls(canvas: Canvas) {
-        var font = Font.("Arial", 12);
-        var text = "A/D: 移动  W: 跳跃  J: 拳  K: 脚  S: 防御";
+        let font = Font("Arial", 12);
+        let text = "A/D: 移动  W: 跳跃  J: 拳  K: 脚  S: 防御";
         canvas.drawText(self.width / 2 - 180, self.height - 25, text, Color.LightGray(), font);
     }
     
@@ -714,13 +714,13 @@ pub class FightingGame extends Game {
         canvas.fillRect(self.width / 2 - 180, self.height / 2 - 60, 360, 120, Color.ARGB(180, 0, 0, 0));
         canvas.drawRect(self.width / 2 - 180, self.height / 2 - 60, 360, 120, Color.Yellow());
         
-        var font = Font.("Arial", 28);
+        let font = Font("Arial", 28);
         canvas.drawText(self.width / 2 - 110, self.height / 2 - 45, "格斗游戏", Color.Yellow(), font);
         
-        font = Font.("Arial", 18);
+        font = Font("Arial", 18);
         canvas.drawText(self.width / 2 - 140, self.height / 2, "按 J 开始战斗!", Color.White(), font);
         
-        font = Font.("Arial", 14);
+        font = Font("Arial", 14);
         canvas.drawText(self.width / 2 - 120, self.height / 2 + 35, "A/D移动 W跳跃 J拳 K脚 S防御", Color.LightGray(), font);
     }
     
@@ -728,46 +728,46 @@ pub class FightingGame extends Game {
     private fn drawGameOver(canvas: Canvas) {
         canvas.fillRect(0, 0, self.width, self.height, Color.ARGB(180, 0, 0, 0));
         
-        var font = Font.("Arial", 48);
-        var text = self.winner ++ " 获胜!";
-        var textColor = if self.winner == "玩家" { Color.Yellow() } else { Color.Red() };
+        let font = Font("Arial", 48);
+        let text = self."{winner} 获胜!";
+        let textColor = if self.winner == "玩家" { Color.Yellow() } else { Color.Red() };
         canvas.drawText(self.width / 2 - 130, self.height / 2 - 50, text, textColor, font);
         
-        var smallFont = Font.("Arial", 20);
+        let smallFont = Font("Arial", 20);
         canvas.drawText(self.width / 2 - 80, self.height / 2 + 20, "按 R 重新开始", Color.White(), smallFont);
     }
     
     // onKeyDown - 键盘按下
     pub fn onKeyDown(key: VirtualKey) {
         match key {
-            VirtualKey.A | VirtualKey.Left => {
+            VirtualKey.A | VirtualKey::Left => {
                 self.keyLeft = true;
             }
-            VirtualKey.D | VirtualKey.Right => {
+            VirtualKey.D | VirtualKey::Right => {
                 self.keyRight = true;
             }
-            VirtualKey.W | VirtualKey.Up => {
+            VirtualKey.W | VirtualKey::Up => {
                 self.keyJump = true;
             }
-            VirtualKey.S | VirtualKey.Down => {
+            VirtualKey.S | VirtualKey::Down => {
                 self.keyBlock = true;
             }
-            VirtualKey.KeyJ => {
+            VirtualKey::KeyJ => {
                 if !self.gameStarted && !self.gameOver {
                     self.gameStarted = true;
                 }
                 self.keyPunch = true;
             }
-            VirtualKey.KeyK => {
+            VirtualKey::KeyK => {
                 self.keyKick = true;
             }
-            VirtualKey.KeyR => {
+            VirtualKey::KeyR => {
                 if self.gameOver {
                     self.onInit();
                     self.gameStarted = true;
                 }
             }
-            VirtualKey.Space => {
+            VirtualKey::Space => {
                 if !self.gameStarted && !self.gameOver {
                     self.gameStarted = true;
                 }
@@ -779,22 +779,22 @@ pub class FightingGame extends Game {
     // onKeyUp - 键盘释放
     pub fn onKeyUp(key: VirtualKey) {
         match key {
-            VirtualKey.A | VirtualKey.Left => {
+            VirtualKey.A | VirtualKey::Left => {
                 self.keyLeft = false;
             }
-            VirtualKey.D | VirtualKey.Right => {
+            VirtualKey.D | VirtualKey::Right => {
                 self.keyRight = false;
             }
-            VirtualKey.W | VirtualKey.Up => {
+            VirtualKey.W | VirtualKey::Up => {
                 self.keyJump = false;
             }
-            VirtualKey.S | VirtualKey.Down => {
+            VirtualKey.S | VirtualKey::Down => {
                 self.keyBlock = false;
             }
-            VirtualKey.KeyJ => {
+            VirtualKey::KeyJ => {
                 self.keyPunch = false;
             }
-            VirtualKey.KeyK => {
+            VirtualKey::KeyK => {
                 self.keyKick = false;
             }
             _ => {}

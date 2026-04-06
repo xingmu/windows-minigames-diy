@@ -1,16 +1,16 @@
 // game_logic.zc - Zen-C 纸牌接龙(Klondike Solitaire)游戏逻辑
 // 所有平台共用相同的游戏逻辑代码
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
-const TOTAL_CARDS: i32 = 52;
-const SUITS: i32 = 4;
-const RANKS_PER_SUIT: i32 = 13;
-const TABLEAU_PILES: i32 = 7;
-const FOUNDATION_PILES: i32 = 4;
+def TOTAL_CARDS: i32 = 52;
+def SUITS: i32 = 4;
+def RANKS_PER_SUIT: i32 = 13;
+def TABLEAU_PILES: i32 = 7;
+def FOUNDATION_PILES: i32 = 4;
 
 // ==================== 颜色定义 ====================
 
@@ -86,7 +86,7 @@ struct CardPile {
 impl CardPile {
     fn new() -> CardPile {
         CardPile {
-            cards: [Card.{ suit: Suit::Hearts, rank: 1, face_up: false, card_id: 0 }; TOTAL_CARDS],
+            cards: [Card { suit: Suit::Hearts, rank: 1, face_up: false, card_id: 0 }; TOTAL_CARDS],
             count: 0
         }
     }
@@ -103,21 +103,21 @@ impl CardPile {
             self.count -= 1;
             return self.cards[self.count];
         }
-        return Card.{ suit: Suit::Hearts, rank: 1, face_up: false, card_id: -1 };
+        return Card { suit: Suit::Hearts, rank: 1, face_up: false, card_id: -1 };
     }
     
     fn get(self, index: i32) -> Card {
         if index >= 0 && index < self.count {
             return self.cards[index];
         }
-        return Card.{ suit: Suit::Hearts, rank: 1, face_up: false, card_id: -1 };
+        return Card { suit: Suit::Hearts, rank: 1, face_up: false, card_id: -1 };
     }
     
     fn get_top(self) -> Card {
         if self.count > 0 {
             return self.cards[self.count - 1];
         }
-        return Card.{ suit: Suit::Hearts, rank: 1, face_up: false, card_id: -1 };
+        return Card { suit: Suit::Hearts, rank: 1, face_up: false, card_id: -1 };
     }
     
     fn remove_top(mut self) {
@@ -220,7 +220,7 @@ fn create_deck() -> CardPile {
 // 洗牌 - Fisher-Yates 算法
 fn shuffle_deck(mut deck: CardPile) {
     let seed = time.now().nanos();
-    math.srand(seed as u32);
+    math.srand((u32)seed);
     
     for i in (1..deck.count).rev() {
         let j = math.rand() % (i + 1);
@@ -235,7 +235,7 @@ fn shuffle_deck(mut deck: CardPile) {
 fn init_game(game: &mut GameState) {
     // 初始化随机数种子
     let seed = time.now().nanos();
-    math.srand(seed as u32);
+    math.srand((u32)seed);
     
     // 创建并洗牌
     let mut deck = create_deck();
@@ -489,7 +489,7 @@ fn can_place_on_foundation(card: Card, pile: CardPile, foundation_index: i32) ->
 
 // 检查胜利条件
 fn check_win_condition(game: &mut GameState) {
-    var total_foundation = 0;
+    let total_foundation = 0;
     for i in 0..FOUNDATION_PILES {
         total_foundation += game.foundation[i].len();
     }
@@ -582,7 +582,7 @@ fn auto_move_to_foundation(game: &mut GameState) -> bool {
 // ==================== 获取信息函数 ====================
 
 // 获取游戏状态文本
-fn get_game_status_text(game: &GameState) -> string {
+fn get_game_status_text(game: GameState*) -> string {
     if game.game_won {
         return "恭喜通关! 按 N 重新开始";
     } else {
@@ -591,7 +591,7 @@ fn get_game_status_text(game: &GameState) -> string {
 }
 
 // 获取统计信息文本
-fn get_stats_text(game: &GameState) -> string {
+fn get_stats_text(game: GameState*) -> string {
     let mins = game.stats.elapsed_seconds / 60;
     let secs = game.stats.elapsed_seconds % 60;
     let mut foundation_total = 0;
@@ -627,7 +627,7 @@ struct UndoMove {
     card_count: i32
 }
 
-static mut undo_stack: [100]UndoMove;
+static mut undo_stack: [UndoMove; 100];
 static mut undo_count: i32 = 0;
 
 fn add_undo(move_type: i32, from_pile: i32, to_pile: i32, card_count: i32) {

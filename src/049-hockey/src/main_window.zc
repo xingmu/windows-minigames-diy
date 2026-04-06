@@ -7,16 +7,16 @@ import "game_logic.zc";
 
 // 主函数 - 程序入口
 pub fn main() {
-    println("===========================================");
-    println("  049-Hockey 冰球守门员游戏");
-    println("  Zen-C + 003 Framework");
-    println("===========================================");
+    println "===========================================";
+    println "  049-Hockey 冰球守门员游戏";
+    println "  Zen-C + 003 Framework";
+    println "===========================================";
     
     // 初始化平台
     initPlatform();
     
     // 创建并运行游戏
-    var game = HockeyGame.("Hockey - 冰球守门员", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    let game = HockeyGame("Hockey - 冰球守门员", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
     game.run();
     game.destroy();
     

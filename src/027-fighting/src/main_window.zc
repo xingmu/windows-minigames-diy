@@ -1,7 +1,7 @@
 // main_window.zc - 格斗游戏入口
 // 027-FightingGame 玩家 vs 电脑
 
-import std.io;
+import "io.zc";
 
 // 导入框架和游戏
 import "platform_api.zc";
@@ -10,16 +10,16 @@ import "game_logic.zc";
 
 // 主函数
 pub fn main() {
-    io.println("===========================================");
-    io.println("  Zen-C Fighting Game");
-    io.println("  格斗游戏 - 玩家 vs 电脑");
-    io.println("===========================================");
+    io.println "===========================================";
+    io.println "  Zen-C Fighting Game";
+    io.println "  格斗游戏 - 玩家 vs 电脑";
+    io.println "===========================================";
     
     // 初始化平台
     initPlatform();
     
     // 创建游戏
-    var game = FightingGame.("Fighting Game - 格斗游戏", 800, 600, 60);
+    let game = FightingGame("Fighting Game - 格斗游戏", 800, 600, 60);
     
     // 运行游戏
     game.run();
@@ -28,7 +28,7 @@ pub fn main() {
     game.destroy();
     shutdownPlatform();
     
-    io.println("游戏已退出，再见!");
+    io.println "游戏已退出，再见!";
     
     0
 }

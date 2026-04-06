@@ -1,9 +1,10 @@
+import "io.zc";
 // platform_api.zc - Zen-C Windows GUI 平台 API 封装
 // 框架版本: 1.0.0
 // 提供跨游戏的统一平台接口
 
-import std.ffi;
-import std.string;
+// import "ffi.zc";
+import "string.zc";
 
 // ==================== 平台检测宏 ====================
 
@@ -109,11 +110,11 @@ struct Rect {
 // ==================== 颜色工厂 ====================
 
 fn rgb(r: u8, g: u8, b: u8) -> Color {
-    return 0xFF000000 as Color | (r as Color << 16) | (g as Color << 8) | b as Color;
+    return 0xFF000000| (r<< 16) | (g<< 8) | b as Color;
 }
 
 fn argb(a: u8, r: u8, g: u8, b: u8) -> Color {
-    return (a as Color << 24) | (r as Color << 16) | (g as Color << 8) | b as Color;
+    return (a<< 24) | (r<< 16) | (g<< 8) | b as Color;
 }
 
 // ==================== 平台特定实现 ====================
@@ -122,8 +123,8 @@ fn argb(a: u8, r: u8, g: u8, b: u8) -> Color {
 
 extern "user32.dll" fn CreateWindowExA(
     dwExStyle: u32,
-    lpClassName: *const i8,
-    lpWindowName: *const i8,
+    lpClassName: *def i8,
+    lpWindowName: *def i8,
     dwStyle: u32,
     x: i32, y: i32,
     nWidth: i32, nHeight: i32,
@@ -141,7 +142,7 @@ extern "user32.dll" fn DispatchMessageA(lpMsg: *void) -> i32;
 extern "user32.dll" fn InvalidateRect(hWnd: WindowHandle, lpRect: *void, bErase: bool) -> bool;
 extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, msg: u32, wParam: u64, lParam: i64) -> i64;
 extern "user32.dll" fn PostQuitMessage(exitCode: i32);
-extern "user32.dll" fn LoadCursorA(hInstance: *void, lpCursorName: *const i8) -> *void;
+extern "user32.dll" fn LoadCursorA(hInstance: *void, lpCursorName: *def i8) -> *void;
 extern "user32.dll" fn SetCursor(hCursor: *void);
 extern "user32.dll" fn GetClientRect(hWnd: WindowHandle, lpRect: *Rect) -> bool;
 extern "user32.dll" fn GetDC(hWnd: WindowHandle) -> GraphicsContext;
@@ -156,12 +157,12 @@ extern "user32.dll" fn CreateSolidBrush(color: Color) -> *void;
 extern "user32.dll" fn FillRect(hDC: GraphicsContext, lpRect: *Rect, hBrush: *void) -> bool;
 extern "user32.dll" fn SetBkMode(hDC: GraphicsContext, mode: i32) -> i32;
 extern "user32.dll" fn SetTextColor(hDC: GraphicsContext, color: Color) -> Color;
-extern "user32.dll" fn TextOutA(hDC: GraphicsContext, x: i32, y: i32, lpString: *const i8, c: i32) -> bool;
+extern "user32.dll" fn TextOutA(hDC: GraphicsContext, x: i32, y: i32, lpString: *def i8, c: i32) -> bool;
 extern "user32.dll" fn RegisterClassA(lpWndClass: *WndClassExA) -> u16;
 extern "user32.dll" fn CreateFontA(nHeight: i32, nWidth: i32, fnEscapement: i32, fnOrientation: i32,
     fnWeight: i32, fdwItalic: bool, fdwUnderline: bool, fdwStrikeOut: bool,
     fdwCharSet: u8, fdwOutputPrecision: u8, fdwClipPrecision: u8,
-    fdwQuality: u8, fdwPitchAndFamily: u8, lpszFace: *const i8) -> Font;
+    fdwQuality: u8, fdwPitchAndFamily: u8, lpszFace: *def i8) -> Font;
 extern "user32.dll" fn GetAsyncKeyState(vKey: i32) -> i16;
 
 struct WndClassExA {
@@ -174,8 +175,8 @@ struct WndClassExA {
     hIcon: *void,
     hCursor: *void,
     hbrBackground: *void,
-    lpszMenuName: *const i8,
-    lpszClassName: *const i8,
+    lpszMenuName: *def i8,
+    lpszClassName: *def i8,
     hIconSm: *void,
 }
 
@@ -189,25 +190,25 @@ struct MSG {
     pt_y: i32,
 }
 
-const WM_QUIT = 0x0012;
-const WM_PAINT = 0x000F;
-const WM_KEYDOWN = 0x0100;
-const WM_KEYUP = 0x0101;
-const WM_LBUTTONDOWN = 0x0201;
-const WM_LBUTTONUP = 0x0202;
-const WM_RBUTTONDOWN = 0x0204;
-const WM_RBUTTONUP = 0x0205;
-const WM_MOUSEMOVE = 0x0200;
-const WM_DESTROY = 0x0002;
-const WM_SIZE = 0x0005;
-const GWL_WNDPROC = -4;
-const SRCCOPY = 0x00CC0020;
-const TRANSPARENT = 1;
-const OPAQUE = 2;
-const IDC_ARROW = 32512;
-const CW_USEDEFAULT = 0x80000000 as i32;
-const WS_OVERLAPPEDWINDOW = 0x00CF0000;
-const SW_SHOWNORMAL = 1;
+def WM_QUIT = 0x0012;
+def WM_PAINT = 0x000F;
+def WM_KEYDOWN = 0x0100;
+def WM_KEYUP = 0x0101;
+def WM_LBUTTONDOWN = 0x0201;
+def WM_LBUTTONUP = 0x0202;
+def WM_RBUTTONDOWN = 0x0204;
+def WM_RBUTTONUP = 0x0205;
+def WM_MOUSEMOVE = 0x0200;
+def WM_DESTROY = 0x0002;
+def WM_SIZE = 0x0005;
+def GWL_WNDPROC = -4;
+def SRCCOPY = 0x00CC0020;
+def TRANSPARENT = 1;
+def OPAQUE = 2;
+def IDC_ARROW = 32512;
+def CW_USEDEFAULT = 0x80000000 as i32;
+def WS_OVERLAPPEDWINDOW = 0x00CF0000;
+def SW_SHOWNORMAL = 1;
 
 static mut g_hInst: *void = null;
 static mut g_hwnd: WindowHandle = null;
@@ -243,7 +244,7 @@ fn createWindow(title: str, width: i32, height: i32) -> WindowHandle {
     g_screen_height = height;
 
     // Register window class
-    var wcex = WndClassExA.{
+    let wcex = WndClassExA {
         cbSize: 48,
         style: 0,
         lpfnWndProc: &wndProc,
@@ -251,7 +252,7 @@ fn createWindow(title: str, width: i32, height: i32) -> WindowHandle {
         cbWndExtra: 0,
         hInstance: g_hInst,
         hIcon: null,
-        hCursor: LoadCursorA(null as *void, IDC_ARROW as *const i8),
+        hCursor: LoadCursorA(null as *void, IDC_ARROW as *def i8),
         hbrBackground: null as *void,
         lpszMenuName: null,
         lpszClassName: "DoudizhuGame".as_ptr(),
@@ -260,7 +261,7 @@ fn createWindow(title: str, width: i32, height: i32) -> WindowHandle {
 
     RegisterClassA(&wcex);
 
-    var hwnd = CreateWindowExA(
+    let hwnd = CreateWindowExA(
         0,
         "DoudizhuGame".as_ptr(),
         title.as_ptr(),
@@ -282,7 +283,7 @@ fn createWindow(title: str, width: i32, height: i32) -> WindowHandle {
     UpdateWindow(hwnd);
 
     // Create backbuffer
-    var hdc = GetDC(hwnd);
+    let hdc = GetDC(hwnd);
     g_backbuffer = CreateCompatibleDC(hdc);
     g_backbitmap = CreateCompatibleBitmap(hdc, width, height);
     SelectObject(g_backbuffer, g_backbitmap);
@@ -301,8 +302,8 @@ fn closeWindow(hwnd: WindowHandle) {
     }
 }
 
-fn pollEvent(hwnd: WindowHandle, event: &Event) -> bool {
-    var msg = MSG.{};
+fn pollEvent(hwnd: WindowHandle, event: Event*) -> bool {
+    let msg = MSG{};
 
     if g_hwnd == null {
         return false;
@@ -375,12 +376,12 @@ fn getTickCount() -> u32 {
 
 fn sleep(ms: u32) {
     // Simple busy wait
-    var target = getTickCount() + ms;
+    let target = getTickCount() + ms;
     while getTickCount() < target {}
 }
 
 fn isKeyDown(key: VirtualKey) -> bool {
-    var state = GetAsyncKeyState(key as i32);
+    let state = GetAsyncKeyState((i32)key);
     return (state & 0x8000) != 0;
 }
 
@@ -393,8 +394,8 @@ fn getFrameBufferPitch(hwnd: WindowHandle) -> i32 {
 }
 
 fn presentFrame(hwnd: WindowHandle) {
-    var hdc = GetDC(hwnd);
-    var rect = Rect.{ x: 0, y: 0, width: g_screen_width, height: g_screen_height };
+    let hdc = GetDC(hwnd);
+    let rect = Rect { x: 0, y: 0, width: g_screen_width, height: g_screen_height };
     BitBlt(hdc, 0, 0, g_screen_width, g_screen_height, g_backbuffer, 0, 0, SRCCOPY);
     ReleaseDC(hwnd, hdc);
 }
@@ -410,29 +411,29 @@ fn getScreenSize() -> (i32, i32) {
 // ==================== 绘图API ====================
 
 fn clear_screen(ctx: GraphicsContext, color: Color) {
-    var rect = Rect.{ x: 0, y: 0, width: g_screen_width, height: g_screen_height };
-    var brush = CreateSolidBrush(color);
+    let rect = Rect { x: 0, y: 0, width: g_screen_width, height: g_screen_height };
+    let brush = CreateSolidBrush(color);
     FillRect(ctx, &rect, brush);
     DeleteObject(brush as *void);
 }
 
 fn draw_pixel(ctx: GraphicsContext, x: i32, y: i32, color: Color) {
-    var oldColor = SetTextColor(ctx, color);
-    var text = " ".as_bytes();
+    let oldColor = SetTextColor(ctx, color);
+    let text = " ".as_bytes();
     TextOutA(ctx, x, y, text.as_ptr(), 1);
     SetTextColor(ctx, oldColor);
 }
 
 fn draw_line(ctx: GraphicsContext, x1: i32, y1: i32, x2: i32, y2: i32, color: Color) {
-    var brush = CreateSolidBrush(color);
-    var rect = Rect.{ x: min(x1,x2), y: min(y1,y2), width: abs(x2-x1)+1, height: abs(y2-y1)+1 };
+    let brush = CreateSolidBrush(color);
+    let rect = Rect { x: min(x1,x2), y: min(y1,y2), width: abs(x2-x1)+1, height: abs(y2-y1)+1 };
     FillRect(ctx, &rect, brush);
     DeleteObject(brush as *void);
 }
 
 fn draw_rect(ctx: GraphicsContext, x: i32, y: i32, w: i32, h: i32, color: Color) {
-    var brush = CreateSolidBrush(color);
-    var rect = Rect.{ x: x, y: y, width: w, height: h };
+    let brush = CreateSolidBrush(color);
+    let rect = Rect { x: x, y: y, width: w, height: h };
     FillRect(ctx, &rect, brush);
     DeleteObject(brush as *void);
 }
@@ -440,8 +441,8 @@ fn draw_rect(ctx: GraphicsContext, x: i32, y: i32, w: i32, h: i32, color: Color)
 fn draw_circle(ctx: GraphicsContext, cx: i32, cy: i32, radius: i32, color: Color) {
     for py in (cy - radius)..(cy + radius + 1) {
         for px in (cx - radius)..(cx + radius + 1) {
-            var dx = px - cx;
-            var dy = py - cy;
+            let dx = px - cx;
+            let dy = py - cy;
             if dx*dx + dy*dy <= radius*radius {
                 draw_pixel(ctx, px, py, color);
             }
@@ -450,10 +451,10 @@ fn draw_circle(ctx: GraphicsContext, cx: i32, cy: i32, radius: i32, color: Color
 }
 
 fn draw_text(ctx: GraphicsContext, x: i32, y: i32, text: str, color: Color) {
-    var oldColor = SetTextColor(ctx, color);
+    let oldColor = SetTextColor(ctx, color);
     SetBkMode(ctx, TRANSPARENT);
     SelectObject(ctx, g_font);
-    TextOutA(ctx, x, y, text.as_ptr(), text.len as i32);
+    TextOutA(ctx, x, y, text.as_ptr(), text.(i32)len);
     SetTextColor(ctx, oldColor);
 }
 
@@ -476,7 +477,7 @@ fn createWindow(title: str, width: i32, height: i32) -> WindowHandle {
 }
 
 fn closeWindow(hwnd: WindowHandle) {}
-fn pollEvent(hwnd: WindowHandle, event: &Event) -> bool { return false; }
+fn pollEvent(hwnd: WindowHandle, event: Event*) -> bool { return false; }
 fn getTickCount() -> u32 { return 0; }
 fn sleep(ms: u32) {}
 fn isKeyDown(key: VirtualKey) -> bool { return false; }
@@ -500,7 +501,7 @@ fn initPlatform() {}
 fn shutdownPlatform() {}
 fn createWindow(title: str, width: i32, height: i32) -> WindowHandle { return null; }
 fn closeWindow(hwnd: WindowHandle) {}
-fn pollEvent(hwnd: WindowHandle, event: &Event) -> bool { return false; }
+fn pollEvent(hwnd: WindowHandle, event: Event*) -> bool { return false; }
 fn getTickCount() -> u32 { return 0; }
 fn sleep(ms: u32) {}
 fn isKeyDown(key: VirtualKey) -> bool { return false; }
@@ -536,8 +537,8 @@ fn max(a: i32, b: i32) -> i32 {
 
 fn sqrt(n: i32) -> i32 {
     if n < 0 { return 0; }
-    var x = n;
-    var y = 1;
+    let x = n;
+    let y = 1;
     while y < x {
         x = (x + y) / 2;
         y = n / x;
@@ -555,6 +556,6 @@ fn setRandomSeed(seed: u32) {
 
 fn randInt(min_val: i32, max_val: i32) -> i32 {
     rng_seed = rng_seed * 1103515245 + 12345;
-    var r = (rng_seed >> 16) % ((max_val - min_val + 1) as u32);
+    let r = (rng_seed >> 16) % (u32)((max_val - min_val + 1));
     return min_val + r as i32;
 }

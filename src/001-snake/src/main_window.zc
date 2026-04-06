@@ -1,9 +1,9 @@
 // main_window.zc - Zen-C窗体版本主程序
 // 所有平台使用同一份Zen-C代码，通过条件编译处理平台差异
 
-import std.io;
-import std.string;
-import std.ffi;
+import "io.zc";
+import "string.zc";
+// import "ffi.zc";
 
 // 导入游戏逻辑和平台API
 import "game_logic.zc";
@@ -18,13 +18,13 @@ static mut running: bool = true;
 // ==================== 颜色定义 ====================
 
 // 游戏颜色
-const SNAKE_HEAD_COLOR = rgb(46, 204, 113);   // 绿色
-const SNAKE_BODY_COLOR = rgb(39, 174, 96);    // 深绿色
-const FOOD_COLOR = rgb(231, 76, 60);          // 红色
-const BACKGROUND_COLOR = rgb(52, 73, 94);     // 深蓝色
-const GRID_COLOR = rgb(44, 62, 80);           // 网格颜色
-const TEXT_COLOR = rgb(236, 240, 241);        // 浅灰色
-const UI_BACKGROUND = rgb(41, 128, 185);      // UI背景蓝色
+def SNAKE_HEAD_COLOR = rgb(46, 204, 113);   // 绿色
+def SNAKE_BODY_COLOR = rgb(39, 174, 96);    // 深绿色
+def FOOD_COLOR = rgb(231, 76, 60);          // 红色
+def BACKGROUND_COLOR = rgb(52, 73, 94);     // 深蓝色
+def GRID_COLOR = rgb(44, 62, 80);           // 网格颜色
+def TEXT_COLOR = rgb(236, 240, 241);        // 浅灰色
+def UI_BACKGROUND = rgb(41, 128, 185);      // UI背景蓝色
 
 // ==================== 绘图函数 ====================
 
@@ -172,11 +172,11 @@ fn draw_game_ui(ctx: GraphicsContext, window_width: i32, window_height: i32) {
     
     // 绘制游戏信息（在实际实现中，这里需要平台特定的文本绘制）
     // 简化版本：在控制台输出信息
-    io.println("========================================");
+    io.println "========================================";
     io.println(get_score_text(&game));
     io.println(get_game_status_text(&game));
     io.println(get_controls_text());
-    io.println("========================================");
+    io.println "========================================";
 }
 
 // ==================== 窗口事件处理 ====================
@@ -209,10 +209,10 @@ fn on_timer_event() -> bool {
 extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
     match uMsg {
         WM_PAINT => {
-            let mut ps: [64]u8 = [0; 64];
+            let mut ps: [u8; 64] = [0; 64];
             let hdc = BeginPaint(hwnd, &ps);
             
-            let mut rect: [4]i32 = [0; 4];
+            let mut rect: [i32; 4] = [0; 4];
             GetClientRect(hwnd, &rect);
             let width = rect[2] - rect[0];
             let height = rect[3] - rect[1];
@@ -224,7 +224,7 @@ extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) ->
         },
         
         WM_KEYDOWN => {
-            let continue_game = on_key_event(wParam as i32);
+            let continue_game = on_key_event((i32)wParam);
             if !continue_game {
                 running = false;
                 PostQuitMessage(0);
@@ -267,9 +267,9 @@ extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, uMsg: u32, wParam: u32
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("Zen-C 贪吃蛇游戏 - 窗体版本");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "Zen-C 贪吃蛇游戏 - 窗体版本";
+    io.println "========================================";
     io.println("平台: {}", 
         #if IS_WINDOWS
             "Windows"
@@ -281,8 +281,8 @@ fn main() -> i32 {
             "未知"
         #endif
     );
-    io.println("特性: 所有平台使用同一份Zen-C源代码");
-    io.println("========================================");
+    io.println "特性: 所有平台使用同一份Zen-C源代码";
+    io.println "========================================";
     
     // 初始化游戏
     game = GameState {
@@ -309,7 +309,7 @@ fn main() -> i32 {
     window = create_window(window_title, 800, 600);
     
     if window == null {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
     
@@ -319,19 +319,19 @@ fn main() -> i32 {
     // 设置游戏定时器
     set_game_timer(window, game.speed);
     
-    io.println("窗口创建成功!");
+    io.println "窗口创建成功!";
     io.println("游戏已初始化，分数: {}", game.score);
-    io.println("使用 W/A/S/D 控制蛇的移动");
-    io.println("按 ESC 退出游戏");
-    io.println("========================================");
+    io.println "使用 W/A/S/D 控制蛇的移动";
+    io.println "按 ESC 退出游戏";
+    io.println "========================================";
     
     // 运行事件循环
     run_event_loop(window);
     
-    io.println("游戏结束!");
+    io.println "游戏结束!";
     io.println("最终分数: {}", game.score);
-    io.println("谢谢游玩 Zen-C 贪吃蛇游戏!");
-    io.println("========================================");
+    io.println "谢谢游玩 Zen-C 贪吃蛇游戏!";
+    io.println "========================================";
     
     // 退出应用程序
     quit_application();

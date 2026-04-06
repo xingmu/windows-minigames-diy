@@ -1,29 +1,29 @@
 // main_window.zc - Zen-C FlappyBird 游戏主程序
 // 使用纯 Zen-C 实现，Windows GUI 版本
 
-import std.io;
+import "io.zc";
 
 // 导入平台 API
 import "platform_api.zc";
 
 // ==================== 游戏配置 ====================
 
-const WINDOW_WIDTH: int = 400;
-const WINDOW_HEIGHT: int = 600;
-const TARGET_FPS: int = 60;
-const FRAME_TIME: u32 = 1000 / TARGET_FPS;
+def WINDOW_WIDTH: int = 400;
+def WINDOW_HEIGHT: int = 600;
+def TARGET_FPS: int = 60;
+def FRAME_TIME: u32 = 1000 / TARGET_FPS;
 
 // 小鸟配置
-const BIRD_X: int = 80;
-const BIRD_RADIUS: int = 15;
-const GRAVITY: int = 800;
-const JUMP_VELOCITY: int = -350;
+def BIRD_X: int = 80;
+def BIRD_RADIUS: int = 15;
+def GRAVITY: int = 800;
+def JUMP_VELOCITY: int = -350;
 
 // 管道配置
-const PIPE_WIDTH: int = 60;
-const PIPE_GAP: int = 150;
-const PIPE_SPEED: int = 180;
-const PIPE_SPAWN_INTERVAL: u32 = 1800;
+def PIPE_WIDTH: int = 60;
+def PIPE_GAP: int = 150;
+def PIPE_SPEED: int = 180;
+def PIPE_SPAWN_INTERVAL: u32 = 1800;
 
 // ==================== 游戏状态 ====================
 
@@ -50,7 +50,7 @@ static mut birdY: float = 0.0;
 static mut birdVelocity: float = 0.0;
 
 // 管道
-static mut pipes: [10]Pipe;
+static mut pipes: [Pipe; 10];
 static mut pipeCount: int = 0;
 
 // 计时
@@ -65,14 +65,14 @@ fn rgb(r: u8, g: u8, b: u8) -> Color {
     return Color.RGB(r, g, b);
 }
 
-const SKY_COLOR = Color.RGB(135, 206, 250);
-const GROUND_COLOR = Color.RGB(100, 200, 100);
-const PIPE_COLOR = Color.RGB(50, 200, 80);
-const PIPE_EDGE_COLOR = Color.RGB(40, 160, 60);
-const BIRD_COLOR = Color.RGB(255, 230, 50);
-const BIRD_WING_COLOR = Color.RGB(220, 200, 40);
-const BEAK_COLOR = Color.RGB(255, 150, 50);
-const TEXT_COLOR = Color.White();
+def SKY_COLOR = Color.RGB(135, 206, 250);
+def GROUND_COLOR = Color.RGB(100, 200, 100);
+def PIPE_COLOR = Color.RGB(50, 200, 80);
+def PIPE_EDGE_COLOR = Color.RGB(40, 160, 60);
+def BIRD_COLOR = Color.RGB(255, 230, 50);
+def BIRD_WING_COLOR = Color.RGB(220, 200, 40);
+def BEAK_COLOR = Color.RGB(255, 150, 50);
+def TEXT_COLOR = Color.White();
 
 // ==================== 游戏初始化 ====================
 
@@ -92,8 +92,8 @@ static mut rng_seed: u32 = 12345;
 
 fn randInt(minVal: int, maxVal: int) -> int {
     rng_seed = rng_seed * 1103515245 + 12345;
-    var r = (rng_seed / 65536) % 32768;
-    return minVal + (r as int % (maxVal - minVal + 1));
+    let r = (rng_seed / 65536) % 32768;
+    return minVal + ((int)r % (maxVal - minVal + 1));
 }
 
 // ==================== 游戏逻辑 ====================
@@ -120,11 +120,11 @@ fn spawnPipe() {
         return;
     }
     
-    var minGapY = PIPE_GAP / 2 + 50;
-    var maxGapY = WINDOW_HEIGHT - PIPE_GAP / 2 - 80;
-    var gapY = randInt(minGapY, maxGapY);
+    let minGapY = PIPE_GAP / 2 + 50;
+    let maxGapY = WINDOW_HEIGHT - PIPE_GAP / 2 - 80;
+    let gapY = randInt(minGapY, maxGapY);
     
-    pipes[pipeCount] = Pipe.{
+    pipes[pipeCount] = Pipe {
         x: WINDOW_WIDTH,
         gapY: gapY,
         passed: false,
@@ -137,22 +137,22 @@ fn updateGame(dt: u32) {
         return;
     }
     
-    var dtSec = dt as float / 1000.0;
+    let dtSec = (float)dt / 1000.0;
     gameTime = gameTime + dt;
     
     // 重力更新
-    birdVelocity = birdVelocity + (GRAVITY as float * dtSec);
+    birdVelocity = birdVelocity + ((float)GRAVITY * dtSec);
     birdY = birdY + birdVelocity * dtSec;
     
     // 边界检查
-    if birdY < BIRD_RADIUS as float {
+    if birdY < (float)BIRD_RADIUS {
         birdY = BIRD_RADIUS as float;
         birdVelocity = 0.0;
     }
     
-    if birdY + BIRD_RADIUS as float > (WINDOW_HEIGHT - 40) as float {
+    if birdY + (float)BIRD_RADIUS > (float)(WINDOW_HEIGHT - 40) {
         gameState = GameState.GameOver;
-        io.println("游戏结束! 得分: " ++ score.toString());
+        io.println "游戏结束! 得分: {score}";
         return;
     }
     
@@ -163,7 +163,7 @@ fn updateGame(dt: u32) {
     }
     
     // 更新管道
-    var move = (PIPE_SPEED as float * dtSec) as int;
+    let move = ((float)PIPE_SPEED * dtSec) as int;
     
     for i in 0..pipeCount {
         pipes[i].x = pipes[i].x - move;
@@ -172,7 +172,7 @@ fn updateGame(dt: u32) {
         if !pipes[i].passed && pipes[i].x + PIPE_WIDTH < BIRD_X {
             pipes[i].passed = true;
             score = score + 1;
-            io.println("得分: " ++ score.toString());
+            io.println "得分: {score}";
         }
     }
     
@@ -192,17 +192,17 @@ fn updateGame(dt: u32) {
 
 fn checkCollisions() {
     for i in 0..pipeCount {
-        var pipeX = pipes[i].x;
-        var gapTop = pipes[i].gapY - PIPE_GAP / 2;
-        var gapBottom = pipes[i].gapY + PIPE_GAP / 2;
+        let pipeX = pipes[i].x;
+        let gapTop = pipes[i].gapY - PIPE_GAP / 2;
+        let gapBottom = pipes[i].gapY + PIPE_GAP / 2;
         
         // 水平重叠检查
         if BIRD_X + BIRD_RADIUS > pipeX && BIRD_X - BIRD_RADIUS < pipeX + PIPE_WIDTH {
             // 垂直碰撞检查
-            if (birdY - BIRD_RADIUS as float) < gapTop as float || 
-               (birdY + BIRD_RADIUS as float) > gapBottom as float {
+            if (birdY - (float)BIRD_RADIUS) < (float)gapTop || 
+               (birdY + (float)BIRD_RADIUS) > (float)gapBottom {
                 gameState = GameState.GameOver;
-                io.println("游戏结束! 得分: " ++ score.toString());
+                io.println "游戏结束! 得分: {score}";
                 return;
             }
         }
@@ -220,9 +220,9 @@ fn drawBackground(ctx: rawptr, pitch: int, buffer: rawptr) {
 }
 
 fn drawPipe(ctx: rawptr, pitch: int, buffer: rawptr, pipe: Pipe) {
-    var gapTop = pipe.gapY - PIPE_GAP / 2;
-    var gapBottom = pipe.gapY + PIPE_GAP / 2;
-    var px = pipe.x;
+    let gapTop = pipe.gapY - PIPE_GAP / 2;
+    let gapBottom = pipe.gapY + PIPE_GAP / 2;
+    let px = pipe.x;
     
     // 上管道
     drawRect(ctx, px, 0, PIPE_WIDTH, gapTop, pitch, buffer, PIPE_COLOR);
@@ -236,7 +236,7 @@ fn drawPipe(ctx: rawptr, pitch: int, buffer: rawptr, pipe: Pipe) {
 }
 
 fn drawBird(ctx: rawptr, pitch: int, buffer: rawptr) {
-    var birdScreenY = birdY as int;
+    let birdScreenY = birdY as int;
     
     // 身体
     fillCircle(ctx, BIRD_X, birdScreenY, BIRD_RADIUS, pitch, buffer, BIRD_COLOR);
@@ -250,14 +250,14 @@ fn drawBird(ctx: rawptr, pitch: int, buffer: rawptr) {
     drawRect(ctx, BIRD_X + 10, birdScreenY - 3, 8, 6, pitch, buffer, BEAK_COLOR);
     
     // 翅膀 (根据速度上下摆动)
-    var wingOff = (birdVelocity / 100.0) as int;
+    let wingOff = (birdVelocity / 100.0) as int;
     if wingOff > 8 { wingOff = 8; }
     if wingOff < -8 { wingOff = -8; }
     fillEllipse(ctx, BIRD_X - 5, birdScreenY + wingOff, 8, 5, pitch, buffer, BIRD_WING_COLOR);
 }
 
 fn drawScore(ctx: rawptr, pitch: int, buffer: rawptr) {
-    var text = "分数: " ++ score.toString();
+    let text = "分数: {score}";
     drawTextSimple(ctx, WINDOW_WIDTH / 2 - 35, 20, text, pitch, buffer, TEXT_COLOR);
 }
 
@@ -278,8 +278,8 @@ fn setPixel(ctx: rawptr, x: int, y: int, pitch: int, buffer: rawptr, color: Colo
     if x < 0 || x >= WINDOW_WIDTH || y < 0 || y >= WINDOW_HEIGHT {
         return;
     }
-    var offset = y * (pitch / 4) + x;
-    var pixels = buffer as u32 mut;
+    let offset = y * (pitch / 4) + x;
+    let pixels = (u32)buffer mut;
     pixels[offset] = color;
 }
 
@@ -304,10 +304,10 @@ fn fillCircle(ctx: rawptr, cx: int, cy: int, radius: int, pitch: int, buffer: ra
 fn fillEllipse(ctx: rawptr, cx: int, cy: int, rx: int, ry: int, pitch: int, buffer: rawptr, color: Color) {
     for y in (-ry)..(ry + 1) {
         for x in (-rx)..(rx + 1) {
-            var dx = x * x;
-            var dy = y * y;
-            var rxsq = rx * rx;
-            var rysq = ry * ry;
+            let dx = x * x;
+            let dy = y * y;
+            let rxsq = rx * rx;
+            let rysq = ry * ry;
             if dy * rxsq + dx * rysq <= rxsq * rysq {
                 setPixel(ctx, cx + x, cy + y, pitch, buffer, color);
             }
@@ -318,18 +318,18 @@ fn fillEllipse(ctx: rawptr, cx: int, cy: int, rx: int, ry: int, pitch: int, buff
 // 简化文字绘制 (8x8 字符块)
 fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, pitch: int, buffer: rawptr, color: Color) {
     // 每个字符占 8x8 像素
-    var px = x;
-    var py = y;
-    var charW = 8;
-    var charH = 8;
+    let px = x;
+    let py = y;
+    let charW = 8;
+    let charH = 8;
     
     for i in 0..len(text) {
         // 简单绘制字符占位块
         for cy in 0..charH {
             for cx in 0..charW {
                 // 简单字符图案 - 用不同灰度区分
-                var isFilled = false;
-                var charCode = text[i] as u32;
+                let isFilled = false;
+                let charCode = text[i] as u32;
                 
                 // 简单的基于字符码的图案
                 if charCode > 32 {
@@ -350,8 +350,8 @@ fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, pitch: int, buffer: ra
 }
 
 fn clearScreen(pitch: int, buffer: rawptr, color: Color) {
-    var pixels = buffer as u32 mut;
-    var count = (pitch * WINDOW_HEIGHT) / 4;
+    let pixels = (u32)buffer mut;
+    let count = (pitch * WINDOW_HEIGHT) / 4;
     for i in 0..count {
         pixels[i] = color;
     }
@@ -361,13 +361,13 @@ fn clearScreen(pitch: int, buffer: rawptr, color: Color) {
 
 fn handleKeyDown(key: VirtualKey) {
     match key {
-        VirtualKey.Space => {
+        VirtualKey::Space => {
             jump();
         },
-        VirtualKey.Up => {
+        VirtualKey::Up => {
             jump();
         },
-        VirtualKey.Escape => {
+        VirtualKey::Escape => {
             running = false;
         },
         _ => {}
@@ -375,17 +375,17 @@ fn handleKeyDown(key: VirtualKey) {
 }
 
 fn processEvents() {
-    var event = Event.{};
+    let event = Event{};
     
     while pollEvent(window, &event) {
         match event.msg {
-            MessageType.Quit => {
+            MessageType::Quit => {
                 running = false;
             },
-            MessageType.KeyDown => {
+            MessageType::KeyDown => {
                 handleKeyDown(event.key.key);
             },
-            MessageType.MouseDown => {
+            MessageType::MouseDown => {
                 if event.mouse.button == MouseButton.Left {
                     jump();
                 }
@@ -403,15 +403,15 @@ fn gameLoop() {
     while running {
         processEvents();
         
-        var current = getTickCount();
-        var dt = current - lastFrame;
+        let current = getTickCount();
+        let dt = current - lastFrame;
         
         // 更新游戏逻辑
         updateGame(dt);
         
         // 渲染
-        var fb = getFrameBuffer(window);
-        var pitch = getFrameBufferPitch(window);
+        let fb = getFrameBuffer(window);
+        let pitch = getFrameBufferPitch(window);
         
         clearScreen(pitch, fb, SKY_COLOR);
         drawBackground(window, pitch, fb);
@@ -434,7 +434,7 @@ fn gameLoop() {
         lastFrame = current;
         
         // 帧率控制
-        var elapsed = getTickCount() - lastFrame;
+        let elapsed = getTickCount() - lastFrame;
         if elapsed < FRAME_TIME {
             sleep(FRAME_TIME - elapsed);
         }
@@ -444,10 +444,10 @@ fn gameLoop() {
 // ==================== 主函数 ====================
 
 fn main() {
-    io.println("===========================================");
-    io.println("  FlappyBird - Zen-C");
-    io.println("  版本: 1.0.0");
-    io.println("===========================================");
+    io.println "===========================================";
+    io.println "  FlappyBird - Zen-C";
+    io.println "  版本: 1.0.0";
+    io.println "===========================================";
     
     // 初始化平台
     initPlatform();
@@ -456,16 +456,16 @@ fn main() {
     window = createWindow("FlappyBird - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT);
     
     if window == nil {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return;
     }
     
-    io.println("窗口创建成功!");
+    io.println "窗口创建成功!";
     
     // 初始化游戏
     initGame();
-    io.println("按空格或上箭头开始游戏");
-    io.println("按 ESC 退出");
+    io.println "按空格或上箭头开始游戏";
+    io.println "按 ESC 退出";
     
     // 运行游戏主循环
     gameLoop();
@@ -473,5 +473,5 @@ fn main() {
     // 清理
     shutdownPlatform();
     
-    io.println("游戏结束!");
+    io.println "游戏结束!";
 }

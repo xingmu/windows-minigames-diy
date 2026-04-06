@@ -1,29 +1,29 @@
 // game_logic.zc - 射箭游戏核心逻辑
 // Archery Game - 鼠标瞄准，蓄力射击
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 800;
-const GAME_HEIGHT: i32 = 600;
-const GRAVITY: float = 0.15;
-const MAX_POWER: float = 18.0;
-const MIN_POWER: float = 5.0;
-const CHARGE_RATE: float = 0.12;
-const ARROW_SPEED_MAX: float = 20.0;
-const MAX_ARROWS: i32 = 10;
-const MAX_TARGETS: i32 = 6;
-const TARGET_SPAWN_INTERVAL: u32 = 2500;
-const ARROW_LIFETIME: u32 = 4000;
-const ROUND_ARROWS: i32 = 10;
-const BULLSEYE_RADIUS: i32 = 10;
-const INNER_RING_RADIUS: i32 = 20;
-const OUTER_RING_RADIUS: i32 = 30;
+def GAME_WIDTH: i32 = 800;
+def GAME_HEIGHT: i32 = 600;
+def GRAVITY: float = 0.15;
+def MAX_POWER: float = 18.0;
+def MIN_POWER: float = 5.0;
+def CHARGE_RATE: float = 0.12;
+def ARROW_SPEED_MAX: float = 20.0;
+def MAX_ARROWS: i32 = 10;
+def MAX_TARGETS: i32 = 6;
+def TARGET_SPAWN_INTERVAL: u32 = 2500;
+def ARROW_LIFETIME: u32 = 4000;
+def ROUND_ARROWS: i32 = 10;
+def BULLSEYE_RADIUS: i32 = 10;
+def INNER_RING_RADIUS: i32 = 20;
+def OUTER_RING_RADIUS: i32 = 30;
 
-const POINTS_BULLSEYE: i32 = 50;
-const POINTS_INNER: i32 = 30;
-const POINTS_OUTER: i32 = 10;
+def POINTS_BULLSEYE: i32 = 50;
+def POINTS_INNER: i32 = 30;
+def POINTS_OUTER: i32 = 10;
 
 // ==================== 数据结构 ====================
 
@@ -46,7 +46,7 @@ struct Arrow {
     vy: float,
     active: bool,
     angle: float,
-    trail: [20]Vec2,
+    trail: [Vec2; 20],
     trailCount: i32,
 }
 
@@ -97,7 +97,7 @@ fn rgb(r: u8, g: u8, b: u8) -> Color {
 }
 
 fn color_to_u32(c: Color) -> u32 {
-    return (0xFF as u32 << 24) | ((c.r as u32) << 16) | ((c.g as u32) << 8) | (c.b as u32);
+    return ((u32)0xFF << 24) | ((c.(u32)r) << 16) | ((c.(u32)g) << 8) | (c.(u32)b);
 }
 
 // ==================== 初始化函数 ====================
@@ -164,7 +164,7 @@ fn reset_game(game: &mut ArcheryState) {
 
 // ==================== 随机数 ====================
 
-private var mut rng_state: u32 = 12345;
+private let mut rng_state: u32 = 12345;
 
 fn srand(seed: u32) {
     rng_state = seed;
@@ -172,25 +172,25 @@ fn srand(seed: u32) {
 
 fn rand_float() -> float {
     rng_state = rng_state * 1103515245 + 12345;
-    var r = (rng_state >> 16) & 0x7FFF;
-    return (r as float) / 32767.0;
+    let r = (rng_state >> 16) & 0x7FFF;
+    return ((float)r) / 32767.0;
 }
 
 fn rand_int(max: i32) -> i32 {
-    return (rand_float() * max as float) as i32;
+    return (rand_float() * (float)max) as i32;
 }
 
 // ==================== 游戏逻辑 ====================
 
 fn update_bow(game: &mut ArcheryState) {
-    var bowX = game.bow.x as float;
-    var bowY = game.bow.y as float;
-    var mouseX = game.mouseX as float;
-    var mouseY = game.mouseY as float;
+    let bowX = game.bow.x as float;
+    let bowY = game.bow.y as float;
+    let mouseX = game.mouseX as float;
+    let mouseY = game.mouseY as float;
     
     // Calculate angle to mouse
-    var dx = mouseX - bowX;
-    var dy = mouseY - bowY;
+    let dx = mouseX - bowX;
+    let dy = mouseY - bowY;
     
     if dy != 0.0 || dx != 0.0 {
         game.bow.angle = atan2(dy, dx);
@@ -198,8 +198,8 @@ fn update_bow(game: &mut ArcheryState) {
     
     // Update power while drawing
     if game.bow.drawing && game.status == GameStatus.Playing {
-        var chargeTime = get_tick_count() - game.chargeStartTime;
-        game.bow.power = MIN_POWER + chargeTime as float * CHARGE_RATE;
+        let chargeTime = get_tick_count() - game.chargeStartTime;
+        game.bow.power = MIN_POWER + (float)chargeTime * CHARGE_RATE;
         if game.bow.power > MAX_POWER {
             game.bow.power = MAX_POWER;
         }
@@ -212,7 +212,7 @@ fn shoot_arrow(game: &mut ArcheryState) {
     }
     
     // Find inactive arrow slot
-    var slot = -1;
+    let slot = -1;
     for i in 0..MAX_ARROWS {
         if !game.arrows[i].active {
             slot = i;
@@ -224,11 +224,11 @@ fn shoot_arrow(game: &mut ArcheryState) {
         return;  // No slots available
     }
     
-    var arrow = &game.arrows[slot];
-    arrow.x = game.bow.x as float + cos(game.bow.angle) * 30.0;
-    arrow.y = game.bow.y as float + sin(game.bow.angle) * 30.0;
+    let arrow = &game.arrows[slot];
+    arrow.x = game.bow.(float)x + cos(game.bow.angle) * 30.0;
+    arrow.y = game.bow.(float)y + sin(game.bow.angle) * 30.0;
     
-    var speed = game.bow.power;
+    let speed = game.bow.power;
     arrow.vx = cos(game.bow.angle) * speed;
     arrow.vy = sin(game.bow.angle) * speed;
     arrow.angle = game.bow.angle;
@@ -241,7 +241,7 @@ fn shoot_arrow(game: &mut ArcheryState) {
 
 fn update_arrows(game: &mut ArcheryState) {
     for i in 0..MAX_ARROWS {
-        var arrow = &game.arrows[i];
+        let arrow = &game.arrows[i];
         if !arrow.active {
             continue;
         }
@@ -275,23 +275,23 @@ fn update_arrows(game: &mut ArcheryState) {
         
         // Check target collisions
         for j in 0..MAX_TARGETS {
-            var target = &game.targets[j];
+            let target = &game.targets[j];
             if !target.alive {
                 continue;
             }
             
-            var dx = arrow.x - target.x as float;
-            var dy = arrow.y - target.y as float;
-            var dist = sqrt(dx * dx + dy * dy);
+            let dx = arrow.x - target.x as float;
+            let dy = arrow.y - target.y as float;
+            let dist = sqrt(dx * dx + dy * dy);
             
-            if dist < OUTER_RING_RADIUS as float + 5.0 {
+            if dist < (float)OUTER_RING_RADIUS + 5.0 {
                 // Hit! Determine ring
-                if dist < BULLSEYE_RADIUS as float {
+                if dist < (float)BULLSEYE_RADIUS {
                     target.ring = 0;
                     game.score = game.score + POINTS_BULLSEYE;
                     game.combo = game.combo + 1;
                     game.lastHitRing = 0;
-                } else if dist < INNER_RING_RADIUS as float {
+                } else if dist < (float)INNER_RING_RADIUS {
                     target.ring = 1;
                     game.score = game.score + POINTS_INNER;
                     game.combo = game.combo + 1;
@@ -315,8 +315,8 @@ fn update_arrows(game: &mut ArcheryState) {
         }
         
         // Check if arrow is out of bounds
-        if arrow.x < -50.0 || arrow.x > game.width as float + 50.0 ||
-           arrow.y < -50.0 || arrow.y > game.height as float + 50.0 {
+        if arrow.x < -50.0 || arrow.x > game.(float)width + 50.0 ||
+           arrow.y < -50.0 || arrow.y > game.(float)height + 50.0 {
             arrow.active = false;
             game.combo = 0;
         }
@@ -325,7 +325,7 @@ fn update_arrows(game: &mut ArcheryState) {
 
 fn spawn_target(game: &mut ArcheryState) {
     // Find inactive target slot
-    var slot = -1;
+    let slot = -1;
     for i in 0..MAX_TARGETS {
         if !game.targets[i].alive {
             slot = i;
@@ -337,7 +337,7 @@ fn spawn_target(game: &mut ArcheryState) {
         return;
     }
     
-    var target = &game.targets[slot];
+    let target = &game.targets[slot];
     
     // Random position in upper portion of screen
     target.x = 100 + rand_int(game.width - 200);
@@ -348,9 +348,9 @@ fn spawn_target(game: &mut ArcheryState) {
 
 fn update_targets(game: &mut ArcheryState) {
     // Spawn new targets if needed
-    var time = get_tick_count();
+    let time = get_tick_count();
     if time - game.lastSpawnTime > TARGET_SPAWN_INTERVAL {
-        var aliveCount = 0;
+        let aliveCount = 0;
         for i in 0..MAX_TARGETS {
             if game.targets[i].alive {
                 aliveCount = aliveCount + 1;
@@ -367,7 +367,7 @@ fn update_targets(game: &mut ArcheryState) {
 fn check_round_end(game: &mut ArcheryState) {
     if game.arrowsLeft <= 0 && game.status == GameStatus.Playing {
         // Check if any arrows are still active
-        var anyActive = false;
+        let anyActive = false;
         for i in 0..MAX_ARROWS {
             if game.arrows[i].active {
                 anyActive = true;
@@ -387,7 +387,7 @@ fn check_round_end(game: &mut ArcheryState) {
 }
 
 fn update_game(game: &mut ArcheryState) {
-    var time = get_tick_count();
+    let time = get_tick_count();
     
     if game.gameStartTime == 0 {
         game.gameStartTime = time;
@@ -395,21 +395,21 @@ fn update_game(game: &mut ArcheryState) {
     game.lastUpdateTime = time;
     
     match game.status {
-        GameStatus.Ready => {
+        GameStatus::Ready => {
             // Waiting for start
         }
-        GameStatus.Playing => {
+        GameStatus::Playing => {
             update_bow(game);
             update_arrows(game);
             update_targets(game);
             check_round_end(game);
         }
-        GameStatus.Reloading => {
+        GameStatus::Reloading => {
             // Brief pause then start next round
             game.status = GameStatus.Playing;
             reset_round(game);
         }
-        GameStatus.GameOver => {
+        GameStatus::GameOver => {
             // Game ended
         }
     }
@@ -425,8 +425,8 @@ fn sqrt(n: float) -> float {
     if n <= 0.0 {
         return 0.0;
     }
-    var x = n;
-    var y = 1.0;
+    let x = n;
+    let y = 1.0;
     while y < x {
         x = (x + y) / 2.0;
         y = n / x;
@@ -436,14 +436,14 @@ fn sqrt(n: float) -> float {
 
 fn cos(angle: float) -> float {
     // Simple cos approximation
-    var x = angle;
+    let x = angle;
     while x > 3.14159 {
         x = x - 2.0 * 3.14159;
     }
     while x < -3.14159 {
         x = x + 2.0 * 3.14159;
     }
-    var x2 = x * x;
+    let x2 = x * x;
     return 1.0 - x2 / 2.0 + x2 * x2 / 24.0 - x2 * x2 * x2 / 720.0;
 }
 
@@ -484,7 +484,7 @@ fn atan(x: float) -> float {
 // ==================== 碰撞检测 ====================
 
 fn point_in_circle(px: float, py: float, cx: i32, cy: i32, r: i32) -> bool {
-    var dx = px - cx as float;
-    var dy = py - cy as float;
+    let dx = px - cx as float;
+    let dy = py - cy as float;
     return dx * dx + dy * dy <= (r * r) as float;
 }

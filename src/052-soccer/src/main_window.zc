@@ -2,8 +2,8 @@
 // 使用 Zen-C + 003-framework 结构
 // 所有平台使用同一份 Zen-C 代码
 
-import std.io;
-import std.string;
+import "io.zc";
+import "string.zc";
 
 // 导入游戏逻辑和平台API
 import "game_logic.zc";
@@ -11,17 +11,17 @@ import "platform_api.zc";
 
 // ==================== 颜色常量 (ARGB) ====================
 
-const FIELD_COLOR = 0xFF228B22;        // 草绿色
-const FIELD_DARK = 0xFF1E7A1E;        // 深草绿色（条纹）
-const LINE_COLOR = 0xFFFFFFFF;          // 白色线条
-const GOAL_POST_COLOR = 0xFFFFFFFF;     // 门柱白色
-const GOAL_NET_COLOR = 0x40FFFFFF;     // 球网半透明白
-const BALL_COLOR = 0xFFFFFFFF;          // 球白色
-const BALL_PATTERN = 0xFF1A1A1A;       // 球黑色花纹
-const KEEPER_COLOR = 0xFFFFD700;       // 守门员金色
-const KEEPER_SHORTS = 0xFF1A1A1A;     // 守门员短裤
-const UI_BG = 0xFF1A1A2E;             // UI背景
-const TARGET_COLOR = 0xFFFF0000;       // 目标红色
+def FIELD_COLOR = 0xFF228B22;        // 草绿色
+def FIELD_DARK = 0xFF1E7A1E;        // 深草绿色（条纹）
+def LINE_COLOR = 0xFFFFFFFF;          // 白色线条
+def GOAL_POST_COLOR = 0xFFFFFFFF;     // 门柱白色
+def GOAL_NET_COLOR = 0x40FFFFFF;     // 球网半透明白
+def BALL_COLOR = 0xFFFFFFFF;          // 球白色
+def BALL_PATTERN = 0xFF1A1A1A;       // 球黑色花纹
+def KEEPER_COLOR = 0xFFFFD700;       // 守门员金色
+def KEEPER_SHORTS = 0xFF1A1A1A;     // 守门员短裤
+def UI_BG = 0xFF1A1A2E;             // UI背景
+def TARGET_COLOR = 0xFFFF0000;       // 目标红色
 
 // ==================== 全局变量 ====================
 
@@ -65,7 +65,7 @@ fn draw_field(ctx: &mut RenderContext) {
 }
 
 // 绘制球门
-fn draw_goal(ctx: &mut RenderContext, goal: &Goal) {
+fn draw_goal(ctx: &mut RenderContext, goal: Goal*) {
     // 球网
     let spacing = 20;
     // 垂直线
@@ -88,7 +88,7 @@ fn draw_goal(ctx: &mut RenderContext, goal: &Goal) {
 }
 
 // 绘制球
-fn draw_ball(ctx: &mut RenderContext, ball: &Ball) {
+fn draw_ball(ctx: &mut RenderContext, ball: Ball*) {
     let x = ball.x as i32;
     let y = ball.y as i32;
     let r = ball.radius;
@@ -99,7 +99,7 @@ fn draw_ball(ctx: &mut RenderContext, ball: &Ball) {
     ctx.fill_circle(x, y, r, BALL_COLOR);
     // 花纹（五边形）
     let pr = r / 2;
-    let angles: [5]f64 = [0.0, 1.256, 2.512, 3.768, 5.024];
+    let angles: [f64; 5] = [0.0, 1.256, 2.512, 3.768, 5.024];
     for i in 0..5 {
         let px = x + (math.cos(angles[i]) * pr) as i32;
         let py = y + (math.sin(angles[i]) * pr) as i32;
@@ -108,7 +108,7 @@ fn draw_ball(ctx: &mut RenderContext, ball: &Ball) {
 }
 
 // 绘制守门员
-fn draw_keeper(ctx: &mut RenderContext, keeper: &Keeper) {
+fn draw_keeper(ctx: &mut RenderContext, keeper: Keeper*) {
     let x = keeper.x;
     let y = keeper.y;
     let w = keeper.width;
@@ -142,7 +142,7 @@ fn draw_keeper(ctx: &mut RenderContext, keeper: &Keeper) {
 }
 
 // 绘制瞄准目标
-fn draw_target(ctx: &mut RenderContext, target: &Target, ball: &Ball) {
+fn draw_target(ctx: &mut RenderContext, target: Target*, ball: Ball*) {
     if !target.visible || game.phase != GamePhase.Aiming {
         return;
     }
@@ -205,13 +205,13 @@ fn on_mouse_move(x: i32, y: i32) {
 
 fn on_click(x: i32, y: i32) {
     match game.phase {
-        GamePhase.Aiming => {
+        GamePhase::Aiming => {
             shoot(&mut game);
         },
-        GamePhase.Result => {
+        GamePhase::Result => {
             next_round(&mut game);
         },
-        GamePhase.GameEnd => {
+        GamePhase::GameEnd => {
             restart_game(&mut game);
         },
         _ => {}
@@ -222,8 +222,8 @@ fn on_key(key: i32) -> bool {
     match key {
         32 => { // 空格
             match game.phase {
-                GamePhase.Result => next_round(&mut game),
-                GamePhase.GameEnd => restart_game(&mut game),
+                GamePhase::Result => next_round(&mut game),
+                GamePhase::GameEnd => restart_game(&mut game),
                 _ => {}
             }
         },
@@ -327,9 +327,9 @@ type COLORREF = u32;
 // ==================== 主函数 ====================
 
 fn main() -> i32 {
-    io.println("========================================");
-    io.println("  Zen-C 足球点球游戏");
-    io.println("========================================");
+    io.println "========================================";
+    io.println "  Zen-C 足球点球游戏";
+    io.println "========================================";
     
     // 初始化
     initPlatform();
@@ -342,14 +342,14 @@ fn main() -> i32 {
     // 创建窗口
     window = create_window("Zen-C 足球点球游戏", 800, 600);
     if window == nil {
-        io.println("错误: 无法创建窗口");
+        io.println "错误: 无法创建窗口";
         return 1;
     }
     
-    io.println("窗口创建成功!");
-    io.println("控制: 鼠标瞄准 -> 点击射门 -> 空格继续");
-    io.println("按 ESC 退出, R 重新开始");
-    io.println("========================================");
+    io.println "窗口创建成功!";
+    io.println "控制: 鼠标瞄准 -> 点击射门 -> 空格继续";
+    io.println "按 ESC 退出, R 重新开始";
+    io.println "========================================";
     
     // 显示窗口
     show_window(window);
@@ -392,21 +392,21 @@ extern fn WindowProc(hwnd: WindowHandle, msg: u32, wParam: rawptr, lParam: rawpt
             return nil;
         },
         0x0200 => { // WM_MOUSEMOVE
-            let x = (lParam as i32 & 0xFFFF);
-            let y = ((lParam as i32 >> 16) & 0xFFFF);
+            let x = ((i32)lParam & 0xFFFF);
+            let y = (((i32)lParam >> 16) & 0xFFFF);
             on_mouse_move(x, y);
             InvalidateRect(hwnd, nil, 0);
             return nil;
         },
         0x0201 => { // WM_LBUTTONDOWN
-            let x = (lParam as i32 & 0xFFFF);
-            let y = ((lParam as i32 >> 16) & 0xFFFF);
+            let x = ((i32)lParam & 0xFFFF);
+            let y = (((i32)lParam >> 16) & 0xFFFF);
             on_click(x, y);
             InvalidateRect(hwnd, nil, 0);
             return nil;
         },
         0x0100 => { // WM_KEYDOWN
-            if !on_key(wParam as i32) {
+            if !on_key((i32)wParam) {
                 running = false;
                 PostQuitMessage(0);
             }
@@ -425,17 +425,17 @@ extern fn WindowProc(hwnd: WindowHandle, msg: u32, wParam: rawptr, lParam: rawpt
 }
 
 extern "user32.dll" fn DefWindowProcA(hwnd: WindowHandle, msg: u32, wParam: rawptr, lParam: rawptr) -> rawptr;
-extern "user32.dll" fn BeginPaint(hwnd: WindowHandle, lpPaint: &PAINTSTRUCT) -> rawptr;
-extern "user32.dll" fn EndPaint(hwnd: WindowHandle, lpPaint: &PAINTSTRUCT) -> i32;
-extern "user32.dll" fn GetClientRect(hwnd: WindowHandle, lpRect: &RECT) -> i32;
+extern "user32.dll" fn BeginPaint(hwnd: WindowHandle, lpPaint: PAINTSTRUCT*) -> rawptr;
+extern "user32.dll" fn EndPaint(hwnd: WindowHandle, lpPaint: PAINTSTRUCT*) -> i32;
+extern "user32.dll" fn GetClientRect(hwnd: WindowHandle, lpRect: RECT*) -> i32;
 extern "user32.dll" fn InvalidateRect(hwnd: WindowHandle, lpRect: rawptr, bErase: i32) -> i32;
 extern "user32.dll" fn PostQuitMessage(exitCode: i32) -> void;
 
 extern "user32.dll" fn SetTimer(hwnd: WindowHandle, nIDEvent: u32, uElapse: u32, lpTimerFunc: rawptr) -> u32;
 extern "user32.dll" fn KillTimer(hwnd: WindowHandle, uIDEvent: u32) -> i32;
-extern "user32.dll" fn PeekMessageA(lpMsg: &MSG, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32, wRemoveMsg: u32) -> i32;
-extern "user32.dll" fn TranslateMessage(lpMsg: &MSG) -> i32;
-extern "user32.dll" fn DispatchMessageA(lpMsg: &MSG) -> rawptr;
+extern "user32.dll" fn PeekMessageA(lpMsg: MSG*, hWnd: WindowHandle, wMsgFilterMin: u32, wMsgFilterMax: u32, wRemoveMsg: u32) -> i32;
+extern "user32.dll" fn TranslateMessage(lpMsg: MSG*) -> i32;
+extern "user32.dll" fn DispatchMessageA(lpMsg: MSG*) -> rawptr;
 
 extern "kernel32.dll" fn Sleep(ms: u32) -> void;
 
@@ -461,7 +461,7 @@ pub struct PAINTSTRUCT {
     rcPaint: RECT,
     fRestore: i32,
     fIncUpdate: i32,
-    rgbReserved: [32]u8,
+    rgbReserved: [u8; 32],
 }
 
 fn show_window(hwnd: WindowHandle) {
@@ -500,7 +500,7 @@ fn initPlatform() {
     let wc = WNDCLASSEXA {
         cbSize: 48,
         style: 0,
-        lpfnWndProc: &WindowProc,
+        lpfnWndProc: WindowProc*,
         cbClsExtra: 0,
         cbWndExtra: 0,
         hInstance: hInstance,
@@ -519,7 +519,7 @@ fn shutdownPlatform() {
     KillTimer(window, 1);
 }
 
-extern "user32.dll" fn RegisterClassExA(lpWndClass: &WNDCLASSEXA) -> u16;
+extern "user32.dll" fn RegisterClassExA(lpWndClass: WNDCLASSEXA*) -> u16;
 
 pub struct WNDCLASSEXA {
     cbSize: u32,

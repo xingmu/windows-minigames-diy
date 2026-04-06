@@ -1,44 +1,44 @@
 // game_logic.zc - Tennis (网球) 游戏
 // 072-Tennis
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
-const WINDOW_WIDTH: int = 900;
-const WINDOW_HEIGHT: int = 600;
+def WINDOW_WIDTH: int = 900;
+def WINDOW_HEIGHT: int = 600;
 
-const COURT_MARGIN: int = 40;
-const NET_HEIGHT: int = 120;
-const NET_WIDTH: int = 6;
+def COURT_MARGIN: int = 40;
+def NET_HEIGHT: int = 120;
+def NET_WIDTH: int = 6;
 
 // 球拍
-const RACKET_WIDTH: int = 12;
-const RACKET_HEIGHT: int = 80;
-const RACKET_SPEED: int = 8;
-const RACKET_MARGIN: int = 50;
+def RACKET_WIDTH: int = 12;
+def RACKET_HEIGHT: int = 80;
+def RACKET_SPEED: int = 8;
+def RACKET_MARGIN: int = 50;
 
 // 球
-const BALL_RADIUS: int = 6;
-const BALL_SPEED_INITIAL: int = 5;
-const BALL_MAX_SPEED: int = 12;
-const BALL_SPEED_INCREMENT: int = 1;
+def BALL_RADIUS: int = 6;
+def BALL_SPEED_INITIAL: int = 5;
+def BALL_MAX_SPEED: int = 12;
+def BALL_SPEED_INCREMENT: int = 1;
 
 // 发球相关
-const SERVICE_LINE_Y: int = 150;
-const BASELINE_MARGIN: int = 60;
+def SERVICE_LINE_Y: int = 150;
+def BASELINE_MARGIN: int = 60;
 
 // 场地边界
-const TOP_BOUND: int = COURT_MARGIN;
-const BOTTOM_BOUND: int = WINDOW_HEIGHT - 20;
-const LEFT_BOUND: int = COURT_MARGIN;
-const RIGHT_BOUND: int = WINDOW_WIDTH - COURT_MARGIN;
+def TOP_BOUND: int = COURT_MARGIN;
+def BOTTOM_BOUND: int = WINDOW_HEIGHT - 20;
+def LEFT_BOUND: int = COURT_MARGIN;
+def RIGHT_BOUND: int = WINDOW_WIDTH - COURT_MARGIN;
 
 // ==================== 分数系统 ====================
 // 网球计分: 0 -> 15 -> 30 -> 40 -> Game
 
-const SCORE_NAMES: str[] = ["0", "15", "30", "40"];
+def SCORE_NAMES: str[] = ["0", "15", "30", "40"];
 
 // ==================== 数据结构 ====================
 
@@ -207,8 +207,8 @@ pub class TennisGame extends Game {
     
     // 更新电脑AI
     private fn updateCPU(dt: u32) {
-        var currentTime = getTickCount();
-        if currentTime - self.aiLastUpdate < 80 as u32 {
+        let currentTime = getTickCount();
+        if currentTime - self.aiLastUpdate < (u32)80 {
             return;
         }
         self.aiLastUpdate = currentTime;
@@ -216,8 +216,8 @@ pub class TennisGame extends Game {
         // 预测球的位置
         if self.ballVX > 0.0 && self.ballActive {
             // 球飞向AI，计算拦截点
-            var timeToReach = (self.cpuX - self.ballX) / self.ballVX;
-            var predictedY = self.ballY + self.ballVY * timeToReach;
+            let timeToReach = (self.cpuX - self.ballX) / self.ballVX;
+            let predictedY = self.ballY + self.ballVY * timeToReach;
             
             // 添加失误因素
             if math.rand() % 4 == 0 {
@@ -226,18 +226,18 @@ pub class TennisGame extends Game {
                 self.aiError = 0;
             }
             
-            self.aiTargetY = predictedY as int + self.aiError;
+            self.aiTargetY = (int)predictedY + self.aiError;
         } else {
             // 球在其他地方，移动到中间位置
             self.aiTargetY = WINDOW_HEIGHT / 2;
         }
         
         // 让AI球拍移向目标位置
-        var cpuCenter = self.cpuY + RACKET_HEIGHT / 2;
-        var diff = self.aiTargetY - cpuCenter;
+        let cpuCenter = self.cpuY + RACKET_HEIGHT / 2;
+        let diff = self.aiTargetY - cpuCenter;
         
         // AI移动速度 (比玩家稍慢)
-        var aiSpeed = RACKET_SPEED - 1;
+        let aiSpeed = RACKET_SPEED - 1;
         
         if diff > aiSpeed {
             self.cpuY = self.cpuY + aiSpeed;
@@ -261,20 +261,20 @@ pub class TennisGame extends Game {
         self.ballY = self.ballY + self.ballVY;
         
         // 上下边界碰撞 (球场边界)
-        if self.ballY - BALL_RADIUS as float <= COURT_MARGIN as float {
-            self.ballY = COURT_MARGIN as float + BALL_RADIUS as float;
+        if self.ballY - (float)BALL_RADIUS <= (float)COURT_MARGIN {
+            self.ballY = (float)COURT_MARGIN + BALL_RADIUS as float;
             self.ballVY = -self.ballVY;
         }
-        if self.ballY + BALL_RADIUS as float >= WINDOW_HEIGHT as float - 20.0 {
-            self.ballY = WINDOW_HEIGHT as float - 20.0 - BALL_RADIUS as float;
+        if self.ballY + (float)BALL_RADIUS >= (float)WINDOW_HEIGHT - 20.0 {
+            self.ballY = (float)WINDOW_HEIGHT - 20.0 - BALL_RADIUS as float;
             self.ballVY = -self.ballVY;
         }
         
         // 左侧边界
-        if self.ballX - BALL_RADIUS as float <= COURT_MARGIN as float {
+        if self.ballX - (float)BALL_RADIUS <= (float)COURT_MARGIN {
             // 检查是否在球拍范围内
-            if self.ballY >= self.playerY as float && 
-               self.ballY <= (self.playerY + RACKET_HEIGHT) as float {
+            if self.ballY >= (float)(self.playerY) && 
+               self.ballY <= (float)(self.playerY + RACKET_HEIGHT) {
                 // 玩家击球
                 self.hitBall(true);
             } else {
@@ -286,10 +286,10 @@ pub class TennisGame extends Game {
         }
         
         // 右侧边界
-        if self.ballX + BALL_RADIUS as float >= WINDOW_WIDTH - COURT_MARGIN as float {
+        if self.ballX + (float)BALL_RADIUS >= WINDOW_WIDTH - (float)COURT_MARGIN {
             // 检查是否在球拍范围内
-            if self.ballY >= self.cpuY as float && 
-               self.ballY <= (self.cpuY + RACKET_HEIGHT) as float {
+            if self.ballY >= (float)(self.cpuY) && 
+               self.ballY <= (float)(self.cpuY + RACKET_HEIGHT) {
                 // 电脑击球
                 self.hitBall(false);
             } else {
@@ -301,7 +301,7 @@ pub class TennisGame extends Game {
         }
         
         // 网球在空中飞太久没被接到 (穿过球拍)
-        if self.ballX < 0.0 || self.ballX > WINDOW_WIDTH as float {
+        if self.ballX < 0.0 || self.ballX > (float)WINDOW_WIDTH {
             self.ballActive = false;
             if self.ballX < 0.0 {
                 self.pointWinner = "cpu";
@@ -318,23 +318,23 @@ pub class TennisGame extends Game {
         self.racketSwing = 10;
         
         // 根据击中球拍的位置计算反弹角度
-        var racketY: float;
-        var racketCenter: float;
+        let racketY: float;
+        let racketCenter: float;
         
         if isPlayer {
-            racketCenter = self.playerY as float + RACKET_HEIGHT as float / 2.0;
-            self.ballX = (self.playerX + RACKET_WIDTH) as float + BALL_RADIUS as float;
+            racketCenter = (float)(self.playerY) + (float)RACKET_HEIGHT / 2.0;
+            self.ballX = (float)(self.playerX + RACKET_WIDTH) + BALL_RADIUS as float;
             self.ballVX = self.absFloat(self.ballVX);
         } else {
-            racketCenter = self.cpuY as float + RACKET_HEIGHT as float / 2.0;
-            self.ballX = self.cpuX as float - BALL_RADIUS as float;
+            racketCenter = (float)(self.cpuY) + (float)RACKET_HEIGHT / 2.0;
+            self.ballX = (float)(self.cpuX) - BALL_RADIUS as float;
             self.ballVX = -self.absFloat(self.ballVX);
         }
         
         // 计算击球角度 (-60 to 60 degrees based on hit position)
-        var hitOffset = self.ballY - racketCenter;
-        var maxOffset = RACKET_HEIGHT as float / 2.0;
-        var angle = (hitOffset / maxOffset) * 60.0;
+        let hitOffset = self.ballY - racketCenter;
+        let maxOffset = (float)RACKET_HEIGHT / 2.0;
+        let angle = (hitOffset / maxOffset) * 60.0;
         
         // 增加速度
         if self.ballSpeed < BALL_MAX_SPEED {
@@ -342,8 +342,8 @@ pub class TennisGame extends Game {
         }
         
         // 设置新的速度
-        var speed = self.ballSpeed as float;
-        var angleRad = angle * 3.14159 / 180.0;
+        let speed = self.ballSpeed as float;
+        let angleRad = angle * 3.14159 / 180.0;
         self.ballVX = speed * self.cos(angleRad) * (if isPlayer { 1.0 } else { -1.0 });
         self.ballVY = speed * self.sin(angleRad);
     }
@@ -353,20 +353,20 @@ pub class TennisGame extends Game {
         self.ballActive = true;
         self.ballSpeed = BALL_SPEED_INITIAL;
         
-        var serviceX: float;
-        var serviceY: float;
-        var direction: float;
+        let serviceX: float;
+        let serviceY: float;
+        let direction: float;
         
         if self.serviceSide == ServiceSide.Left {
-            serviceX = self.playerX as float + RACKET_WIDTH as float + BALL_RADIUS as float + 10.0;
+            serviceX = (float)(self.playerX) + (float)RACKET_WIDTH + (float)BALL_RADIUS + 10.0;
             direction = 1.0;
         } else {
-            serviceX = self.cpuX as float - BALL_RADIUS as float - 10.0;
+            serviceX = (float)(self.cpuX) - (float)BALL_RADIUS - 10.0;
             direction = -1.0;
         }
         
         // 发球角度 (随机 0-30 度)
-        var angle = (math.rand() % 30) as float;
+        let angle = (math.rand() % 30) as float;
         if math.rand() % 2 == 0 {
             angle = -angle;
         }
@@ -374,9 +374,9 @@ pub class TennisGame extends Game {
         self.ballX = serviceX;
         self.ballY = serviceY;
         
-        var angleRad = angle * 3.14159 / 180.0;
-        self.ballVX = self.ballSpeed as float * self.cos(angleRad) * direction;
-        self.ballVY = self.ballSpeed as float * self.sin(angleRad);
+        let angleRad = angle * 3.14159 / 180.0;
+        self.ballVX = (float)(self.ballSpeed) * self.cos(angleRad) * direction;
+        self.ballVY = (float)(self.ballSpeed) * self.sin(angleRad);
         
         self.serveTimer = 0;
     }
@@ -501,13 +501,13 @@ pub class TennisGame extends Game {
     // 绘制球场
     private fn drawCourt(canvas: Canvas) {
         // 球场底色
-        var courtColor = Color.RGB(50, 150, 50);
+        let courtColor = Color.RGB(50, 150, 50);
         canvas.fillRect(COURT_MARGIN, COURT_MARGIN, 
                         WINDOW_WIDTH - 2 * COURT_MARGIN, 
                         WINDOW_HEIGHT - COURT_MARGIN - 20, courtColor);
         
         // 球场边线
-        var lineColor = Color.White();
+        let lineColor = Color.White();
         
         // 边线
         canvas.drawRect(COURT_MARGIN, COURT_MARGIN, 
@@ -515,7 +515,7 @@ pub class TennisGame extends Game {
                        WINDOW_HEIGHT - COURT_MARGIN - 20, lineColor);
         
         // 中线
-        var centerX = WINDOW_WIDTH / 2;
+        let centerX = WINDOW_WIDTH / 2;
         canvas.drawLine(centerX, COURT_MARGIN, centerX, WINDOW_HEIGHT - 20, lineColor);
         
         // 发球线
@@ -529,16 +529,16 @@ pub class TennisGame extends Game {
     
     // 绘制球网
     private fn drawNet(canvas: Canvas) {
-        var netX = WINDOW_WIDTH / 2 - NET_WIDTH / 2;
-        var netY = COURT_MARGIN;
-        var netHeight = NET_HEIGHT;
+        let netX = WINDOW_WIDTH / 2 - NET_WIDTH / 2;
+        let netY = COURT_MARGIN;
+        let netHeight = NET_HEIGHT;
         
         // 网柱
         canvas.fillRect(netX, netY, NET_WIDTH, netHeight, Color.DarkGray());
         
         // 网眼效果 (用点表示)
-        var netColor = Color.LightGray();
-        var spacing = 8;
+        let netColor = Color.LightGray();
+        let spacing = 8;
         for y in netY..(netY + netHeight) {
             if y % spacing == 0 {
                 canvas.drawLine(netX, y, netX + NET_WIDTH, y, netColor);
@@ -548,14 +548,14 @@ pub class TennisGame extends Game {
     
     // 绘制球拍
     private fn drawRacket(canvas: Canvas, x: int, y: int, w: int, h: int) {
-        var racketColor = if self.racketSwing > 0 { Color.Yellow() } else { Color.White() };
+        let racketColor = if self.racketSwing > 0 { Color.Yellow() } else { Color.White() };
         
         // 拍框
         canvas.fillRect(x, y, w, h, racketColor);
         
         // 拍面 (网格效果)
-        var faceColor = Color.RGB(200, 200, 200);
-        var gridSpacing = 6;
+        let faceColor = Color.RGB(200, 200, 200);
+        let gridSpacing = 6;
         
         // 横线
         for gy in y..(y + h) {
@@ -567,43 +567,43 @@ pub class TennisGame extends Game {
     
     // 绘制球
     private fn drawBall(canvas: Canvas) {
-        var ballColor = Color.Yellow();
-        var cx = self.ballX as int;
-        var cy = self.ballY as int;
+        let ballColor = Color.Yellow();
+        let cx = self.ballX as int;
+        let cy = self.ballY as int;
         
         // 球主体
         canvas.fillCircle(cx, cy, BALL_RADIUS, ballColor);
         
         // 球上的曲线 (网球纹理)
-        var lineColor = Color.White();
+        let lineColor = Color.White();
         canvas.drawLine(cx - 3, cy - 2, cx + 3, cy + 2, lineColor);
         canvas.drawLine(cx - 2, cy + 3, cx + 4, cy - 1, lineColor);
     }
     
     // 绘制分数
     private fn drawScore(canvas: Canvas) {
-        var font = Font.("Arial", 24);
-        var smallFont = Font.("Arial", 14);
+        let font = Font("Arial", 24);
+        let smallFont = Font("Arial", 14);
         
         // 玩家分数
-        var playerScoreText = self.getScoreText(self.playerPoints);
+        let playerScoreText = self.getScoreText(self.playerPoints);
         canvas.drawText(WINDOW_WIDTH / 4 - 20, 8, playerScoreText, Color.White(), font);
         canvas.drawText(WINDOW_WIDTH / 4 - 25, 2, "玩家", Color.LightGray(), smallFont);
         
         // 电脑分数
-        var cpuScoreText = self.getScoreText(self.cpuPoints);
+        let cpuScoreText = self.getScoreText(self.cpuPoints);
         canvas.drawText(WINDOW_WIDTH * 3 / 4 - 20, 8, cpuScoreText, Color.White(), font);
         canvas.drawText(WINDOW_WIDTH * 3 / 4 - 25, 2, "电脑", Color.LightGray(), smallFont);
         
         // 局数
-        var gamesFont = Font.("Arial", 12);
-        var playerGamesText = "局: " ++ self.intToString(self.playerGames);
-        var cpuGamesText = "局: " ++ self.intToString(self.cpuGames);
+        let gamesFont = Font("Arial", 12);
+        let playerGamesText = "局: {self}".intToString(self.playerGames);
+        let cpuGamesText = "局: {self}".intToString(self.cpuGames);
         canvas.drawText(WINDOW_WIDTH / 4 - 20, 32, playerGamesText, Color.LightGray(), gamesFont);
         canvas.drawText(WINDOW_WIDTH * 3 / 4 - 20, 32, cpuGamesText, Color.LightGray(), gamesFont);
         
         // 盘数
-        var setsText = "盘: " ++ self.intToString(self.playerSets) ++ " - " ++ self.intToString(self.cpuSets);
+        let setsText = "盘: {self}".intToString(self.playerSets) ++ " - {self}".intToString(self.cpuSets);
         canvas.drawText(WINDOW_WIDTH / 2 - 30, 8, setsText, Color.Yellow(), gamesFont);
     }
     
@@ -617,12 +617,12 @@ pub class TennisGame extends Game {
     
     // 绘制开始提示
     private fn drawStartMessage(canvas: Canvas) {
-        var font = Font.("Arial", 20);
-        var text = "按 空格键 开始发球";
+        let font = Font("Arial", 20);
+        let text = "按 空格键 开始发球";
         canvas.drawText(WINDOW_WIDTH / 2 - 120, WINDOW_HEIGHT / 2, text, Color.Yellow(), font);
         
-        var smallFont = Font.("Arial", 14);
-        var hint = "↑↓ 或 W/S 控制球拍";
+        let smallFont = Font("Arial", 14);
+        let hint = "↑↓ 或 W/S 控制球拍";
         canvas.drawText(WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 30, hint, Color.LightGray(), smallFont);
     }
     
@@ -630,36 +630,34 @@ pub class TennisGame extends Game {
     private fn drawGameOver(canvas: Canvas) {
         canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(150, 0, 0, 0));
         
-        var font = Font.("Arial", 48);
-        var text = self.matchWinner ++ " 获胜!";
+        let font = Font("Arial", 48);
+        let text = self."{matchWinner} 获胜!";
         canvas.drawText(WINDOW_WIDTH / 2 - 140, WINDOW_HEIGHT / 2 - 50, text, Color.Yellow(), font);
         
-        var scoreText = "最终比分: " ++ 
-                       self.getScoreText(self.playerPoints) ++ " - " ++ 
-                       self.getScoreText(self.cpuPoints);
+        let scoreText = "最终比分: {self}".getScoreText(self.playerPoints) ++ " - {self}".getScoreText(self.cpuPoints);
         canvas.drawText(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 + 10, scoreText, Color.White(), font);
         
-        var smallFont = Font.("Arial", 20);
-        var restartText = "按 R 键重新开始";
+        let smallFont = Font("Arial", 20);
+        let restartText = "按 R 键重新开始";
         canvas.drawText(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 + 60, restartText, Color.LightGray(), smallFont);
     }
     
     // onKeyDown - 键盘按下
     pub fn onKeyDown(key: VirtualKey) {
         match key {
-            VirtualKey.Up | VirtualKey.KeyW => {
+            VirtualKey.Up | VirtualKey::KeyW => {
                 self.keyUp = true;
             }
-            VirtualKey.Down | VirtualKey.KeyS => {
+            VirtualKey.Down | VirtualKey::KeyS => {
                 self.keyDown = true;
             }
-            VirtualKey.Space => {
+            VirtualKey::Space => {
                 if !self.gameStarted && !self.gameOver {
                     self.gameStarted = true;
                     self.resetBall();
                 }
             }
-            VirtualKey.KeyR => {
+            VirtualKey::KeyR => {
                 if self.gameOver {
                     self.onInit();
                 }
@@ -671,10 +669,10 @@ pub class TennisGame extends Game {
     // onKeyUp - 键盘释放
     pub fn onKeyUp(key: VirtualKey) {
         match key {
-            VirtualKey.Up | VirtualKey.KeyW => {
+            VirtualKey.Up | VirtualKey::KeyW => {
                 self.keyUp = false;
             }
-            VirtualKey.Down | VirtualKey.KeyS => {
+            VirtualKey.Down | VirtualKey::KeyS => {
                 self.keyDown = false;
             }
             _ => {}
@@ -703,8 +701,8 @@ pub class TennisGame extends Game {
         if n < 0.0 {
             return 0.0;
         }
-        var x = n;
-        var y = 1.0;
+        let x = n;
+        let y = 1.0;
         while y < x {
             x = (x + y) / 2.0;
             y = n / x;
@@ -713,9 +711,9 @@ pub class TennisGame extends Game {
     }
     
     fn cos(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = 1.0;
-        var term = 1.0;
+        let rad = x * 3.14159 / 180.0;
+        let result = 1.0;
+        let term = 1.0;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
             result = result + term;
@@ -724,9 +722,9 @@ pub class TennisGame extends Game {
     }
     
     fn sin(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = rad;
-        var term = rad;
+        let rad = x * 3.14159 / 180.0;
+        let result = rad;
+        let term = rad;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
             result = result + term;
@@ -738,18 +736,18 @@ pub class TennisGame extends Game {
         if n == 0 {
             return "0";
         }
-        var result = "";
-        var negative = false;
-        var num = n;
+        let result = "";
+        let negative = false;
+        let num = n;
         if num < 0 {
             negative = true;
             num = -num;
         }
         while num > 0 {
-            var digit = num % 10;
-            result = (digit as char + "") ++ result;
+            let digit = num % 10;
+            result = ((char)digit + "") ++ result;
             num = num / 10;
         }
-        return if negative { "-" ++ result } else { result };
+        return if negative { "-{result}" } else { result };
     }
 }

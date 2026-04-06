@@ -1,31 +1,31 @@
 // game_logic.zc - Cricket板球游戏逻辑
 // 075-Cricket 板球游戏 - 玩家击球对战电脑投球手
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
-const WINDOW_WIDTH: int = 600;
-const WINDOW_HEIGHT: int = 800;
+def WINDOW_WIDTH: int = 600;
+def WINDOW_HEIGHT: int = 800;
 
-const PITCH_Y: int = WINDOW_HEIGHT / 2;
-const BATSMAN_Y: int = WINDOW_HEIGHT - 120;
-const BOWLER_Y: int = 100;
+def PITCH_Y: int = WINDOW_HEIGHT / 2;
+def BATSMAN_Y: int = WINDOW_HEIGHT - 120;
+def BOWLER_Y: int = 100;
 
-const BALL_RADIUS: int = 6;
-const BAT_WIDTH: int = 100;
-const BAT_HEIGHT: int = 10;
-const WICKET_WIDTH: int = 40;
-const WICKET_HEIGHT: int = 40;
+def BALL_RADIUS: int = 6;
+def BAT_WIDTH: int = 100;
+def BAT_HEIGHT: int = 10;
+def WICKET_WIDTH: int = 40;
+def WICKET_HEIGHT: int = 40;
 
-const BALL_SPEED_INITIAL: int = 6;
-const BALL_SPEED_FAST: int = 10;
-const BALL_BOUNCE_Y: int = WINDOW_HEIGHT - 250;
+def BALL_SPEED_INITIAL: int = 6;
+def BALL_SPEED_FAST: int = 10;
+def BALL_BOUNCE_Y: int = WINDOW_HEIGHT - 250;
 
-const BALLS_PER_OVER: int = 6;
-const MAX_OUTS: int = 3;
-const MATCH_OVERS: int = 2;
+def BALLS_PER_OVER: int = 6;
+def MAX_OUTS: int = 3;
+def MATCH_OVERS: int = 2;
 
 // ==================== 游戏阶段 ====================
 
@@ -186,8 +186,8 @@ pub class CricketGame extends Game {
             return;
         }
         
-        var currentTime = getTickCount();
-        var deltaTime = currentTime - self.lastUpdate;
+        let currentTime = getTickCount();
+        let deltaTime = currentTime - self.lastUpdate;
         self.lastUpdate = currentTime;
         
         // 更新蝙蝠位置
@@ -195,25 +195,25 @@ pub class CricketGame extends Game {
         
         // 根据阶段更新
         match self.phase {
-            GamePhase.Ready => {
+            GamePhase::Ready => {
                 // 等待 - 自动开始投球
                 if !self.bowlAnimating {
                     self.startBowling();
                 }
             }
-            GamePhase.Bowling => {
+            GamePhase::Bowling => {
                 self.updateBowling(deltaTime);
             }
-            GamePhase.BallBouncing => {
+            GamePhase::BallBouncing => {
                 self.updateBallBounce(deltaTime);
             }
-            GamePhase.BallFlying => {
+            GamePhase::BallFlying => {
                 self.updateBallFly(deltaTime);
             }
-            GamePhase.Batting => {
+            GamePhase::Batting => {
                 self.updateBatting(deltaTime);
             }
-            GamePhase.Result => {
+            GamePhase::Result => {
                 self.updateResult(deltaTime);
             }
             _ => {}
@@ -236,7 +236,7 @@ pub class CricketGame extends Game {
         self.phase = GamePhase.Bowling;
         
         // 随机选择投球类型
-        var rand = randInt(0, 3);
+        let rand = randInt(0, 3);
         match rand {
             0 => self.ballType = BallType.Normal;
             1 => self.ballType = BallType.Fast;
@@ -245,22 +245,22 @@ pub class CricketGame extends Game {
         }
         
         // 设置初始球位置
-        self.ballX = WINDOW_WIDTH as float / 2.0;
+        self.ballX = (float)WINDOW_WIDTH / 2.0;
         self.ballY = BOWLER_Y as float;
         self.ballVX = (randInt(-15, 15)) as float * 0.1;
         
         match self.ballType {
-            BallType.Normal => {
+            BallType::Normal => {
                 self.ballVY = BALL_SPEED_INITIAL as float;
             }
-            BallType.Fast => {
+            BallType::Fast => {
                 self.ballVY = BALL_SPEED_FAST as float;
             }
-            BallType.Spin => {
+            BallType::Spin => {
                 self.ballVY = (BALL_SPEED_INITIAL - 1) as float;
                 self.ballVX = self.ballVX * 2.0;
             }
-            BallType.Bouncer => {
+            BallType::Bouncer => {
                 self.ballVY = (BALL_SPEED_INITIAL + 2) as float;
                 self.ballVX = 0.0;
             }
@@ -271,7 +271,7 @@ pub class CricketGame extends Game {
     
     // 更新投球动画
     private fn updateBowling(deltaTime: u32) {
-        var elapsed = getTickCount() - self.bowlAnimTimer;
+        let elapsed = getTickCount() - self.bowlAnimTimer;
         
         // 投球动画持续1秒
         if elapsed > 1000 {
@@ -287,7 +287,7 @@ pub class CricketGame extends Game {
         self.ballY = self.ballY + self.ballVY;
         
         // 反弹球
-        if self.ballY >= BALL_BOUNCE_Y as float {
+        if self.ballY >= (float)BALL_BOUNCE_Y {
             self.ballY = BALL_BOUNCE_Y as float;
             self.ballVY = -self.ballVY * 0.6;
             self.ballBounceCount = self.ballBounceCount + 1;
@@ -309,12 +309,12 @@ pub class CricketGame extends Game {
         }
         
         // 球到达击球区域
-        if self.ballY >= (BATSMAN_Y - 30) as float {
+        if self.ballY >= (float)(BATSMAN_Y - 30) {
             self.checkHit();
         }
         
         // 出界
-        if self.ballX < 30.0 || self.ballX > (WINDOW_WIDTH - 30) as float {
+        if self.ballX < 30.0 || self.ballX > (float)(WINDOW_WIDTH - 30) {
             self.recordResult(ShotResult.Dot);
         }
     }
@@ -326,13 +326,13 @@ pub class CricketGame extends Game {
         self.ballY = self.ballY + self.ballVY;
         
         // 球到达击球区域
-        if self.ballY >= (BATSMAN_Y - 20) as float {
+        if self.ballY >= (float)(BATSMAN_Y - 20) {
             self.checkHit();
         }
         
         // 球飞过击球区域或出界
-        if self.ballY > (BATSMAN_Y + 50) as float || 
-           self.ballX < 20.0 || self.ballX > (WINDOW_WIDTH - 20) as float {
+        if self.ballY > (float)(BATSMAN_Y + 50) || 
+           self.ballX < 20.0 || self.ballX > (float)(WINDOW_WIDTH - 20) {
             // 未击中
             if !self.batSwinging {
                 self.recordResult(ShotResult.Out);
@@ -349,8 +349,8 @@ pub class CricketGame extends Game {
         // 挥杆时球在击球区域
         if self.batSwinging && self.batSwingProgress > 0.2 && self.batSwingProgress < 0.8 {
             // 计算击球质量
-            var batCenterX = self.batX as float + BAT_WIDTH as float / 2.0;
-            var hitOffset = self.absFloat(self.ballX - batCenterX);
+            let batCenterX = (float)(self.batX) + (float)BAT_WIDTH / 2.0;
+            let hitOffset = self.absFloat(self.ballX - batCenterX);
             
             // 完美击中
             if hitOffset < 20.0 && self.batSwingPower > 5.0 {
@@ -360,7 +360,7 @@ pub class CricketGame extends Game {
                 self.recordResult(ShotResult.Four);
             }
             else if hitOffset < 40.0 && self.batSwingPower > 3.0 {
-                var r = randInt(0, 2);
+                let r = randInt(0, 2);
                 match r {
                     0 => self.recordResult(ShotResult.Single);
                     1 => self.recordResult(ShotResult.Double);
@@ -385,25 +385,25 @@ pub class CricketGame extends Game {
         self.phase = GamePhase.Result;
         
         match result {
-            ShotResult.Dot => {
+            ShotResult::Dot => {
                 // 0分
             }
-            ShotResult.Single => {
+            ShotResult::Single => {
                 self.runs = self.runs + 1;
             }
-            ShotResult.Double => {
+            ShotResult::Double => {
                 self.runs = self.runs + 2;
             }
-            ShotResult.Triple => {
+            ShotResult::Triple => {
                 self.runs = self.runs + 3;
             }
-            ShotResult.Four => {
+            ShotResult::Four => {
                 self.runs = self.runs + 4;
             }
-            ShotResult.Six => {
+            ShotResult::Six => {
                 self.runs = self.runs + 6;
             }
-            ShotResult.Out => {
+            ShotResult::Out => {
                 self.outs = self.outs + 1;
                 if self.outs >= self.maxOuts {
                     self.endGame("电脑");
@@ -425,7 +425,7 @@ pub class CricketGame extends Game {
     
     // 更新结果动画
     private fn updateResult(deltaTime: u32) {
-        var elapsed = getTickCount() - self.resultTimer;
+        let elapsed = getTickCount() - self.resultTimer;
         
         if elapsed > 1500 {
             self.resultShown = false;
@@ -445,7 +445,7 @@ pub class CricketGame extends Game {
             self.ballY = self.ballY + self.ballVY;
             
             // 球飞出屏幕
-            if self.ballY < -50.0 || self.ballX < -50.0 || self.ballX > (WINDOW_WIDTH + 50) as float {
+            if self.ballY < -50.0 || self.ballX < -50.0 || self.ballX > (float)(WINDOW_WIDTH + 50) {
                 self.recordResult(ShotResult.Six);
             }
         }
@@ -454,10 +454,10 @@ pub class CricketGame extends Game {
     // 更新蝙蝠
     private fn updateBat() {
         // 蝙蝠跟随鼠标X位置
-        var targetX = self.mouseX - BAT_WIDTH / 2;
+        let targetX = self.mouseX - BAT_WIDTH / 2;
         
         // 平滑移动
-        var diff = targetX - self.batX;
+        let diff = targetX - self.batX;
         if diff > 15 {
             self.batX = self.batX + 15;
         } else if diff < -15 {
@@ -497,7 +497,7 @@ pub class CricketGame extends Game {
     
     // 重置球
     private fn resetBall() {
-        self.ballX = WINDOW_WIDTH as float / 2.0;
+        self.ballX = (float)WINDOW_WIDTH / 2.0;
         self.ballY = BOWLER_Y as float;
         self.ballVX = 0.0;
         self.ballVY = 0.0;
@@ -550,8 +550,8 @@ pub class CricketGame extends Game {
     
     // 绘制球场
     private fn drawPitch(canvas: Canvas) {
-        var pitchColor = Color.RGB(139, 90, 43); // 土棕色
-        var creaseColor = Color.White();
+        let pitchColor = Color.RGB(139, 90, 43); // 土棕色
+        let creaseColor = Color.White();
         
         // 投手道
         canvas.fillRect(WINDOW_WIDTH / 2 - 30, BOWLER_Y - 20, 60, BATSMAN_Y - BOWLER_Y + 40, pitchColor);
@@ -566,11 +566,11 @@ pub class CricketGame extends Game {
     
     // 绘制门柱
     private fn drawWickets(canvas: Canvas) {
-        var wicketColor = Color.RGB(255, 220, 177); // 木质色
+        let wicketColor = Color.RGB(255, 220, 177); // 木质色
         
         // 三根门柱
-        var stumpWidth = 4;
-        var stumpHeight = 35;
+        let stumpWidth = 4;
+        let stumpHeight = 35;
         
         canvas.fillRect(self.wicketsX, self.wicketsY, stumpWidth, stumpHeight, wicketColor);
         canvas.fillRect(self.wicketsX + 15, self.wicketsY, stumpWidth, stumpHeight, wicketColor);
@@ -583,12 +583,12 @@ pub class CricketGame extends Game {
     
     // 绘制蝙蝠
     private fn drawBat(canvas: Canvas) {
-        var batColor = Color.RGB(180, 120, 60); // 木质棕色
-        var batEdgeColor = Color.RGB(140, 90, 40);
+        let batColor = Color.RGB(180, 120, 60); // 木质棕色
+        let batEdgeColor = Color.RGB(140, 90, 40);
         
         // 挥杆动画
-        var swingOffset = 0;
-        var swingRotation = 0.0;
+        let swingOffset = 0;
+        let swingRotation = 0.0;
         
         if self.batSwinging {
             swingOffset = (self.sin(self.batSwingProgress * 3.14159 * 2.0) * 20.0) as int;
@@ -596,8 +596,8 @@ pub class CricketGame extends Game {
         }
         
         // 蝙蝠主体
-        var batDrawX = self.batX - swingOffset;
-        var batDrawY = self.batY;
+        let batDrawX = self.batX - swingOffset;
+        let batDrawY = self.batY;
         
         canvas.fillRect(batDrawX, batDrawY, BAT_WIDTH, BAT_HEIGHT, batColor);
         canvas.drawRect(batDrawX, batDrawY, BAT_WIDTH, BAT_HEIGHT, batEdgeColor);
@@ -609,24 +609,24 @@ pub class CricketGame extends Game {
     // 绘制球
     private fn drawBall(canvas: Canvas) {
         // 球阴影
-        canvas.fillCircle(self.ballX as int + 2, self.ballY as int + 2, BALL_RADIUS, Color.ARGB(80, 0, 0, 0));
+        canvas.fillCircle((int)(self.ballX) + 2, (int)(self.ballY) + 2, BALL_RADIUS, Color.ARGB(80, 0, 0, 0));
         
         // 红色板球
-        canvas.fillCircle(self.ballX as int, self.ballY as int, BALL_RADIUS, Color.Red());
-        canvas.drawCircle(self.ballX as int, self.ballY as int, BALL_RADIUS, Color.DarkGray());
+        canvas.fillCircle((int)(self.ballX), (int)(self.ballY), BALL_RADIUS, Color.Red());
+        canvas.drawCircle((int)(self.ballX), (int)(self.ballY), BALL_RADIUS, Color.DarkGray());
         
         // 球的缝线效果
-        var seamColor = Color.White();
-        canvas.drawLine(self.ballX as int - 3, self.ballY as int, self.ballX as int + 3, self.ballY as int, seamColor);
+        let seamColor = Color.White();
+        canvas.drawLine((int)(self.ballX) - 3, (int)(self.ballY), (int)(self.ballX) + 3, (int)(self.ballY), seamColor);
     }
     
     // 绘制投球手(简化)
     private fn drawBowler(canvas: Canvas) {
-        var bowlerColor = Color.White();
+        let bowlerColor = Color.White();
         
         // 简化投球手 - 一个圆形
-        var bowlerX = WINDOW_WIDTH / 2;
-        var bowlerY = BOWLER_Y - 30;
+        let bowlerX = WINDOW_WIDTH / 2;
+        let bowlerY = BOWLER_Y - 30;
         
         canvas.fillCircle(bowlerX, bowlerY, 15, bowlerColor);
         canvas.fillRect(bowlerX - 8, bowlerY + 10, 16, 30, bowlerColor);
@@ -634,74 +634,74 @@ pub class CricketGame extends Game {
     
     // 绘制分数板
     private fn drawScoreboard(canvas: Canvas) {
-        var bgColor = Color.ARGB(200, 0, 0, 0);
-        var textColor = Color.White();
-        var highlightColor = Color.Yellow();
+        let bgColor = Color.ARGB(200, 0, 0, 0);
+        let textColor = Color.White();
+        let highlightColor = Color.Yellow();
         
         // 分数板背景
         canvas.fillRect(20, 20, 160, 100, bgColor);
         canvas.drawRect(20, 20, 160, 100, Color.White());
         
         // 标题
-        var font = Font.("Arial", 14);
-        var bigFont = Font.("Arial", 24);
+        let font = Font("Arial", 14);
+        let bigFont = Font("Arial", 24);
         
         canvas.drawText(30, 30, "板球 - Cricket", textColor, font);
         
         // 分数
-        var scoreText = "得分: " ++ self.intToString(self.runs);
+        let scoreText = "得分: {self}".intToString(self.runs);
         canvas.drawText(30, 55, scoreText, highlightColor, bigFont);
         
         // 出局
-        var outsText = "出局: " ++ self.intToString(self.outs) ++ "/" ++ self.intToString(self.maxOuts);
+        let outsText = "出局: {self}".intToString(self.outs) ++ "/{self}".intToString(self.maxOuts);
         canvas.drawText(30, 85, outsText, textColor, font);
         
         // 轮次信息
-        var overText = "第" ++ self.intToString(self.currentOver) ++ "/" ++ self.intToString(self.totalOvers) ++ "轮";
+        let overText = "第{self}".intToString(self.currentOver) ++ "/{self}".intToString(self.totalOvers) ++ "轮";
         canvas.drawText(30, 105, overText, textColor, font);
         
         // 球数
-        var ballText = "球数: " ++ self.intToString(self.ballsInOver) ++ "/" ++ self.intToString(BALLS_PER_OVER);
+        let ballText = "球数: {self}".intToString(self.ballsInOver) ++ "/{self}".intToString(BALLS_PER_OVER);
         canvas.drawText(110, 105, ballText, textColor, font);
     }
     
     // 绘制击球结果
     private fn drawResult(canvas: Canvas) {
-        var bgColor = Color.ARGB(150, 0, 0, 0);
-        var textColor = Color.Yellow();
-        var font = Font.("Arial", 36);
+        let bgColor = Color.ARGB(150, 0, 0, 0);
+        let textColor = Color.Yellow();
+        let font = Font("Arial", 36);
         
         canvas.fillRect(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 - 40, 200, 80, bgColor);
         
-        var resultText = "";
-        var color = textColor;
+        let resultText = "";
+        let color = textColor;
         
         match self.lastResult {
-            ShotResult.Dot => {
+            ShotResult::Dot => {
                 resultText = "Dot Ball!";
                 color = Color.Gray();
             }
-            ShotResult.Single => {
+            ShotResult::Single => {
                 resultText = "Single! +1";
                 color = Color.Green();
             }
-            ShotResult.Double => {
+            ShotResult::Double => {
                 resultText = "Double! +2";
                 color = Color.Green();
             }
-            ShotResult.Triple => {
+            ShotResult::Triple => {
                 resultText = "Triple! +3";
                 color = Color.Cyan();
             }
-            ShotResult.Four => {
+            ShotResult::Four => {
                 resultText = "FOUR! +4";
                 color = Color.Orange();
             }
-            ShotResult.Six => {
+            ShotResult::Six => {
                 resultText = "SIX! +6";
                 color = Color.Red();
             }
-            ShotResult.Out => {
+            ShotResult::Out => {
                 resultText = "OUT!";
                 color = Color.Red();
             }
@@ -714,42 +714,42 @@ pub class CricketGame extends Game {
     private fn drawGameOver(canvas: Canvas) {
         canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(180, 0, 0, 0));
         
-        var font = Font.("Arial", 48);
-        var text = "游戏结束!";
+        let font = Font("Arial", 48);
+        let text = "游戏结束!";
         canvas.drawText(WINDOW_WIDTH / 2 - 120, WINDOW_HEIGHT / 2 - 80, text, Color.Yellow(), font);
         
-        var resultFont = Font.("Arial", 32);
-        var resultText = "";
+        let resultFont = Font("Arial", 32);
+        let resultText = "";
         
         if self.winner == "玩家" {
-            resultText = "恭喜 " ++ self.winner ++ " 获胜!";
+            resultText = "恭喜 {self}"."{winner} 获胜!";
         } else if self.winner == "电脑" {
-            resultText = self.winner ++ " 获胜!";
+            resultText = self."{winner} 获胜!";
         } else {
             resultText = "平局!";
         }
         
         canvas.drawText(WINDOW_WIDTH / 2 - 150, WINDOW_HEIGHT / 2 - 20, resultText, Color.Cyan(), resultFont);
         
-        var scoreText = "最终得分: " ++ self.intToString(self.runs);
+        let scoreText = "最终得分: {self}".intToString(self.runs);
         canvas.drawText(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 + 30, scoreText, Color.White(), resultFont);
         
-        var smallFont = Font.("Arial", 20);
-        var restartText = "按 R 键重新开始";
+        let smallFont = Font("Arial", 20);
+        let restartText = "按 R 键重新开始";
         canvas.drawText(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 + 80, restartText, Color.Gray(), smallFont);
     }
     
     // 绘制提示
     private fn drawInstructions(canvas: Canvas) {
-        var font = Font.("Arial", 16);
-        var text = "点击鼠标挥杆击球!";
+        let font = Font("Arial", 16);
+        let text = "点击鼠标挥杆击球!";
         canvas.drawText(WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT - 200, text, Color.Yellow(), font);
     }
     
     // onKeyDown - 键盘按下
     pub fn onKeyDown(key: VirtualKey) {
         match key {
-            VirtualKey.KeyR => {
+            VirtualKey::KeyR => {
                 if self.gameOver {
                     self.onInit();
                 }
@@ -779,8 +779,8 @@ pub class CricketGame extends Game {
             self.swingTime = getTickCount();
             
             // 计算挥杆角度
-            var dy = self.lastMouseY - y;
-            self.batSwingAngle = dy as float * 0.05;
+            let dy = self.lastMouseY - y;
+            self.batSwingAngle = (float)dy * 0.05;
             
             if self.batSwingAngle > 3.0 {
                 self.batSwingAngle = 3.0;
@@ -812,9 +812,9 @@ pub class CricketGame extends Game {
     }
     
     fn sin(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = rad;
-        var term = rad;
+        let rad = x * 3.14159 / 180.0;
+        let result = rad;
+        let term = rad;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i) * (2 * i + 1));
             result = result + term;
@@ -823,9 +823,9 @@ pub class CricketGame extends Game {
     }
     
     fn cos(x: float) -> float {
-        var rad = x * 3.14159 / 180.0;
-        var result = 1.0;
-        var term = 1.0;
+        let rad = x * 3.14159 / 180.0;
+        let result = 1.0;
+        let term = 1.0;
         for i in 1..6 {
             term = term * (-rad * rad) / ((2 * i - 1) * (2 * i));
             result = result + term;
@@ -837,11 +837,11 @@ pub class CricketGame extends Game {
         if n == 0 {
             return "0";
         }
-        var result = "";
-        var num = n;
+        let result = "";
+        let num = n;
         while num > 0 {
-            var digit = num % 10;
-            result = (digit as char + "") ++ result;
+            let digit = num % 10;
+            result = ((char)digit + "") ++ result;
             num = num / 10;
         }
         return result;

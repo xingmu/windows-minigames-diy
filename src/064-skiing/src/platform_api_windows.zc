@@ -73,7 +73,7 @@ fn getWindowSize(handle: WindowHandle) -> (int, int) {
 }
 
 // 事件处理
-fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
+fn pollEvent(handle: WindowHandle, event: Event*) -> bool {
     // 非阻塞事件轮询
     // 如果有事件返回 true，填充 event 结构
     // 如果没有事件返回 false
@@ -88,7 +88,7 @@ fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
     return false;
 }
 
-fn waitEvent(handle: WindowHandle, event: &Event) {
+fn waitEvent(handle: WindowHandle, event: Event*) {
     // 阻塞等待事件
     // 实现同 pollEvent 但调用 GetMessage
 }

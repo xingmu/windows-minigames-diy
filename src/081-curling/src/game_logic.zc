@@ -1,62 +1,62 @@
 // game_logic.zc - Zen-C 冰壶游戏核心逻辑
 // Curling - 冰壶投掷与得分
 
-import std.math;
+import "math.zc";
 
 // ==================== 游戏常量 ====================
 
-const GAME_WIDTH: i32 = 500;
-const GAME_HEIGHT: i32 = 750;
+def GAME_WIDTH: i32 = 500;
+def GAME_HEIGHT: i32 = 750;
 
 // 冰道尺寸
-const SHEET_LEFT: i32 = 80;
-const SHEET_RIGHT: i32 = 420;
-const SHEET_TOP: i32 = 80;
-const SHEET_BOTTOM: i32 = 680;
-const SHEET_WIDTH: i32 = SHEET_RIGHT - SHEET_LEFT;
-const SHEET_HEIGHT: i32 = SHEET_BOTTOM - SHEET_TOP;
+def SHEET_LEFT: i32 = 80;
+def SHEET_RIGHT: i32 = 420;
+def SHEET_TOP: i32 = 80;
+def SHEET_BOTTOM: i32 = 680;
+def SHEET_WIDTH: i32 = SHEET_RIGHT - SHEET_LEFT;
+def SHEET_HEIGHT: i32 = SHEET_BOTTOM - SHEET_TOP;
 
 // 发球线位置 (玩家站的位置)
-const HOG_LINE_Y: i32 = SHEET_BOTTOM - 100;
-const FOUL_LINE_Y: i32 = SHEET_BOTTOM - 60;
+def HOG_LINE_Y: i32 = SHEET_BOTTOM - 100;
+def FOUL_LINE_Y: i32 = SHEET_BOTTOM - 60;
 
 // 圆垒 (House) 中心
-const HOUSE_CX: i32 = (SHEET_LEFT + SHEET_RIGHT) / 2;
-const HOUSE_CY: i32 = SHEET_TOP + 150;
+def HOUSE_CX: i32 = (SHEET_LEFT + SHEET_RIGHT) / 2;
+def HOUSE_CY: i32 = SHEET_TOP + 150;
 
 // 圆垒半径
-const HOUSE_R12: i32 = 12;   // 12英尺外圈
-const HOUSE_R8: i32 = 8;     // 8英尺圈
-const HOUSE_R4: i32 = 4;     // 4英尺圈
-const HOUSE_R1: i32 = 2;     // 1英尺内圈 (按钮)
+def HOUSE_R12: i32 = 12;   // 12英尺外圈
+def HOUSE_R8: i32 = 8;     // 8英尺圈
+def HOUSE_R4: i32 = 4;     // 4英尺圈
+def HOUSE_R1: i32 = 2;     // 1英尺内圈 (按钮)
 
 // 冰壶石
-const STONE_RADIUS: i32 = 16;
-const STONE_HANDLE_RADIUS: i32 = 8;
+def STONE_RADIUS: i32 = 16;
+def STONE_HANDLE_RADIUS: i32 = 8;
 
 // 最大石头数量
-const MAX_STONES: i32 = 16;
-const STONES_PER_END: i32 = 8;  // 每局每队8个石头
+def MAX_STONES: i32 = 16;
+def STONES_PER_END: i32 = 8;  // 每局每队8个石头
 
 // 物理参数
-const ICE_FRICTION: i32 = 1;      // 冰面摩擦
-const CURL_FACTOR: i32 = 2;       // 旋转 curling 系数
-const MAX_VELOCITY: i32 = 20;
-const MIN_VELOCITY: i32 = 1;
-const GUARD_LINE_Y: i32 = SHEET_TOP + 250;  // 护卫线
+def ICE_FRICTION: i32 = 1;      // 冰面摩擦
+def CURL_FACTOR: i32 = 2;       // 旋转 curling 系数
+def MAX_VELOCITY: i32 = 20;
+def MIN_VELOCITY: i32 = 1;
+def GUARD_LINE_Y: i32 = SHEET_TOP + 250;  // 护卫线
 
 // ==================== 颜色定义 ====================
 
-const ICE_COLOR: Color = Color.RGB(220, 240, 255);    // 冰面浅蓝
-const ICE_DARK_COLOR: Color = Color.RGB(180, 210, 240); // 冰面深色
-const STONE_RED: Color = Color.RGB(180, 30, 30);       // 红队石头
-const STONE_YELLOW: Color = Color.RGB(220, 180, 30);   // 黄队石头
-const HOG_LINE_COLOR: Color = Color.RGB(50, 50, 200);  // 中区线 (蓝)
-const CENTER_LINE_COLOR: Color = Color.RGB(200, 50, 50); // 中央线 (红)
-const HOUSE_COLOR: Color = Color.RGB(30, 80, 200);     // 圆垒蓝
+def ICE_COLOR: Color = Color.RGB(220, 240, 255);    // 冰面浅蓝
+def ICE_DARK_COLOR: Color = Color.RGB(180, 210, 240); // 冰面深色
+def STONE_RED: Color = Color.RGB(180, 30, 30);       // 红队石头
+def STONE_YELLOW: Color = Color.RGB(220, 180, 30);   // 黄队石头
+def HOG_LINE_COLOR: Color = Color.RGB(50, 50, 200);  // 中区线 (蓝)
+def CENTER_LINE_COLOR: Color = Color.RGB(200, 50, 50); // 中央线 (红)
+def HOUSE_COLOR: Color = Color.RGB(30, 80, 200);     // 圆垒蓝
 
-const PLAYER_RED: i32 = 1;
-const PLAYER_YELLOW: i32 = 2;
+def PLAYER_RED: i32 = 1;
+def PLAYER_YELLOW: i32 = 2;
 
 // ==================== 数据结构 ====================
 
@@ -170,7 +170,7 @@ fn sqrt_int(n: i32) -> i32 {
 // 初始化石头
 fn initStone(index: i32, player: i32) -> Stone {
     let color = if player == PLAYER_RED { STONE_RED } else { STONE_YELLOW };
-    return Stone.{
+    return Stone {
         x: HOUSE_CX,
         y: FOUL_LINE_Y,
         vx: 0, vy: 0,
@@ -271,7 +271,7 @@ fn isInHouse(x: i32, y: i32) -> bool {
 }
 
 // 检查石头是否越过发球线
-fn hasPassedHogLine(stone: &Stone) -> bool {
+fn hasPassedHogLine(stone: Stone*) -> bool {
     return stone.y < HOG_LINE_Y;
 }
 
@@ -433,7 +433,7 @@ fn checkStoneCollision(state: &mut CurlingState) {
 
 // 更新所有石头
 fn updateAllStones(state: &mut CurlingState) -> bool {
-    var anyMoving = false;
+    let anyMoving = false;
 
     for i in 0..state.stoneCount {
         let stone = &mut state.stones[i];
@@ -507,9 +507,9 @@ fn updateAllStones(state: &mut CurlingState) -> bool {
 // 计算本局得分
 fn calculateEndScore(state: &mut CurlingState) -> (i32, i32) {
     // 找出最接近圆心的石头
-    var closestDist = 99999;
-    var closestPlayer = 0;
-    var scores = (0, 0);
+    let closestDist = 99999;
+    let closestPlayer = 0;
+    let scores = (0, 0);
 
     // 只计算在圆垒内的石头
     for i in 0..state.stoneCount {
@@ -530,8 +530,8 @@ fn calculateEndScore(state: &mut CurlingState) -> (i32, i32) {
     }
 
     // 最近的球队得分
-    var scoringPlayer = closestPlayer;
-    var score = 0;
+    let scoringPlayer = closestPlayer;
+    let score = 0;
 
     for i in 0..state.stoneCount {
         let stone = &state.stones[i];
@@ -597,7 +597,7 @@ fn startNextEnd(state: &mut CurlingState) {
 
 fn updateGame(state: &mut CurlingState) -> bool {
     match state.status {
-        GameStatus.Sliding, GameStatus.Sweeping => {
+        GameStatus.Sliding, GameStatus::Sweeping => {
             let moving = updateSlidingStone(state);
             checkStoneCollision(state);
             let othersMoving = updateAllStones(state);
@@ -608,7 +608,7 @@ fn updateGame(state: &mut CurlingState) -> bool {
             }
             return true;
         },
-        GameStatus.Settling => {
+        GameStatus::Settling => {
             let anyMoving = updateAllStones(state);
 
             if !anyMoving {
@@ -616,7 +616,7 @@ fn updateGame(state: &mut CurlingState) -> bool {
             }
             return true;
         },
-        GameStatus.NextStone => {
+        GameStatus::NextStone => {
             nextStone(state);
             return true;
         },
@@ -700,24 +700,24 @@ fn onMouseUp(state: &mut CurlingState, x: i32, y: i32) {
 
 // ==================== 状态查询 ====================
 
-fn getStatusText(state: &CurlingState) -> string {
+fn getStatusText(state: CurlingState*) -> string {
     match state.status {
-        GameStatus.Ready => {
+        GameStatus::Ready => {
             let player = if state.currentPlayer == PLAYER_RED { "红队" } else { "黄队" };
-            return "第" ++ state.endNumber.toString() ++ "局 | " ++ player ++ " | 点击蓄力投球 | 按住清扫";
+            return "第{state}"."{endNumber}局 | {player}" ++ " | 点击蓄力投球 | 按住清扫";
         },
-        GameStatus.Charging => return "蓄力: " ++ state.power.toString() ++ " | 角度: " ++ state.aimAngle.toString() ++ "° | 旋转: " ++ state.curl.toString(),
-        GameStatus.Sliding => {
+        GameStatus::Charging => return "蓄力: {state}"."{power} | 角度: {state}"."{aimAngle}° | 旋转: {state}".curl.toString(),
+        GameStatus::Sliding => {
             if state.isSweeping {
                 return "滑行中 - 清扫!";
             }
             return "石头滑行中...";
         },
-        GameStatus.Sweeping => return "清扫中 - 减少摩擦!",
-        GameStatus.Settling => return "等待稳定...",
-        GameStatus.NextStone => return "准备下一块石头...",
-        GameStatus.EndRound => return "本局结束! 点击开始下一局",
-        GameStatus.GameOver => return "游戏结束! 点击重新开始",
+        GameStatus::Sweeping => return "清扫中 - 减少摩擦!",
+        GameStatus::Settling => return "等待稳定...",
+        GameStatus::NextStone => return "准备下一块石头...",
+        GameStatus::EndRound => return "本局结束! 点击开始下一局",
+        GameStatus::GameOver => return "游戏结束! 点击重新开始",
         _ => return "",
     }
 }

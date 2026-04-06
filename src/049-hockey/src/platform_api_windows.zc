@@ -55,24 +55,24 @@ extern {
 }
 
 // 窗口样式常量
-const WS_OVERLAPPEDWINDOW: u32 = 13529344;
-const WS_VISIBLE: u32 = 268435456;
-const CW_USEDEFAULT: i32 = -2147483648;
+def WS_OVERLAPPEDWINDOW: u32 = 13529344;
+def WS_VISIBLE: u32 = 268435456;
+def CW_USEDEFAULT: i32 = -2147483648;
 
 // 消息常量
-const WM_QUIT: u32 = 18;
-const WM_DESTROY: u32 = 2;
-const WM_PAINT: u32 = 15;
-const WM_KEYDOWN: u32 = 256;
-const WM_KEYUP: u32 = 257;
-const WM_LBUTTONDOWN: u32 = 513;
-const WM_LBUTTONUP: u32 = 514;
-const WM_RBUTTONDOWN: u32 = 516;
-const WM_RBUTTONUP: u32 = 517;
-const WM_MBUTTONDOWN: u32 = 519;
-const WM_MBUTTONUP: u32 = 520;
-const WM_MOUSEMOVE: u32 = 512;
-const WM_SIZE: u32 = 5;
+def WM_QUIT: u32 = 18;
+def WM_DESTROY: u32 = 2;
+def WM_PAINT: u32 = 15;
+def WM_KEYDOWN: u32 = 256;
+def WM_KEYUP: u32 = 257;
+def WM_LBUTTONDOWN: u32 = 513;
+def WM_LBUTTONUP: u32 = 514;
+def WM_RBUTTONDOWN: u32 = 516;
+def WM_RBUTTONUP: u32 = 517;
+def WM_MBUTTONDOWN: u32 = 519;
+def WM_MBUTTONUP: u32 = 520;
+def WM_MOUSEMOVE: u32 = 512;
+def WM_SIZE: u32 = 5;
 
 // 虚拟键码映射
 fn mapVirtualKey(wParam: u64) -> VirtualKey {
@@ -134,7 +134,7 @@ private struct WindowData {
     quit: bool,
 }
 
-private var windowData: WindowData;
+private let windowData: WindowData;
 
 // MSG 结构
 private struct MSG {
@@ -163,7 +163,7 @@ pub fn shutdownPlatform() {
 pub fn createWindow(title: str, width: int, height: int) -> WindowHandle {
     // 简单实现：返回一个假的窗口句柄
     // 实际 Windows 实现需要完整的窗口注册和创建
-    var hwnd = 0x10001 as WindowHandle; // 模拟句柄
+    let hwnd = 0x10001 as WindowHandle; // 模拟句柄
     windowData.handle = hwnd;
     windowData.quit = false;
     return hwnd;
@@ -183,7 +183,7 @@ pub fn getWindowSize(handle: WindowHandle) -> (int, int) {
 }
 
 // 处理消息
-pub fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
+pub fn pollEvent(handle: WindowHandle, event: Event*) -> bool {
     // 模拟事件循环
     // 实际 Windows 实现需要调用 PeekMessage/GetMessage
     
@@ -196,7 +196,7 @@ pub fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
 }
 
 // 等待事件
-pub fn waitEvent(handle: WindowHandle, event: &Event) {
+pub fn waitEvent(handle: WindowHandle, event: Event*) {
 }
 
 // 发送退出消息

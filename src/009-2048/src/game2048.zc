@@ -1,13 +1,13 @@
 // game2048.zc - 2048游戏核心逻辑
 // 所有平台共用相同的游戏逻辑代码
 
-import std.math;
-import std.time;
+import "math.zc";
+// import "time.zc";
 
 // ==================== 游戏常量 ====================
 
-const GRID_SIZE = 4;
-const WINNING_TILE = 2048;
+def GRID_SIZE = 4;
+def WINNING_TILE = 2048;
 
 // ==================== 数据结构 ====================
 
@@ -33,7 +33,7 @@ fn cell_index(x: i32, y: i32) -> i32 {
 }
 
 // 获取格子值
-fn get_cell(board: &Board, x: i32, y: i32) -> i32 {
+fn get_cell(board: Board*, x: i32, y: i32) -> i32 {
     if x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE {
         return 0;
     }
@@ -70,7 +70,7 @@ fn init_game(game: &mut GameData) {
 }
 
 // 检查是否还有空位
-fn has_empty_cell(board: &Board) -> bool {
+fn has_empty_cell(board: Board*) -> bool {
     for i in 0..(GRID_SIZE * GRID_SIZE) {
         if board.cells[i] == 0 {
             return true;
@@ -82,8 +82,8 @@ fn has_empty_cell(board: &Board) -> bool {
 // 随机添加一个新的方块(2或4)
 fn add_random_tile(game: &mut GameData) {
     // 收集所有空位
-    var empty_cells: [GRID_SIZE * GRID_SIZE]i32;
-    var empty_count: i32 = 0;
+    let empty_cells: [GRID_SIZE * GRID_SIZE]i32;
+    let empty_count: i32 = 0;
     
     for y in 0..GRID_SIZE {
         for x in 0..GRID_SIZE {
@@ -110,9 +110,9 @@ fn add_random_tile(game: &mut GameData) {
 
 // 向左移动一行
 fn move_row_left(row: &[GRID_SIZE]i32, score: &mut i32) -> bool {
-    var new_row: [GRID_SIZE]i32;
-    var j: i32 = 0;
-    var moved = false;
+    let new_row: [GRID_SIZE]i32;
+    let j: i32 = 0;
+    let moved = false;
     
     // 收集非零元素
     for i in 0..GRID_SIZE {
@@ -123,13 +123,13 @@ fn move_row_left(row: &[GRID_SIZE]i32, score: &mut i32) -> bool {
     }
     
     // 合并相邻相同元素
-    var i: i32 = 0;
+    let i: i32 = 0;
     while i < j - 1 {
         if new_row[i] == new_row[i + 1] {
             new_row[i] = new_row[i] * 2;
             *score = *score + new_row[i];
             // 将后面的元素前移
-            var k = i + 1;
+            let k = i + 1;
             while k < j - 1 {
                 new_row[k] = new_row[k + 1];
                 k = k + 1;
@@ -164,8 +164,8 @@ fn move_row_left(row: &[GRID_SIZE]i32, score: &mut i32) -> bool {
 
 // 向左移动
 fn move_left(game: &mut GameData) -> bool {
-    var row: [GRID_SIZE]i32;
-    var moved = false;
+    let row: [GRID_SIZE]i32;
+    let moved = false;
     
     for y in 0..GRID_SIZE {
         // 复制一行
@@ -189,8 +189,8 @@ fn move_left(game: &mut GameData) -> bool {
 
 // 向右移动
 fn move_right(game: &mut GameData) -> bool {
-    var row: [GRID_SIZE]i32;
-    var moved = false;
+    let row: [GRID_SIZE]i32;
+    let moved = false;
     
     for y in 0..GRID_SIZE {
         // 反向复制一行
@@ -214,8 +214,8 @@ fn move_right(game: &mut GameData) -> bool {
 
 // 向上移动
 fn move_up(game: &mut GameData) -> bool {
-    var col: [GRID_SIZE]i32;
-    var moved = false;
+    let col: [GRID_SIZE]i32;
+    let moved = false;
     
     for x in 0..GRID_SIZE {
         // 复制一列
@@ -239,8 +239,8 @@ fn move_up(game: &mut GameData) -> bool {
 
 // 向下移动
 fn move_down(game: &mut GameData) -> bool {
-    var col: [GRID_SIZE]i32;
-    var moved = false;
+    let col: [GRID_SIZE]i32;
+    let moved = false;
     
     for x in 0..GRID_SIZE {
         // 反向复制一列
@@ -263,7 +263,7 @@ fn move_down(game: &mut GameData) -> bool {
 }
 
 // 检查是否还能移动
-fn can_move(game: &GameData) -> bool {
+fn can_move(game: GameData*) -> bool {
     // 检查是否有空位
     if has_empty_cell(&game.board) {
         return true;
@@ -288,7 +288,7 @@ fn can_move(game: &GameData) -> bool {
 }
 
 // 检查是否获胜
-fn check_won(board: &Board) -> bool {
+fn check_won(board: Board*) -> bool {
     for i in 0..(GRID_SIZE * GRID_SIZE) {
         if board.cells[i] >= WINNING_TILE {
             return true;
@@ -307,27 +307,27 @@ fn handle_input(game: &mut GameData, key_code: i32) -> bool {
         return true;
     }
     
-    var moved = false;
+    let moved = false;
     
     match key_code {
         // 左箭头或A
-        37 | 65 | 97 => {
+        37 || 65 || 97 => {
             moved = move_left(game);
         },
         // 上箭头或W
-        38 | 87 | 119 => {
+        38 || 87 || 119 => {
             moved = move_up(game);
         },
         // 右箭头或D
-        39 | 68 | 100 => {
+        39 || 68 || 100 => {
             moved = move_right(game);
         },
         // 下箭头或S
-        40 | 83 | 115 => {
+        40 || 83 || 115 => {
             moved = move_down(game);
         },
         // R键 - 重新开始
-        82 | 114 => {
+        82 || 114 => {
             init_game(game);
             return true;
         },
@@ -353,7 +353,7 @@ fn handle_input(game: &mut GameData, key_code: i32) -> bool {
 }
 
 // 获取格子值
-fn get_tile_value(game: &GameData, index: i32) -> i32 {
+fn get_tile_value(game: GameData*, index: i32) -> i32 {
     if index >= 0 && index < GRID_SIZE * GRID_SIZE {
         return game.board.cells[index];
     }
@@ -361,16 +361,16 @@ fn get_tile_value(game: &GameData, index: i32) -> i32 {
 }
 
 // 获取分数
-fn get_score(game: &GameData) -> i32 {
+fn get_score(game: GameData*) -> i32 {
     return game.score;
 }
 
 // 是否获胜
-fn is_won(game: &GameData) -> bool {
+fn is_won(game: GameData*) -> bool {
     return game.won;
 }
 
 // 是否游戏结束
-fn is_game_over(game: &GameData) -> bool {
+fn is_game_over(game: GameData*) -> bool {
     return game.game_over;
 }
