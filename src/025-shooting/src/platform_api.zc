@@ -67,11 +67,11 @@ struct Color {
 }
 
 fn rgb(r: u8, g: u8, b: u8) -> Color {
-    Color { r, g, b }
+    Color { r: r, g: g, b: b }
 }
 
 fn color_to_u32(c: Color) -> u32 {
-    (c.(u32)r) | ((c.(u32)g) << 8) | ((c.(u32)b) << 16)
+    ((u32)(c.r)) | (((u32)(c.g)) << 8) | (((u32)(c.b)) << 16)
 }
 
 #if IS_WINDOWS
