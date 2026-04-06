@@ -94,13 +94,13 @@ enum GameStatus {
 struct RoundState {
     currentPlayer: i32,  // 当前应投掷的玩家
     stonesThrown: i32,    // 本局已投石头数
-    stones: [MAX_STONES]Stone,
+    stones: [Stone; MAX_STONES],
     stoneCount: i32,
 }
 
 // 游戏全局状态
 struct CurlingState {
-    stones: [MAX_STONES]Stone,
+    stones: [Stone; MAX_STONES],
     stoneCount: i32,
     status: GameStatus,
     score1: i32,      // 红队分数

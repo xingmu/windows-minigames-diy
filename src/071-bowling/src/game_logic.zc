@@ -132,7 +132,7 @@ enum GameStatus {
 
 struct BowlingState {
     ball: Ball,
-    pins: [MAX_PINS]Pin,
+    pins: [Pin; MAX_PINS],
     pinCount: i32,
     status: GameStatus,
     currentFrame: i32,     // 当前Frame (0-9)
@@ -187,7 +187,7 @@ fn sqrt_int(n: i32) -> i32 {
 
 // ==================== 瓶布局初始化 ====================
 
-fn initPins(state: &BowlingState) {
+fn initPins(state: BowlingState*) {
     // 瓶区中心X
     let centerX = (LANE_LEFT + LANE_RIGHT) / 2;
     // 第1排瓶的Y位置 (离球道底部一定距离)
@@ -216,7 +216,7 @@ fn initPins(state: &BowlingState) {
 
 // ==================== 初始化游戏 ====================
 
-fn init_game(state: &BowlingState) {
+fn init_game(state: BowlingState*) {
     state.width = GAME_WIDTH;
     state.height = GAME_HEIGHT;
     state.status = GameStatus.Ready;
@@ -247,7 +247,7 @@ fn init_game(state: &BowlingState) {
 }
 
 // 重置球到发球位置
-fn resetBall(state: &BowlingState) {
+fn resetBall(state: BowlingState*) {
     state.ball = Ball {
         x: (LANE_LEFT + LANE_RIGHT) / 2,
         y: APPROACH_TOP - 50,
@@ -260,7 +260,7 @@ fn resetBall(state: &BowlingState) {
 }
 
 // 重置所有瓶
-fn resetAllPins(state: &BowlingState) {
+fn resetAllPins(state: BowlingState*) {
     for i in 0..MAX_PINS {
         state.pins[i].standing = true;
         state.pins[i].fallen = false;
@@ -273,7 +273,7 @@ fn resetAllPins(state: &BowlingState) {
 // ==================== 物理更新 ====================
 
 // 更新球的物理状态
-fn updateBall(state: &BowlingState) -> bool {
+fn updateBall(state: BowlingState*) -> bool {
     let ball = state.ball;
 
     if !ball.rolling {
@@ -350,7 +350,7 @@ fn updateBall(state: &BowlingState) -> bool {
 }
 
 // 更新瓶的物理状态
-fn updatePins(state: &BowlingState) {
+fn updatePins(state: BowlingState*) {
     let anyMoving = false;
 
     for i in 0..state.pinCount {
@@ -415,7 +415,7 @@ fn updatePins(state: &BowlingState) {
 }
 
 // 球与瓶碰撞检测
-fn checkBallPinCollision(state: &BowlingState) {
+fn checkBallPinCollision(state: BowlingState*) {
     let ball = state.ball;
 
     if !ball.rolling {
@@ -477,7 +477,7 @@ fn checkBallPinCollision(state: &BowlingState) {
 }
 
 // 瓶与瓶碰撞
-fn checkPinPinCollision(state: &BowlingState) {
+fn checkPinPinCollision(state: BowlingState*) {
     for i in 0..state.pinCount {
         if !state.pins[i].fallen && !state.pins[i].standing {
             continue;
@@ -534,7 +534,7 @@ fn checkPinPinCollision(state: &BowlingState) {
 }
 
 // 检查所有瓶是否静止
-fn allPinsStopped(state: & BowlingState) -> bool {
+fn allPinsStopped(state: BowlingState*) -> bool {
     for i in 0..state.pinCount {
         if state.pins[i].fallenTime < 30 {
             // 刚倒下的瓶需要等待更久
@@ -562,7 +562,7 @@ fn countKnockedPins(state: BowlingState*) -> i32 {
 }
 
 // 计算当前Frame得分
-fn calculateFrameScore(state: &BowlingState, frameIdx: i32) -> i32 {
+fn calculateFrameScore(state: BowlingState*, frameIdx: i32) -> i32 {
     let score = 0;
     let frame = state.frames[frameIdx];
 
@@ -609,7 +609,7 @@ fn calculateFrameScore(state: &BowlingState, frameIdx: i32) -> i32 {
 }
 
 // 更新总分
-fn updateTotalScore(state: &BowlingState) {
+fn updateTotalScore(state: BowlingState*) {
     let total = 0;
     for i in 0..=state.currentFrame {
         total = total + state.frames[i].score;
@@ -618,7 +618,7 @@ fn updateTotalScore(state: &BowlingState) {
 }
 
 // 掷球
-fn throwBall(state: &BowlingState, power: i32, dx: i32, dy: i32) {
+fn throwBall(state: BowlingState*, power: i32, dx: i32, dy: i32) {
     let dist = sqrt_int(dx * dx + dy * dy);
     if dist == 0 {
         return;
@@ -640,7 +640,7 @@ fn throwBall(state: &BowlingState, power: i32, dx: i32, dy: i32) {
 }
 
 // 进入下一roll
-fn nextRoll(state: &BowlingState) {
+fn nextRoll(state: BowlingState*) {
     let knocked = countKnockedPins(state);
 
     if state.currentRoll == 1 {
@@ -753,7 +753,7 @@ fn nextRoll(state: &BowlingState) {
 
 // ==================== 鼠标处理 ====================
 
-fn onMouseDown(state: &BowlingState, x: i32, y: i32) {
+fn onMouseDown(state: BowlingState*, x: i32, y: i32) {
     if state.status == GameStatus.GameOver {
         init_game(state);
         return;
@@ -768,7 +768,7 @@ fn onMouseDown(state: &BowlingState, x: i32, y: i32) {
     }
 }
 
-fn onMouseMove(state: &BowlingState, x: i32, y: i32) {
+fn onMouseMove(state: BowlingState*, x: i32, y: i32) {
     state.mouseX = x;
     state.mouseY = y;
 
@@ -784,7 +784,7 @@ fn onMouseMove(state: &BowlingState, x: i32, y: i32) {
     }
 }
 
-fn onMouseUp(state: &BowlingState, x: i32, y: i32) {
+fn onMouseUp(state: BowlingState*, x: i32, y: i32) {
     if state.status == GameStatus.Aiming {
         if state.power > 3 {
             // 从点击位置向下滑动的方向击球

@@ -600,7 +600,7 @@ impl GolfGame {
         }
     }
     
-    pub fn run(mut self) {
+    pub fn run(self) {
         if self.window == nil {
             return;
         }
@@ -618,11 +618,11 @@ impl GolfGame {
         }
     }
     
-    pub fn stop(mut self) {
+    pub fn stop(self) {
         self.running = false;
     }
     
-    fn processEvents(mut self) {
+    fn processEvents(self) {
         let event = Event{};
         
         while pollEvent(self.window, &event) {
@@ -649,7 +649,7 @@ impl GolfGame {
         }
     }
     
-    fn update(mut self) {
+    fn update(self) {
         if self.state != GameState.Playing {
             return;
         }
@@ -675,7 +675,7 @@ impl GolfGame {
             buffer: fb,
         };
         
-        canvas.clear(Color.Black());
+        FrameBufferCanvas::clear(canvas, Color.Black());
         
         golfRender(&canvas, &self);
         

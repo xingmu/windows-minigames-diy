@@ -475,9 +475,9 @@ class ShuffleboardGame extends Game {
             canvas.drawText(COURT_X + COURT_WIDTH / 2 - 60, SHOOTER_Y + 30,
                            "滑动中...", Color.Cyan(), Font("Arial", 12));
         } else if self.phase == Phase.RoundEnd {
+            let scoreText = "本回合: P1+{self.roundP1Score} ++ P2+{self.roundP2Score}";
             canvas.drawText(COURT_X + COURT_WIDTH / 2 - 100, SHOOTER_Y + 30,
-                           "本回合: P1+{self}".intToStr(self.roundP1Score)
-                           ++ " P2+{self}".intToStr(self.roundP2Score),
+                           scoreText,
                            Color.Yellow(), Font("Arial", 12));
         } else if self.phase == Phase.GameEnd {
             let winner = if self.getScore() >= WINNING_SCORE { "玩家1" }

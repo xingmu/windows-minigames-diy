@@ -100,7 +100,7 @@ enum GamePhase {
 }
 
 struct NineBallState {
-    balls: [MAX_BALLS]Ball,
+    balls: [Ball; MAX_BALLS],
     ballCount: i32,
     cueBall: Ball*,
     phase: GamePhase,
