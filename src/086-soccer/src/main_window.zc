@@ -576,7 +576,7 @@ fn main() -> i32 {
     
     io.println "";
     io.println "游戏结束!";
-    io.println("最终比分: {} - {}", game.player_score, game.ai_score);
+    io.println "最终比分: {} - {}", game.player_score, game.ai_score;
     io.println "========================================";
     
     shutdownPlatform();

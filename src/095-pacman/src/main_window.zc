@@ -380,7 +380,7 @@ fn main() -> i32 {
     set_game_timer(window, 80);
     
     io.println "窗口创建成功!";
-    io.println("分数: {}", game.score);
+    io.println "分数: {}", game.score;
     io.println "使用 W/A/S/D 控制吃豆人移动";
     io.println "按 ESC 退出游戏";
     io.println "========================================";
@@ -389,7 +389,7 @@ fn main() -> i32 {
     run_event_loop(window);
     
     io.println "游戏结束!";
-    io.println("最终分数: {}", game.score);
+    io.println "最终分数: {}", game.score;
     io.println "谢谢游玩 Zen-C Pacman!";
     io.println "========================================";
     
