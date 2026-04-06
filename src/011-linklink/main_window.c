@@ -5305,199 +5305,199 @@ Vec__char__free(self);
     }
 }
 
-#line 238 "src/011-linklink/src/main_window.zc"
+#line 238 "src/main_window.zc"
 
 int32_t main(void)
 {
     {
 
-#line 239 "src/011-linklink/src/main_window.zc"
+#line 239 "src/main_window.zc"
 io.println
-#line 239 "src/011-linklink/src/main_window.zc"
+#line 239 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "========================================"); fprintf(stdout, "\n"); 0; });
 
-#line 240 "src/011-linklink/src/main_window.zc"
+#line 240 "src/main_window.zc"
 io.println
-#line 240 "src/011-linklink/src/main_window.zc"
+#line 240 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "Zen-C LinkLink 连连看游戏"); fprintf(stdout, "\n"); 0; });
 
-#line 241 "src/011-linklink/src/main_window.zc"
+#line 241 "src/main_window.zc"
 io.println
-#line 241 "src/011-linklink/src/main_window.zc"
+#line 241 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "========================================"); fprintf(stdout, "\n"); 0; });
 
-#line 244 "src/011-linklink/src/main_window.zc"
+#line 244 "src/main_window.zc"
 init_game((&game));
 
-#line 247 "src/011-linklink/src/main_window.zc"
+#line 247 "src/main_window.zc"
     string title = "LinkLink 连连看";
 
-#line 248 "src/011-linklink/src/main_window.zc"
+#line 248 "src/main_window.zc"
 (window = 
-#line 248 "src/011-linklink/src/main_window.zc"
+#line 248 "src/main_window.zc"
 create_window(title, 520, 520));
 
-#line 250 "src/011-linklink/src/main_window.zc"
+#line 250 "src/main_window.zc"
 if ((window == null))     {
 
-#line 251 "src/011-linklink/src/main_window.zc"
+#line 251 "src/main_window.zc"
 io.println
-#line 251 "src/011-linklink/src/main_window.zc"
+#line 251 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "错误: 无法创建窗口"); fprintf(stdout, "\n"); 0; });
 
-#line 252 "src/011-linklink/src/main_window.zc"
+#line 252 "src/main_window.zc"
     return 1;
     }
 
-#line 256 "src/011-linklink/src/main_window.zc"
+#line 256 "src/main_window.zc"
     int32_t cw = 0;
 
-#line 257 "src/011-linklink/src/main_window.zc"
+#line 257 "src/main_window.zc"
     int32_t ch = 0;
 
-#line 258 "src/011-linklink/src/main_window.zc"
+#line 258 "src/main_window.zc"
 get_window_client_size(window, (&cw), (&ch));
 
-#line 259 "src/011-linklink/src/main_window.zc"
+#line 259 "src/main_window.zc"
 if (((cw > 0) && (ch > 0)))     {
 
-#line 260 "src/011-linklink/src/main_window.zc"
+#line 260 "src/main_window.zc"
 set_client_size(cw, ch);
     }
 
-#line 264 "src/011-linklink/src/main_window.zc"
+#line 264 "src/main_window.zc"
 set_key_handler(on_key);
 
-#line 265 "src/011-linklink/src/main_window.zc"
+#line 265 "src/main_window.zc"
 set_timer_handler(on_timer);
 
-#line 266 "src/011-linklink/src/main_window.zc"
+#line 266 "src/main_window.zc"
 set_paint_handler(on_paint);
 
-#line 267 "src/011-linklink/src/main_window.zc"
+#line 267 "src/main_window.zc"
 set_mouse_handler(on_mouse);
 
-#line 268 "src/011-linklink/src/main_window.zc"
+#line 268 "src/main_window.zc"
 set_destroy_handler(on_destroy);
 
-#line 271 "src/011-linklink/src/main_window.zc"
+#line 271 "src/main_window.zc"
 show_window(window);
 
-#line 274 "src/011-linklink/src/main_window.zc"
+#line 274 "src/main_window.zc"
 set_game_timer(window, 1000);
 
-#line 276 "src/011-linklink/src/main_window.zc"
+#line 276 "src/main_window.zc"
 io.println
-#line 276 "src/011-linklink/src/main_window.zc"
+#line 276 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "窗口创建成功!"); fprintf(stdout, "\n"); 0; });
 
-#line 277 "src/011-linklink/src/main_window.zc"
+#line 277 "src/main_window.zc"
 io.println
-#line 277 "src/011-linklink/src/main_window.zc"
+#line 277 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "游戏规则:"); fprintf(stdout, "\n"); 0; });
 
-#line 278 "src/011-linklink/src/main_window.zc"
+#line 278 "src/main_window.zc"
 io.println
-#line 278 "src/011-linklink/src/main_window.zc"
+#line 278 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "  - 点击两个相同的方块可以消除"); fprintf(stdout, "\n"); 0; });
 
-#line 279 "src/011-linklink/src/main_window.zc"
+#line 279 "src/main_window.zc"
 io.println
-#line 279 "src/011-linklink/src/main_window.zc"
+#line 279 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "  - 方块必须能在最多两个拐角内连通"); fprintf(stdout, "\n"); 0; });
 
-#line 280 "src/011-linklink/src/main_window.zc"
+#line 280 "src/main_window.zc"
 io.println
-#line 280 "src/011-linklink/src/main_window.zc"
+#line 280 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "  - 限时 5 分钟，尽量消除所有方块!"); fprintf(stdout, "\n"); 0; });
 
-#line 281 "src/011-linklink/src/main_window.zc"
+#line 281 "src/main_window.zc"
 io.println
-#line 281 "src/011-linklink/src/main_window.zc"
+#line 281 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "========================================"); fprintf(stdout, "\n"); 0; });
 
-#line 284 "src/011-linklink/src/main_window.zc"
+#line 284 "src/main_window.zc"
 redraw_window(window);
 
-#line 287 "src/011-linklink/src/main_window.zc"
+#line 287 "src/main_window.zc"
 run_event_loop(window);
 
-#line 289 "src/011-linklink/src/main_window.zc"
+#line 289 "src/main_window.zc"
 io.println
-#line 289 "src/011-linklink/src/main_window.zc"
+#line 289 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "游戏结束!"); fprintf(stdout, "\n"); 0; });
 
-#line 290 "src/011-linklink/src/main_window.zc"
+#line 290 "src/main_window.zc"
 io.println(({ 
-#line 290 "src/011-linklink/src/main_window.zc"
+#line 290 "src/main_window.zc"
     static char _b[4096]; _b[0]=0;
     char _t[128];
     strcat(_b, "最终得分: ");
 
-#line 290 "src/011-linklink/src/main_window.zc"
+#line 290 "src/main_window.zc"
 sprintf(_t, _z_str(game), game);
 
-#line 290 "src/011-linklink/src/main_window.zc"
+#line 290 "src/main_window.zc"
     strcat(_b, _t);
     _b;
  }).score.toString());
 
-#line 291 "src/011-linklink/src/main_window.zc"
+#line 291 "src/main_window.zc"
 io.println
-#line 291 "src/011-linklink/src/main_window.zc"
+#line 291 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "========================================"); fprintf(stdout, "\n"); 0; });
 
-#line 293 "src/011-linklink/src/main_window.zc"
+#line 293 "src/main_window.zc"
 0;
     }
 }
 
-#line 232 "src/011-linklink/src/main_window.zc"
+#line 232 "src/main_window.zc"
 
 void on_destroy(void)
 {
     {
 
-#line 233 "src/011-linklink/src/main_window.zc"
+#line 233 "src/main_window.zc"
 fb_shutdown();
     }
 }
 
-#line 212 "src/011-linklink/src/main_window.zc"
+#line 212 "src/main_window.zc"
 
 void on_mouse(int32_t x, int32_t y, MouseButton button)
 {
     {
 
-#line 213 "src/011-linklink/src/main_window.zc"
+#line 213 "src/main_window.zc"
 if (game.gameOver)     {
 
-#line 214 "src/011-linklink/src/main_window.zc"
+#line 214 "src/main_window.zc"
     return ;
     }
 
-#line 218 "src/011-linklink/src/main_window.zc"
+#line 218 "src/main_window.zc"
     int32_t col = ((x - 50) / (48 + 4));
 
-#line 219 "src/011-linklink/src/main_window.zc"
+#line 219 "src/main_window.zc"
     int32_t row = ((y - 60) / (48 + 4));
 
-#line 221 "src/011-linklink/src/main_window.zc"
+#line 221 "src/main_window.zc"
 if (((((row >= 0) && (row < 8)) && (col >= 0)) && (col < 8)))     {
 
-#line 222 "src/011-linklink/src/main_window.zc"
+#line 222 "src/main_window.zc"
 if (
-#line 222 "src/011-linklink/src/main_window.zc"
+#line 222 "src/main_window.zc"
 click_tile((&game), row, col))     {
 
-#line 224 "src/011-linklink/src/main_window.zc"
+#line 224 "src/main_window.zc"
 if ((((!game.gameOver) && (!game.gameWon)) && (!
-#line 224 "src/011-linklink/src/main_window.zc"
+#line 224 "src/main_window.zc"
 has_possible_moves((&game)))))     {
 
-#line 226 "src/011-linklink/src/main_window.zc"
+#line 226 "src/main_window.zc"
 io.println
-#line 226 "src/011-linklink/src/main_window.zc"
+#line 226 "src/main_window.zc"
     ({ fprintf(stdout, "%s", "无可用移动，正在重新排列..."); fprintf(stdout, "\n"); 0; });
     }
     }
@@ -5505,506 +5505,506 @@ io.println
     }
 }
 
-#line 204 "src/011-linklink/src/main_window.zc"
+#line 204 "src/main_window.zc"
 
 bool on_timer(void)
 {
     {
 
-#line 205 "src/011-linklink/src/main_window.zc"
+#line 205 "src/main_window.zc"
 if ((!game.gameOver))     {
 
-#line 206 "src/011-linklink/src/main_window.zc"
+#line 206 "src/main_window.zc"
     bool updated = 
-#line 206 "src/011-linklink/src/main_window.zc"
+#line 206 "src/main_window.zc"
 update_time((&game));
 
-#line 207 "src/011-linklink/src/main_window.zc"
+#line 207 "src/main_window.zc"
     return updated;
     }
 
-#line 209 "src/011-linklink/src/main_window.zc"
+#line 209 "src/main_window.zc"
     return false;
     }
 }
 
-#line 189 "src/011-linklink/src/main_window.zc"
+#line 189 "src/main_window.zc"
 
 bool on_key(KeyCode key)
 {
     {
 
-#line 190 "src/011-linklink/src/main_window.zc"
+#line 190 "src/main_window.zc"
 { KeyCode _m_0 = key; 
-#line 191 "src/011-linklink/src/main_window.zc"
+#line 191 "src/main_window.zc"
 if (_m_0 == KeyCode__Escape) {     {
 
-#line 192 "src/011-linklink/src/main_window.zc"
+#line 192 "src/main_window.zc"
 (running = false);
 
-#line 193 "src/011-linklink/src/main_window.zc"
+#line 193 "src/main_window.zc"
     return false;
     }
  } else 
-#line 195 "src/011-linklink/src/main_window.zc"
+#line 195 "src/main_window.zc"
 if (_m_0 == KeyCode__KeyR) {     {
 
-#line 196 "src/011-linklink/src/main_window.zc"
+#line 196 "src/main_window.zc"
 restart_game((&game));
 
-#line 197 "src/011-linklink/src/main_window.zc"
+#line 197 "src/main_window.zc"
     return true;
     }
  } else 
-#line 199 "src/011-linklink/src/main_window.zc"
+#line 199 "src/main_window.zc"
 if (1) {     {
     }
  } };
 
-#line 201 "src/011-linklink/src/main_window.zc"
+#line 201 "src/main_window.zc"
     return true;
     }
 }
 
-#line 96 "src/011-linklink/src/main_window.zc"
+#line 96 "src/main_window.zc"
 
 void on_paint(int32_t w, int32_t h)
 {
     {
 
-#line 98 "src/011-linklink/src/main_window.zc"
+#line 98 "src/main_window.zc"
 if ((!fb_data.valid))     {
 
-#line 99 "src/011-linklink/src/main_window.zc"
+#line 99 "src/main_window.zc"
 fb_init(window, w, h);
     }
 
-#line 103 "src/011-linklink/src/main_window.zc"
+#line 103 "src/main_window.zc"
 fb_clear(rgb(30, 30, 40));
 
-#line 106 "src/011-linklink/src/main_window.zc"
+#line 106 "src/main_window.zc"
 fb_draw_rect(0, 0, 520, 50, rgb(41, 128, 185));
 
-#line 109 "src/011-linklink/src/main_window.zc"
+#line 109 "src/main_window.zc"
     str scoreText = 
-#line 109 "src/011-linklink/src/main_window.zc"
+#line 109 "src/main_window.zc"
 get_score_text((&game));
 
-#line 110 "src/011-linklink/src/main_window.zc"
+#line 110 "src/main_window.zc"
 fb_draw_text_size(15, 15, scoreText, rgb(255, 255, 255), 20);
 
-#line 113 "src/011-linklink/src/main_window.zc"
+#line 113 "src/main_window.zc"
     ZC_AUTO timeText = 
-#line 113 "src/011-linklink/src/main_window.zc"
+#line 113 "src/main_window.zc"
 ({ 
-#line 113 "src/011-linklink/src/main_window.zc"
+#line 113 "src/main_window.zc"
     static char _b[4096]; _b[0]=0;
     char _t[128];
     strcat(_b, "时间: ");
 
-#line 113 "src/011-linklink/src/main_window.zc"
+#line 113 "src/main_window.zc"
 sprintf(_t, _z_str(get_time_text), get_time_text);
 
-#line 113 "src/011-linklink/src/main_window.zc"
+#line 113 "src/main_window.zc"
     strcat(_b, _t);
     _b;
  })((&game));
 
-#line 114 "src/011-linklink/src/main_window.zc"
+#line 114 "src/main_window.zc"
 fb_draw_text_size((520 - 130), 15, timeText, rgb(255, 255, 255), 20);
 
-#line 117 "src/011-linklink/src/main_window.zc"
+#line 117 "src/main_window.zc"
 for (ZC_AUTO r = 0; r < 8; r++)     {
 
-#line 118 "src/011-linklink/src/main_window.zc"
+#line 118 "src/main_window.zc"
 for (ZC_AUTO c = 0; c < 8; c++)     {
 
-#line 119 "src/011-linklink/src/main_window.zc"
+#line 119 "src/main_window.zc"
 if (game.tiles[r][c].visible)     {
 
-#line 120 "src/011-linklink/src/main_window.zc"
+#line 120 "src/main_window.zc"
     Tuple__int32_t__int32_t _tmp_1 = 
-#line 120 "src/011-linklink/src/main_window.zc"
+#line 120 "src/main_window.zc"
 get_tile_position((&game), r, c);
 
-#line 120 "src/011-linklink/src/main_window.zc"
+#line 120 "src/main_window.zc"
     ZC_AUTO tx = _tmp_1.v0;
 
-#line 120 "src/011-linklink/src/main_window.zc"
+#line 120 "src/main_window.zc"
     ZC_AUTO ty = _tmp_1.v1;
 
-#line 123 "src/011-linklink/src/main_window.zc"
+#line 123 "src/main_window.zc"
     bool isSelected = ((r == game.selectedRow) && (c == game.selectedCol));
 
-#line 126 "src/011-linklink/src/main_window.zc"
+#line 126 "src/main_window.zc"
     ZC_AUTO bgColor = ({ __typeof__(
-#line 126 "src/011-linklink/src/main_window.zc"
+#line 126 "src/main_window.zc"
 rgb(255, 255, 100)) _ifval; if (isSelected) { _ifval = rgb(255, 255, 100); } else { _ifval = rgb(80, 80, 100); } _ifval; });
 
-#line 127 "src/011-linklink/src/main_window.zc"
+#line 127 "src/main_window.zc"
 fb_draw_rounded_rect(tx, ty, 48, 48, 6, bgColor);
 
-#line 130 "src/011-linklink/src/main_window.zc"
+#line 130 "src/main_window.zc"
     ZC_AUTO borderColor = ({ __typeof__(
-#line 130 "src/011-linklink/src/main_window.zc"
+#line 130 "src/main_window.zc"
 rgb(255, 200, 0)) _ifval; if (isSelected) { _ifval = rgb(255, 200, 0); } else { _ifval = rgb(120, 120, 140); } _ifval; });
 
-#line 131 "src/011-linklink/src/main_window.zc"
+#line 131 "src/main_window.zc"
 fb_draw_rect(tx, ty, 48, 2, borderColor);
 
-#line 132 "src/011-linklink/src/main_window.zc"
+#line 132 "src/main_window.zc"
 fb_draw_rect(tx, ((ty + 48) - 2), 48, 2, borderColor);
 
-#line 133 "src/011-linklink/src/main_window.zc"
+#line 133 "src/main_window.zc"
 fb_draw_rect(tx, ty, 2, 48, borderColor);
 
-#line 134 "src/011-linklink/src/main_window.zc"
+#line 134 "src/main_window.zc"
 fb_draw_rect(((tx + 48) - 2), ty, 2, 48, borderColor);
 
-#line 137 "src/011-linklink/src/main_window.zc"
+#line 137 "src/main_window.zc"
     ZC_AUTO tileType = game.tiles[r][c].tileType;
 
-#line 138 "src/011-linklink/src/main_window.zc"
+#line 138 "src/main_window.zc"
 draw_tile_pattern(ctx, tx, ty, 48, tileType);
     }
  else     {
 
-#line 141 "src/011-linklink/src/main_window.zc"
+#line 141 "src/main_window.zc"
     Tuple__int32_t__int32_t _tmp_2 = 
-#line 141 "src/011-linklink/src/main_window.zc"
+#line 141 "src/main_window.zc"
 get_tile_position((&game), r, c);
 
-#line 141 "src/011-linklink/src/main_window.zc"
+#line 141 "src/main_window.zc"
     ZC_AUTO tx = _tmp_2.v0;
 
-#line 141 "src/011-linklink/src/main_window.zc"
+#line 141 "src/main_window.zc"
     ZC_AUTO ty = _tmp_2.v1;
 
-#line 142 "src/011-linklink/src/main_window.zc"
+#line 142 "src/main_window.zc"
 fb_draw_rect(tx, ty, 48, 48, rgb(30, 30, 40));
     }
     }
     }
 
-#line 148 "src/011-linklink/src/main_window.zc"
+#line 148 "src/main_window.zc"
 if ((game.pathLength > 1))     {
 
-#line 149 "src/011-linklink/src/main_window.zc"
+#line 149 "src/main_window.zc"
     uint32_t lineColor = 
-#line 149 "src/011-linklink/src/main_window.zc"
+#line 149 "src/main_window.zc"
 rgb(0, 255, 100);
 
-#line 150 "src/011-linklink/src/main_window.zc"
+#line 150 "src/main_window.zc"
 for (ZC_AUTO i = 0; i < (game.pathLength - 1); i++)     {
 
-#line 151 "src/011-linklink/src/main_window.zc"
+#line 151 "src/main_window.zc"
     int32_t p1 = game.connectionPath[i];
 
-#line 152 "src/011-linklink/src/main_window.zc"
+#line 152 "src/main_window.zc"
     int32_t p2 = game.connectionPath[(i + 1)];
 
-#line 153 "src/011-linklink/src/main_window.zc"
+#line 153 "src/main_window.zc"
     Tuple__int32_t__int32_t _tmp_3 = 
-#line 153 "src/011-linklink/src/main_window.zc"
+#line 153 "src/main_window.zc"
 get_tile_position((&game), p1.row, p1.col);
 
-#line 153 "src/011-linklink/src/main_window.zc"
+#line 153 "src/main_window.zc"
     ZC_AUTO x1 = _tmp_3.v0;
 
-#line 153 "src/011-linklink/src/main_window.zc"
+#line 153 "src/main_window.zc"
     ZC_AUTO y1 = _tmp_3.v1;
 
-#line 154 "src/011-linklink/src/main_window.zc"
+#line 154 "src/main_window.zc"
     Tuple__int32_t__int32_t _tmp_4 = 
-#line 154 "src/011-linklink/src/main_window.zc"
+#line 154 "src/main_window.zc"
 get_tile_position((&game), p2.row, p2.col);
 
-#line 154 "src/011-linklink/src/main_window.zc"
+#line 154 "src/main_window.zc"
     ZC_AUTO x2 = _tmp_4.v0;
 
-#line 154 "src/011-linklink/src/main_window.zc"
+#line 154 "src/main_window.zc"
     ZC_AUTO y2 = _tmp_4.v1;
 
-#line 155 "src/011-linklink/src/main_window.zc"
+#line 155 "src/main_window.zc"
     int32_t cx1 = (x1 + (48 / 2));
 
-#line 156 "src/011-linklink/src/main_window.zc"
+#line 156 "src/main_window.zc"
     int32_t cy1 = (y1 + (48 / 2));
 
-#line 157 "src/011-linklink/src/main_window.zc"
+#line 157 "src/main_window.zc"
     int32_t cx2 = (x2 + (48 / 2));
 
-#line 158 "src/011-linklink/src/main_window.zc"
+#line 158 "src/main_window.zc"
     int32_t cy2 = (y2 + (48 / 2));
 
-#line 160 "src/011-linklink/src/main_window.zc"
+#line 160 "src/main_window.zc"
 fb_draw_line(cx1, cy1, cx2, cy2, lineColor);
     }
     }
 
-#line 165 "src/011-linklink/src/main_window.zc"
+#line 165 "src/main_window.zc"
     str statusText = 
-#line 165 "src/011-linklink/src/main_window.zc"
+#line 165 "src/main_window.zc"
 get_status_text((&game));
 
-#line 166 "src/011-linklink/src/main_window.zc"
+#line 166 "src/main_window.zc"
 fb_draw_text_size(15, (520 - 35), statusText, rgb(255, 255, 0), 18);
 
-#line 169 "src/011-linklink/src/main_window.zc"
+#line 169 "src/main_window.zc"
     str controlsText = 
-#line 169 "src/011-linklink/src/main_window.zc"
+#line 169 "src/main_window.zc"
 get_controls_text();
 
-#line 170 "src/011-linklink/src/main_window.zc"
+#line 170 "src/main_window.zc"
 fb_draw_text_size(15, (520 - 18), controlsText, rgb(180, 180, 180), 14);
 
-#line 173 "src/011-linklink/src/main_window.zc"
+#line 173 "src/main_window.zc"
 if (game.gameOver)     {
 
-#line 174 "src/011-linklink/src/main_window.zc"
+#line 174 "src/main_window.zc"
 fb_draw_rect(((520 / 2) - 150), ((520 / 2) - 60), 300, 100, rgb(0, 0, 0));
 
-#line 175 "src/011-linklink/src/main_window.zc"
+#line 175 "src/main_window.zc"
 fb_draw_rect(((520 / 2) - 152), ((520 / 2) - 62), 304, 104, rgb(255, 255, 0));
 
-#line 177 "src/011-linklink/src/main_window.zc"
+#line 177 "src/main_window.zc"
     ZC_AUTO msg = ({ __typeof__(({ fprintf(stdout, "%s", "恭喜通关！"); fprintf(stdout, "\n"); 0; });) _ifval; if (game.gameWon) { _ifval = ({ fprintf(stdout, "%s", "恭喜通关！"); fprintf(stdout, "\n"); 0; });; } else { _ifval = ({ fprintf(stdout, "%s", "时间到！"); fprintf(stdout, "\n"); 0; });; } _ifval; });
 
-#line 178 "src/011-linklink/src/main_window.zc"
+#line 178 "src/main_window.zc"
 fb_draw_text_size(((520 / 2) - 60), ((520 / 2) - 35), msg, rgb(255, 255, 0), 24);
 
-#line 180 "src/011-linklink/src/main_window.zc"
+#line 180 "src/main_window.zc"
     ZC_AUTO finalScore = 
-#line 180 "src/011-linklink/src/main_window.zc"
+#line 180 "src/main_window.zc"
 ({ 
-#line 180 "src/011-linklink/src/main_window.zc"
+#line 180 "src/main_window.zc"
     static char _b[4096]; _b[0]=0;
     char _t[128];
     strcat(_b, "得分: ");
 
-#line 180 "src/011-linklink/src/main_window.zc"
+#line 180 "src/main_window.zc"
 sprintf(_t, _z_str(game), game);
 
-#line 180 "src/011-linklink/src/main_window.zc"
+#line 180 "src/main_window.zc"
     strcat(_b, _t);
     _b;
  }).score.toString();
 
-#line 181 "src/011-linklink/src/main_window.zc"
+#line 181 "src/main_window.zc"
 fb_draw_text_size(((520 / 2) - 55), (520 / 2), finalScore, rgb(255, 255, 255), 20);
 
-#line 182 "src/011-linklink/src/main_window.zc"
+#line 182 "src/main_window.zc"
 fb_draw_text_size(((520 / 2) - 70), ((520 / 2) + 25), "按 R 重新开始", rgb(200, 200, 200), 16);
     }
 
-#line 186 "src/011-linklink/src/main_window.zc"
+#line 186 "src/main_window.zc"
 fb_present();
     }
 }
 
-#line 94 "src/011-linklink/src/main_window.zc"
+#line 94 "src/main_window.zc"
 
 float sin(float v)
 {
     {
 
-#line 94 "src/011-linklink/src/main_window.zc"
+#line 94 "src/main_window.zc"
     return 0.0;
     }
 }
 
-#line 93 "src/011-linklink/src/main_window.zc"
+#line 93 "src/main_window.zc"
 
 float cos(float v)
 {
     {
 
-#line 93 "src/011-linklink/src/main_window.zc"
+#line 93 "src/main_window.zc"
     return 0.0;
     }
 }
 
-#line 38 "src/011-linklink/src/main_window.zc"
+#line 38 "src/main_window.zc"
 
 void draw_tile_pattern(GraphicsContext ctx, int32_t x, int32_t y, int32_t size, int32_t tileType)
 {
     {
 
-#line 39 "src/011-linklink/src/main_window.zc"
+#line 39 "src/main_window.zc"
     int32_t cx = (x + (size / 2));
 
-#line 40 "src/011-linklink/src/main_window.zc"
+#line 40 "src/main_window.zc"
     int32_t cy = (y + (size / 2));
 
-#line 41 "src/011-linklink/src/main_window.zc"
+#line 41 "src/main_window.zc"
     int32_t margin = 8;
 
-#line 42 "src/011-linklink/src/main_window.zc"
+#line 42 "src/main_window.zc"
     int32_t innerSize = (size - (2 * margin));
 
-#line 45 "src/011-linklink/src/main_window.zc"
+#line 45 "src/main_window.zc"
 { int32_t _m_5 = (tileType % 6); 
-#line 46 "src/011-linklink/src/main_window.zc"
+#line 46 "src/main_window.zc"
 if (_m_5 == 0) {     {
 
-#line 48 "src/011-linklink/src/main_window.zc"
+#line 48 "src/main_window.zc"
 draw_circle(ctx, cx, cy, ((innerSize / 2) - 2), TILE_COLORS[_z_check_bounds(((tileType + 1) % 12), 12)]);
 
-#line 49 "src/011-linklink/src/main_window.zc"
+#line 49 "src/main_window.zc"
 draw_circle(ctx, cx, cy, ((innerSize / 3) - 2), rgb(255, 255, 255));
     }
  } else 
-#line 51 "src/011-linklink/src/main_window.zc"
+#line 51 "src/main_window.zc"
 if (_m_5 == 1) {     {
 
-#line 53 "src/011-linklink/src/main_window.zc"
+#line 53 "src/main_window.zc"
 draw_rect(ctx, (cx - (innerSize / 3)), (cy - (innerSize / 3)), ((innerSize * 2) / 3), ((innerSize * 2) / 3), TILE_COLORS[_z_check_bounds(((tileType + 2) % 12), 12)]);
 
-#line 54 "src/011-linklink/src/main_window.zc"
+#line 54 "src/main_window.zc"
 draw_rect(ctx, (cx - (innerSize / 4)), (cy - (innerSize / 4)), (innerSize / 2), (innerSize / 2), rgb(255, 255, 255));
     }
  } else 
-#line 56 "src/011-linklink/src/main_window.zc"
+#line 56 "src/main_window.zc"
 if (_m_5 == 2) {     {
 
-#line 58 "src/011-linklink/src/main_window.zc"
+#line 58 "src/main_window.zc"
     int32_t r = ((innerSize / 2) - 2);
 
-#line 59 "src/011-linklink/src/main_window.zc"
+#line 59 "src/main_window.zc"
 draw_line(ctx, cx, (cy - r), (cx - r), (cy + (r / 2)), TILE_COLORS[_z_check_bounds(((tileType + 3) % 12), 12)]);
 
-#line 60 "src/011-linklink/src/main_window.zc"
+#line 60 "src/main_window.zc"
 draw_line(ctx, (cx - r), (cy + (r / 2)), (cx + r), (cy + (r / 2)), TILE_COLORS[_z_check_bounds(((tileType + 3) % 12), 12)]);
 
-#line 61 "src/011-linklink/src/main_window.zc"
+#line 61 "src/main_window.zc"
 draw_line(ctx, (cx + r), (cy + (r / 2)), cx, (cy - r), TILE_COLORS[_z_check_bounds(((tileType + 3) % 12), 12)]);
     }
  } else 
-#line 63 "src/011-linklink/src/main_window.zc"
+#line 63 "src/main_window.zc"
 if (_m_5 == 3) {     {
 
-#line 65 "src/011-linklink/src/main_window.zc"
+#line 65 "src/main_window.zc"
     int32_t r = ((innerSize / 2) - 2);
 
-#line 66 "src/011-linklink/src/main_window.zc"
+#line 66 "src/main_window.zc"
 draw_line(ctx, cx, (cy - r), (cx + r), cy, TILE_COLORS[_z_check_bounds(((tileType + 4) % 12), 12)]);
 
-#line 67 "src/011-linklink/src/main_window.zc"
+#line 67 "src/main_window.zc"
 draw_line(ctx, (cx + r), cy, cx, (cy + r), TILE_COLORS[_z_check_bounds(((tileType + 4) % 12), 12)]);
 
-#line 68 "src/011-linklink/src/main_window.zc"
+#line 68 "src/main_window.zc"
 draw_line(ctx, cx, (cy + r), (cx - r), cy, TILE_COLORS[_z_check_bounds(((tileType + 4) % 12), 12)]);
 
-#line 69 "src/011-linklink/src/main_window.zc"
+#line 69 "src/main_window.zc"
 draw_line(ctx, (cx - r), cy, cx, (cy - r), TILE_COLORS[_z_check_bounds(((tileType + 4) % 12), 12)]);
     }
  } else 
-#line 71 "src/011-linklink/src/main_window.zc"
+#line 71 "src/main_window.zc"
 if (_m_5 == 4) {     {
 
-#line 73 "src/011-linklink/src/main_window.zc"
+#line 73 "src/main_window.zc"
     int32_t r = ((innerSize / 2) - 2);
 
-#line 74 "src/011-linklink/src/main_window.zc"
+#line 74 "src/main_window.zc"
 for (ZC_AUTO i = 0; i < 5; i++)     {
 
-#line 75 "src/011-linklink/src/main_window.zc"
+#line 75 "src/main_window.zc"
     int32_t angle1 = ((i * 72) - 90);
 
-#line 75 "src/011-linklink/src/main_window.zc"
+#line 75 "src/main_window.zc"
 as;
 
-#line 75 "src/011-linklink/src/main_window.zc"
+#line 75 "src/main_window.zc"
 ((f32 * 3.1415899999999999) / 180.0);
 
-#line 76 "src/011-linklink/src/main_window.zc"
+#line 76 "src/main_window.zc"
     int32_t angle2 = (((i * 72) + 36) - 90);
 
-#line 76 "src/011-linklink/src/main_window.zc"
+#line 76 "src/main_window.zc"
 as;
 
-#line 76 "src/011-linklink/src/main_window.zc"
+#line 76 "src/main_window.zc"
 ((f32 * 3.1415899999999999) / 180.0);
 
-#line 77 "src/011-linklink/src/main_window.zc"
+#line 77 "src/main_window.zc"
     int32_t x1 = (cx + ((float)(((r)((*
-#line 77 "src/011-linklink/src/main_window.zc"
+#line 77 "src/main_window.zc"
 cos(angle1)))))));
 
-#line 77 "src/011-linklink/src/main_window.zc"
+#line 77 "src/main_window.zc"
 as;
 i32;
 
-#line 78 "src/011-linklink/src/main_window.zc"
+#line 78 "src/main_window.zc"
     int32_t y1 = (cy + ((float)(((r)((*
-#line 78 "src/011-linklink/src/main_window.zc"
+#line 78 "src/main_window.zc"
 sin(angle1)))))));
 
-#line 78 "src/011-linklink/src/main_window.zc"
+#line 78 "src/main_window.zc"
 as;
 i32;
 
-#line 79 "src/011-linklink/src/main_window.zc"
+#line 79 "src/main_window.zc"
     int32_t x2 = (cx + ((float)(((r)((*
-#line 79 "src/011-linklink/src/main_window.zc"
+#line 79 "src/main_window.zc"
 cos(angle2)))))));
 
-#line 79 "src/011-linklink/src/main_window.zc"
+#line 79 "src/main_window.zc"
 as;
 i32;
 
-#line 80 "src/011-linklink/src/main_window.zc"
+#line 80 "src/main_window.zc"
     int32_t y2 = (cy + ((float)(((r)((*
-#line 80 "src/011-linklink/src/main_window.zc"
+#line 80 "src/main_window.zc"
 sin(angle2)))))));
 
-#line 80 "src/011-linklink/src/main_window.zc"
+#line 80 "src/main_window.zc"
 as;
 i32;
 
-#line 81 "src/011-linklink/src/main_window.zc"
+#line 81 "src/main_window.zc"
 draw_line(ctx, x1, y1, x2, y2, TILE_COLORS[_z_check_bounds(((tileType + 5) % 12), 12)]);
     }
     }
  } else 
-#line 84 "src/011-linklink/src/main_window.zc"
+#line 84 "src/main_window.zc"
 if (1) {     {
 
-#line 86 "src/011-linklink/src/main_window.zc"
+#line 86 "src/main_window.zc"
     int32_t arm = (innerSize / 3);
 
-#line 87 "src/011-linklink/src/main_window.zc"
+#line 87 "src/main_window.zc"
 draw_rect(ctx, (cx - (arm / 2)), (cy - arm), arm, (arm * 2), TILE_COLORS[_z_check_bounds(((tileType + 6) % 12), 12)]);
 
-#line 88 "src/011-linklink/src/main_window.zc"
+#line 88 "src/main_window.zc"
 draw_rect(ctx, (cx - arm), (cy - (arm / 2)), (arm * 2), arm, TILE_COLORS[_z_check_bounds(((tileType + 6) % 12), 12)]);
     }
  } };
     }
 }
 
-#line 25 "src/011-linklink/src/main_window.zc"
+#line 25 "src/main_window.zc"
 
 void draw_rounded_rect(GraphicsContext ctx, int32_t x, int32_t y, int32_t w, int32_t h, int32_t radius, uint32_t color)
 {
     {
 
-#line 27 "src/011-linklink/src/main_window.zc"
+#line 27 "src/main_window.zc"
 draw_rect(ctx, (x + radius), y, (w - (2 * radius)), h, color);
 
-#line 28 "src/011-linklink/src/main_window.zc"
+#line 28 "src/main_window.zc"
 draw_rect(ctx, x, (y + radius), w, (h - (2 * radius)), color);
 
-#line 31 "src/011-linklink/src/main_window.zc"
+#line 31 "src/main_window.zc"
 draw_circle(ctx, (x + radius), (y + radius), radius, color);
 
-#line 32 "src/011-linklink/src/main_window.zc"
+#line 32 "src/main_window.zc"
 draw_circle(ctx, ((x + w) - radius), (y + radius), radius, color);
 
-#line 33 "src/011-linklink/src/main_window.zc"
+#line 33 "src/main_window.zc"
 draw_circle(ctx, (x + radius), ((y + h) - radius), radius, color);
 
-#line 34 "src/011-linklink/src/main_window.zc"
+#line 34 "src/main_window.zc"
 draw_circle(ctx, ((x + w) - radius), ((y + h) - radius), radius, color);
     }
 }

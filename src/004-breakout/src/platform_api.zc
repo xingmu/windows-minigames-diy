@@ -213,7 +213,7 @@ fn show_window(window: WindowHandle) {
 
 fn run_event_loop(window: WindowHandle) {
     #if IS_WINDOWS
-        let msg: u8[28] = [0; 28];  // MSG is 28 bytes on 64-bit Windows
+        let msg: u8[28] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];  // MSG is 28 bytes on 64-bit Windows
         while GetMessageA(&msg, window, 0, 0) {
             TranslateMessage(&msg);
             DispatchMessageA(&msg);
@@ -245,9 +245,9 @@ fn redraw_window(window: WindowHandle) {
     #endif
 }
 
-fn get_window_client_size(window: WindowHandle, width: &i32, height: &i32) -> bool {
+fn get_window_client_size(window: WindowHandle, width: i32*, height: i32*) -> bool {
     #if IS_WINDOWS
-        let rect: [i32; 4] = [0; 4];
+        let rect: [i32; 4] = [0, 0, 0, 0];
         if GetClientRect(window, &rect) {
             *width = rect[2] - rect[0];
             *height = rect[3] - rect[1];
@@ -268,11 +268,11 @@ struct Color {
 }
 
 fn rgb(r: u8, g: u8, b: u8) -> Color {
-    Color { r, g, b }
+    Color { r: r, g: g, b: b }
 }
 
 fn color_to_u32(c: Color) -> u32 {
-    (c.(u32)r) | ((c.(u32)g) << 8) | ((c.(u32)b) << 16)
+    ((u32)(c.r)) | (((u32)(c.g)) << 8) | (((u32)(c.b)) << 16)
 }
 
 fn draw_rect(ctx: GraphicsContext, x: i32, y: i32, width: i32, height: i32, color: Color) {
@@ -422,7 +422,7 @@ fn fb_draw_text(x: i32, y: i32, text: string, color: Color) {
                                DEFAULT_QUALITY, DEFAULT_PITCH, "Arial\0".c_str());
         let old_font = SelectObject_3(fb_data.memDC, font);
         
-        TextOutA(fb_data.memDC, x, y, text.c_str(), text.(i32)len);
+        TextOutA(fb_data.memDC, x, y, text.c_str(), (i32)(text.len));
         
         SelectObject_3(fb_data.memDC, old_font);
         DeleteObject_3(font);
@@ -442,7 +442,7 @@ fn fb_draw_text_size(x: i32, y: i32, text: string, color: Color, size: i32) {
                                DEFAULT_QUALITY, DEFAULT_PITCH, "Arial\0".c_str());
         let old_font = SelectObject_3(fb_data.memDC, font);
         
-        TextOutA(fb_data.memDC, x, y, text.c_str(), text.(i32)len);
+        TextOutA(fb_data.memDC, x, y, text.c_str(), (i32)(text.len));
         
         SelectObject_3(fb_data.memDC, old_font);
         DeleteObject_3(font);
@@ -465,7 +465,7 @@ private mut key_handler: KeyHandler = null;
 private mut timer_handler: TimerHandler = null;
 private mut paint_handler: PaintHandler = null;
 private mut mouse_handler: MouseHandler = null;
-private mut destroy_handler: fn() -> void = null;
+let destroy_handler: fn*() = null;
 private mut client_width: i32 = 800;
 private mut client_height: i32 = 600;
 

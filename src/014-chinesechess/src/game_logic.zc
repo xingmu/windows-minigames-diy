@@ -92,44 +92,44 @@ fn createChessGame() -> ChessGame {
     game.gameOver = false;
     game.winner = -1;
     game.showLastMove = false;
-    game.lastMoveFrom = Position { col = -1, row = -1 };
-    game.lastMoveTo = Position { col = -1, row = -1 };
+    game.lastMoveFrom = Position { col: -1, row: -1 };
+    game.lastMoveTo = Position { col: -1, row: -1 };
     
     // 红方棋子 (board[0-15])
-    game.board[0] = Piece { pieceType = PIECE_KING, color = COLOR_RED, alive = true, col = 4, row = 9 };
-    game.board[1] = Piece { pieceType = PIECE_ADVISOR, color = COLOR_RED, alive = true, col = 3, row = 9 };
-    game.board[2] = Piece { pieceType = PIECE_ADVISOR, color = COLOR_RED, alive = true, col = 5, row = 9 };
-    game.board[3] = Piece { pieceType = PIECE_ELEPHANT, color = COLOR_RED, alive = true, col = 2, row = 9 };
-    game.board[4] = Piece { pieceType = PIECE_ELEPHANT, color = COLOR_RED, alive = true, col = 6, row = 9 };
-    game.board[5] = Piece { pieceType = PIECE_HORSE, color = COLOR_RED, alive = true, col = 1, row = 9 };
-    game.board[6] = Piece { pieceType = PIECE_HORSE, color = COLOR_RED, alive = true, col = 7, row = 9 };
-    game.board[7] = Piece { pieceType = PIECE_CHARIOT, color = COLOR_RED, alive = true, col = 0, row = 9 };
-    game.board[8] = Piece { pieceType = PIECE_CHARIOT, color = COLOR_RED, alive = true, col = 8, row = 9 };
-    game.board[9] = Piece { pieceType = PIECE_CANNON, color = COLOR_RED, alive = true, col = 1, row = 7 };
-    game.board[10] = Piece { pieceType = PIECE_CANNON, color = COLOR_RED, alive = true, col = 7, row = 7 };
-    game.board[11] = Piece { pieceType = PIECE_PAWN, color = COLOR_RED, alive = true, col = 0, row = 6 };
-    game.board[12] = Piece { pieceType = PIECE_PAWN, color = COLOR_RED, alive = true, col = 2, row = 6 };
-    game.board[13] = Piece { pieceType = PIECE_PAWN, color = COLOR_RED, alive = true, col = 4, row = 6 };
-    game.board[14] = Piece { pieceType = PIECE_PAWN, color = COLOR_RED, alive = true, col = 6, row = 6 };
-    game.board[15] = Piece { pieceType = PIECE_PAWN, color = COLOR_RED, alive = true, col = 8, row = 6 };
+    game.board[0] = Piece { pieceType: PIECE_KING, color: COLOR_RED, alive: true, col: 4, row: 9 };
+    game.board[1] = Piece { pieceType: PIECE_ADVISOR, color: COLOR_RED, alive: true, col: 3, row: 9 };
+    game.board[2] = Piece { pieceType: PIECE_ADVISOR, color: COLOR_RED, alive: true, col: 5, row: 9 };
+    game.board[3] = Piece { pieceType: PIECE_ELEPHANT, color: COLOR_RED, alive: true, col: 2, row: 9 };
+    game.board[4] = Piece { pieceType: PIECE_ELEPHANT, color: COLOR_RED, alive: true, col: 6, row: 9 };
+    game.board[5] = Piece { pieceType: PIECE_HORSE, color: COLOR_RED, alive: true, col: 1, row: 9 };
+    game.board[6] = Piece { pieceType: PIECE_HORSE, color: COLOR_RED, alive: true, col: 7, row: 9 };
+    game.board[7] = Piece { pieceType: PIECE_CHARIOT, color: COLOR_RED, alive: true, col: 0, row: 9 };
+    game.board[8] = Piece { pieceType: PIECE_CHARIOT, color: COLOR_RED, alive: true, col: 8, row: 9 };
+    game.board[9] = Piece { pieceType: PIECE_CANNON, color: COLOR_RED, alive: true, col: 1, row: 7 };
+    game.board[10] = Piece { pieceType: PIECE_CANNON, color: COLOR_RED, alive: true, col: 7, row: 7 };
+    game.board[11] = Piece { pieceType: PIECE_PAWN, color: COLOR_RED, alive: true, col: 0, row: 6 };
+    game.board[12] = Piece { pieceType: PIECE_PAWN, color: COLOR_RED, alive: true, col: 2, row: 6 };
+    game.board[13] = Piece { pieceType: PIECE_PAWN, color: COLOR_RED, alive: true, col: 4, row: 6 };
+    game.board[14] = Piece { pieceType: PIECE_PAWN, color: COLOR_RED, alive: true, col: 6, row: 6 };
+    game.board[15] = Piece { pieceType: PIECE_PAWN, color: COLOR_RED, alive: true, col: 8, row: 6 };
     
     // 黑方棋子 (board[16-31])
-    game.board[16] = Piece { pieceType = PIECE_KING, color = COLOR_BLACK, alive = true, col = 4, row = 0 };
-    game.board[17] = Piece { pieceType = PIECE_ADVISOR, color = COLOR_BLACK, alive = true, col = 3, row = 0 };
-    game.board[18] = Piece { pieceType = PIECE_ADVISOR, color = COLOR_BLACK, alive = true, col = 5, row = 0 };
-    game.board[19] = Piece { pieceType = PIECE_ELEPHANT, color = COLOR_BLACK, alive = true, col = 2, row = 0 };
-    game.board[20] = Piece { pieceType = PIECE_ELEPHANT, color = COLOR_BLACK, alive = true, col = 6, row = 0 };
-    game.board[21] = Piece { pieceType = PIECE_HORSE, color = COLOR_BLACK, alive = true, col = 1, row = 0 };
-    game.board[22] = Piece { pieceType = PIECE_HORSE, color = COLOR_BLACK, alive = true, col = 7, row = 0 };
-    game.board[23] = Piece { pieceType = PIECE_CHARIOT, color = COLOR_BLACK, alive = true, col = 0, row = 0 };
-    game.board[24] = Piece { pieceType = PIECE_CHARIOT, color = COLOR_BLACK, alive = true, col = 8, row = 0 };
-    game.board[25] = Piece { pieceType = PIECE_CANNON, color = COLOR_BLACK, alive = true, col = 1, row = 2 };
-    game.board[26] = Piece { pieceType = PIECE_CANNON, color = COLOR_BLACK, alive = true, col = 7, row = 2 };
-    game.board[27] = Piece { pieceType = PIECE_PAWN, color = COLOR_BLACK, alive = true, col = 0, row = 3 };
-    game.board[28] = Piece { pieceType = PIECE_PAWN, color = COLOR_BLACK, alive = true, col = 2, row = 3 };
-    game.board[29] = Piece { pieceType = PIECE_PAWN, color = COLOR_BLACK, alive = true, col = 4, row = 3 };
-    game.board[30] = Piece { pieceType = PIECE_PAWN, color = COLOR_BLACK, alive = true, col = 6, row = 3 };
-    game.board[31] = Piece { pieceType = PIECE_PAWN, color = COLOR_BLACK, alive = true, col = 8, row = 3 };
+    game.board[16] = Piece { pieceType: PIECE_KING, color: COLOR_BLACK, alive: true, col: 4, row: 0 };
+    game.board[17] = Piece { pieceType: PIECE_ADVISOR, color: COLOR_BLACK, alive: true, col: 3, row: 0 };
+    game.board[18] = Piece { pieceType: PIECE_ADVISOR, color: COLOR_BLACK, alive: true, col: 5, row: 0 };
+    game.board[19] = Piece { pieceType: PIECE_ELEPHANT, color: COLOR_BLACK, alive: true, col: 2, row: 0 };
+    game.board[20] = Piece { pieceType: PIECE_ELEPHANT, color: COLOR_BLACK, alive: true, col: 6, row: 0 };
+    game.board[21] = Piece { pieceType: PIECE_HORSE, color: COLOR_BLACK, alive: true, col: 1, row: 0 };
+    game.board[22] = Piece { pieceType: PIECE_HORSE, color: COLOR_BLACK, alive: true, col: 7, row: 0 };
+    game.board[23] = Piece { pieceType: PIECE_CHARIOT, color: COLOR_BLACK, alive: true, col: 0, row: 0 };
+    game.board[24] = Piece { pieceType: PIECE_CHARIOT, color: COLOR_BLACK, alive: true, col: 8, row: 0 };
+    game.board[25] = Piece { pieceType: PIECE_CANNON, color: COLOR_BLACK, alive: true, col: 1, row: 2 };
+    game.board[26] = Piece { pieceType: PIECE_CANNON, color: COLOR_BLACK, alive: true, col: 7, row: 2 };
+    game.board[27] = Piece { pieceType: PIECE_PAWN, color: COLOR_BLACK, alive: true, col: 0, row: 3 };
+    game.board[28] = Piece { pieceType: PIECE_PAWN, color: COLOR_BLACK, alive: true, col: 2, row: 3 };
+    game.board[29] = Piece { pieceType: PIECE_PAWN, color: COLOR_BLACK, alive: true, col: 4, row: 3 };
+    game.board[30] = Piece { pieceType: PIECE_PAWN, color: COLOR_BLACK, alive: true, col: 6, row: 3 };
+    game.board[31] = Piece { pieceType: PIECE_PAWN, color: COLOR_BLACK, alive: true, col: 8, row: 3 };
     
     return game;
 }
@@ -307,7 +307,7 @@ fn evaluateMove(game: ChessGame*, pieceIndex: int, toCol: int, toRow: int) -> in
             PIECE_CHARIOT => score = score + 900;
             PIECE_HORSE => score = score + 400;
             PIECE_CANNON => score = score + 450;
-            PIECE_ADVISOR, PIECE_ELEPHANT => score = score + 200;
+            PIECE_ADVISOR || PIECE_ELEPHANT => score = score + 200;
             PIECE_PAWN => score = score + 100;
         }
     }
@@ -358,7 +358,7 @@ fn selectAIMove(game: &ChessGame) -> bool {
             col = game.board[bestPiece].col,
             row = game.board[bestPiece].row
         };
-        game.lastMoveTo = Position { col = bestCol, row = bestRow };
+        game.lastMoveTo = Position { col = bestCol, row: bestRow };
         game.showLastMove = true;
         
         let targetIdx = getPieceAt(game, bestCol, bestRow);
@@ -385,7 +385,7 @@ fn makeMove(game: &ChessGame, pieceIndex: int, toCol: int, toRow: int) -> bool {
         col = game.board[pieceIndex].col,
         row = game.board[pieceIndex].row
     };
-    game.lastMoveTo = Position { col = toCol, row = toRow };
+    game.lastMoveTo = Position { col = toCol, row: toRow };
     game.showLastMove = true;
     
     let targetIdx = getPieceAt(game, toCol, toRow);

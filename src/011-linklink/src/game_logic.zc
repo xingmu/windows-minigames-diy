@@ -236,7 +236,7 @@ struct Path {
 
 // 查找连接路径（最多2个拐角）
 fn find_path(state: LinkLinkState*, r1: int, c1: int, r2: int, c2: int) -> Path {
-    let result = Path { length: 0, points: [PathPoint {row:0, col:0}; 4] };
+    let result = Path { length: 0, points: [PathPoint {row:0, col:0}, PathPoint {row:0, col:0}, PathPoint {row:0, col:0}, PathPoint {row:0, col:0}] };
     
     // 如果相邻，直接连接
     if can_connect_direct(state, r1, c1, r2, c2) {
@@ -301,7 +301,7 @@ fn can_connect_direct(state: LinkLinkState*, r1: int, c1: int, r2: int, c2: int)
 
 // 查找一个拐角的路径
 fn find_one_corner_path(state: LinkLinkState*, r1: int, c1: int, r2: int, c2: int) -> Path {
-    let result = Path { length: 0, points: [PathPoint {row:0, col:0}; 4] };
+    let result = Path { length: 0, points: [PathPoint {row:0, col:0}, PathPoint {row:0, col:0}, PathPoint {row:0, col:0}, PathPoint {row:0, col:0}] };
     
     // 尝试在 (r1, c2) 处拐弯
     if can_connect_direct(state, r1, c1, r1, c2) && can_connect_direct(state, r1, c2, r2, c2) {
@@ -333,7 +333,7 @@ fn find_one_corner_path(state: LinkLinkState*, r1: int, c1: int, r2: int, c2: in
 
 // 查找两个拐角的路径
 fn find_two_corner_path(state: LinkLinkState*, r1: int, c1: int, r2: int, c2: int) -> Path {
-    let result = Path { length: 0, points: [PathPoint {row:0, col:0}; 4] };
+    let result = Path { length: 0, points: [PathPoint {row:0, col:0}, PathPoint {row:0, col:0}, PathPoint {row:0, col:0}, PathPoint {row:0, col:0}] };
     
     // 尝试从边界绕行（同行扫描）
     // 向上扫描一行

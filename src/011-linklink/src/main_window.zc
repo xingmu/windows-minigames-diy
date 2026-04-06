@@ -74,10 +74,10 @@ fn draw_tile_pattern(ctx: GraphicsContext, x: i32, y: i32, size: i32, tileType: 
             for i in 0..5 {
                 let angle1 = (i * 72 - 90) as f32 * 3.14159 / 180.0;
                 let angle2 = ((i * 72 + 36) - 90) as f32 * 3.14159 / 180.0;
-                let x1 = cx + (r as f32 * cos(angle1)) as i32;
-                let y1 = cy + (r as f32 * sin(angle1)) as i32;
-                let x2 = cx + (r as f32 * cos(angle2)) as i32;
-                let y2 = cy + (r as f32 * sin(angle2)) as i32;
+                let x1 = cx + ((f32)(r) * cos(angle1)) as i32;
+                let y1 = cy + ((f32)(r) * sin(angle1)) as i32;
+                let x2 = cx + ((f32)(r) * cos(angle2)) as i32;
+                let y2 = cy + ((f32)(r) * sin(angle2)) as i32;
                 draw_line(ctx, x1, y1, x2, y2, TILE_COLORS[(tileType + 5) % 12]);
             }
         },

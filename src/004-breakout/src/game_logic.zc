@@ -23,7 +23,7 @@ def INITIAL_LIVES: i32 = 3;
 
 // ==================== 砖块颜色 ====================
 
-def BRICK_COLORS: [BRICK_ROWS]Color = [
+def BRICK_COLORS: Color[BRICK_ROWS] = [
     Color { r: 255, g: 107, b: 107 },  // 红色
     Color { r: 255, g: 224, b: 102 },  // 黄色
     Color { r: 107, g: 203, b: 119 },  // 绿色
@@ -69,7 +69,7 @@ struct Brick {
 }
 
 struct BrickGrid {
-    bricks: [BRICK_ROWS * BRICK_COLS]Brick,
+    bricks: Brick[50],
     rows: i32,
     cols: i32,
 }
@@ -88,7 +88,7 @@ struct BreakoutState {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &BreakoutState) {
+fn init_game(game: BreakoutState*) {
     game.width = GAME_WIDTH;
     game.height = GAME_HEIGHT;
     game.score = 0;
@@ -112,7 +112,7 @@ fn init_game(game: &BreakoutState) {
 }
 
 // 重置球
-fn reset_ball(game: &BreakoutState) {
+fn reset_ball(game: BreakoutState*) {
     game.ball.x = GAME_WIDTH / 2;
     game.ball.y = GAME_HEIGHT / 2 + 100;
     game.ball.vx = BALL_SPEED;
@@ -121,7 +121,7 @@ fn reset_ball(game: &BreakoutState) {
 }
 
 // 初始化砖块
-fn init_bricks(game: &BreakoutState) {
+fn init_bricks(game: BreakoutState*) {
     game.bricks.rows = BRICK_ROWS;
     game.bricks.cols = BRICK_COLS;
 
@@ -144,7 +144,7 @@ fn init_bricks(game: &BreakoutState) {
 }
 
 // 处理键盘输入
-fn handle_input(game: &BreakoutState, key: KeyCode) -> bool {
+fn handle_input(game: BreakoutState*, key: KeyCode) -> bool {
     match key {
         KeyCode::KeyLeft => {
             game.paddle.x = game.paddle.x - game.paddle.speed;
@@ -165,9 +165,9 @@ fn handle_input(game: &BreakoutState, key: KeyCode) -> bool {
                 game.status = GameStatus.Playing;
                 reset_ball(game);
                 // 随机角度
-                let angle = (math.rand() % 50 - 25) as i32;  // -25 to 25 degrees
-                let rad = angle as f32 * 3.14159 / 180.0;
-                game.ball.vx = (BALL_SPEED as f32 * math.sin(rad)) as i32;
+                let angle = (Random::new().next_int_range(0, 100) % 50 - 25);  // -25 to 25 degrees
+                let rad = (f32)(angle) * 3.14159 / 180.0;
+                game.ball.vx = ((f32)(BALL_SPEED) * Math::sin(rad));
                 game.ball.vy = -BALL_SPEED;
             }
         },
@@ -185,7 +185,7 @@ fn handle_input(game: &BreakoutState, key: KeyCode) -> bool {
 }
 
 // 更新游戏逻辑
-fn update_game(game: &BreakoutState) -> bool {
+fn update_game(game: BreakoutState*) -> bool {
     if game.status != GameStatus.Playing {
         return false;
     }
@@ -236,16 +236,16 @@ fn update_game(game: &BreakoutState) -> bool {
             game.ball.y = paddle_top - game.ball.radius;
 
             // 根据击中位置改变角度
-            let hit_pos = (game.ball.x - game.paddle.x) as f32 / game.paddle.width as f32;
+            let hit_pos = (game.ball.x - game.paddle.x) as f32 / (f32)(game.paddle.width);
             let angle = (hit_pos - 0.5) * 2.0 * 60.0;
             let rad = angle * 3.14159 / 180.0;
-            let speed = math.sqrt(game.ball.vx * game.ball.vx + game.ball.vy * game.ball.vy) as i32;
+            let speed = math.sqrt(game.ball.vx * game.ball.vx + game.ball.vy * game.ball.vy);
             if speed < BALL_SPEED {
                 speed = BALL_SPEED;
             }
 
-            game.ball.vx = (speed as f32 * math.sin(rad)) as i32;
-            game.ball.vy = -(speed as f32 * math.cos(rad)) as i32;
+            game.ball.vx = ((f32)(speed) * Math::sin(rad));
+            game.ball.vy = -((f32)(speed) * Math::cos(rad));
 
             if game.ball.vy > -3 {
                 game.ball.vy = -3;
