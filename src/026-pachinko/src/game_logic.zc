@@ -105,8 +105,8 @@ struct ScoreZone {
 }
 
 struct PachinkoState {
-    balls: [MAX_BALLS]Ball,
-    pegs: [PEG_ROWS * PEG_COLS]Peg,
+    balls: [Ball; MAX_BALLS],
+    pegs: [Peg; PEG_ROWS * PEG_COLS],
     flippers: [Flipper; 2],
     launcher: Launcher,
     zones: [ScoreZone; 5],
@@ -120,7 +120,7 @@ struct PachinkoState {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &PachinkoState) {
+fn init_game(game: PachinkoState*) {
     game.width = GAME_WIDTH;
     game.height = GAME_HEIGHT;
     game.score = 0;
@@ -178,7 +178,7 @@ fn init_game(game: &PachinkoState) {
 }
 
 // 初始化钉子
-fn init_pegs(game: &PachinkoState) {
+fn init_pegs(game: PachinkoState*) {
     for row in 0..PEG_ROWS {
         for col in 0..PEG_COLS {
             let index = row * PEG_COLS + col;
@@ -209,7 +209,7 @@ fn init_pegs(game: &PachinkoState) {
 }
 
 // 初始化得分区域
-fn init_zones(game: &PachinkoState) {
+fn init_zones(game: PachinkoState*) {
     let zone_width = GAME_WIDTH / 5;
     let colors: [Color; 5] = [
         rgb(255, 215, 0),   // 金色 - 500分
@@ -241,7 +241,7 @@ fn get_free_ball(game: PachinkoState*) -> i32 {
 }
 
 // 发射弹珠
-fn launch_ball(game: &PachinkoState) -> bool {
+fn launch_ball(game: PachinkoState*) -> bool {
     if game.status == GameStatus.Ready || game.status == GameStatus.Aiming {
         let ball_idx = get_free_ball(game);
         if ball_idx >= 0 {
@@ -260,7 +260,7 @@ fn launch_ball(game: &PachinkoState) -> bool {
 }
 
 // 更新瞄准
-fn update_aiming(game: &PachinkoState, delta_power: i32) {
+fn update_aiming(game: PachinkoState*, delta_power: i32) {
     if game.status == GameStatus.Ready || game.status == GameStatus.Aiming {
         game.launcher.power = game.launcher.power + delta_power;
         if game.launcher.power < LAUNCH_POWER_MIN {
@@ -274,7 +274,7 @@ fn update_aiming(game: &PachinkoState, delta_power: i32) {
 }
 
 // 处理键盘输入
-fn handle_input(game: &PachinkoState, key: KeyCode) -> bool {
+fn handle_input(game: PachinkoState*, key: KeyCode) -> bool {
     match key {
         KeyCode::KeySpace => {
             if game.status == GameStatus.GameOver {
@@ -304,7 +304,7 @@ fn handle_input(game: &PachinkoState, key: KeyCode) -> bool {
 }
 
 // 释放翻转器
-fn handle_key_up(game: &PachinkoState, key: KeyCode) {
+fn handle_key_up(game: PachinkoState*, key: KeyCode) {
     match key {
         KeyCode::KeyLeft => {
             game.flippers[0].target_angle = 0.3;
@@ -317,7 +317,7 @@ fn handle_key_up(game: &PachinkoState, key: KeyCode) {
 }
 
 // 球与钉子碰撞
-fn ball_peg_collision(ball: &Ball, peg: Peg*) {
+fn ball_peg_collision(ball: Ball*, peg: Peg*) {
     let dx = ball.x - (f32)(peg.x);
     let dy = ball.y - (f32)(peg.y);
     let dist_sq = dx * dx + dy * dy;
@@ -350,7 +350,7 @@ fn ball_peg_collision(ball: &Ball, peg: Peg*) {
 }
 
 // 球与翻转器碰撞
-fn ball_flipper_collision(ball: &Ball, flipper: Flipper*) {
+fn ball_flipper_collision(ball: Ball*, flipper: Flipper*) {
     let end_x = (f32)(flipper.x) + math.cos(flipper.angle) * (f32)(flipper.length);
     let end_y = (f32)(flipper.y) + math.sin(flipper.angle) * (f32)(flipper.length);
 
@@ -406,7 +406,7 @@ fn ball_flipper_collision(ball: &Ball, flipper: Flipper*) {
 }
 
 // 球与墙壁碰撞
-fn ball_wall_collision(ball: &Ball) {
+fn ball_wall_collision(ball: Ball*) {
     // 左右墙
     if ball.x - (f32)(ball.radius) < 0.0 {
         ball.x = (f32)(ball.radius);
@@ -424,11 +424,11 @@ fn ball_wall_collision(ball: &Ball) {
 }
 
 // 检查得分
-fn check_score_zone(game: &PachinkoState, ball: &Ball) -> bool {
+fn check_score_zone(game: PachinkoState*, ball: Ball*) -> bool {
     if ball.y + (f32)(ball.radius) >= (f32)(SCORE_ZONE_Y) {
         for i in 0..5 {
             let zone = game.zones[i];
-            if ball.x >= (f32)(zone.x) && ball.x < (zone.x + zone.width) as f32 {
+            if ball.x >= (f32)(zone.x) && ball.x < (f32)(zone.x + zone.width) {
                 game.score = game.score + zone.value;
                 return true;
             }
@@ -440,7 +440,7 @@ fn check_score_zone(game: &PachinkoState, ball: &Ball) -> bool {
 }
 
 // 更新翻转器
-fn update_flippers(game: &PachinkoState) {
+fn update_flippers(game: PachinkoState*) {
     for i in 0..2 {
         let diff = game.flippers[i].target_angle - game.flippers[i].angle;
         if abs_i((i32)diff) > 1 {
@@ -454,7 +454,7 @@ fn update_flippers(game: &PachinkoState) {
 }
 
 // 更新游戏逻辑
-fn update_game(game: &PachinkoState) -> bool {
+fn update_game(game: PachinkoState*) -> bool {
     // 更新翻转器
     update_flippers(game);
 

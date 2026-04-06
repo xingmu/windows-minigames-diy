@@ -72,8 +72,8 @@ struct Wave {
 
 struct SurfingState {
     surfer: Surfer,
-    obstacles: [MAX_OBSTACLES]Obstacle,
-    waves: [MAX_WAVES]Wave,
+    obstacles: [Obstacle; MAX_OBSTACLES],
+    waves: [Wave; MAX_WAVES],
     obstacle_count: i32,
     score: i32,
     distance: i32,
@@ -96,7 +96,7 @@ struct RGB {
 }
 
 fn rgb(r: u8, g: u8, b: u8) -> RGB {
-    RGB { r, g, b }
+    RGB { r: r, g: g, b: b }
 }
 
 // 游戏颜色
@@ -121,7 +121,7 @@ def COLOR_DANGER: RGB = rgb(255, 0, 0);           // 红色警告
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &SurfingState) {
+fn init_game(game: SurfingState*) {
     game.width = GAME_WIDTH;
     game.height = GAME_HEIGHT;
     game.score = 0;
@@ -173,7 +173,7 @@ fn init_game(game: &SurfingState) {
 }
 
 // 处理键盘输入
-fn handle_input(game: &SurfingState, key: VirtualKey) -> bool {
+fn handle_input(game: SurfingState*, key: VirtualKey) -> bool {
     match key {
         VirtualKey::Left => {
             game.surfer.velocity_x = -SURFER_SPEED;
@@ -235,7 +235,7 @@ fn handle_input(game: &SurfingState, key: VirtualKey) -> bool {
 }
 
 // 键盘释放
-fn handle_key_up(game: &SurfingState, key: VirtualKey) {
+fn handle_key_up(game: SurfingState*, key: VirtualKey) {
     match key {
         VirtualKey::Left => {
             if game.surfer.velocity_x < 0 {
@@ -262,7 +262,7 @@ fn handle_key_up(game: &SurfingState, key: VirtualKey) {
 }
 
 // 更新游戏
-fn update_game(game: &SurfingState) -> bool {
+fn update_game(game: SurfingState*) -> bool {
     if game.status != GameStatus.Playing {
         return false;
     }
@@ -344,7 +344,7 @@ fn update_game(game: &SurfingState) -> bool {
 }
 
 // 生成障碍物
-fn spawn_obstacle(game: &SurfingState) {
+fn spawn_obstacle(game: SurfingState*) {
     // 找到空闲槽位
     let slot = -1;
     for i in 0..MAX_OBSTACLES {
@@ -410,7 +410,7 @@ fn check_collision(surfer: Surfer, obs: Obstacle) -> bool {
 }
 
 // 处理碰撞
-fn handle_collision(game: &SurfingState, obs_idx: i32) {
+fn handle_collision(game: SurfingState*, obs_idx: i32) {
     let obs = game.obstacles[obs_idx];
 
     // 收集物

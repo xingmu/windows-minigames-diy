@@ -345,9 +345,9 @@ class SpaceInvadersGame extends Game {
                     self.aliens[a].alive = false;
                     
                     match self.aliens[a].alienType {
-                        0 => self.addScore(ALIEN_TYPE_A_SCORE);
-                        1 => self.addScore(ALIEN_TYPE_B_SCORE);
-                        2 => self.addScore(ALIEN_TYPE_C_SCORE);
+                        0=>self.addScore(ALIEN_TYPE_A_SCORE);
+                        1=>self.addScore(ALIEN_TYPE_B_SCORE);
+                        2=>self.addScore(ALIEN_TYPE_C_SCORE);
                         _ => {}
                     }
                     
@@ -453,9 +453,9 @@ class SpaceInvadersGame extends Game {
             
             let color: Color;
             match alienType {
-                0 => color = ALIEN_A_COLOR;
-                1 => color = ALIEN_B_COLOR;
-                2 => color = ALIEN_C_COLOR;
+                0=>color = ALIEN_A_COLOR;
+                1=>color = ALIEN_B_COLOR;
+                2=>color = ALIEN_C_COLOR;
                 _ => color = Color.White();
             }
             

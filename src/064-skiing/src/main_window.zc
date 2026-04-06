@@ -259,7 +259,7 @@ fn drawBackground(pitch: int, buffer: rawptr) {
     let centerX = WINDOW_WIDTH / 2;
     for y in (SKIER_Y - 50)..WINDOW_HEIGHT {
         let sway = (y / 30) % 3 - 1;
-        drawLine(ctx: rawptr, centerX + sway * 20, y, centerX + sway * 20 + 1, y + 1, pitch, buffer, SNOW_SHADOW);
+        drawLine( centerX + sway * 20, y, centerX + sway * 20 + 1, y + 1, pitch, buffer, SNOW_SHADOW);
     }
 }
 
@@ -388,7 +388,7 @@ fn setPixel(x: int, y: int, pitch: int, buffer: rawptr, color: Color) {
     pixels[offset] = color;
 }
 
-fn drawLine(ctx: rawptr, x1: int, y1: int, x2: int, y2: int, pitch: int, buffer: rawptr, color: Color) {
+fn drawLine( x1: int, y1: int, x2: int, y2: int, pitch: int, buffer: rawptr, color: Color) {
     // Bresenham 算法
     let dx = abs(x2 - x1);
     let dy = abs(y2 - y1);

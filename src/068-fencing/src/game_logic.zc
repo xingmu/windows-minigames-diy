@@ -500,7 +500,7 @@ pub class FightingGame extends Game {
 
         // Round indicator
         let roundFont = Font("Arial", 14);
-        let roundText = "第 {self}"."{roundNumber} 回合";
+        let roundText = "第 {self}{roundNumber} 回合";
         canvas.drawText(self.width / 2 - 30, 20, roundText, Color.LightGray(), roundFont);
 
         // Win target
@@ -691,7 +691,7 @@ pub class FightingGame extends Game {
         canvas.drawText(self.width / 2 - 75, self.height / 2 - 65, "击剑比赛", Color.Yellow(), titleFont);
 
         let smallFont = Font("Arial", 18);
-        let scoreText = self.player."{score} : {self}".cpu.score.toString();
+        let scoreText = self.player.score.toString() ++ " : " ++ self.cpu.score.toString();
         canvas.drawText(self.width / 2 - 25, self.height / 2 - 20, scoreText, Color.White(), smallFont);
 
         canvas.drawText(self.width / 2 - 120, self.height / 2 + 10, "按 J 开始回合", Color.LightGray(), smallFont);
@@ -714,7 +714,7 @@ pub class FightingGame extends Game {
 
         canvas.drawText(self.width / 2 - 130, self.height / 2 - 60, winner, textColor, font);
 
-        let finalScore = self.player."{score} - {self}".cpu.score.toString();
+        let finalScore = self.player.score.toString() ++ " - " ++ self.cpu.score.toString();
         let smallFont = Font("Arial", 24);
         canvas.drawText(self.width / 2 - 50, self.height / 2, finalScore, Color.White(), smallFont);
 

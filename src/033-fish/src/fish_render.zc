@@ -49,11 +49,11 @@ pub struct Cannon {
 // 根据鱼类型获取分数
 pub fn get_fish_score(fishType: FishType) -> i32 {
     match fishType {
-        FishType::SmallFish => return 10;
-        FishType::MediumFish => return 25;
-        FishType::LargeFish => return 50;
-        FishType::Shark => return 100;
-        FishType::GoldFish => return 200;
+        SmallFish => return 10;
+        MediumFish => return 25;
+        LargeFish => return 50;
+        Shark => return 100;
+        GoldFish => return 200;
         _ => return 0;
     }
 }
@@ -61,11 +61,11 @@ pub fn get_fish_score(fishType: FishType) -> i32 {
 // 根据鱼类型获取大小
 pub fn get_fish_size(fishType: FishType) -> i32 {
     match fishType {
-        FishType::SmallFish => return 20;
-        FishType::MediumFish => return 35;
-        FishType::LargeFish => return 50;
-        FishType::Shark => return 70;
-        FishType::GoldFish => return 25;
+        SmallFish => return 20;
+        MediumFish => return 35;
+        LargeFish => return 50;
+        Shark => return 70;
+        GoldFish => return 25;
         _ => return 30;
     }
 }
@@ -73,11 +73,11 @@ pub fn get_fish_size(fishType: FishType) -> i32 {
 // 根据鱼类型获取速度
 pub fn get_fish_speed(fishType: FishType) -> f32 {
     match fishType {
-        FishType::SmallFish => return 3.0;
-        FishType::MediumFish => return 2.0;
-        FishType::LargeFish => return 1.2;
-        FishType::Shark => return 1.8;
-        FishType::GoldFish => return 4.0;
+        SmallFish => return 3.0;
+        MediumFish => return 2.0;
+        LargeFish => return 1.2;
+        Shark => return 1.8;
+        GoldFish => return 4.0;
         _ => return 2.0;
     }
 }
@@ -123,34 +123,34 @@ fn draw_fish_body(x: i32, y: i32, size: i32, angle: f32, bodyColor: Color, finCo
 pub fn draw_small_fish(fish: Fish*) {
     let color = Color {r: (u8)80, g: (u8)200, b: (u8)80};
     let finColor = Color {r: (u8)60, g: (u8)160, b: (u8)60};
-    draw_fish_body(fish.(i32)x, fish.(i32)y, fish.size, fish.angle, color, finColor);
+    draw_fish_body((i32)(fish.x), (i32)(fish.y), fish.size, fish.angle, color, finColor);
 }
 
 // 绘制中鱼 (蓝色)
 pub fn draw_medium_fish(fish: Fish*) {
     let color = Color {r: (u8)60, g: (u8)140, b: (u8)220};
     let finColor = Color {r: (u8)40, g: (u8)100, b: (u8)180};
-    draw_fish_body(fish.(i32)x, fish.(i32)y, fish.size, fish.angle, color, finColor);
+    draw_fish_body((i32)(fish.x), (i32)(fish.y), fish.size, fish.angle, color, finColor);
 }
 
 // 绘制大鱼 (金色)
 pub fn draw_large_fish(fish: Fish*) {
     let color = Color {r: (u8)255, g: (u8)215, b: (u8)0};
     let finColor = Color {r: (u8)200, g: (u8)170, b: (u8)0};
-    draw_fish_body(fish.(i32)x, fish.(i32)y, fish.size, fish.angle, color, finColor);
+    draw_fish_body((i32)(fish.x), (i32)(fish.y), fish.size, fish.angle, color, finColor);
 }
 
 // 绘制鲨鱼 (红色)
 pub fn draw_shark(fish: Fish*) {
     let color = Color {r: (u8)200, g: (u8)60, b: (u8)60};
     let finColor = Color {r: (u8)150, g: (u8)40, b: (u8)40};
-    draw_fish_body(fish.(i32)x, fish.(i32)y, fish.size, fish.angle, color, finColor);
+    draw_fish_body((i32)(fish.x), (i32)(fish.y), fish.size, fish.angle, color, finColor);
     
     // 鲨鱼背鳍
     let dirX = cosi(fish.angle);
     let dirY = sini(fish.angle);
-    let finX = fish.(i32)x - dirY * fish.size / 3;
-    let finY = fish.(i32)y + dirX * fish.size / 3;
+    let finX = (i32)(fish.x) - dirY * fish.size / 3;
+    let finY = (i32)(fish.y) + dirX * fish.size / 3;
     fb_draw_triangle(finX, finY, finX - fish.size / 2, finY, finX, finY - fish.size / 2, finColor);
 }
 
@@ -164,10 +164,10 @@ pub fn draw_goldfish(fish: Fish*) {
     
     let color = Color {r: r, g: g, b: b};
     let finColor = Color {r: (u8)((i32)r - 30), g: (u8)((i32)g - 30), b: (u8)((i32)b - 30)};
-    draw_fish_body(fish.(i32)x, fish.(i32)y, fish.size, fish.angle, color, finColor);
+    draw_fish_body((i32)(fish.x), (i32)(fish.y), fish.size, fish.angle, color, finColor);
     
     // 金鱼发光效果
-    fb_draw_circle(fish.(i32)x, fish.(i32)y, fish.size / 2 + 5, Color {r: (u8)255, g: (u8)255, b: (u8)100});
+    fb_draw_circle((i32)(fish.x), (i32)(fish.y), fish.size / 2 + 5, Color {r: (u8)255, g: (u8)255, b: (u8)100});
 }
 
 // 根据类型绘制鱼
@@ -177,11 +177,11 @@ pub fn draw_fish(fish: Fish*) {
     }
     
     match fish.fishType {
-        FishType::SmallFish => draw_small_fish(fish);
-        FishType::MediumFish => draw_medium_fish(fish);
-        FishType::LargeFish => draw_large_fish(fish);
-        FishType::Shark => draw_shark(fish);
-        FishType::GoldFish => draw_goldfish(fish);
+        SmallFish => draw_small_fish(fish);
+        MediumFish => draw_medium_fish(fish);
+        LargeFish => draw_large_fish(fish);
+        Shark => draw_shark(fish);
+        GoldFish => draw_goldfish(fish);
         _ => draw_small_fish(fish);
     }
 }

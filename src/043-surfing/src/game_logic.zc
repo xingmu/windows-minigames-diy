@@ -86,7 +86,7 @@ struct SurfingState {
     wave_offset: i32,       // 波浪偏移量
     wave_speed: i32,        // 波浪速度
     surfer: Surfer,
-    collectibles: [COLLECTIBLE_COUNT]Collectible,
+    collectibles: [Collectible; COLLECTIBLE_COUNT],
     clouds: [Cloud; 5],
     time: i32,
     game_over_reason: str,
@@ -126,7 +126,7 @@ fn get_wave_slope(wave_offset: i32, x: i32, base_y: i32) -> i32 {
 }
 
 // 初始化游戏
-fn init_game(state: &SurfingState) {
+fn init_game(state: SurfingState*) {
     state.status = GameStatus.Ready;
     state.score = 0;
     state.level = 1;
@@ -161,7 +161,7 @@ fn init_game(state: &SurfingState) {
 }
 
 // 开始新游戏
-fn start_game(state: &SurfingState) {
+fn start_game(state: SurfingState*) {
     state.status = GameStatus.Playing;
     state.score = 0;
     state.level = 1;
@@ -184,7 +184,7 @@ fn start_game(state: &SurfingState) {
 }
 
 // 处理输入
-fn handle_input(state: &SurfingState, key: i32) -> bool {
+fn handle_input(state: SurfingState*, key: i32) -> bool {
     match state.status {
         GameStatus::Ready => {
             if key == 32 || key == 13 { // 空格或回车
@@ -251,7 +251,7 @@ fn handle_input(state: &SurfingState, key: i32) -> bool {
 }
 
 // 释放按键
-fn release_input(state: &SurfingState, key: i32) {
+fn release_input(state: SurfingState*, key: i32) {
     if state.status != GameStatus.Playing {
         return;
     }
@@ -274,7 +274,7 @@ fn release_input(state: &SurfingState, key: i32) {
 }
 
 // 生成收集物品
-fn spawn_collectibles(state: &SurfingState) {
+fn spawn_collectibles(state: SurfingState*) {
     let base_y = GAME_HEIGHT / 2 + 20;
     for i in 0..COLLECTIBLE_COUNT {
         if !state.collectibles[i].active {
@@ -288,7 +288,7 @@ fn spawn_collectibles(state: &SurfingState) {
 }
 
 // 更新游戏状态
-fn update_game(state: &SurfingState, dt: u32) -> bool {
+fn update_game(state: SurfingState*, dt: u32) -> bool {
     if state.status != GameStatus.Playing {
         return true;
     }
@@ -480,7 +480,7 @@ fn get_wave_speed(state: SurfingState*) -> i32 {
 }
 
 // 获取收集物品
-fn get_collectibles(state: SurfingState*) -> [COLLECTIBLE_COUNT]Collectible {
+fn get_collectibles(state: SurfingState*) -> [Collectible; COLLECTIBLE_COUNT] {
     return state.collectibles;
 }
 

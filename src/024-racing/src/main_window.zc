@@ -139,7 +139,7 @@ class RacingGame extends Game {
         }
         
         // 摩擦力
-        let friction = self.isOnTrack(car.(int)x, car.(int)y) ? FRICTION : OFF_ROAD_FRICTION;
+        let friction = self.isOnTrack((int)(car.x), (int)(car.y)) ? FRICTION : OFF_ROAD_FRICTION;
         car.speed = car.speed * friction;
         
         // 速度限制
@@ -184,7 +184,7 @@ class RacingGame extends Game {
         }
         
         // 检查点检测
-        self.checkCheckpoint(car.(int)x, car.(int)y);
+        self.checkCheckpoint((int)(car.x), (int)(car.y));
         
         // 更新峰值速度
         if car.speed > self.maxSpeedSeen {
@@ -294,7 +294,7 @@ class RacingGame extends Game {
         let hh = CAR_HEIGHT / 2;
         
         // 简化为矩形车体，带方向指示
-        let points: [int, 8] = [
+        let points: [i32; 8] = [
             cx - hw, cy - hh,  // 左上
             cx + hw, cy - hh,  // 右上
             cx + hw, cy + hh,  // 右下
@@ -363,13 +363,12 @@ class RacingGame extends Game {
         // 圈数
         canvas.fillRect(WINDOW_WIDTH - 110, 10, 100, 40, Color.ARGB(180, 0, 0, 0));
         canvas.drawRect(WINDOW_WIDTH - 110, 10, 100, 40, Color.White());
-        canvas.drawText(WINDOW_WIDTH - 100, 20, "LAP {self}".lap.toString(), Color.White(), Font("Arial", 18));
+        canvas.drawText(WINDOW_WIDTH - 100, 20, "LAP {self.lap}", Color.White(), Font("Arial", 18));
         
         // 时间
         let secs = self.elapsedTime / 1000;
         let ms = self.elapsedTime % 1000;
-        let timeStr = (secs / 60).toString() ++ ":" ++ ((secs % 60) / 10).toString() ++ 
-                      ((secs % 60) % 10).toString() ++ "." ++ (ms / 100).toString();
+        let timeStr = "{(secs / 60)}:{((secs % 60) / 10)}{((secs % 60) % 10)}.{(ms / 100)}";
         canvas.fillRect(WINDOW_WIDTH - 160, 55, 150, 30, Color.ARGB(180, 0, 0, 0));
         canvas.drawText(WINDOW_WIDTH - 150, 60, timeStr, Color.Cyan(), Font("Arial", 16));
         

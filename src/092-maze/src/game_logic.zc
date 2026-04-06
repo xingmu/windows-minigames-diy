@@ -46,7 +46,7 @@ struct Cell {
 // ==================== 游戏状态 ====================
 
 struct MazeGameState {
-    maze: [MAZE_WIDTH * MAZE_HEIGHT]Cell,
+    maze: [Cell; MAZE_WIDTH * MAZE_HEIGHT],
     playerX: i32,
     playerY: i32,
     exitX: i32,
@@ -80,7 +80,7 @@ fn inBounds(x: i32, y: i32) -> bool {
 // ==================== 迷宫生成算法 ====================
 
 // 递归回溯生成迷宫
-fn generateMaze(game: &MazeGameState) {
+fn generateMaze(game: MazeGameState*) {
     // 初始化所有单元格
     for i in 0..(MAZE_WIDTH * MAZE_HEIGHT) {
         game.maze[i].visited = false;
@@ -94,7 +94,7 @@ fn generateMaze(game: &MazeGameState) {
     game.startY = 0;
     
     // 使用栈进行递归回溯（非递归实现避免栈溢出）
-    let stack: [(MAZE_WIDTH * MAZE_HEIGHT)]Position = [Position {x:0, y:0}; MAZE_WIDTH * MAZE_HEIGHT];
+    let stack: [Position; MAZE_WIDTH * MAZE_HEIGHT] = [Position {x:0, y:0}; MAZE_WIDTH * MAZE_HEIGHT];
     let stackTop: i32 = 0;
     
     stack[0] = Position { x: game.startX, y: game.startY };
@@ -109,7 +109,7 @@ fn generateMaze(game: &MazeGameState) {
         let cy = current.y;
         
         // 获取所有未访问的邻居
-        let neighbors: [Position; 4] = [Position {x:0, y:0}; 4];
+        let neighbors: [Position; 4] = [Position {x:0, y:0}, Position {x:0, y:0}, Position {x:0, y:0}, Position {x:0, y:0}];
         let neighborCount: i32 = 0;
         
         // 北
@@ -174,7 +174,7 @@ fn generateMaze(game: &MazeGameState) {
 
 // ==================== 游戏初始化 ====================
 
-fn initGame(game: &MazeGameState) {
+fn initGame(game: MazeGameState*) {
     game.width = GAME_WIDTH;
     game.height = GAME_HEIGHT;
     game.score = 0;
@@ -192,7 +192,7 @@ fn initGame(game: &MazeGameState) {
 
 // ==================== 重新开始游戏 ====================
 
-fn restartGame(game: &MazeGameState) {
+fn restartGame(game: MazeGameState*) {
     game.score = 0;
     game.moves = 0;
     game.gameWon = false;
@@ -208,7 +208,7 @@ fn restartGame(game: &MazeGameState) {
 
 // ==================== 键盘输入处理 ====================
 
-fn handleInput(game: &MazeGameState, key: VirtualKey) -> bool {
+fn handleInput(game: MazeGameState*, key: VirtualKey) -> bool {
     if game.gameWon {
         // 游戏结束后按任意键重新开始
         restartGame(game);

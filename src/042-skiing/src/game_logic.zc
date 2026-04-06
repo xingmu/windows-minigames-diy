@@ -59,7 +59,7 @@ struct Obstacle {
 
 struct SkiingState {
     skier: Skier,
-    obstacles: [MAX_OBSTACLES]Obstacle,
+    obstacles: [Obstacle; MAX_OBSTACLES],
     obstacle_count: i32,
     score: i32,
     distance: i32,
@@ -79,7 +79,7 @@ struct Color {
 }
 
 fn rgb(r: u8, g: u8, b: u8) -> Color {
-    Color { r, g, b }
+    Color { r: r, g: g, b: b }
 }
 
 // 游戏颜色
@@ -99,7 +99,7 @@ def COLOR_SKI_TRACK: Color = rgb(200, 200, 220); // 雪痕
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &SkiingState) {
+fn init_game(game: SkiingState*) {
     game.width = GAME_WIDTH;
     game.height = GAME_HEIGHT;
     game.score = 0;
@@ -132,7 +132,7 @@ fn init_game(game: &SkiingState) {
 }
 
 // 处理键盘输入
-fn handle_input(game: &SkiingState, key: KeyCode) -> bool {
+fn handle_input(game: SkiingState*, key: KeyCode) -> bool {
     match key {
         KeyCode::KeyLeft => {
             game.skier.velocity_x = -SKIER_SPEED;
@@ -174,7 +174,7 @@ fn handle_input(game: &SkiingState, key: KeyCode) -> bool {
 }
 
 // 处理键盘释放
-fn handle_key_up(game: &SkiingState, key: KeyCode) {
+fn handle_key_up(game: SkiingState*, key: KeyCode) {
     match key {
         KeyCode::KeyLeft => {
             if game.skier.velocity_x < 0 {
@@ -191,7 +191,7 @@ fn handle_key_up(game: &SkiingState, key: KeyCode) {
 }
 
 // 生成障碍物
-fn spawn_obstacle(game: &SkiingState) {
+fn spawn_obstacle(game: SkiingState*) {
     // 找到非活跃的障碍物
     let slot = -1;
     for i in 0..MAX_OBSTACLES {
@@ -238,7 +238,7 @@ fn check_collision(a_x: i32, a_y: i32, a_w: i32, a_h: i32,
 }
 
 // 更新游戏逻辑
-fn update_game(game: &SkiingState) -> bool {
+fn update_game(game: SkiingState*) -> bool {
     if game.status != GameStatus.Playing {
         return false;
     }
@@ -344,7 +344,7 @@ fn get_obstacle_info(game: SkiingState*, index: i32) -> (i32, i32, i32, i32, i32
             obs.y, 
             obs.width, 
             obs.height, 
-            obs.(i32)type
+            (i32)(obs.type)
         )
     } else {
         (0, 0, 0, 0, 0)

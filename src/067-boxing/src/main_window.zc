@@ -96,7 +96,7 @@ fn draw_boxer(ctx: GraphicsContext, boxer: Boxer*) {
                 draw_rect(ctx, boxer.x - 5, armY + 5, 10, 8, color);
             }
         },
-        BoxerAction.Hit, BoxerAction::KO => {
+        BoxerAction::Hit, BoxerAction::KO_WIN => {
             // 被击中 - 向后仰
             let knockback = if boxer.facingRight { -15 } else { 15 };
             draw_rect(ctx, boxer.x - 30 + knockback, armY, 30, 8, color);
@@ -111,7 +111,7 @@ fn draw_boxer(ctx: GraphicsContext, boxer: Boxer*) {
     
     // 腿
     let legY = y + 60;
-    if boxer.action == BoxerAction.KO {
+    if boxer.action == BoxerAction::KO_WIN {
         // KO时倒下
         draw_rect(ctx, x + 5, y + 50, 50, 15, color);
     } else {
@@ -121,7 +121,7 @@ fn draw_boxer(ctx: GraphicsContext, boxer: Boxer*) {
     
     // 绘制手套高光
     let gloveColor = if boxer.facingRight { rgb(200, 50, 50) } else { rgb(50, 50, 200) };
-    if boxer.action == BoxerAction.Jab || boxer.action == BoxerAction.Hook {
+    if boxer.action == BoxerAction::Jab || boxer.action == BoxerAction::Hook {
         let gloveX = if boxer.facingRight { boxer.x + 55 } else { boxer.x - 65 };
         draw_circle(ctx, gloveX, armY + 4, 8, gloveColor);
     }
@@ -182,7 +182,7 @@ fn draw_effects(ctx: GraphicsContext) {
     if game.hitEffectTimer > 0 {
         let targetX = game.ai.x;
         let targetY = game.ai.y;
-        if game.player.action == BoxerAction.Hit {
+        if game.player.action == BoxerAction::Hit {
             targetX = game.player.x;
             targetY = game.player.y;
         }

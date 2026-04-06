@@ -29,7 +29,7 @@ enum GamePhase {
     Reset,       // 重置
 };
 
-pub struct BasketballGame {
+struct BasketballGame {
     // 游戏状态
     phase: GamePhase;
     score: int;
@@ -71,7 +71,7 @@ static mut game: BasketballGame;
 
 // ==================== 初始化 ====================
 
-fn initGame(mut game: BasketballGame*) {
+fn initGame(game: BasketballGame*) {
     game.phase = GamePhase.Aiming;
     game.score = 0;
     game.attempts = 0;
@@ -90,10 +90,10 @@ fn initGame(mut game: BasketballGame*) {
     game.backboardH = 120;
     
     // 篮球初始位置 (左侧)
-    resetBall(mut game);
+    resetBall(&game);
 }
 
-fn resetBall(mut game: BasketballGame*) {
+fn resetBall(game: BasketballGame*) {
     game.ballX = 120;
     game.ballY = 450;
     game.ballVX = 0;
@@ -103,21 +103,21 @@ fn resetBall(mut game: BasketballGame*) {
 
 // ==================== 更新逻辑 ====================
 
-fn updateGame(mut game: BasketballGame*) {
+fn updateGame(game: BasketballGame*) {
     match game.phase {
         GamePhase::Aiming => {
             // 瞄准中 - 等待按键
         },
         GamePhase::Shooting => {
             // 球在飞行
-            updateBallFlight(mut game);
+            updateBallFlight(&game);
         },
         GamePhase::Scored => {
             // 进球动画
             game.scoreTimer = game.scoreTimer - 1;
             if game.scoreTimer <= 0 {
                 game.attempts = game.attempts + 1;
-                resetBall(mut game);
+                resetBall(&game);
             }
         },
         GamePhase::Missed => {
@@ -125,17 +125,17 @@ fn updateGame(mut game: BasketballGame*) {
             game.missTimer = game.missTimer - 1;
             if game.missTimer <= 0 {
                 game.attempts = game.attempts + 1;
-                resetBall(mut game);
+                resetBall(&game);
             }
         },
         GamePhase::Reset => {
-            resetBall(mut game);
+            resetBall(&game);
         },
         _ => {}
     }
 }
 
-fn updateBallFlight(mut game: BasketballGame*) {
+fn updateBallFlight(game: BasketballGame*) {
     // 物理更新
     game.ballX = game.ballX + game.ballVX;
     game.ballY = game.ballY + game.ballVY;
@@ -168,10 +168,10 @@ fn updateBallFlight(mut game: BasketballGame*) {
     }
     
     // 篮筐碰撞检测
-    checkHoopCollision(mut game);
+    checkHoopCollision(&game);
 }
 
-fn checkHoopCollision(mut game: BasketballGame*) {
+fn checkHoopCollision(game: BasketballGame*) {
     // 简单的篮筐碰撞检测
     // 检测球是否穿过篮筐
     
@@ -411,7 +411,7 @@ fn drawPowerMeter(canvas: Canvas*, game: BasketballGame*) {
     canvas.drawText(meterX - 5, meterY - 20, "POWER", Color.White(), Font("Arial", 12));
     
     // 角度指示
-    let angleText = game."{angle}°";
+    let angleText = "{game.angle}°";
     canvas.drawText(meterX - 10, meterY + meterH + 10, angleText, Color.White(), Font("Arial", 12));
 }
 
@@ -488,12 +488,12 @@ fn onKeyDown(key: VirtualKey) {
         },
         VirtualKey::Space => {
             if game.phase == GamePhase.Aiming {
-                shootBall(mut &game);
+                shootBall(&game);
             }
         },
         VirtualKey::KeyR => {
             game.attempts = game.attempts + 1;
-            resetBall(mut &game);
+            resetBall(&game);
         },
         VirtualKey::Escape => {
             game.phase = GamePhase.Missed;
@@ -502,7 +502,7 @@ fn onKeyDown(key: VirtualKey) {
     }
 }
 
-fn shootBall(mut game: BasketballGame*) {
+fn shootBall(game: BasketballGame*) {
     game.phase = GamePhase.Shooting;
     
     // 根据角度和力量计算速度
@@ -574,13 +574,13 @@ pub fn main() {
     println "===========================================";
     
     // 初始化游戏
-    initGame(mut &game);
+    initGame(&game);
     
     // 游戏主循环
     while game.phase != GamePhase.Missed || game.missTimer > 0 {
         // 处理输入 (简化，实际需要消息循环)
         // 更新游戏
-        updateGame(mut &game);
+        updateGame(&game);
         
         // 渲染 (需要窗口和canvas)
         // drawGame(&canvas, &game);
@@ -590,8 +590,8 @@ pub fn main() {
     }
     
     println "游戏结束!";
-    println("最终得分: {game}".score.toString());
-    println("投篮次数: {game}".attempts.toString());
+    println "最终得分: " ++ game.score.toString()
+    println "投篮次数: " ++ game.attempts.toString()
 }
 
 // 导出绘制函数供外部调用
@@ -600,7 +600,7 @@ pub fn draw(canvas: Canvas*) {
 }
 
 pub fn update() {
-    updateGame(mut &game);
+    updateGame(&game);
 }
 
 pub fn keyDown(key: VirtualKey) {

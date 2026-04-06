@@ -363,7 +363,7 @@ fn getTimerText(game: SudokuGame*) -> string {
     let total_seconds = (game.timer / 1000) as i32;
     let minutes = total_seconds / 60;
     let seconds = total_seconds % 60;
-    format("{:02}:{:02}", minutes, seconds)
+    format("%02d:%02d", minutes, seconds)
 }
 
 // 检查点是否在网格内

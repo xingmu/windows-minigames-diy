@@ -142,7 +142,7 @@ def WM_DESTROY: u32 = 0x0002;
 def WM_TIMER: u32 = 0x0113;
 def WM_SIZE: u32 = 0x0005;
 def COLOR_WINDOW: i32 = 5;
-def IDC_ARROW: i8* = (i8)(32512)*;
+def IDC_ARROW: i8* = (i8*)32512;
 def SRCCOPY: u32 = 0x00CC0020;
 def GWLP_WNDPROC: i32 = -4;
 def CS_HREDRAW: u32 = 0x0002;
@@ -172,7 +172,7 @@ fn create_window(title: string, width: i32, height: i32) -> WindowHandle {
             hInstance: hInstance,
             hIcon: null,
             hCursor: LoadCursorA(null, IDC_ARROW),
-            hbrBackground: (void)(1)*,
+            hbrBackground: (void*)(1),
             lpszMenuName: null,
             lpszClassName: "PachinkoGame\0".c_str(),
         };
@@ -242,7 +242,7 @@ fn redraw_window(window: WindowHandle) {
 
 fn get_window_client_size(window: WindowHandle, width: i32*, height: i32*) -> bool {
     #if IS_WINDOWS
-        let rect: [i32; 4] = [0; 4];
+        let rect: i32[4] = [0, 0, 0, 0];
         if GetClientRect(window, &rect) {
             *width = rect[2] - rect[0];
             *height = rect[3] - rect[1];
@@ -272,14 +272,14 @@ fn rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
 }
 
 fn color_to_u32(c: Color) -> u32 {
-    (c.(u32)r) | ((c.(u32)g) << 8) | ((c.(u32)b) << 16)
+    (u32)(c.r) | ((u32)(c.g) << 8) | ((u32)(c.b) << 16)
 }
 
 fn draw_rect(ctx: GraphicsContext, x: i32, y: i32, width: i32, height: i32, color: Color) {
     #if IS_WINDOWS
         let brush = CreateSolidBrush(color_to_u32(color));
         let old_brush = SelectObject(ctx, brush);
-        let rect: [i32; 4] = [x, y, x + width, y + height];
+        let rect: i32[4] = [x, y, x + width, y + height];
         FillRect(ctx, &rect, brush);
         SelectObject(ctx, old_brush);
         DeleteObject(brush);
@@ -346,7 +346,7 @@ fn fb_draw_rect(x: i32, y: i32, width: i32, height: i32, color: Color) {
         if !fb_data.valid { return; }
         let brush = CreateSolidBrush(color_to_u32(color));
         let old_brush = SelectObject(fb_data.memDC, brush);
-        let rect: [i32; 4] = [x, y, x + width, y + height];
+        let rect: i32[4] = [x, y, x + width, y + height];
         FillRect(fb_data.memDC, &rect, brush);
         SelectObject(fb_data.memDC, old_brush);
         DeleteObject(brush);
@@ -413,7 +413,7 @@ fn fb_draw_text(x: i32, y: i32, text: string, color: Color) {
                                DEFAULT_QUALITY, DEFAULT_PITCH, "Arial\0".c_str());
         let old_font = SelectObject_3(fb_data.memDC, font);
         
-        TextOutA(fb_data.memDC, x, y, text.c_str(), text.(i32)len);
+        TextOutA(fb_data.memDC, x, y, text.c_str(), (i32)(text.len));
         
         SelectObject_3(fb_data.memDC, old_font);
         DeleteObject_3(font);
@@ -433,7 +433,7 @@ fn fb_draw_text_size(x: i32, y: i32, text: string, color: Color, size: i32) {
                                DEFAULT_QUALITY, DEFAULT_PITCH, "Arial\0".c_str());
         let old_font = SelectObject_3(fb_data.memDC, font);
         
-        TextOutA(fb_data.memDC, x, y, text.c_str(), text.(i32)len);
+        TextOutA(fb_data.memDC, x, y, text.c_str(), (i32)(text.len));
         
         SelectObject_3(fb_data.memDC, old_font);
         DeleteObject_3(font);
@@ -447,17 +447,17 @@ fn fb_draw_text_size(x: i32, y: i32, text: string, color: Color, size: i32) {
 #if IS_WINDOWS
 
 type KeyHandler = fn(KeyCode) -> bool;
-type KeyUpHandler = fn(KeyCode) -> void;
+type KeyUpHandler = fn(KeyCode);
 type TimerHandler = fn() -> bool;
-type PaintHandler = fn(i32, i32) -> void;
-type MouseHandler = fn(i32, i32) -> void;
+type PaintHandler = fn(i32, i32);
+type MouseHandler = fn(i32, i32);
 
 private mut key_handler: KeyHandler = null;
 private mut key_up_handler: KeyUpHandler = null;
 private mut timer_handler: TimerHandler = null;
 private mut paint_handler: PaintHandler = null;
 private mut mouse_handler: MouseHandler = null;
-private mut destroy_handler: fn() -> void = null;
+private mut destroy_handler: fn() = null;
 private mut client_width: i32 = 480;
 private mut client_height: i32 = 640;
 

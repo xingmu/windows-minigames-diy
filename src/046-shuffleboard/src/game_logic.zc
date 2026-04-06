@@ -94,7 +94,7 @@ enum GameStatus {
 }
 
 struct ShuffleboardState {
-    pucks: [MAX_PUCKS]Puck,
+    pucks: [Puck; MAX_PUCKS],
     puckCount: i32,
     status: GameStatus,
     score1: i32,      // 玩家1分数
@@ -161,7 +161,7 @@ fn pucksColliding(p1: Puck*, p2: Puck*) -> bool {
 // ==================== 球台物理 ====================
 
 // 边界碰撞检测
-fn checkWallCollision(puck: &Puck) {
+fn checkWallCollision(puck: Puck*) {
     if !puck.active {
         return;
     }
@@ -190,7 +190,7 @@ fn checkWallCollision(puck: &Puck) {
 }
 
 // 球球碰撞检测与响应
-fn checkPuckCollision(state: &ShuffleboardState) {
+fn checkPuckCollision(state: ShuffleboardState*) {
     for i in 0..state.puckCount {
         if !state.pucks[i].active {
             continue;
@@ -259,7 +259,7 @@ fn getZoneScore(y: i32) -> i32 {
 def ZONE_9_Y: i32 = 150; // 9分区 (10和8之间)
 
 // 计算并显示分数
-fn calculateScores(state: &ShuffleboardState) {
+fn calculateScores(state: ShuffleboardState*) {
     state.score1 = 0;
     state.score2 = 0;
     
@@ -286,7 +286,7 @@ fn calculateScores(state: &ShuffleboardState) {
 // ==================== 初始化 ====================
 
 // 初始化游戏
-fn init_game(state: &ShuffleboardState) {
+fn init_game(state: ShuffleboardState*) {
     state.width = GAME_WIDTH;
     state.height = GAME_HEIGHT;
     state.status = GameStatus.Ready;
@@ -316,18 +316,18 @@ fn init_game(state: &ShuffleboardState) {
 }
 
 // 重置本轮
-fn resetRound(state: &ShuffleboardState) {
+fn resetRound(state: ShuffleboardState*) {
     state.puckCount = 0;
     for i in 0..MAX_PUCKS {
         state.pucks[i].active = false;
         state.pucks[i].scored = false;
     }
     state.status = GameStatus.Ready;
-    state.message = "玩家{state}"."{currentPlayer}: 点击并向上拖拽发射!";
+    state.message = "玩家{state.currentPlayer}: 点击并向上拖拽发射!";
 }
 
 // 添加一个球
-fn addPuck(state: &ShuffleboardState, x: i32, y: i32, player: i32) -> i32 {
+fn addPuck(state: ShuffleboardState*, x: i32, y: i32, player: i32) -> i32 {
     if state.puckCount >= MAX_PUCKS {
         return -1;
     }
@@ -353,7 +353,7 @@ fn addPuck(state: &ShuffleboardState, x: i32, y: i32, player: i32) -> i32 {
 // ==================== 发射逻辑 ====================
 
 // 发射球
-fn shoot(state: &ShuffleboardState, x: i32, power: i32) {
+fn shoot(state: ShuffleboardState*, x: i32, power: i32) {
     // 从底部向上发射
     let shootY = SHOOT_ZONE_Y - PUCK_RADIUS - 5;
     
@@ -375,7 +375,7 @@ fn shoot(state: &ShuffleboardState, x: i32, power: i32) {
 // ==================== 更新逻辑 ====================
 
 // 更新所有球的物理状态
-fn updatePucks(state: &ShuffleboardState) -> bool {
+fn updatePucks(state: ShuffleboardState*) -> bool {
     let anyMoving = false;
 
     for i in 0..state.puckCount {
@@ -438,7 +438,7 @@ fn allPucksStopped(state: ShuffleboardState*) -> bool {
 
 // ==================== 鼠标处理 ====================
 
-fn onMouseDown(state: &ShuffleboardState, x: i32, y: i32) {
+fn onMouseDown(state: ShuffleboardState*, x: i32, y: i32) {
     if state.status == GameStatus.Moving {
         return;
     }
@@ -456,7 +456,7 @@ fn onMouseDown(state: &ShuffleboardState, x: i32, y: i32) {
     state.shootX = x;
 }
 
-fn onMouseMove(state: &ShuffleboardState, x: i32, y: i32) {
+fn onMouseMove(state: ShuffleboardState*, x: i32, y: i32) {
     state.mouseX = x;
     state.mouseY = y;
     
@@ -470,7 +470,7 @@ fn onMouseMove(state: &ShuffleboardState, x: i32, y: i32) {
     }
 }
 
-fn onMouseUp(state: &ShuffleboardState, x: i32, y: i32) {
+fn onMouseUp(state: ShuffleboardState*, x: i32, y: i32) {
     if state.status == GameStatus.Charging {
         if state.power > 3 {
             shoot(state, state.shootX, state.power);
@@ -487,7 +487,7 @@ fn getStatusText(state: ShuffleboardState*) -> string {
     match state.status {
         GameStatus::Ready => return state.message,
         GameStatus::Aiming => return "瞄准中...",
-        GameStatus::Charging => return "蓄力中: {state}"."{power}  松开发射!",
+        GameStatus::Charging => return "蓄力中: {state.power}  松开发射!",
         GameStatus::Moving => return "球运动中...",
         GameStatus::Scoring => return "计分中...",
         GameStatus::GameOver => return "游戏结束! 点击重新开始",

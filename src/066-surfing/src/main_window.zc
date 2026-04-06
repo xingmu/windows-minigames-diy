@@ -330,7 +330,7 @@ fn on_paint(w: i32, h: i32) {
     presentFrame(window);
 }
 
-fn draw_ui(pixels: u32* mut, pitch: i32*, w: i32, h: i32) {
+fn draw_ui(pixels: rawptr, pitch: rawptr, w: i32, h: i32) {
     // 分数背景
     for py in 10..45 {
         for px in 10..180 {
@@ -404,7 +404,7 @@ fn draw_ui(pixels: u32* mut, pitch: i32*, w: i32, h: i32) {
     }
 }
 
-fn draw_text_str(pixels: u32* mut, pitch: i32*, x: i32, y: i32, text: str, color: Color, w: i32, h: i32) {
+fn draw_text_str(pixels: rawptr, pitch: rawptr, x: i32, y: i32, text: str, color: Color, w: i32, h: i32) {
     // 简化文字绘制 - 用小方块代替像素字体
     let char_w = 8;
     let char_h = 12;
@@ -436,7 +436,7 @@ fn draw_text_str(pixels: u32* mut, pitch: i32*, x: i32, y: i32, text: str, color
     }
 }
 
-fn draw_number(pixels: u32* mut, pitch: i32*, x: i32, y: i32, num: i32, color: Color, w: i32, h: i32) {
+fn draw_number(pixels: rawptr, pitch: rawptr, x: i32, y: i32, num: i32, color: Color, w: i32, h: i32) {
     // 数字显示
     if num < 0 {
         return;
@@ -486,7 +486,7 @@ fn draw_number(pixels: u32* mut, pitch: i32*, x: i32, y: i32, num: i32, color: C
     }
 }
 
-fn draw_heart(pixels: u32* mut, pitch: i32*, x: i32, y: i32, color: Color, w: i32, h: i32) {
+fn draw_heart(pixels: rawptr, pitch: rawptr, x: i32, y: i32, color: Color, w: i32, h: i32) {
     // 绘制心形
     let heart_w = 24;
     let heart_h = 20;

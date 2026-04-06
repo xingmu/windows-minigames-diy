@@ -248,7 +248,7 @@ struct Color {
 
 // 创建颜色
 fn rgb(r: u8, g: u8, b: u8) -> Color {
-    Color { r, g, b }
+    Color { r: r, g: g, b: b }
 }
 
 // 绘制矩形

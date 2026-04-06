@@ -369,7 +369,7 @@ fn drawBackground(ctx: rawptr, pitch: int, buffer: rawptr) {
     let stride = 40;
     let off = (gameTime / 50) % stride;
     for y in (-stride + off)..WINDOW_HEIGHT {
-        let alpha = (((y + stride - off) % stride) as float / (float)stride * 80.0) as u8;
+        let alpha = (((y + stride - off) % stride) * 80 / stride) as u8;
         if alpha > 60 { alpha = 60; }
         let lineColor = Color.ARGB(alpha, 160, 195, 215);
         drawRect(ctx, COURSE_LEFT + 10, y, COURSE_WIDTH - 20, 1, pitch, buffer, lineColor);
@@ -437,8 +437,8 @@ fn drawPlayer(ctx: rawptr, pitch: int, buffer: rawptr) {
 
 fn drawParticles(ctx: rawptr, pitch: int, buffer: rawptr) {
     for i in 0..particleCount {
-        let sx = snowParticles[i].(int)(x);
-        let sy = snowParticles[i].(int)(y);
+        let sx = (int)(snowParticles[i].x);
+        let sy = (int)(snowParticles[i].y);
         let sz = snowParticles[i].size;
         
         if sz == 1 {

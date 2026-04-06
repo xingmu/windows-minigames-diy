@@ -126,7 +126,7 @@ def IDC_ARROW: i8* = 32512;
 
 // Linux GTK API封装（简化版本）
 // 注意：实际实现需要更复杂的GTK封装
-extern "libgtk-3.so" fn gtk_init(argc: *i32, argv: **i8);
+// extern "libgtk-3.so" fn gtk_init(argc: *i32, argv: **i8);
 extern "libgtk-3.so" fn gtk_window_new(type: i32) -> WindowHandle;
 extern "libgtk-3.so" fn gtk_window_set_title(window: WindowHandle, title: i8*);
 extern "libgtk-3.so" fn gtk_window_set_default_size(window: WindowHandle, width: i32, height: i32);
@@ -167,8 +167,8 @@ fn create_window(title: string, width: i32, height: i32) -> WindowHandle {
         return hwnd;
     #elif IS_LINUX
         let argc = 0;
-        let argv: **i8 = null;
-        gtk_init(&argc, &argv);
+//         let argv: **i8 = null;
+//         gtk_init(&argc, &argv);
         
         let window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
         gtk_window_set_title(window, title.c_str());
@@ -185,9 +185,9 @@ fn create_window(title: string, width: i32, height: i32) -> WindowHandle {
         let initSelector = sel_registerName("initWithContentRect:styleMask:backing:defer:");
         let styleMask = 15; // NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask
         let backing = 2; // NSBackingStoreBuffered
-        let defer = false;
+        let defer_flag = false;
         
-        let window = objc_msgSend(alloc, initSelector, 0, 0, width, height, styleMask, backing, defer);
+        let window = objc_msgSend(alloc, initSelector, 0, 0, width, height, styleMask, backing, defer_flag);
         objc_msgSend(window, sel_registerName("setTitle:"), title.c_str());
         return window;
     #endif
@@ -248,13 +248,13 @@ struct Color {
 
 // 创建颜色
 fn rgb(r: u8, g: u8, b: u8) -> Color {
-    Color { r, g, b }
+    Color { r: r, g: g, b: b }
 }
 
 // 绘制矩形
 fn draw_rect(ctx: GraphicsContext, x: i32, y: i32, width: i32, height: i32, color: Color) {
     #if IS_WINDOWS
-        let brush = CreateSolidBrush((color.(u32)r) | ((color.(u32)g) << 8) | ((color.(u32)b) << 16));
+        let brush = CreateSolidBrush(((u32)(color.r)) | (((u32)(color.g)) << 8) | (((u32)(color.b)) << 16));
         let old_brush = SelectObject(ctx, brush);
         
         let rect: [i32; 4] = [x, y, x + width, y + height];
@@ -271,7 +271,7 @@ fn draw_rect(ctx: GraphicsContext, x: i32, y: i32, width: i32, height: i32, colo
 // 绘制圆形
 fn draw_circle(ctx: GraphicsContext, x: i32, y: i32, radius: i32, color: Color) {
     #if IS_WINDOWS
-        let brush = CreateSolidBrush((color.(u32)r) | ((color.(u32)g) << 8) | ((color.(u32)b) << 16));
+        let brush = CreateSolidBrush(((u32)(color.r)) | (((u32)(color.g)) << 8) | (((u32)(color.b)) << 16));
         let old_brush = SelectObject(ctx, brush);
         
         Ellipse(ctx, x - radius, y - radius, x + radius, y + radius);
@@ -306,7 +306,7 @@ fn redraw_window(window: WindowHandle) {
 // 获取窗口客户端区域
 fn get_window_size(window: WindowHandle, width: i32*, height: i32*) -> bool {
     #if IS_WINDOWS
-        let rect: [i32; 4] = [0; 4];
+        let rect: [i32; 4] = [0, 0, 0, 0];
         if GetClientRect(window, &rect) {
             *width = rect[2] - rect[0];
             *height = rect[3] - rect[1];

@@ -157,7 +157,7 @@ fn getHoleData(holeIndex: i32) -> Hole {
         };
     } else if holeIndex == 1 {
         // 第二洞: 带沙坑
-        let obs = [Obstacle; 8].{};
+        let obs: [Obstacle; 8];
         obs[0] = Obstacle { x: 400, y: 250, width: 80, height: 100, type: 1 };
         return Hole {
             x: 680,
@@ -169,7 +169,7 @@ fn getHoleData(holeIndex: i32) -> Hole {
         };
     } else if holeIndex == 2 {
         // 第三洞: 水障碍
-        let obs = [Obstacle; 8].{};
+        let obs: [Obstacle; 8];
         obs[0] = Obstacle { x: 350, y: 200, width: 100, height: 200, type: 2 };
         return Hole {
             x: 680,
@@ -181,7 +181,7 @@ fn getHoleData(holeIndex: i32) -> Hole {
         };
     } else {
         // 第四洞: 复杂障碍
-        let obs = [Obstacle; 8].{};
+        let obs: [Obstacle; 8];
         obs[0] = Obstacle { x: 300, y: 150, width: 60, height: 80, type: 1 };
         obs[1] = Obstacle { x: 450, y: 350, width: 80, height: 100, type: 1 };
         obs[2] = Obstacle { x: 500, y: 200, width: 100, height: 60, type: 2 };
@@ -198,7 +198,7 @@ fn getHoleData(holeIndex: i32) -> Hole {
 
 // ==================== 初始化 ====================
 
-fn initHole(game: &GolfGame) {
+fn initHole(game: GolfGame*) {
     game.hole = getHoleData(game.currentHole);
     game.ball.x = 100;
     game.ball.y = 300;
@@ -212,7 +212,7 @@ fn initHole(game: &GolfGame) {
 }
 
 // 初始化游戏
-fn golfInit(game: &GolfGame) {
+fn golfInit(game: GolfGame*) {
     game.currentHole = 0;
     game.totalStrokes = 0;
     game.score = 0;
@@ -232,7 +232,7 @@ fn getObstacleAt(ball: GolfBall*, hole: Hole*) -> Obstacle {
     return Obstacle { x: -1, y: -1, width: 0, height: 0, type: -1 };
 }
 
-fn updateBall(game: &GolfGame) -> bool {
+fn updateBall(game: GolfGame*) -> bool {
     let ball = game.ball;
     
     if !ball.active {
@@ -317,7 +317,7 @@ fn allBallsStopped(game: GolfGame*) -> bool {
 }
 
 // 击球
-fn shoot(game: &GolfGame, power: i32, dx: i32, dy: i32) {
+fn shoot(game: GolfGame*, power: i32, dx: i32, dy: i32) {
     let dist = sqrt_int(dx * dx + dy * dy);
     if dist == 0 || power <= 0 {
         return;
@@ -339,7 +339,7 @@ fn shoot(game: &GolfGame, power: i32, dx: i32, dy: i32) {
 
 // ==================== 鼠标处理 ====================
 
-fn golfOnMouseDown(game: &GolfGame, x: i32, y: i32) {
+fn golfOnMouseDown(game: GolfGame*, x: i32, y: i32) {
     if game.gameStatus == GolfState.Moving {
         return;
     }
@@ -370,7 +370,7 @@ fn golfOnMouseDown(game: &GolfGame, x: i32, y: i32) {
     game.showPowerBar = true;
 }
 
-fn golfOnMouseMove(game: &GolfGame, x: i32, y: i32) {
+fn golfOnMouseMove(game: GolfGame*, x: i32, y: i32) {
     game.mouseX = x;
     game.mouseY = y;
     
@@ -381,7 +381,7 @@ fn golfOnMouseMove(game: &GolfGame, x: i32, y: i32) {
     }
 }
 
-fn golfOnMouseUp(game: &GolfGame, x: i32, y: i32) {
+fn golfOnMouseUp(game: GolfGame*, x: i32, y: i32) {
     if game.gameStatus == GolfState.Dragging {
         if game.power > 1 {
             // 从终点到起点的方向就是击球方向
@@ -515,7 +515,7 @@ fn drawPowerBar(canvas: Canvas*, game: GolfGame*) {
     canvas.fillRect(barX, barY, barWidth, barHeight, POWER_BAR_BG);
     
     // 填充
-    let fillWidth = (game.(i32)power * barWidth) / MAX_POWER;
+    let fillWidth = (game.power * barWidth) / MAX_POWER;
     let powerColor = POWER_BAR_FILL;
     canvas.fillRect(barX, barY, fillWidth, barHeight, powerColor);
     

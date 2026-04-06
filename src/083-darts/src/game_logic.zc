@@ -75,7 +75,7 @@ struct DartsState {
     status: GameStatus,
     width: i32,
     height: i32,
-    darts: [DARTS_PER_ROUND]Dart,
+    darts: [Dart; DARTS_PER_ROUND],
     last_throw_score: i32,  // 上一次投掷的得分
     message: string,        // 显示消息
 }
@@ -83,7 +83,7 @@ struct DartsState {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &DartsState) {
+fn init_game(game: DartsState*) {
     game.score = INITIAL_SCORE;
     game.round = 1;
     game.darts_thrown = 0;
@@ -106,7 +106,7 @@ fn init_game(game: &DartsState) {
 
 // 计算投掷得分
 fn calculate_score(dx: i32, dy: i32) -> (i32, i32) {
-    let dist = math.sqrt((dx * dx + dy * dy) as f32) as i32;
+    let dist = (i32)(math.sqrt((f32)(dx * dx + dy * dy)));
     let cx = BOARD_CENTER_X;
     let cy = BOARD_CENTER_Y;
     
@@ -152,7 +152,7 @@ fn calculate_score(dx: i32, dy: i32) -> (i32, i32) {
 }
 
 // 投掷飞镖
-fn throw_dart(game: &DartsState, target_x: i32, target_y: i32) {
+fn throw_dart(game: DartsState*, target_x: i32, target_y: i32) {
     if game.status != GameStatus.Aiming {
         return;
     }
@@ -170,8 +170,8 @@ fn throw_dart(game: &DartsState, target_x: i32, target_y: i32) {
     // 添加随机散布（模拟真实投掷）
     let spread = math.rand() % 15 - 7;
     let angle = math.atan2((f32)(dy), (f32)(dx));
-    let spread_x = ((f32)(spread) * math.cos(angle)) as i32;
-    let spread_y = ((f32)(spread) * math.sin(angle)) as i32;
+    let spread_x = ((i32)((f32)(spread) * math.cos(angle)));
+    let spread_y = ((i32)((f32)(spread) * math.sin(angle)));
     
     let dart_index = game.darts_thrown;
     game.darts[dart_index].x = target_x + spread_x;
@@ -214,13 +214,13 @@ fn throw_dart(game: &DartsState, target_x: i32, target_y: i32) {
 }
 
 // 开始下一轮
-fn next_round(game: &DartsState) {
+fn next_round(game: DartsState*) {
     game.round = game.round + 1;
     game.darts_thrown = 0;
     game.round_score = 0;
     game.total_score = game.total_score + game.round_score;
     game.status = GameStatus.Aiming;
-    game.message = "第 {game}"."{round} 轮".to_string();
+    game.message = "第 {game.round} {round} 轮".to_string();
     
     for i in 0..DARTS_PER_ROUND {
         game.darts[i].landed = false;
@@ -232,14 +232,14 @@ fn next_round(game: &DartsState) {
 }
 
 // 重置游戏
-fn reset_game(game: &DartsState) {
+fn reset_game(game: DartsState*) {
     init_game(game);
     game.status = GameStatus.Aiming;
     game.message = "新游戏开始！".to_string();
 }
 
 // 处理键盘输入
-fn handle_input(game: &DartsState, key: KeyCode) -> bool {
+fn handle_input(game: DartsState*, key: KeyCode) -> bool {
     match key {
         KeyCode::KeySpace => {
             if game.status == GameStatus.Ready {
