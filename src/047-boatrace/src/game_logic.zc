@@ -613,7 +613,7 @@ pub class BoatRaceGame extends Game {
         canvas.fillRect(0, 0, self.width, self.height, Color.ARGB(180, 0, 0, 0));
         
         let font = Font("Arial", 48);
-        let text = "🏆 {self}"."{winner} 获胜! 🏆";
+        let text = "🏆 {winner} 获胜! 🏆";
         canvas.drawText(self.width / 2 - 180, self.height / 2 - 80, text, Color.Yellow(), font);
         
         let timeFont = Font("Arial", 28);

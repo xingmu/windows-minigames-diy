@@ -153,7 +153,7 @@ fn grabHandhold() {
         let bestIndex = -1;
         
         for i in 0..handholdCount {
-            let dx = handholds[i].(float)x - climberX;
+            let dx = (float)(handholds[i].x) - climberX;
             let dy = handholds[i].y - climberY;
             let dist = sqrtF(dx * dx + dy * dy);
             
@@ -217,7 +217,7 @@ fn updateGame(dt: u32) {
     // 如果正在抓住手柄
     if isGrabbing && currentHandhold >= 0 {
         // 攀爬者跟随手柄
-        let targetX = handholds[currentHandhold].(float)(x);
+        let targetX = (float)(handholds[currentHandhold].x);
         climberX = climberX + (targetX - climberX) * 5.0 * dtSec;
         climberY = handholds[currentHandhold].y;
         
@@ -241,7 +241,7 @@ fn updateGame(dt: u32) {
         // 检测是否掉出屏幕底部
         if climberY - cameraY > (float)WINDOW_HEIGHT + 50.0 {
             gameState = GameState.GameOver;
-            io.println("游戏结束! 高度: {maxHeight}" ++ " 得分: {score}");
+            io.println("游戏结束! 高度: {maxHeight} 得分: {score}");
             return;
         }
     }
