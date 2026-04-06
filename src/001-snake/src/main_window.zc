@@ -209,10 +209,10 @@ fn on_timer_event() -> bool {
 extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
     match uMsg {
         WM_PAINT => {
-            let ps: [u8; 64] = [0; 64];
+            let ps: u8[64] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             let hdc = BeginPaint(hwnd, &ps);
             
-            let rect: [i32; 4] = [0; 4];
+            let rect: i32[4] = [0, 0, 0, 0];
             GetClientRect(hwnd, &rect);
             let width = rect[2] - rect[0];
             let height = rect[3] - rect[1];
@@ -270,7 +270,7 @@ fn main() -> i32 {
     io.println "========================================";
     io.println "Zen-C 贪吃蛇游戏 - 窗体版本";
     io.println "========================================";
-    io.println("平台: {}", 
+    io.println("平台:", 
         #if IS_WINDOWS
             "Windows"
         #elif IS_LINUX

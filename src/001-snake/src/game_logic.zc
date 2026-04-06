@@ -113,28 +113,28 @@ fn handle_input(game: GameState*, key: i32) -> bool {
     match key {
         // 上方向
         38 || 87 || 119 => { // 上箭头、W、w
-            if game.snake.direction != Direction::DirDown {
+            if game.snake.direction !is_direction_down(game.snake.direction) {
                 game.snake.next_direction = Direction::DirUp;
             }
         },
         
         // 下方向
         40 || 83 || 115 => { // 下箭头、S、s
-            if game.snake.direction != Direction::DirUp {
+            if game.snake.direction !is_direction_up(game.snake.direction) {
                 game.snake.next_direction = Direction::DirDown;
             }
         },
         
         // 左方向
         37 || 65 || 97 => { // 左箭头、A、a
-            if game.snake.direction != Direction::DirRight {
+            if game.snake.direction !is_direction_right(game.snake.direction) {
                 game.snake.next_direction = Direction::DirLeft;
             }
         },
         
         // 右方向
         39 || 68 || 100 => { // 右箭头、D、d
-            if game.snake.direction != Direction::DirLeft {
+            if game.snake.direction !is_direction_left(game.snake.direction) {
                 game.snake.next_direction = Direction::DirRight;
             }
         },
@@ -204,8 +204,10 @@ fn update_game(game: GameState*) -> bool {
     }
     
     // 移动蛇身
-    for i in (1..game.snake.length).rev() {
+    let i = game.snake.length - 1;
+    while i >= 1 {
         game.snake.body[i] = game.snake.body[i - 1];
+        i = i - 1;
     }
     game.snake.body[0] = new_head;
     
@@ -256,7 +258,7 @@ fn get_food_position(game: GameState*) -> Position {
 }
 
 // 计算游戏区域在窗口中的位置
-fn calculate_game_area(game: GameState*, offset_x: &mut i32, offset_y: &mut i32) {
+fn calculate_game_area(game: GameState*, offset_x: i32*, offset_y: i32*) {
     let game_width = GRID_WIDTH * CELL_SIZE;
     let game_height = GRID_HEIGHT * CELL_SIZE;
     
@@ -300,5 +302,35 @@ fn get_controls_text() -> string {
 
 // 获取分数文本
 fn get_score_text(game: GameState*) -> string {
-    format("分数: {}  等级: {}  长度: {}", game.score, game.level, game.snake.length)
+    "分数: {game.score}  等级: {game.level}  长度: {game.snake.length}"
+
+
+// Helper functions for enum comparison workaround
+fn is_direction_down(dir: Direction) -> bool {
+    match dir {
+        Direction::DirDown => true,
+        _ => false
+    }
+}
+
+fn is_direction_up(dir: Direction) -> bool {
+    match dir {
+        Direction::DirUp => true,
+        _ => false
+    }
+}
+
+fn is_direction_left(dir: Direction) -> bool {
+    match dir {
+        Direction::DirLeft => true,
+        _ => false
+    }
+}
+
+fn is_direction_right(dir: Direction) -> bool {
+    match dir {
+        Direction::DirRight => true,
+        _ => false
+    }
+}
 }
