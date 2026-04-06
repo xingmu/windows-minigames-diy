@@ -13,7 +13,7 @@ def WINNING_TILE = 2048;
 
 // 游戏板 - 4x4网格
 struct Board {
-    cells: [GRID_SIZE * GRID_SIZE]i32,
+    cells: i32[16],
 }
 
 // 游戏状态
@@ -41,14 +41,14 @@ fn get_cell(board: Board*, x: i32, y: i32) -> i32 {
 }
 
 // 设置格子值
-fn set_cell(board: &Board, x: i32, y: i32, value: i32) {
+fn set_cell(board: Board*, x: i32, y: i32, value: i32) {
     if x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE {
         board.cells[cell_index(x, y)] = value;
     }
 }
 
 // 初始化游戏
-fn init_game(game: &GameData) {
+fn init_game(game: GameData*) {
     // 初始化随机数种子
     let seed = time.now().nanos();
     math.srand(seed);
@@ -80,9 +80,9 @@ fn has_empty_cell(board: Board*) -> bool {
 }
 
 // 随机添加一个新的方块(2或4)
-fn add_random_tile(game: &GameData) {
+fn add_random_tile(game: GameData*) {
     // 收集所有空位
-    let empty_cells: [GRID_SIZE * GRID_SIZE]i32;
+    let empty_cells: i32[16];
     let empty_count: i32 = 0;
     
     for y in 0..GRID_SIZE {
@@ -109,7 +109,7 @@ fn add_random_tile(game: &GameData) {
 }
 
 // 向左移动一行
-fn move_row_left(row: &i32[GRID_SIZE], score: &i32) -> bool {
+fn move_row_left(row: int*[GRID_SIZE], score: int*) -> bool {
     let new_row: i32[GRID_SIZE];
     let j: i32 = 0;
     let moved = false;
@@ -163,7 +163,7 @@ fn move_row_left(row: &i32[GRID_SIZE], score: &i32) -> bool {
 }
 
 // 向左移动
-fn move_left(game: &GameData) -> bool {
+fn move_left(game: GameData*) -> bool {
     let row: i32[GRID_SIZE];
     let moved = false;
     
@@ -188,7 +188,7 @@ fn move_left(game: &GameData) -> bool {
 }
 
 // 向右移动
-fn move_right(game: &GameData) -> bool {
+fn move_right(game: GameData*) -> bool {
     let row: i32[GRID_SIZE];
     let moved = false;
     
@@ -213,7 +213,7 @@ fn move_right(game: &GameData) -> bool {
 }
 
 // 向上移动
-fn move_up(game: &GameData) -> bool {
+fn move_up(game: GameData*) -> bool {
     let col: i32[GRID_SIZE];
     let moved = false;
     
@@ -238,7 +238,7 @@ fn move_up(game: &GameData) -> bool {
 }
 
 // 向下移动
-fn move_down(game: &GameData) -> bool {
+fn move_down(game: GameData*) -> bool {
     let col: i32[GRID_SIZE];
     let moved = false;
     
@@ -298,7 +298,7 @@ fn check_won(board: Board*) -> bool {
 }
 
 // 处理输入
-fn handle_input(game: &GameData, key_code: i32) -> bool {
+fn handle_input(game: GameData*, key_code: i32) -> bool {
     if game.won || game.game_over {
         // 获胜或失败后按任意键重新开始
         if key_code != 0 {

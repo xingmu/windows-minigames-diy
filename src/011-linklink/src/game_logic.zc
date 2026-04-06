@@ -58,7 +58,7 @@ struct PathPoint {
 
 // 游戏状态
 pub struct LinkLinkState {
-    tiles: [GRID_ROWS][GRID_COLS]Tile,
+    tiles: Tile[GRID_ROWS][GRID_COLS],
     selectedRow: int,   // 当前选中的方块行 (-1表示无选中)
     selectedCol: int,   // 当前选中的方块列
     score: int,         // 当前分数
@@ -84,7 +84,7 @@ fn abs(x: int) -> int {
 // ==================== 游戏逻辑 ====================
 
 // 初始化游戏
-pub fn init_game(state: &LinkLinkState) {
+pub fn init_game(state: LinkLinkState*) {
     // 初始化所有方块为不可见
     for r in 0..GRID_ROWS {
         for c in 0..GRID_COLS {
@@ -151,7 +151,7 @@ pub fn get_tile_position(state: LinkLinkState*, row: int, col: int) -> (int, int
 }
 
 // 点击方块
-pub fn click_tile(state: &LinkLinkState, row: int, col: int) -> bool {
+pub fn click_tile(state: LinkLinkState*, row: int, col: int) -> bool {
     // 忽略无效点击
     if row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS {
         return false;
@@ -479,7 +479,7 @@ fn can_connect_through_col(state: LinkLinkState*, col: int, r1: int, r2: int) ->
 }
 
 // 更新游戏时间
-pub fn update_time(state: &LinkLinkState) -> bool {
+pub fn update_time(state: LinkLinkState*) -> bool {
     if state.gameOver {
         return false;
     }
@@ -530,7 +530,7 @@ pub fn has_possible_moves(state: LinkLinkState*) -> bool {
 }
 
 // 重新开始游戏
-pub fn restart_game(state: &LinkLinkState) {
+pub fn restart_game(state: LinkLinkState*) {
     init_game(state);
 }
 

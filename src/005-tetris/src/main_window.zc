@@ -258,7 +258,7 @@ class TetrisGame extends Game {
     // 锁定当前方块到棋盘
     fn lockPiece() {
         let shape = getTetrominoShape(self.currentPiece.pieceType, self.currentPiece.rotation);
-        let colorIdx = (self.currentPiece(int)pieceType) + 1;  // 1-7对应不同颜色
+        let colorIdx = (int)(self.currentPiece.pieceType) + 1;  // 1-7对应不同颜色
         
         for i in 0..4 {
             let bx = self.currentPiece.x + shape[i * 2];
@@ -384,8 +384,8 @@ class TetrisGame extends Game {
         
         // 已填充的格子用深色
         return Color.RGB(
-            ((color >> 16) & 0xFF) as u8 * 3 / 4,
-            ((color >> 8) & 0xFF) as u8 * 3 / 4,
+            ((color >> 16) & 0xFF) (u8) * 3 / 4,
+            ((color >> 8) & 0xFF) (u8) * 3 / 4,
             (u8)(color & 0xFF) * 3 / 4
         );
     }
@@ -600,7 +600,7 @@ class TetrisGame extends Game {
         let previewCellSize = 25;
         
         // 计算方块边界
-        let minX = 4, maxX = 0, minY = 4, maxY = 0;
+        let minX = 4; let maxX = 0; let minY = 4; let maxY = 0;
         for i in 0..4 {
             let sx = shape[i * 2];
             let sy = shape[i * 2 + 1];
