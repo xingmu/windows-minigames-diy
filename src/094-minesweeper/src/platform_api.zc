@@ -107,7 +107,7 @@ extern "user32.dll" fn SelectObject_2(hDC: GraphicsContext, hObject: void*) -> v
 extern "user32.dll" fn BitBlt(hDC: GraphicsContext, x: i32, y: i32, w: i32, h: i32, hSrcDC: GraphicsContext, xSrc: i32, ySrc: i32, rop: u32) -> bool;
 extern "user32.dll" fn DeleteDC(hDC: GraphicsContext) -> bool;
 extern "user32.dll" fn DeleteObject_2(hObject: void*) -> bool;
-extern "user32.dll" fn RegisterClassA(lpWndClass: *def WNDCLASSA) -> u16;
+extern "user32.dll" fn RegisterClassA(lpWndClass: WNDCLASSA*) -> u16;
 extern "user32.dll" fn DefWindowProcA(hWnd: WindowHandle, msg: u32, wParam: u32, lParam: u32) -> u32;
 extern "user32.dll" fn SetWindowLongPtrA(hWnd: WindowHandle, nIndex: i32, dwNewLong: u64) -> u64;
 extern "user32.dll" fn GetWindowLongPtrA(hWnd: WindowHandle, nIndex: i32) -> u64;
