@@ -209,7 +209,7 @@ class SpaceInvadersGame extends Game {
     
     fn onShutdown() {
         println "Space Invaders 游戏结束!";
-        println("最终分数: {self}".getScore().toString());
+        println "最终分数: {self.getScore()}";
     }
     
     fn onUpdate(dt: u32) {
