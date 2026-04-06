@@ -1,0 +1,115 @@
+// platform_api_windows.zc - Windows 平台 API 实现
+// 框架版本: 1.0.0
+
+// Windows API 常量
+const WM_QUIT: u32 = 0x0012;
+const WM_PAINT: u32 = 0x000F;
+const WM_SIZE: u32 = 0x0005;
+const WM_KEYDOWN: u32 = 0x0100;
+const WM_KEYUP: u32 = 0x0101;
+const WM_LBUTTONDOWN: u32 = 0x0201;
+const WM_LBUTTONUP: u32 = 0x0202;
+const WM_RBUTTONDOWN: u32 = 0x0204;
+const WM_RBUTTONUP: u32 = 0x0205;
+const WM_MBUTTONDOWN: u32 = 0x0207;
+const WM_MBUTTONUP: u32 = 0x0208;
+const WM_MOUSEMOVE: u32 = 0x0200;
+
+const VK_ESCAPE: u32 = 0x1B;
+const VK_SPACE: u32 = 0x20;
+const VK_LEFT: u32 = 0x25;
+const VK_UP: u32 = 0x26;
+const VK_RIGHT: u32 = 0x27;
+const VK_DOWN: u32 = 0x28;
+
+// 外部 Windows API 函数（通过 FFI）
+// 这些是占位符，实际实现需要编译器运行时支持
+// 在真实的 Zen-C 编译器中，这些会被链接到 C 运行库
+
+// 平台初始化
+pub fn initPlatform() {
+    // Windows 平台初始化
+    println("Windows 平台初始化");
+}
+
+// 平台关闭
+pub fn shutdownPlatform() {
+    // Windows 平台清理
+    println("Windows 平台关闭");
+}
+
+// 创建窗口
+pub fn createWindow(title: str, width: int, height: int) -> WindowHandle {
+    // 返回一个模拟窗口句柄
+    // 实际实现会调用 Windows API CreateWindowEx
+    return nil;
+}
+
+// 关闭窗口
+pub fn closeWindow(handle: WindowHandle) {
+    // 调用 Windows API DestroyWindow
+}
+
+// 设置窗口标题
+pub fn setWindowTitle(handle: WindowHandle, title: str) {
+    // 调用 Windows API SetWindowText
+}
+
+// 获取窗口尺寸
+pub fn getWindowSize(handle: WindowHandle) -> (int, int) {
+    return (800, 600);
+}
+
+// 轮询事件
+pub fn pollEvent(handle: WindowHandle, event: &Event) -> bool {
+    // 模拟事件循环
+    // 实际实现会调用 Windows API GetMessage/PeekMessage
+    return false;
+}
+
+// 等待事件
+pub fn waitEvent(handle: WindowHandle, event: &Event) {
+    // 调用 Windows API WaitMessage/GetMessage
+}
+
+// 发送退出消息
+pub fn postQuitMessage(handle: WindowHandle) {
+    // 调用 Windows API PostQuitMessage
+}
+
+// 获取时间戳
+pub fn getTickCount() -> u32 {
+    // 实际实现会调用 Windows API GetTickCount
+    return 0;
+}
+
+// 睡眠
+pub fn sleep(ms: u32) {
+    // 实际实现会调用 Windows API Sleep
+}
+
+// 检查键是否按下
+pub fn isKeyDown(key: VirtualKey) -> bool {
+    // 调用 Windows API GetAsyncKeyState
+    return false;
+}
+
+// 获取帧缓冲
+pub fn getFrameBuffer(handle: WindowHandle) -> rawptr {
+    // 返回直接访问的像素数据指针
+    // 实际实现会调用 Windows API GetDC + GetBitmapBits
+    return nil;
+}
+
+// 获取帧缓冲 pitch
+pub fn getFrameBufferPitch(handle: WindowHandle) -> int {
+    // 返回每行字节数
+    // 实际实现会调用 Windows API GetBitmapBits
+    return 800 * 4;
+}
+
+// 显示帧缓冲
+pub fn presentFrame(handle: WindowHandle) {
+    // 将帧缓冲复制到屏幕
+    // 实际实现会调用 Windows API BitBlt 或 DirectX
+}

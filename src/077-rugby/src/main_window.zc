@@ -1,0 +1,31 @@
+// main_window.zc - Rugby 橄榄球游戏入口
+// 077-Rugby 橄榄球游戏
+
+import "platform_api.zc";
+import "game.zc";
+import "game_logic.zc";
+
+pub fn main() {
+    println("===========================================");
+    println("  Rugby - Zen-C 橄榄球游戏");
+    println("  达阵得分，击败对手!");
+    println("===========================================");
+    println("");
+    
+    // 初始化平台
+    initPlatform();
+    
+    // 创建游戏
+    var game = RugbyGame.("Rugby - 橄榄球", WINDOW_WIDTH, WINDOW_HEIGHT, 60);
+    
+    // 运行游戏
+    game.run();
+    
+    // 清理
+    game.destroy();
+    
+    // 关闭平台
+    shutdownPlatform();
+    
+    println("游戏已退出");
+}

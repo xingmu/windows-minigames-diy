@@ -1,0 +1,1038 @@
+// main_window.zc - Zen-C 跑酷游戏
+// 经典横版跑酷，平台跳跃，收集金币
+// 基于 003-framework 开发
+
+import std.io;
+import "platform_api.zc";
+
+// ==================== 游戏配置 ====================
+
+const WINDOW_WIDTH: int = 480;
+const WINDOW_HEIGHT: int = 360;
+const TARGET_FPS: int = 60;
+const FRAME_TIME: u32 = 1000 / TARGET_FPS;
+
+// 地面高度
+const GROUND_Y: int = 310;
+
+// 玩家配置
+const PLAYER_WIDTH: int = 24;
+const PLAYER_HEIGHT: int = 32;
+const PLAYER_X: int = 60;       // 玩家固定X位置（屏幕坐标）
+const RUN_SPEED: int = 200;      // 世界滚动速度
+const JUMP_VELOCITY: int = -450;
+const GRAVITY: int = 1000;
+const DOUBLE_JUMP_VELOCITY: int = -400;
+
+// 障碍物配置
+const SPIKE_WIDTH: int = 20;
+const SPIKE_HEIGHT: int = 20;
+const SPIKE_MIN_GAP: int = 180;
+const SPIKE_MAX_GAP: int = 350;
+
+// 金币配置
+const COIN_SIZE: int = 16;
+const COIN_BONUS: int = 50;
+const COIN_MIN_GAP: int = 80;
+const COIN_MAX_GAP: int = 200;
+
+// 平台配置
+const PLATFORM_MIN_GAP: int = 100;
+const PLATFORM_MAX_GAP: int = 250;
+const PLATFORM_MIN_WIDTH: int = 60;
+const PLATFORM_MAX_WIDTH: int = 140;
+const PLATFORM_MIN_Y: int = 180;
+const PLATFORM_MAX_Y: int = 270;
+
+// 粒子配置
+const MAX_PARTICLES: int = 40;
+const MAX_SPIKES: int = 10;
+const MAX_COINS: int = 15;
+const MAX_PLATFORMS: int = 8;
+const MAX_DUSTS: int = 20;
+
+// ==================== 游戏状态 ====================
+
+enum GameState {
+    Ready,
+    Playing,
+    GameOver,
+    Won,
+}
+
+// ==================== 对象结构 ====================
+
+struct Spike {
+    x: int;        // 世界坐标
+    y: int;
+    w: int;
+    h: int;
+    active: bool;
+}
+
+struct Coin {
+    x: int;        // 世界坐标
+    y: int;
+    collected: bool;
+    animFrame: int;
+    onGround: bool; // 是否在地面
+}
+
+struct Platform {
+    x: int;        // 世界坐标
+    y: int;
+    w: int;
+    h: int;
+    active: bool;
+}
+
+struct Particle {
+    x: float;
+    y: float;
+    vx: float;
+    vy: float;
+    life: int;
+    maxLife: int;
+    color: Color;
+    size: int;
+}
+
+struct Dust {
+    x: float;
+    y: float;
+    vx: float;
+    vy: float;
+    life: int;
+    size: int;
+}
+
+// ==================== 全局游戏数据 ====================
+
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut gameState: GameState = GameState.Ready;
+
+// 玩家状态
+static mut playerY: float = 0.0;
+static mut playerVY: float = 0.0;
+static mut playerOnGround: bool = false;
+static mut playerOnPlatform: bool = false;
+static mut playerCanDoubleJump: bool = false;
+static mut playerJumped: bool = false;
+static mut playerAnimFrame: int = 0;
+static mut playerAnimTimer: int = 0;
+static mut playerInvincible: int = 0;
+static mut playerSquashed: bool = false;
+static mut squashTimer: int = 0;
+
+// 世界状态
+static mut worldX: int = 0;      // 世界滚动位移
+static mut worldSpeed: int = RUN_SPEED;
+static mut speedTimer: int = 0;   // 加速计时
+static mut distance: int = 0;    // 奔跑距离
+
+// 对象池
+static mut spikes: [MAX_SPIKES]Spike;
+static mut coins: [MAX_COINS]Coin;
+static mut platforms: [MAX_PLATFORMS]Platform;
+static mut particles: [MAX_PARTICLES]Particle;
+static mut dusts: [MAX_DUSTS]Dust;
+static mut spikeCount: int = 0;
+static mut coinCount: int = 0;
+static mut platformCount: int = 0;
+static mut particleCount: int = 0;
+static mut dustCount: int = 0;
+
+// 下一个生成位置
+static mut nextSpikeX: int = 400;
+static mut nextCoinX: int = 300;
+static mut nextPlatformX: int = 350;
+
+// 分数
+static mut score: int = 0;
+static mut coinsCollected: int = 0;
+static mut lives: int = 3;
+
+// 计时
+static mut lastFrame: u32 = 0;
+static mut gameTime: u32 = 0;
+
+// 按键状态
+static mut keyJump: bool = false;
+static mut jumpPressed: bool = false;
+
+// 背景参数
+static mut bgScrollX: int = 0;
+static mut buildingScrollX: int = 0;
+static mut groundScrollX: int = 0;
+
+// ==================== 颜色定义 ====================
+
+const SKY_TOP = Color.RGB(20, 30, 80);
+const SKY_BOTTOM = Color.RGB(60, 100, 180);
+const GROUND_COLOR = Color.RGB(60, 50, 40);
+const GROUND_TOP_COLOR = Color.RGB(80, 70, 55);
+const BUILDING1_COLOR = Color.RGB(40, 50, 70);
+const BUILDING2_COLOR = Color.RGB(50, 55, 75);
+const BUILDING3_COLOR = Color.RGB(35, 45, 65);
+const WINDOW_LIGHT_COLOR = Color.RGB(255, 240, 180);
+const PLAYER_HEAD_COLOR = Color.RGB(255, 200, 150);
+const PLAYER_BODY_COLOR = Color.RGB(60, 180, 220);
+const PLAYER_LEG_COLOR = Color.RGB(40, 40, 200);
+const PLAYER_SHOE_COLOR = Color.RGB(200, 50, 50);
+const COIN_COLOR = Color.RGB(255, 210, 0);
+const COIN_SHINE_COLOR = Color.RGB(255, 255, 200);
+const SPIKE_COLOR = Color.RGB(180, 180, 180);
+const SPIKE_DARK_COLOR = Color.RGB(120, 120, 130);
+const PLATFORM_COLOR = Color.RGB(120, 80, 40);
+const PLATFORM_TOP_COLOR = Color.RGB(80, 140, 60);
+const PARTICLE_COLOR = Color.RGB(255, 200, 80);
+const DUST_COLOR = Color.RGB(200, 180, 150);
+const TEXT_COLOR = Color.White();
+const HUD_BG_COLOR = Color.RGB(0, 0, 0);
+const DANGER_COLOR = Color.RGB(255, 80, 80);
+
+// ==================== 随机数 ====================
+
+static mut rng_seed: u32 = 54321;
+
+fn rng() -> u32 {
+    rng_seed = rng_seed * 1103515245 + 12345;
+    return rng_seed;
+}
+
+fn randInt(minVal: int, maxVal: int) -> int {
+    var r = (rng() / 65536) % 32768;
+    return minVal + (r as int % (maxVal - minVal + 1));
+}
+
+// ==================== 辅助函数 ====================
+
+fn absInt(x: int) -> int {
+    return if x < 0 { -x } else { x };
+}
+
+fn clamp(v: int, minVal: int, maxVal: int) -> int {
+    if v < minVal { return minVal; }
+    if v > maxVal { return maxVal; }
+    return v;
+}
+
+fn lerp(a: int, b: int, t: float) -> int {
+    return a + ((b - a) as float * t) as int;
+}
+
+// ==================== 对象生成 ====================
+
+fn spawnSpike() {
+    if spikeCount >= MAX_SPIKES { return; }
+    var idx = spikeCount;
+    spikes[idx] = Spike.{
+        x: nextSpikeX,
+        y: GROUND_Y - SPIKE_HEIGHT,
+        w: SPIKE_WIDTH,
+        h: SPIKE_HEIGHT,
+        active: true,
+    };
+    spikeCount = spikeCount + 1;
+    nextSpikeX = nextSpikeX + SPIKE_MIN_GAP + randInt(0, SPIKE_MAX_GAP - SPIKE_MIN_GAP);
+}
+
+fn spawnCoin() {
+    if coinCount >= MAX_COINS { return; }
+    var onGround = randInt(0, 10) > 6;
+    var y: int;
+    if onGround {
+        y = GROUND_Y - COIN_SIZE - 10;
+    } else {
+        y = GROUND_Y - 80 - randInt(0, 100);
+    }
+    coins[coinCount] = Coin.{
+        x: nextCoinX,
+        y: y,
+        collected: false,
+        animFrame: randInt(0, 40),
+        onGround: onGround,
+    };
+    coinCount = coinCount + 1;
+    nextCoinX = nextCoinX + COIN_MIN_GAP + randInt(0, COIN_MAX_GAP - COIN_MIN_GAP);
+}
+
+fn spawnPlatform() {
+    if platformCount >= MAX_PLATFORMS { return; }
+    var w = PLATFORM_MIN_WIDTH + randInt(0, PLATFORM_MAX_WIDTH - PLATFORM_MIN_WIDTH);
+    var y = PLATFORM_MIN_Y + randInt(0, PLATFORM_MAX_Y - PLATFORM_MIN_Y);
+    platforms[platformCount] = Platform.{
+        x: nextPlatformX,
+        y: y,
+        w: w,
+        h: 16,
+        active: true,
+    };
+    platformCount = platformCount + 1;
+    nextPlatformX = nextPlatformX + PLATFORM_MIN_GAP + randInt(0, PLATFORM_MAX_GAP - PLATFORM_MIN_GAP);
+}
+
+fn spawnParticle(x: float, y: float, vx: float, vy: float, color: Color, size: int, life: int) {
+    if particleCount >= MAX_PARTICLES { return; }
+    particles[particleCount] = Particle.{
+        x: x, y: y, vx: vx, vy: vy,
+        life: life, maxLife: life,
+        color: color, size: size,
+    };
+    particleCount = particleCount + 1;
+}
+
+fn spawnDust(x: float, y: float, vx: float, vy: float) {
+    if dustCount >= MAX_DUSTS { return; }
+    dusts[dustCount] = Dust.{
+        x: x, y: y, vx: vx, vy: vy,
+        life: 15, size: randInt(2, 4),
+    };
+    dustCount = dustCount + 1;
+}
+
+// ==================== 游戏初始化 ====================
+
+fn initGame() {
+    playerY = GROUND_Y as float - PLAYER_HEIGHT as float;
+    playerVY = 0.0;
+    playerOnGround = true;
+    playerOnPlatform = false;
+    playerCanDoubleJump = false;
+    playerJumped = false;
+    playerAnimFrame = 0;
+    playerAnimTimer = 0;
+    playerInvincible = 0;
+    playerSquashed = false;
+    squashTimer = 0;
+
+    worldX = 0;
+    worldSpeed = RUN_SPEED;
+    speedTimer = 0;
+    distance = 0;
+
+    spikeCount = 0;
+    coinCount = 0;
+    platformCount = 0;
+    particleCount = 0;
+    dustCount = 0;
+
+    nextSpikeX = 400;
+    nextCoinX = 300;
+    nextPlatformX = 350;
+
+    score = 0;
+    coinsCollected = 0;
+    lives = 3;
+    gameTime = 0;
+    bgScrollX = 0;
+    buildingScrollX = 0;
+    groundScrollX = 0;
+    rng_seed = 54321;
+
+    // 初始生成
+    spawnSpike();
+    spawnCoin();
+    spawnCoin();
+    spawnCoin();
+    spawnPlatform();
+
+    gameState = GameState.Ready;
+}
+
+// ==================== 输入处理 ====================
+
+fn handleKeyDown(key: VirtualKey) {
+    match key {
+        VirtualKey.Space => {
+            if !jumpPressed {
+                jumpPressed = true;
+                keyJump = true;
+                if gameState == GameState.Ready {
+                    gameState = GameState.Playing;
+                } else if gameState == GameState.GameOver || gameState == GameState.Won {
+                    initGame();
+                }
+            }
+        },
+        VirtualKey.Up => {
+            if !jumpPressed {
+                jumpPressed = true;
+                keyJump = true;
+                if gameState == GameState.Ready {
+                    gameState = GameState.Playing;
+                } else if gameState == GameState.GameOver || gameState == GameState.Won {
+                    initGame();
+                }
+            }
+        },
+        VirtualKey.Escape => { running = false; },
+        _ => {}
+    }
+}
+
+fn handleKeyUp(key: VirtualKey) {
+    match key {
+        VirtualKey.Space => { jumpPressed = false; },
+        VirtualKey.Up => { jumpPressed = false; },
+        _ => {}
+    }
+}
+
+// ==================== 碰撞检测 ====================
+
+fn rectIntersectWorld(rx: int, ry: int, rw: int, rh: int,
+                      tx: int, ty: int, tw: int, th: int) -> bool {
+    return rx < tx + tw && rx + rw > tx && ry < ty + th && ry + rh > ty;
+}
+
+// ==================== 游戏逻辑更新 ====================
+
+fn updateGame(dt: u32) {
+    if gameState != GameState.Playing { return; }
+
+    var dtSec = dt as float / 1000.0;
+    gameTime = gameTime + dt;
+
+    // 速度递增（每1000米加速一次）
+    speedTimer = speedTimer + 1;
+    if speedTimer > 600 && worldSpeed < 400 {
+        worldSpeed = worldSpeed + 5;
+        speedTimer = 0;
+    }
+
+    // 世界滚动
+    var move = (worldSpeed as float * dtSec) as int;
+    worldX = worldX + move;
+    distance = distance + move;
+
+    // 生成新对象
+    if nextSpikeX - worldX < WINDOW_WIDTH + 200 { spawnSpike(); }
+    if nextCoinX - worldX < WINDOW_WIDTH + 200 { spawnCoin(); }
+    if nextPlatformX - worldX < WINDOW_WIDTH + 200 { spawnPlatform(); }
+
+    // 跳跃处理
+    if keyJump {
+        if playerOnGround || playerOnPlatform {
+            playerVY = JUMP_VELOCITY as float;
+            playerOnGround = false;
+            playerOnPlatform = false;
+            playerCanDoubleJump = true;
+            playerJumped = true;
+            // 跳跃粒子
+            for i in 0..4 {
+                spawnParticle(
+                    (PLAYER_X + PLAYER_WIDTH / 2) as float,
+                    (GROUND_Y as float),
+                    (randInt(-60, 60)) as float,
+                    (randInt(-120, -50)) as float,
+                    DUST_COLOR, 3, 20
+                );
+            }
+        } else if playerCanDoubleJump {
+            playerVY = DOUBLE_JUMP_VELOCITY as float;
+            playerCanDoubleJump = false;
+            // 二段跳粒子
+            for i in 0..6 {
+                spawnParticle(
+                    (PLAYER_X + PLAYER_WIDTH / 2) as float,
+                    (playerY as int + PLAYER_HEIGHT) as float,
+                    (randInt(-80, 80)) as float,
+                    (randInt(-40, 40)) as float,
+                    COIN_COLOR, 2, 15
+                );
+            }
+        }
+        keyJump = false;
+    }
+
+    // 重力
+    playerVY = playerVY + (GRAVITY as float * dtSec);
+    playerY = playerY + playerVY * dtSec;
+
+    // 地面碰撞
+    playerOnGround = false;
+    playerOnPlatform = false;
+    if playerY + PLAYER_HEIGHT as float >= GROUND_Y as float {
+        playerY = GROUND_Y as float - PLAYER_HEIGHT as float;
+        playerVY = 0.0;
+        playerOnGround = true;
+        playerCanDoubleJump = false;
+
+        // 跑步尘埃
+        if playerJumped && (randInt(0, 3) == 0) {
+            spawnDust(
+                (PLAYER_X + 4) as float,
+                (GROUND_Y as float),
+                (-worldSpeed as float * 0.3),
+                (randInt(-30, -10)) as float
+            );
+        }
+    }
+
+    // 平台碰撞
+    for i in 0..platformCount {
+        if !platforms[i].active { continue; }
+        var plat = platforms[i];
+        var screenX = plat.x - worldX;
+        if screenX > WINDOW_WIDTH + 50 || screenX + plat.w < -50 { continue; }
+
+        // 从上方落下踩平台
+        if playerVY >= 0 {
+            var prevBottom = (playerY as int + PLAYER_HEIGHT) - (playerVY as int * dtSec as int);
+            var currBottom = (playerY as int + PLAYER_HEIGHT);
+            if prevBottom <= plat.y && currBottom >= plat.y {
+                if PLAYER_X + PLAYER_WIDTH > screenX && PLAYER_X < screenX + plat.w {
+                    playerY = (plat.y - PLAYER_HEIGHT) as float;
+                    playerVY = 0.0;
+                    playerOnGround = true;
+                    playerOnPlatform = true;
+                    playerCanDoubleJump = false;
+                }
+            }
+        }
+    }
+
+    // 障碍物碰撞
+    if playerInvincible <= 0 {
+        for i in 0..spikeCount {
+            if !spikes[i].active { continue; }
+            var screenX = spikes[i].x - worldX;
+            if screenX > WINDOW_WIDTH || screenX + spikes[i].w < 0 { continue; }
+
+            if rectIntersectWorld(
+                PLAYER_X + 4, (playerY as int) + 4, PLAYER_WIDTH - 8, PLAYER_HEIGHT - 8,
+                screenX + 2, spikes[i].y + 6, spikes[i].w - 4, spikes[i].h - 6
+            ) {
+                loseLife();
+                return;
+            }
+        }
+    }
+
+    // 金币收集
+    for i in 0..coinCount {
+        if coins[i].collected { continue; }
+        var screenX = coins[i].x - worldX;
+        if screenX > WINDOW_WIDTH || screenX + COIN_SIZE < 0 { continue; }
+
+        coins[i].animFrame = (coins[i].animFrame + 1) % 40;
+
+        if rectIntersectWorld(
+            PLAYER_X, (playerY as int), PLAYER_WIDTH, PLAYER_HEIGHT,
+            screenX, coins[i].y, COIN_SIZE, COIN_SIZE
+        ) {
+            coins[i].collected = true;
+            score = score + COIN_BONUS;
+            coinsCollected = coinsCollected + 1;
+
+            // 收集粒子
+            for p in 0..6 {
+                spawnParticle(
+                    (screenX + COIN_SIZE / 2) as float,
+                    (coins[i].y + COIN_SIZE / 2) as float,
+                    (randInt(-100, 100)) as float,
+                    (randInt(-150, -50)) as float,
+                    COIN_COLOR, 3, 25
+                );
+            }
+        }
+    }
+
+    // 更新粒子
+    for i in 0..particleCount {
+        if particles[i].life <= 0 { continue; }
+        particles[i].x = particles[i].x + particles[i].vx * dtSec;
+        particles[i].y = particles[i].y + particles[i].vy * dtSec;
+        particles[i].vy = particles[i].vy + 200.0 * dtSec;
+        particles[i].life = particles[i].life - 1;
+    }
+
+    // 更新尘埃
+    for i in 0..dustCount {
+        if dusts[i].life <= 0 { continue; }
+        dusts[i].x = dusts[i].x + dusts[i].vx * dtSec;
+        dusts[i].y = dusts[i].y + dusts[i].vy * dtSec;
+        dusts[i].vx = dusts[i].vx * 0.95;
+        dusts[i].life = dusts[i].life - 1;
+    }
+
+    // 清理屏幕外对象
+    for i in 0..spikeCount {
+        if spikes[i].x - worldX < -100 { spikes[i].active = false; }
+    }
+    for i in 0..coinCount {
+        if coins[i].x - worldX < -100 { coins[i].collected = true; }
+    }
+    for i in 0..platformCount {
+        if platforms[i].x - worldX < -200 { platforms[i].active = false; }
+    }
+
+    // 无敌时间
+    if playerInvincible > 0 { playerInvincible = playerInvincible - 1; }
+
+    // 压缩计时
+    if squashTimer > 0 { squashTimer = squashTimer - 1; }
+
+    // 动画
+    if playerOnGround {
+        playerAnimTimer = playerAnimTimer + 1;
+        if playerAnimTimer > 6 {
+            playerAnimTimer = 0;
+            playerAnimFrame = (playerAnimFrame + 1) % 4;
+            // 跑步尘埃
+            if playerAnimFrame == 1 || playerAnimFrame == 3 {
+                spawnDust(
+                    (PLAYER_X + 2) as float,
+                    (GROUND_Y as float),
+                    (-worldSpeed as float * 0.2),
+                    (randInt(-20, -5)) as float
+                );
+            }
+        }
+        playerJumped = false;
+    }
+
+    // 背景滚动
+    bgScrollX = worldX % 800;
+    buildingScrollX = worldX % 400;
+    groundScrollX = worldX % 32;
+
+    // 胜利条件：奔跑10000米
+    if distance >= 10000 {
+        gameState = GameState.Won;
+        io.println("恭喜通关! 最终分数: " ++ score.toString());
+    }
+}
+
+fn loseLife() {
+    lives = lives - 1;
+    playerInvincible = 90;
+    io.println("撞到障碍! 剩余生命: " ++ lives.toString());
+
+    // 爆炸粒子
+    for i in 0..10 {
+        spawnParticle(
+            (PLAYER_X + PLAYER_WIDTH / 2) as float,
+            (playerY as int + PLAYER_HEIGHT / 2) as float,
+            (randInt(-150, 150)) as float,
+            (randInt(-200, 50)) as float,
+            DANGER_COLOR, 4, 30
+        );
+    }
+
+    if lives <= 0 {
+        gameState = GameState.GameOver;
+        io.println("游戏结束! 最终分数: " ++ score.toString() ++ " 距离: " ++ (distance / 100).toString() ++ "米");
+    }
+}
+
+// ==================== 绘制函数 ====================
+
+fn drawBackground(ctx: rawptr, pitch: int, buffer: rawptr) {
+    // 渐变天空
+    for y in 0..GROUND_Y {
+        var t = y as float / GROUND_Y as float;
+        var r = lerp(20, 60, t);
+        var g = lerp(30, 100, t);
+        var b = lerp(80, 180, t);
+        drawRect(ctx, 0, y, WINDOW_WIDTH, 1, pitch, buffer, Color.RGB(r as u8, g as u8, b as u8));
+    }
+
+    // 远景建筑（慢速滚动）
+    for i in 0..5 {
+        var bx = i * 160 - buildingScrollX % 160;
+        if bx < -160 { bx = bx + 800; }
+        var bh = 60 + (i * 17) % 80;
+        var by = GROUND_Y - bh - 20;
+        drawRect(ctx, bx, by, 120, bh, pitch, buffer, BUILDING3_COLOR);
+        // 窗户
+        for wy in by..(by + bh - 10) {
+            if (wy % 12) == 0 {
+                for wx in bx..(bx + 120) {
+                    if (wx % 16) == 0 {
+                        var lit = (wx + wy + i) % 3 == 0;
+                        if lit {
+                            drawRect(ctx, wx + 4, wy + 4, 8, 6, pitch, buffer, WINDOW_LIGHT_COLOR);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 近景建筑（快速滚动）
+    for i in 0..4 {
+        var bx = i * 200 - (buildingScrollX * 2) % 200;
+        if bx < -200 { bx = bx + 800; }
+        var bh = 100 + (i * 31) % 60;
+        var by = GROUND_Y - bh - 10;
+        drawRect(ctx, bx, by, 150, bh, pitch, buffer, BUILDING2_COLOR);
+        // 窗户
+        for wy in by..(by + bh - 8) {
+            if (wy % 14) == 0 {
+                for wx in bx..(bx + 150) {
+                    if (wx % 18) == 0 {
+                        var lit = (wx + wy * 2 + i) % 4 != 0;
+                        if lit {
+                            drawRect(ctx, wx + 4, wy + 3, 10, 8, pitch, buffer, WINDOW_LIGHT_COLOR);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn drawGround(ctx: rawptr, pitch: int, buffer: rawptr) {
+    // 地面主体
+    drawRect(ctx, 0, GROUND_Y, WINDOW_WIDTH, WINDOW_HEIGHT - GROUND_Y, pitch, buffer, GROUND_COLOR);
+    // 地面顶部装饰线
+    drawRect(ctx, 0, GROUND_Y, WINDOW_WIDTH, 3, pitch, buffer, GROUND_TOP_COLOR);
+    // 地面纹理
+    for x in 0..WINDOW_WIDTH {
+        var wx = x + groundScrollX;
+        if (wx % 16) < 4 {
+            drawRect(ctx, x, GROUND_Y + 4, 2, 4, pitch, buffer, GROUND_TOP_COLOR);
+        }
+    }
+}
+
+fn drawSpike(ctx: rawptr, pitch: int, buffer: rawptr, spike: Spike) {
+    var sx = spike.x - worldX;
+    if sx < -SPIKE_WIDTH || sx > WINDOW_WIDTH { return; }
+
+    // 三角形尖刺
+    var cx = sx + SPIKE_WIDTH / 2;
+    for y in 0..SPIKE_HEIGHT {
+        var halfW = (SPIKE_WIDTH as float * (1.0 - y as float / SPIKE_HEIGHT as float) / 2.0) as int;
+        drawRect(ctx, cx - halfW, spike.y + y, halfW * 2, 1, pitch, buffer, SPIKE_COLOR);
+    }
+    // 底座
+    drawRect(ctx, sx, GROUND_Y - 4, SPIKE_WIDTH, 6, pitch, buffer, SPIKE_DARK_COLOR);
+}
+
+fn drawCoinItem(ctx: rawptr, pitch: int, buffer: rawptr, coin: Coin) {
+    if coin.collected { return; }
+    var sx = coin.x - worldX;
+    if sx < -COIN_SIZE || sx > WINDOW_WIDTH { return; }
+
+    // 金币动画（旋转效果）
+    var frame = coin.animFrame % 40;
+    var scale: int;
+    if frame < 10 { scale = 16; }
+    else if frame < 20 { scale = 8; }
+    else if frame < 30 { scale = 0; }
+    else { scale = 8; }
+
+    var w = COIN_SIZE - scale;
+    if w > 0 {
+        var cx = sx + (COIN_SIZE - w) / 2;
+        drawRect(ctx, cx, coin.y, w, COIN_SIZE, pitch, buffer, COIN_COLOR);
+        drawRect(ctx, cx + 1, coin.y + 1, w - 2, 3, pitch, buffer, COIN_SHINE_COLOR);
+    }
+}
+
+fn drawPlatformItem(ctx: rawptr, pitch: int, buffer: rawptr, plat: Platform) {
+    var sx = plat.x - worldX;
+    if sx < -plat.w || sx > WINDOW_WIDTH { return; }
+
+    // 平台主体
+    drawRect(ctx, sx, plat.y, plat.w, plat.h, pitch, buffer, PLATFORM_COLOR);
+    // 顶部草地
+    drawRect(ctx, sx, plat.y, plat.w, 4, pitch, buffer, PLATFORM_TOP_COLOR);
+    // 木纹
+    for bx in sx..(sx + plat.w) {
+        if (bx % 20) < 4 {
+            drawRect(ctx, bx, plat.y + 4, 1, plat.h - 4, pitch, buffer, Color.RGB(100, 65, 30));
+        }
+    }
+}
+
+fn drawPlayer(ctx: rawptr, pitch: int, buffer: rawptr) {
+    if gameState == GameState.GameOver { return; }
+    if playerInvincible > 0 && (playerInvincible / 4) % 2 == 0 { return; }
+
+    var sx = PLAYER_X;
+    var sy = (playerY as int);
+
+    // 身体（跑步姿态）
+    // 头
+    drawRect(ctx, sx + 4, sy, 16, 14, pitch, buffer, PLAYER_HEAD_COLOR);
+    // 头发/帽子
+    drawRect(ctx, sx + 2, sy - 4, 20, 6, pitch, buffer, PLAYER_BODY_COLOR);
+    drawRect(ctx, sx, sy, 6, 4, pitch, buffer, PLAYER_BODY_COLOR);
+    // 眼睛
+    drawRect(ctx, sx + 14, sy + 3, 4, 4, pitch, buffer, Color.Black());
+    // 身体
+    drawRect(ctx, sx + 4, sy + 14, 16, 10, pitch, buffer, PLAYER_BODY_COLOR);
+    // 手臂
+    var armOff = if playerOnGround { playerAnimFrame * 2 % 4 } else { 0 };
+    drawRect(ctx, sx, sy + 14 - armOff, 5, 8, pitch, buffer, PLAYER_HEAD_COLOR);
+    drawRect(ctx, sx + 19, sy + 14 + armOff, 5, 8, pitch, buffer, PLAYER_HEAD_COLOR);
+
+    // 腿（跑步动画）
+    if playerOnGround {
+        var legFrame = playerAnimFrame;
+        var leg1Off = [0, 3, 6, 3][legFrame];
+        var leg2Off = [0, -3, -6, -3][legFrame];
+        drawRect(ctx, sx + 4, sy + 24, 6, 8 + leg1Off, pitch, buffer, PLAYER_LEG_COLOR);
+        drawRect(ctx, sx + 14, sy + 24, 6, 8 + leg2Off, pitch, buffer, PLAYER_LEG_COLOR);
+    } else {
+        // 空中姿态
+        drawRect(ctx, sx + 2, sy + 24, 8, 6, pitch, buffer, PLAYER_LEG_COLOR);
+        drawRect(ctx, sx + 14, sy + 24, 8, 6, pitch, buffer, PLAYER_LEG_COLOR);
+    }
+
+    // 鞋子
+    if playerOnGround {
+        var legFrame = playerAnimFrame;
+        var leg1Off = [0, 3, 6, 3][legFrame];
+        var leg2Off = [0, -3, -6, -3][legFrame];
+        drawRect(ctx, sx + 3, sy + 30 + leg1Off, 8, 4, pitch, buffer, PLAYER_SHOE_COLOR);
+        drawRect(ctx, sx + 13, sy + 30 + leg2Off, 8, 4, pitch, buffer, PLAYER_SHOE_COLOR);
+    } else {
+        drawRect(ctx, sx + 1, sy + 28, 9, 4, pitch, buffer, PLAYER_SHOE_COLOR);
+        drawRect(ctx, sx + 14, sy + 28, 9, 4, pitch, buffer, PLAYER_SHOE_COLOR);
+    }
+}
+
+fn drawParticles(ctx: rawptr, pitch: int, buffer: rawptr) {
+    for i in 0..particleCount {
+        if particles[i].life <= 0 { continue; }
+        var alpha = (particles[i].life as float / particles[i].maxLife as float * 255.0) as u8;
+        var sx = (particles[i].x as int) - worldX;
+        var sy = (particles[i].y as int);
+        if sx > -10 && sx < WINDOW_WIDTH + 10 {
+            drawRect(ctx, sx, sy, particles[i].size, particles[i].size, pitch, buffer, particles[i].color);
+        }
+    }
+
+    for i in 0..dustCount {
+        if dusts[i].life <= 0 { continue; }
+        var sx = (dusts[i].x as int);
+        var sy = (dusts[i].y as int);
+        var alpha = (dusts[i].life as float / 15.0 * 200.0) as u8;
+        drawRect(ctx, sx, sy, dusts[i].size, dusts[i].size, pitch, buffer, DUST_COLOR);
+    }
+}
+
+fn drawHUD(ctx: rawptr, pitch: int, buffer: rawptr) {
+    drawRect(ctx, 0, 0, WINDOW_WIDTH, 28, pitch, buffer, HUD_BG_COLOR);
+
+    // 分数
+    drawTextSimple(ctx, 10, 8, "分数:", 5, pitch, buffer, TEXT_COLOR);
+    drawTextSimple(ctx, 60, 8, score.toString(), 5, pitch, buffer, Color.Yellow());
+
+    // 生命
+    drawTextSimple(ctx, 150, 8, "生命:", 5, pitch, buffer, TEXT_COLOR);
+    drawTextSimple(ctx, 195, 8, lives.toString(), 5, pitch, buffer, Color.Red());
+
+    // 距离
+    drawTextSimple(ctx, 240, 8, "距离:", 5, pitch, buffer, TEXT_COLOR);
+    drawTextSimple(ctx, 290, 8, (distance / 100).toString() ++ "m", 5, pitch, buffer, Color.Cyan());
+
+    // 金币
+    drawRect(ctx, 380, 8, 10, 10, pitch, buffer, COIN_COLOR);
+    drawTextSimple(ctx, 396, 8, "x" ++ coinsCollected.toString(), 5, pitch, buffer, COIN_COLOR);
+
+    // 速度指示
+    drawTextSimple(ctx, 430, 8, "SPD:" ++ (worldSpeed / 10).toString(), 4, pitch, buffer, Color.Gray());
+}
+
+fn drawReadyScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
+    drawRect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, pitch, buffer, Color.ARGB(200, 0, 0, 30));
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT / 2 - 70, "PARKOUR", 10, pitch, buffer, Color.Cyan());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 - 10, "跑酷 - Zen-C", 6, pitch, buffer, Color.Yellow());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 + 40, "空格/上箭头 跳跃 (二段跳)", 5, pitch, buffer, TEXT_COLOR);
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 70, "按空格键开始游戏", 5, pitch, buffer, Color.Green());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 55, WINDOW_HEIGHT / 2 + 100, "ESC 退出", 5, pitch, buffer, Color.LightGray());
+}
+
+fn drawGameOverScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
+    drawRect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, pitch, buffer, Color.ARGB(220, 30, 0, 0));
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT / 2 - 50, "游戏结束!", 8, pitch, buffer, Color.Red());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 5, "最终分数: " ++ score.toString(), 5, pitch, buffer, Color.Yellow());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 35, "距离: " ++ (distance / 100).toString() ++ "m", 5, pitch, buffer, Color.Cyan());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 65, "按空格重新开始", 5, pitch, buffer, Color.Green());
+}
+
+fn drawWonScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
+    drawRect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, pitch, buffer, Color.ARGB(200, 0, 50, 0));
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT / 2 - 60, "恭喜通关!", 8, pitch, buffer, Color.Yellow());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2, "最终分数: " ++ score.toString(), 5, pitch, buffer, Color.White());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 35, "距离: " ++ (distance / 100).toString() ++ "m", 5, pitch, buffer, Color.Cyan());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 65, "按空格重新开始", 5, pitch, buffer, Color.Green());
+}
+
+// ==================== 底层绘制函数 ====================
+
+fn setPixel(ctx: rawptr, x: int, y: int, pitch: int, buffer: rawptr, color: Color) {
+    if x < 0 || x >= WINDOW_WIDTH || y < 0 || y >= WINDOW_HEIGHT { return; }
+    var offset = y * (pitch / 4) + x;
+    var pixels = buffer as u32 mut;
+    pixels[offset] = color;
+}
+
+fn drawRect(ctx: rawptr, x: int, y: int, w: int, h: int, pitch: int, buffer: rawptr, color: Color) {
+    if y + h < 0 || y >= WINDOW_HEIGHT || x + w < 0 || x >= WINDOW_WIDTH { return; }
+    for py in y..(y + h) {
+        for px in x..(x + w) {
+            setPixel(ctx, px, py, pitch, buffer, color);
+        }
+    }
+}
+
+fn fillCircle(ctx: rawptr, cx: int, cy: int, radius: int, pitch: int, buffer: rawptr, color: Color) {
+    for y in (-radius)..(radius + 1) {
+        for x in (-radius)..(radius + 1) {
+            if x*x + y*y <= radius * radius {
+                setPixel(ctx, cx + x, cy + y, pitch, buffer, color);
+            }
+        }
+    }
+}
+
+// 简化文字绘制
+fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, size: int, pitch: int, buffer: rawptr, color: Color) {
+    var px = x;
+    var py = y;
+    var charW = size;
+    var charH = size;
+
+    for i in 0..len(text) {
+        if text[i] == '\n' {
+            py = py + charH;
+            px = x;
+            continue;
+        }
+        var isFilled = false;
+        var charCode = text[i] as u32;
+        if charCode > 32 {
+            isFilled = ((charCode + px + py) % 3) != 0;
+        }
+        if isFilled {
+            drawRect(ctx, px, py, charW - 1, charH - 1, pitch, buffer, color);
+        }
+        px = px + charW;
+        if px > WINDOW_WIDTH - charW {
+            py = py + charH;
+            px = x;
+        }
+    }
+}
+
+fn clearScreen(pitch: int, buffer: rawptr, color: Color) {
+    var pixels = buffer as u32 mut;
+    var count = (pitch * WINDOW_HEIGHT) / 4;
+    for i in 0..count {
+        pixels[i] = color;
+    }
+}
+
+// ==================== 事件处理 ====================
+
+fn processEvents() {
+    var event = Event.{};
+    while pollEvent(window, &event) {
+        match event.msg {
+            MessageType.Quit => { running = false; },
+            MessageType.KeyDown => { handleKeyDown(event.key.key); },
+            MessageType.KeyUp => { handleKeyUp(event.key.key); },
+            _ => {}
+        }
+    }
+}
+
+// ==================== 游戏主循环 ====================
+
+fn gameLoop() {
+    lastFrame = getTickCount();
+
+    while running {
+        processEvents();
+
+        var current = getTickCount();
+        var dt = current - lastFrame;
+        if dt > 100 { dt = 16; }
+
+        updateGame(dt);
+
+        var fb = getFrameBuffer(window);
+        var pitch = getFrameBufferPitch(window);
+
+        clearScreen(pitch, fb, SKY_TOP);
+
+        drawBackground(window, pitch, fb);
+        drawGround(window, pitch, fb);
+
+        // 绘制平台
+        for i in 0..platformCount {
+            if platforms[i].active {
+                drawPlatformItem(window, pitch, fb, platforms[i]);
+            }
+        }
+
+        // 绘制金币
+        for i in 0..coinCount {
+            drawCoinItem(window, pitch, fb, coins[i]);
+        }
+
+        // 绘制障碍物
+        for i in 0..spikeCount {
+            if spikes[i].active {
+                drawSpike(window, pitch, fb, spikes[i]);
+            }
+        }
+
+        drawPlayer(window, pitch, fb);
+        drawParticles(window, pitch, fb);
+        drawHUD(window, pitch, fb);
+
+        if gameState == GameState.Ready {
+            drawReadyScreen(window, pitch, fb);
+        } else if gameState == GameState.GameOver {
+            drawGameOverScreen(window, pitch, fb);
+        } else if gameState == GameState.Won {
+            drawWonScreen(window, pitch, fb);
+        }
+
+        presentFrame(window);
+
+        lastFrame = current;
+
+        var elapsed = getTickCount() - lastFrame;
+        if elapsed < FRAME_TIME {
+            sleep(FRAME_TIME - elapsed);
+        }
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() {
+    io.println("===========================================");
+    io.println("  PARKOUR - Zen-C 跑酷游戏");
+    io.println("  版本: 1.0.0");
+    io.println("===========================================");
+
+    window = createWindow("Parkour - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    if window == nil {
+        io.println("错误: 无法创建窗口");
+        return;
+    }
+
+    io.println("窗口创建成功!");
+
+    initGame();
+    io.println("按空格或上箭头开始游戏");
+    io.println("目标: 跑酷10000米，收集金币!");
+    io.println("操作: 空格/上 = 跳跃(可二段跳)");
+    io.println("ESC = 退出游戏");
+
+    gameLoop();
+
+    io.println("游戏结束!");
+}

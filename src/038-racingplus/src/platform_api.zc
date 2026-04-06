@@ -1,0 +1,128 @@
+// platform_api.zc - 跨平台API定义
+// 003-framework v1.0.0
+
+// 窗口句柄类型
+pub type WindowHandle = rawptr;
+
+// 颜色
+pub type Color = struct {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+};
+
+impl Color {
+    pub fn Black() -> Color { return Color.{ r: 0, g: 0, b: 0, a: 255 }; }
+    pub fn White() -> Color { return Color.{ r: 255, g: 255, b: 255, a: 255 }; }
+    pub fn Red() -> Color { return Color.{ r: 255, g: 0, b: 0, a: 255 }; }
+    pub fn Green() -> Color { return Color.{ r: 0, g: 180, b: 0, a: 255 }; }
+    pub fn Blue() -> Color { return Color.{ r: 0, g: 0, b: 255, a: 255 }; }
+    pub fn Yellow() -> Color { return Color.{ r: 255, g: 255, b: 0, a: 255 }; }
+    pub fn Cyan() -> Color { return Color.{ r: 0, g: 255, b: 255, a: 255 }; }
+    pub fn Magenta() -> Color { return Color.{ r: 255, g: 0, b: 255, a: 255 }; }
+    pub fn Gray() -> Color { return Color.{ r: 128, g: 128, b: 128, a: 255 }; }
+    pub fn DarkGray() -> Color { return Color.{ r: 64, g: 64, b: 64, a: 255 }; }
+    pub fn Orange() -> Color { return Color.{ r: 255, g: 165, b: 0, a: 255 }; }
+    pub fn Purple() -> Color { return Color.{ r: 128, g: 0, b: 128, a: 255 }; }
+    pub fn Brown() -> Color { return Color.{ r: 139, g: 90, b: 43, a: 255 }; }
+    
+    pub fn RGB(r: u8, g: u8, b: u8) -> Color { return Color.{ r: r, g: g, b: b, a: 255 }; }
+    pub fn ARGB(a: u8, r: u8, g: u8, b: u8) -> Color { return Color.{ r: r, g: g, b: b, a: a }; }
+}
+
+// 矩形
+pub type Rect = struct {
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+};
+
+// 虚拟键码
+pub type VirtualKey = enum {
+    Unknown,
+    Up,
+    Down,
+    Left,
+    Right,
+    Space,
+    Escape,
+    Enter,
+    A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+    Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9,
+};
+
+// 鼠标按钮
+pub type MouseButton = enum {
+    Left,
+    Right,
+    Middle,
+};
+
+// 消息类型
+pub type MessageType = enum {
+    Quit,
+    KeyDown,
+    KeyUp,
+    MouseDown,
+    MouseUp,
+    Resize,
+    Paint,
+};
+
+// 事件
+pub type Event = struct {
+    msg: MessageType,
+    key: KeyEvent,
+    mouse: MouseEvent,
+    width: int,
+    height: int,
+};
+
+pub type KeyEvent = struct {
+    key: VirtualKey,
+};
+
+pub type MouseEvent = struct {
+    x: int,
+    y: int,
+    button: MouseButton,
+};
+
+// 画布接口
+pub interface Canvas {
+    fn clear(color: Color);
+    fn setPixel(x: int, y: int, color: Color);
+    fn getPixel(x: int, y: int) -> Color;
+    fn drawLine(x1: int, y1: int, x2: int, y2: int, color: Color);
+    fn drawRect(x: int, y: int, w: int, h: int, color: Color);
+    fn fillRect(x: int, y: int, w: int, h: int, color: Color);
+    fn drawCircle(cx: int, cy: int, radius: int, color: Color);
+    fn fillCircle(cx: int, cy: int, radius: int, color: Color);
+    fn drawText(x: int, y: int, text: str, color: Color, font: Font);
+    fn getWidth() -> int;
+    fn getHeight() -> int;
+};
+
+// 字体
+pub type Font = struct {
+    name: str,
+    size: int,
+};
+
+// 外部函数声明
+pub extern fn createWindow(title: str, width: int, height: int) -> WindowHandle;
+pub extern fn closeWindow(window: WindowHandle);
+pub extern fn pollEvent(window: WindowHandle, event: &Event) -> bool;
+pub extern fn getFrameBuffer(window: WindowHandle) -> rawptr;
+pub extern fn getFrameBufferPitch(window: WindowHandle) -> int;
+pub extern fn presentFrame(window: WindowHandle);
+pub extern fn getTickCount() -> u32;
+pub extern fn sleep(ms: u32);
+pub extern fn initPlatform();
+pub extern fn shutdownPlatform();
+pub extern fn println(msg: str);
+
+// printf-style formatting
+pub extern fn printf(format: str, ...);

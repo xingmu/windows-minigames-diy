@@ -1,0 +1,862 @@
+// main_window.zc - Zen-C 超级玛丽风格游戏
+// 经典横版平台跳跃游戏
+
+import std.io;
+
+// 导入平台 API
+import "platform_api.zc";
+
+// ==================== 游戏配置 ====================
+
+const WINDOW_WIDTH: int = 480;
+const WINDOW_HEIGHT: int = 360;
+const TARGET_FPS: int = 60;
+const FRAME_TIME: u32 = 1000 / TARGET_FPS;
+
+// 地面高度
+const GROUND_Y: int = 300;
+
+// 马里奥配置
+const MARIO_WIDTH: int = 24;
+const MARIO_HEIGHT: int = 32;
+const MARIO_SPEED: int = 180;
+const JUMP_VELOCITY: int = -420;
+const GRAVITY: int = 980;
+
+// 敌人配置
+const GOOMBA_WIDTH: int = 24;
+const GOOMBA_HEIGHT: int = 24;
+const GOOMBA_SPEED: int = 60;
+
+// 金币配置
+const COIN_SIZE: int = 16;
+const COIN_BONUS: int = 100;
+
+// ==================== 游戏状态 ====================
+
+enum GameState {
+    Ready,
+    Playing,
+    GameOver,
+    Won,
+}
+
+// ==================== 对象定义 ====================
+
+struct Platform {
+    x: int;
+    y: int;
+    w: int;
+    h: int;
+}
+
+struct Enemy {
+    x: float;
+    y: float;
+    vx: float;
+    alive: bool;
+    squashTimer: int;
+}
+
+struct Coin {
+    x: int;
+    y: int;
+    collected: bool;
+    animFrame: int;
+}
+
+struct Particle {
+    x: float;
+    y: float;
+    vx: float;
+    vy: float;
+    life: int;
+    color: Color;
+}
+
+// ==================== 全局游戏数据 ====================
+
+static mut window: WindowHandle;
+static mut running: bool = true;
+static mut gameState: GameState = GameState.Ready;
+
+// 马里奥状态
+static mut marioX: float = 60.0;
+static mut marioY: float = 200.0;
+static mut marioVX: float = 0.0;
+static mut marioVY: float = 0.0;
+static mut marioOnGround: bool = false;
+static mut marioFacingRight: bool = true;
+static mut marioAnimFrame: int = 0;
+static mut marioAnimTimer: int = 0;
+static mut marioInvincible: int = 0;
+
+// 敌人
+static mut enemies: [8]Enemy;
+static mut enemyCount: int = 0;
+
+// 金币
+static mut coins: [20]Coin;
+static mut coinCount: int = 0;
+static mut particles: [30]Particle;
+static mut particleCount: int = 0;
+
+// 摄像机
+static mut cameraX: int = 0;
+
+// 分数/生命
+static mut score: int = 0;
+static mut lives: int = 3;
+static mut coinsCollected: int = 0;
+
+// 关卡数据
+static mut platforms: [10]Platform;
+static mut platformCount: int = 0;
+
+// 计时
+static mut lastFrame: u32 = 0;
+static mut gameTime: u32 = 0;
+
+// 按键状态
+static mut keyLeft: bool = false;
+static mut keyRight: bool = false;
+static mut keyJump: bool = false;
+static mut jumpPressed: bool = false;
+
+// ==================== 颜色定义 ====================
+
+const SKY_COLOR = Color.RGB(107, 140, 255);
+const GROUND_COLOR = Color.RGB(139, 69, 19);
+const GROUND_TOP_COLOR = Color.RGB(0, 150, 0);
+const BRICK_COLOR = Color.RGB(180, 120, 60);
+const BRICK_LINE_COLOR = Color.RGB(140, 90, 40);
+const MARIO_COLOR = Color.RGB(220, 50, 50);
+const MARIO_HAT_COLOR = Color.RGB(200, 40, 40);
+const MARIO_SHIRT_COLOR = Color.RGB(50, 100, 220);
+const MARIO_SKIN_COLOR = Color.RGB(255, 200, 150);
+const ENEMY_COLOR = Color.RGB(150, 90, 50);
+const ENEMY_DARK_COLOR = Color.RGB(100, 50, 30);
+const COIN_COLOR = Color.RGB(255, 210, 0);
+const COIN_SHINE_COLOR = Color.RGB(255, 255, 150);
+const QUESTION_COLOR = Color.RGB(255, 200, 50);
+const PIPE_COLOR = Color.RGB(50, 180, 50);
+const PIPE_DARK_COLOR = Color.RGB(30, 120, 30);
+const TEXT_COLOR = Color.White();
+const HUD_BG_COLOR = Color.RGB(0, 0, 0);
+
+// ==================== 关卡初始化 ====================
+
+fn initLevel() {
+    enemyCount = 0;
+    coinCount = 0;
+    particleCount = 0;
+    platformCount = 0;
+    
+    // 地面
+    platforms[platformCount] = Platform.{ x: -100, y: GROUND_Y, w: 1200, h: 60 };
+    platformCount = platformCount + 1;
+    
+    // 左上平台
+    platforms[platformCount] = Platform.{ x: 80, y: 220, w: 80, h: 20 };
+    platformCount = platformCount + 1;
+    
+    // 中间平台
+    platforms[platformCount] = Platform.{ x: 220, y: 180, w: 100, h: 20 };
+    platformCount = platformCount + 1;
+    
+    // 右上平台
+    platforms[platformCount] = Platform.{ x: 380, y: 220, w: 80, h: 20 };
+    platformCount = platformCount + 1;
+    
+    // 高处平台
+    platforms[platformCount] = Platform.{ x: 500, y: 150, w: 80, h: 20 };
+    platformCount = platformCount + 1;
+    
+    // 下方隐蔽平台
+    platforms[platformCount] = Platform.{ x: 600, y: 260, w: 60, h: 20 };
+    platformCount = platformCount + 1;
+    
+    // 远处的阶梯平台
+    platforms[platformCount] = Platform.{ x: 750, y: 250, w: 50, h: 20 };
+    platformCount = platformCount + 1;
+    platforms[platformCount] = Platform.{ x: 820, y: 220, w: 50, h: 20 };
+    platformCount = platformCount + 1;
+    platforms[platformCount] = Platform.{ x: 890, y: 190, w: 50, h: 20 };
+    platformCount = platformCount + 1;
+    platforms[platformCount] = Platform.{ x: 960, y: 160, w: 80, h: 20 };
+    platformCount = platformCount + 1;
+    
+    // 终点城堡
+    platforms[platformCount] = Platform.{ x: 1050, y: 160, w: 120, h: 140 };
+    platformCount = platformCount + 1;
+    
+    // 敌人 - 地面上的蘑菇
+    spawnEnemy(300.0, GROUND_Y - GOOMBA_HEIGHT as float);
+    spawnEnemy(450.0, GROUND_Y - GOOMBA_HEIGHT as float);
+    spawnEnemy(600.0, GROUND_Y - GOOMBA_HEIGHT as float);
+    spawnEnemy(900.0, GROUND_Y - GOOMBA_HEIGHT as float);
+    
+    // 敌人 - 平台上的蘑菇
+    spawnEnemy(230.0, 180 - GOOMBA_HEIGHT as float);
+    spawnEnemy(800.0, 220 - GOOMBA_HEIGHT as float);
+    
+    // 金币
+    spawnCoin(120, 190);
+    spawnCoin(260, 150);
+    spawnCoin(400, 190);
+    spawnCoin(520, 120);
+    spawnCoin(620, 230);
+    spawnCoin(780, 220);
+    spawnCoin(850, 190);
+    spawnCoin(920, 160);
+    spawnCoin(980, 130);
+    spawnCoin(1080, 130);
+    spawnCoin(1100, 130);
+    spawnCoin(1120, 130);
+}
+
+fn spawnEnemy(x: float, y: float) {
+    if enemyCount >= 8 { return; }
+    enemies[enemyCount] = Enemy.{
+        x: x, y: y,
+        vx: GOOMBA_SPEED as float,
+        alive: true,
+        squashTimer: 0,
+    };
+    enemyCount = enemyCount + 1;
+}
+
+fn spawnCoin(x: int, y: int) {
+    if coinCount >= 20 { return; }
+    coins[coinCount] = Coin.{
+        x: x, y: y,
+        collected: false,
+        animFrame: 0,
+    };
+    coinCount = coinCount + 1;
+}
+
+fn spawnParticle(x: float, y: float, vx: float, vy: float, color: Color) {
+    if particleCount >= 30 { return; }
+    particles[particleCount] = Particle.{
+        x: x, y: y, vx: vx, vy: vy,
+        life: 30, color: color,
+    };
+    particleCount = particleCount + 1;
+}
+
+// ==================== 游戏初始化 ====================
+
+fn initGame() {
+    marioX = 60.0;
+    marioY = 200.0;
+    marioVX = 0.0;
+    marioVY = 0.0;
+    marioOnGround = false;
+    marioFacingRight = true;
+    marioAnimFrame = 0;
+    marioAnimTimer = 0;
+    marioInvincible = 0;
+    cameraX = 0;
+    score = 0;
+    coinsCollected = 0;
+    gameState = GameState.Ready;
+    initLevel();
+}
+
+// ==================== 输入处理 ====================
+
+fn handleKeyDown(key: VirtualKey) {
+    match key {
+        VirtualKey.Left => { keyLeft = true; },
+        VirtualKey.Right => { keyRight = true; },
+        VirtualKey.Space => {
+            if !jumpPressed {
+                keyJump = true;
+                jumpPressed = true;
+                if gameState == GameState.Ready {
+                    gameState = GameState.Playing;
+                } else if gameState == GameState.GameOver || gameState == GameState.Won {
+                    initGame();
+                }
+            }
+        },
+        VirtualKey.Up => {
+            if !jumpPressed {
+                keyJump = true;
+                jumpPressed = true;
+                if gameState == GameState.Ready {
+                    gameState = GameState.Playing;
+                } else if gameState == GameState.GameOver || gameState == GameState.Won {
+                    initGame();
+                }
+            }
+        },
+        VirtualKey.Escape => { running = false; },
+        _ => {}
+    }
+}
+
+fn handleKeyUp(key: VirtualKey) {
+    match key {
+        VirtualKey.Left => { keyLeft = false; },
+        VirtualKey.Right => { keyRight = false; },
+        VirtualKey.Space => { jumpPressed = false; },
+        VirtualKey.Up => { jumpPressed = false; },
+        _ => {}
+    }
+}
+
+// ==================== 碰撞检测 ====================
+
+fn rectIntersect(r1x: float, r1y: float, r1w: int, r1h: int,
+                 r2x: float, r2y: float, r2w: int, r2h: int) -> bool {
+    return r1x < r2x + r2w as float &&
+           r1x + r1w as float > r2x &&
+           r1y < r2y + r2h as float &&
+           r1y + r1h as float > r2y;
+}
+
+// ==================== 游戏逻辑更新 ====================
+
+fn updateGame(dt: u32) {
+    if gameState != GameState.Playing { return; }
+    
+    var dtSec = dt as float / 1000.0;
+    gameTime = gameTime + dt;
+    
+    // 移动输入
+    if keyLeft {
+        marioVX = -MARIO_SPEED as float;
+        marioFacingRight = false;
+    } else if keyRight {
+        marioVX = MARIO_SPEED as float;
+        marioFacingRight = true;
+    } else {
+        marioVX = 0.0;
+    }
+    
+    // 跳跃
+    if keyJump && marioOnGround {
+        marioVY = JUMP_VELOCITY as float;
+        marioOnGround = false;
+        keyJump = false;
+    }
+    if !jumpPressed { keyJump = false; }
+    
+    // 重力
+    marioVY = marioVY + (GRAVITY as float * dtSec);
+    
+    // 更新位置
+    marioX = marioX + marioVX * dtSec;
+    marioY = marioY + marioVY * dtSec;
+    
+    // 平台碰撞
+    marioOnGround = false;
+    for i in 0..platformCount {
+        var plat = platforms[i];
+        if rectIntersect(marioX, marioY, MARIO_WIDTH, MARIO_HEIGHT,
+                        plat.x as float, plat.y as float, plat.w, plat.h) {
+            if marioVY > 0.0 && (marioY + MARIO_HEIGHT as float - marioVY * dtSec) <= plat.y as float + 5.0 {
+                marioY = plat.y as float - MARIO_HEIGHT as float;
+                marioVY = 0.0;
+                marioOnGround = true;
+            }
+        }
+    }
+    
+    // 地面边界
+    if marioY > GROUND_Y as float - MARIO_HEIGHT as float {
+        marioY = GROUND_Y as float - MARIO_HEIGHT as float;
+        marioVY = 0.0;
+        marioOnGround = true;
+    }
+    
+    // 左侧边界
+    if marioX < cameraX as float - 50.0 {
+        marioX = cameraX as float - 50.0;
+    }
+    
+    // 掉落死亡
+    if marioY > WINDOW_HEIGHT as float + 50.0 {
+        loseLife();
+        return;
+    }
+    
+    // 无敌时间
+    if marioInvincible > 0 { marioInvincible = marioInvincible - 1; }
+    
+    // 摄像机跟随
+    var targetCamX = marioX as int - WINDOW_WIDTH / 3;
+    if targetCamX > cameraX { cameraX = targetCamX; }
+    if cameraX < 0 { cameraX = 0; }
+    
+    // 更新敌人
+    for i in 0..enemyCount {
+        if !enemies[i].alive { continue; }
+        if enemies[i].squashTimer > 0 {
+            enemies[i].squashTimer = enemies[i].squashTimer - 1;
+            if enemies[i].squashTimer <= 0 { enemies[i].alive = false; }
+            continue;
+        }
+        
+        enemies[i].x = enemies[i].x + enemies[i].vx * dtSec;
+        
+        if enemies[i].x < cameraX as float - 50.0 {
+            enemies[i].x = cameraX as float - 50.0;
+            enemies[i].vx = -enemies[i].vx;
+        }
+        
+        // 马里奥碰撞
+        if marioInvincible <= 0 {
+            var dx = abs((enemies[i].x as int) - (marioX as int));
+            var dy = abs((enemies[i].y as int) - (marioY as int));
+            if dx < MARIO_WIDTH && dy < MARIO_HEIGHT {
+                if marioVY > 0.0 && marioY + MARIO_HEIGHT as float - enemies[i].y < 15.0 {
+                    enemies[i].squashTimer = 20;
+                    enemies[i].vx = 0.0;
+                    marioVY = JUMP_VELOCITY as float * 0.6;
+                    score = score + 100;
+                    io.println("踩死敌人! +100 分数: " ++ score.toString());
+                    spawnParticle(enemies[i].x + 12.0, enemies[i].y, -50.0, -100.0, Color.White());
+                    spawnParticle(enemies[i].x + 12.0, enemies[i].y, 50.0, -100.0, Color.White());
+                } else {
+                    loseLife();
+                    return;
+                }
+            }
+        }
+    }
+    
+    // 更新金币
+    for i in 0..coinCount {
+        if coins[i].collected { continue; }
+        coins[i].animFrame = (coins[i].animFrame + 1) % 40;
+        var dx = abs(coins[i].x - (marioX as int));
+        var dy = abs(coins[i].y - (marioY as int));
+        if dx < MARIO_WIDTH && dy < MARIO_HEIGHT {
+            coins[i].collected = true;
+            score = score + COIN_BONUS;
+            coinsCollected = coinsCollected + 1;
+            io.println("吃到金币! +" ++ COIN_BONUS.toString() ++ " 分数: " ++ score.toString());
+            for p in 0..5 {
+                spawnParticle(coins[i].x as float + 8.0, coins[i].y as float,
+                            (randInt(-80, 80)) as float, (randInt(-150, -50)) as float, COIN_COLOR);
+            }
+            if coinsCollected >= 5 {
+                coinsCollected = 0;
+                lives = lives + 1;
+                io.println("获得1UP!");
+            }
+        }
+    }
+    
+    // 更新粒子
+    for i in 0..particleCount {
+        if particles[i].life <= 0 { continue; }
+        particles[i].x = particles[i].x + particles[i].vx * dtSec;
+        particles[i].y = particles[i].y + particles[i].vy * dtSec;
+        particles[i].vy = particles[i].vy + 300.0 * dtSec;
+        particles[i].life = particles[i].life - 1;
+    }
+    
+    // 动画帧
+    if marioVX != 0.0 {
+        marioAnimTimer = marioAnimTimer + 1;
+        if marioAnimTimer > 8 {
+            marioAnimTimer = 0;
+            marioAnimFrame = (marioAnimFrame + 1) % 3;
+        }
+    } else {
+        marioAnimFrame = 0;
+    }
+    
+    // 胜利检测
+    if marioX > 1060.0 {
+        gameState = GameState.Won;
+        io.println("恭喜通关! 最终分数: " ++ score.toString());
+    }
+}
+
+fn loseLife() {
+    lives = lives - 1;
+    io.println("哎呀! 剩余生命: " ++ lives.toString());
+    if lives <= 0 {
+        gameState = GameState.GameOver;
+        io.println("游戏结束! 最终分数: " ++ score.toString());
+    } else {
+        marioX = 60.0;
+        marioY = 200.0;
+        marioVY = 0.0;
+        marioInvincible = 120;
+        cameraX = 0;
+    }
+}
+
+static mut rng_seed: u32 = 12345;
+
+fn randInt(minVal: int, maxVal: int) -> int {
+    rng_seed = rng_seed * 1103515245 + 12345;
+    var r = (rng_seed / 65536) % 32768;
+    return minVal + (r as int % (maxVal - minVal + 1));
+}
+
+fn abs(x: int) -> int {
+    return if x < 0 { -x } else { x };
+}
+
+// ==================== 绘制函数 ====================
+
+fn drawBackground(ctx: rawptr, pitch: int, buffer: rawptr) {
+    for y in 0..GROUND_Y {
+        var t = y as float / GROUND_Y as float;
+        var r = 107 + ((135 - 107) as float * t) as u8;
+        var g = 140 + ((206 - 140) as float * t) as u8;
+        var b = 255;
+        drawRect(ctx, 0, y, WINDOW_WIDTH, 1, pitch, buffer, Color.RGB(r, g, b));
+    }
+    drawCloud(ctx, pitch, buffer, 80 - cameraX % 200, 50);
+    drawCloud(ctx, pitch, buffer, 280 - cameraX % 200, 80);
+    drawCloud(ctx, pitch, buffer, 400 - cameraX % 200, 40);
+    drawCloud(ctx, pitch, buffer, 600 - cameraX % 200, 70);
+    for x in 0..WINDOW_WIDTH {
+        var wx = x + cameraX;
+        var h = (sin(wx as float * 0.01) * 30.0 + 40.0) as int;
+        drawRect(ctx, x, GROUND_Y - h, 1, h, pitch, buffer, Color.RGB(60, 120, 60));
+    }
+}
+
+fn drawCloud(ctx: rawptr, pitch: int, buffer: rawptr, x: int, y: int) {
+    if x < -60 { x = x + 800; }
+    var c = Color.RGB(255, 255, 255);
+    fillCircle(ctx, x, y, 20, pitch, buffer, c);
+    fillCircle(ctx, x + 20, y - 5, 15, pitch, buffer, c);
+    fillCircle(ctx, x + 35, y, 18, pitch, buffer, c);
+}
+
+fn sin(x: float) -> float {
+    var result = x as float;
+    var term = x as float;
+    for i in 1..6 {
+        term = -term * x * x / ((2 * i) as float * (2 * i + 1) as float);
+        result = result + term;
+    }
+    return result;
+}
+
+fn drawPlatform(ctx: rawptr, pitch: int, buffer: rawptr, plat: Platform) {
+    var sx = plat.x - cameraX;
+    if sx + plat.w < 0 || sx > WINDOW_WIDTH { return; }
+    drawRect(ctx, sx, plat.y, plat.w, 4, pitch, buffer, GROUND_TOP_COLOR);
+    drawRect(ctx, sx, plat.y + 4, plat.w, plat.h - 4, pitch, buffer, GROUND_COLOR);
+    for gx in sx..(sx + plat.w) {
+        if (gx % 8) < 4 {
+            drawRect(ctx, gx, plat.y - 2, 2, 2, pitch, buffer, GROUND_TOP_COLOR);
+        }
+    }
+}
+
+fn drawMario(ctx: rawptr, pitch: int, buffer: rawptr) {
+    if gameState == GameState.GameOver { return; }
+    if marioInvincible > 0 && (marioInvincible / 4) % 2 == 0 { return; }
+    
+    var sx = (marioX as int) - cameraX;
+    var sy = (marioY as int);
+    var dir = if marioFacingRight { 1 } else { -1 };
+    
+    if dir < 0 { sx = sx - MARIO_WIDTH; }
+    
+    // 头
+    drawRect(ctx, sx + 4, sy, 16, 12, pitch, buffer, MARIO_SKIN_COLOR);
+    // 帽子
+    drawRect(ctx, sx + 2, sy - 4, 20, 6, pitch, buffer, MARIO_HAT_COLOR);
+    drawRect(ctx, sx, sy, 6, 4, pitch, buffer, MARIO_HAT_COLOR);
+    // 眼睛
+    if dir > 0 {
+        drawRect(ctx, sx + 14, sy + 2, 4, 4, pitch, buffer, Color.Black());
+    } else {
+        drawRect(ctx, sx + 6, sy + 2, 4, 4, pitch, buffer, Color.Black());
+    }
+    // 身体
+    drawRect(ctx, sx + 4, sy + 12, 16, 10, pitch, buffer, MARIO_SHIRT_COLOR);
+    // 腿
+    if marioOnGround && marioVX != 0.0 {
+        var legOff = marioAnimFrame * 4;
+        drawRect(ctx, sx + 4 - legOff, sy + 22, 6, 10, pitch, buffer, MARIO_COLOR);
+        drawRect(ctx, sx + 14 + legOff, sy + 22, 6, 10, pitch, buffer, MARIO_COLOR);
+    } else if !marioOnGround {
+        drawRect(ctx, sx + 2, sy + 22, 8, 8, pitch, buffer, MARIO_COLOR);
+        drawRect(ctx, sx + 14, sy + 22, 8, 8, pitch, buffer, MARIO_COLOR);
+    } else {
+        drawRect(ctx, sx + 4, sy + 22, 6, 10, pitch, buffer, MARIO_COLOR);
+        drawRect(ctx, sx + 14, sy + 22, 6, 10, pitch, buffer, MARIO_COLOR);
+    }
+}
+
+fn drawEnemy(ctx: rawptr, pitch: int, buffer: rawptr, enemy: Enemy) {
+    var sx = (enemy.x as int) - cameraX;
+    var sy = (enemy.y as int);
+    if sx < -GOOMBA_WIDTH || sx > WINDOW_WIDTH { return; }
+    if !enemy.alive { return; }
+    
+    if enemy.squashTimer > 0 {
+        drawRect(ctx, sx, sy + 16, GOOMBA_WIDTH, 8, pitch, buffer, ENEMY_COLOR);
+        drawRect(ctx, sx + 2, sy + 18, 4, 4, pitch, buffer, ENEMY_DARK_COLOR);
+        drawRect(ctx, sx + 18, sy + 18, 4, 4, pitch, buffer, ENEMY_DARK_COLOR);
+        return;
+    }
+    
+    fillCircle(ctx, sx + GOOMBA_WIDTH / 2, sy + GOOMBA_HEIGHT / 2, GOOMBA_HEIGHT / 2 - 2, pitch, buffer, ENEMY_COLOR);
+    drawRect(ctx, sx + 4, sy + 6, 6, 6, pitch, buffer, Color.White());
+    drawRect(ctx, sx + 14, sy + 6, 6, 6, pitch, buffer, Color.White());
+    drawRect(ctx, sx + 6, sy + 8, 3, 3, pitch, buffer, Color.Black());
+    drawRect(ctx, sx + 16, sy + 8, 3, 3, pitch, buffer, Color.Black());
+    
+    var footOffset = (gameTime / 100) % 2;
+    drawRect(ctx, sx + 2 + footOffset * 2, sy + GOOMBA_HEIGHT - 6, 8, 6, pitch, buffer, ENEMY_DARK_COLOR);
+    drawRect(ctx, sx + 14 - footOffset * 2, sy + GOOMBA_HEIGHT - 6, 8, 6, pitch, buffer, ENEMY_DARK_COLOR);
+    drawRect(ctx, sx + 8, sy + 2, 8, 4, pitch, buffer, ENEMY_DARK_COLOR);
+}
+
+fn drawCoin(ctx: rawptr, pitch: int, buffer: rawptr, coin: Coin) {
+    if coin.collected { return; }
+    var sx = coin.x - cameraX;
+    var sy = coin.y;
+    if sx < -COIN_SIZE || sx > WINDOW_WIDTH { return; }
+    
+    var scale = 1;
+    if coin.animFrame < 10 { scale = 1; }
+    else if coin.animFrame < 20 { scale = 0; }
+    else if coin.animFrame < 30 { scale = -1; }
+    else { scale = 0; }
+    
+    var w = 8 + scale * 4;
+    if w > 0 {
+        drawRect(ctx, sx + (COIN_SIZE - w) / 2, sy, w, COIN_SIZE, pitch, buffer, COIN_COLOR);
+        drawRect(ctx, sx + (COIN_SIZE - w) / 2 + 1, sy + 1, w - 2, 2, pitch, buffer, COIN_SHINE_COLOR);
+    }
+}
+
+fn drawParticles(ctx: rawptr, pitch: int, buffer: rawptr) {
+    for i in 0..particleCount {
+        if particles[i].life <= 0 { continue; }
+        var sx = (particles[i].x as int) - cameraX;
+        var sy = (particles[i].y as int);
+        drawRect(ctx, sx, sy, 4, 4, pitch, buffer, particles[i].color);
+    }
+}
+
+fn drawHUD(ctx: rawptr, pitch: int, buffer: rawptr) {
+    drawRect(ctx, 0, 0, WINDOW_WIDTH, 28, pitch, buffer, HUD_BG_COLOR);
+    drawTextSimple(ctx, 10, 8, "分数:", 5, pitch, buffer, TEXT_COLOR);
+    drawTextSimple(ctx, 60, 8, score.toString(), 5, pitch, buffer, Color.Yellow());
+    drawTextSimple(ctx, 150, 8, "生命:", 5, pitch, buffer, TEXT_COLOR);
+    drawTextSimple(ctx, 195, 8, lives.toString(), 5, pitch, buffer, Color.Red());
+    drawRect(ctx, 280, 8, 12, 12, pitch, buffer, COIN_COLOR);
+    drawTextSimple(ctx, 298, 8, "x", 5, pitch, buffer, TEXT_COLOR);
+    drawTextSimple(ctx, 310, 8, coinsCollected.toString(), 5, pitch, buffer, COIN_COLOR);
+}
+
+fn drawCastle(ctx: rawptr, pitch: int, buffer: rawptr) {
+    var sx = 1050 - cameraX;
+    if sx < -120 || sx > WINDOW_WIDTH { return; }
+    
+    var castleX = sx;
+    var castleY = 160;
+    
+    drawRect(ctx, castleX, castleY, 40, 140, pitch, buffer, BRICK_COLOR);
+    drawRect(ctx, castleX, castleY, 40, 4, pitch, buffer, BRICK_LINE_COLOR);
+    drawRect(ctx, castleX, castleY + 20, 40, 4, pitch, buffer, BRICK_LINE_COLOR);
+    drawRect(ctx, castleX - 5, castleY - 15, 50, 15, pitch, buffer, BRICK_COLOR);
+    drawRect(ctx, castleX + 12, castleY + 30, 16, 20, pitch, buffer, Color.Black());
+    drawRect(ctx, castleX + 10, castleY + 100, 20, 40, pitch, buffer, Color.Black());
+}
+
+fn drawReadyScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
+    drawRect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, pitch, buffer, Color.ARGB(180, 0, 0, 0));
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2 - 60, "Super Mario", 8, pitch, buffer, Color.Red());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 90, WINDOW_HEIGHT / 2, "按空格或上箭头开始", 5, pitch, buffer, Color.Yellow());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 55, WINDOW_HEIGHT / 2 + 40, "ESC 退出", 5, pitch, buffer, Color.LightGray());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 70, "< >移动  空格跳跃", 5, pitch, buffer, Color.Cyan());
+}
+
+fn drawGameOverScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
+    drawRect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, pitch, buffer, Color.ARGB(200, 0, 0, 0));
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT / 2 - 40, "游戏结束!", 8, pitch, buffer, Color.Red());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2 + 10, "按空格重新开始", 5, pitch, buffer, Color.Yellow());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 80, WINDOW_HEIGHT / 2 + 50, "最终分数: " ++ score.toString(), 5, pitch, buffer, Color.Yellow());
+}
+
+fn drawWonScreen(ctx: rawptr, pitch: int, buffer: rawptr) {
+    drawRect(ctx, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, pitch, buffer, Color.ARGB(200, 0, 50, 0));
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 50, WINDOW_HEIGHT / 2 - 50, "恭喜通关!", 8, pitch, buffer, Color.Yellow());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2, "最终分数: " ++ score.toString(), 5, pitch, buffer, Color.White());
+    drawTextSimple(ctx, WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT / 2 + 40, "按空格重新开始", 5, pitch, buffer, Color.Cyan());
+}
+
+// ==================== 底层绘制函数 ====================
+
+fn setPixel(ctx: rawptr, x: int, y: int, pitch: int, buffer: rawptr, color: Color) {
+    if x < 0 || x >= WINDOW_WIDTH || y < 0 || y >= WINDOW_HEIGHT { return; }
+    var offset = y * (pitch / 4) + x;
+    var pixels = buffer as u32 mut;
+    pixels[offset] = color;
+}
+
+fn drawRect(ctx: rawptr, x: int, y: int, w: int, h: int, pitch: int, buffer: rawptr, color: Color) {
+    if y + h < 0 || y >= WINDOW_HEIGHT || x + w < 0 || x >= WINDOW_WIDTH { return; }
+    for py in y..(y + h) {
+        for px in x..(x + w) {
+            setPixel(ctx, px, py, pitch, buffer, color);
+        }
+    }
+}
+
+fn fillCircle(ctx: rawptr, cx: int, cy: int, radius: int, pitch: int, buffer: rawptr, color: Color) {
+    for y in (-radius)..(radius + 1) {
+        for x in (-radius)..(radius + 1) {
+            if x*x + y*y <= radius * radius {
+                setPixel(ctx, cx + x, cy + y, pitch, buffer, color);
+            }
+        }
+    }
+}
+
+// 简化文字绘制
+fn drawTextSimple(ctx: rawptr, x: int, y: int, text: str, size: int, pitch: int, buffer: rawptr, color: Color) {
+    var px = x;
+    var py = y;
+    var charW = size;
+    var charH = size;
+    
+    for i in 0..len(text) {
+        if text[i] == '\n' {
+            py = py + charH;
+            px = x;
+            continue;
+        }
+        var isFilled = false;
+        var charCode = text[i] as u32;
+        if charCode > 32 {
+            isFilled = ((charCode + px + py) % 3) != 0;
+        }
+        if isFilled {
+            drawRect(ctx, px, py, charW, charH, pitch, buffer, color);
+        }
+        px = px + charW;
+        if px > WINDOW_WIDTH - charW {
+            py = py + charH;
+            px = x;
+        }
+    }
+}
+
+fn clearScreen(pitch: int, buffer: rawptr, color: Color) {
+    var pixels = buffer as u32 mut;
+    var count = (pitch * WINDOW_HEIGHT) / 4;
+    for i in 0..count {
+        pixels[i] = color;
+    }
+}
+
+// ==================== 事件处理 ====================
+
+fn processEvents() {
+    var event = Event.{};
+    while pollEvent(window, &event) {
+        match event.msg {
+            MessageType.Quit => { running = false; },
+            MessageType.KeyDown => { handleKeyDown(event.key.key); },
+            MessageType.KeyUp => { handleKeyUp(event.key.key); },
+            _ => {}
+        }
+    }
+}
+
+// ==================== 游戏主循环 ====================
+
+fn gameLoop() {
+    lastFrame = getTickCount();
+    
+    while running {
+        processEvents();
+        
+        var current = getTickCount();
+        var dt = current - lastFrame;
+        if dt > 100 { dt = 16; }
+        
+        updateGame(dt);
+        
+        var fb = getFrameBuffer(window);
+        var pitch = getFrameBufferPitch(window);
+        
+        clearScreen(pitch, fb, SKY_COLOR);
+        
+        drawBackground(window, pitch, fb);
+        
+        for i in 0..platformCount {
+            drawPlatform(window, pitch, fb, platforms[i]);
+        }
+        
+        drawCastle(window, pitch, fb);
+        
+        for i in 0..coinCount {
+            drawCoin(window, pitch, fb, coins[i]);
+        }
+        
+        for i in 0..enemyCount {
+            drawEnemy(window, pitch, fb, enemies[i]);
+        }
+        
+        drawMario(window, pitch, fb);
+        drawParticles(window, pitch, fb);
+        drawHUD(window, pitch, fb);
+        
+        if gameState == GameState.Ready {
+            drawReadyScreen(window, pitch, fb);
+        } else if gameState == GameState.GameOver {
+            drawGameOverScreen(window, pitch, fb);
+        } else if gameState == GameState.Won {
+            drawWonScreen(window, pitch, fb);
+        }
+        
+        presentFrame(window);
+        
+        lastFrame = current;
+        
+        var elapsed = getTickCount() - lastFrame;
+        if elapsed < FRAME_TIME {
+            sleep(FRAME_TIME - elapsed);
+        }
+    }
+}
+
+// ==================== 主函数 ====================
+
+fn main() {
+    io.println("===========================================");
+    io.println("  Super Mario - Zen-C");
+    io.println("  版本: 1.0.0");
+    io.println("===========================================");
+    
+    initPlatform();
+    
+    window = createWindow("Super Mario - Zen-C", WINDOW_WIDTH, WINDOW_HEIGHT);
+    
+    if window == nil {
+        io.println("错误: 无法创建窗口");
+        return;
+    }
+    
+    io.println("窗口创建成功!");
+    
+    initGame();
+    io.println("按空格或上箭头开始游戏");
+    io.println("按 ESC 退出");
+    
+    gameLoop();
+    
+    shutdownPlatform();
+    
+    io.println("游戏结束!");
+}

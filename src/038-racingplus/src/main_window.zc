@@ -1,0 +1,1200 @@
+// 038-racingplus - 俯视角赛车游戏增强版
+// Zen-C + 003-framework
+// 更多赛道，更高难度
+// 操作: ↑ 加速, ← → 转向, SPACE 刹车
+
+import "platform_api.zc";
+import "game.zc";
+
+// ============================================================================
+// 游戏配置
+// ============================================================================
+const WINDOW_WIDTH = 900;
+const WINDOW_HEIGHT = 700;
+const FPS = 60;
+
+// 赛车参数
+const CAR_WIDTH = 18;
+const CAR_HEIGHT = 28;
+const MAX_SPEED = 10;
+const ACCELERATION = 4;
+const BRAKE_POWER = 6;
+const FRICTION = 0.97;
+const TURN_SPEED = 5;
+const OFF_ROAD_FRICTION = 0.88;
+
+// 难度等级
+pub type Difficulty = enum {
+    Easy,      // 简单 - 宽赛道，无障碍
+    Normal,    // 普通 - 中等赛道，少量障碍
+    Hard,      // 困难 - 窄赛道，多障碍，时间限制
+    Extreme,   // 极限 - 最窄赛道，很多障碍
+};
+
+// 赛道类型
+pub type TrackType = enum {
+    Oval,           // 椭圆赛道
+    Figure8,        // 8字赛道
+    Technical,      // 技术赛道 (多弯)
+    Speedway,       // 高速赛道 (长直道)
+    Karting,        // 卡丁车道 (S弯)
+};
+
+// ============================================================================
+// 赛车
+// ============================================================================
+struct Car {
+    x: float;
+    y: float;
+    angle: float;
+    speed: float;
+    steering: float;
+    accelerating: bool;
+    braking: bool;
+    checkpointTimes: [u32, 8];
+    currentCheckpoint: int;
+    finishTime: u32;
+}
+
+// ============================================================================
+// 障碍物
+// ============================================================================
+struct Obstacle {
+    x: int;
+    y: int;
+    width: int;
+    height: int;
+    active: bool;
+};
+
+// ============================================================================
+// 检查点
+// ============================================================================
+struct Checkpoint {
+    x: int;
+    y: int;
+    width: int;
+    height: int;
+    id: int;
+};
+
+// ============================================================================
+// 赛道定义
+// ============================================================================
+struct TrackDef {
+    name: str;
+    type: TrackType;
+    difficulty: Difficulty;
+    outerRects: [Rect, 4];
+    innerRects: [Rect, 4];
+    checkpoints: [Checkpoint, 8];
+    obstacles: [Obstacle, 12];
+    obstacleCount: int;
+    lapCount: int;
+    timeLimit: u32;  // 毫秒，0表示无限制
+    startX: float;
+    startY: float;
+    startAngle: float;
+}
+
+// ============================================================================
+// 赛车游戏主类
+// ============================================================================
+class RacingGamePlus extends Game {
+    // 赛车
+    car: Car;
+    
+    // 赛道
+    currentTrack: int;
+    tracks: [TrackDef, 5];
+    trackOuter: Rect;
+    trackInner: Rect;
+    checkpoints: [Checkpoint, 8];
+    checkpointCount: int;
+    obstacles: [Obstacle, 12];
+    obstacleCount: int;
+    
+    // 圈数
+    lap: int;
+    totalLaps: int;
+    lastCheckpoint: int;
+    bestLapTime: u32;
+    currentLapStart: u32;
+    
+    // 按键状态
+    keyUp: bool;
+    keyLeft: bool;
+    keyRight: bool;
+    keySpace: bool;
+    
+    // 速度表
+    maxSpeedSeen: float;
+    
+    // 计时
+    startTime: u32;
+    elapsedTime: u32;
+    raceTimeLimit: u32;
+    timeUp: bool;
+    
+    // 难度
+    difficulty: Difficulty;
+    
+    // 粒子效果
+    tireMarks: [TireMark, 100];
+    tireMarkCount: int;
+    dustParticles: [DustParticle, 50];
+    dustCount: int;
+    
+    // 速度线
+    speedLines: [SpeedLine, 20];
+    speedLineCount: int;
+    
+    // 菜单状态
+    inMenu: bool;
+    selectedTrack: int;
+    selectedDifficulty: int;
+    
+    // 完成状态
+    raceFinished: bool;
+    finishPosition: int;
+    
+    // 弯道减速辅助
+    isSharpTurn: bool;
+    nearObstacle: bool;
+}
+
+struct TireMark {
+    x: int;
+    y: int;
+    age: int;
+    active: bool;
+}
+
+struct DustParticle {
+    x: float;
+    y: float;
+    vx: float;
+    vy: float;
+    life: int;
+    active: bool;
+}
+
+struct SpeedLine {
+    x1: int;
+    y1: int;
+    x2: int;
+    y2: int;
+    alpha: int;
+    active: bool;
+}
+
+impl RacingGamePlus {
+    fn defineTracks() {
+        // ===== 赛道1: 椭圆赛道 (简单) =====
+        var t0 = &self.tracks[0];
+        t0.name = "Sunset Oval";
+        t0.type = TrackType.Oval;
+        t0.difficulty = Difficulty.Easy;
+        t0.lapCount = 3;
+        t0.timeLimit = 0;
+        t0.startX = WINDOW_WIDTH / 2.0;
+        t0.startY = WINDOW_HEIGHT - 120.0;
+        t0.startAngle = -3.14159 / 2.0;
+        
+        t0.outerRects[0] = Rect.{ x: 100, y: 80, width: 700, height: 540 };
+        t0.innerRects[0] = Rect.{ x: 180, y: 160, width: 540, height: 380 };
+        
+        // 检查点 (8字形排列)
+        t0.checkpoints[0] = Checkpoint.{ x: 400, y: 90, width: 100, height: 20, id: 0 };
+        t0.checkpoints[1] = Checkpoint.{ x: 780, y: 300, width: 20, height: 100, id: 1 };
+        t0.checkpoints[2] = Checkpoint.{ x: 400, y: 590, width: 100, height: 20, id: 2 };
+        t0.checkpoints[3] = Checkpoint.{ x: 100, y: 300, width: 20, height: 100, id: 3 };
+        t0.checkpointCount = 4;
+        
+        t0.obstacleCount = 0;
+        
+        // ===== 赛道2: 技术赛道 (普通) =====
+        var t1 = &self.tracks[1];
+        t1.name = "Technical Twist";
+        t1.type = TrackType.Technical;
+        t1.difficulty = Difficulty.Normal;
+        t1.lapCount = 3;
+        t1.timeLimit = 0;
+        t1.startX = 150.0;
+        t1.startY = WINDOW_HEIGHT - 150.0;
+        t1.startAngle = -3.14159 / 2.0;
+        
+        // L形技术赛道
+        t1.outerRects[0] = Rect.{ x: 80, y: 80, width: 300, height: 540 };
+        t1.outerRects[1] = Rect.{ x: 80, y: 80, width: 740, height: 200 };
+        t1.outerRects[2] = Rect.{ x: 620, y: 80, width: 200, height: 540 };
+        t1.innerRects[0] = Rect.{ x: 160, y: 160, width: 140, height: 380 };
+        t1.innerRects[1] = Rect.{ x: 160, y: 160, width: 520, height: 100 };
+        t1.innerRects[2] = Rect.{ x: 600, y: 160, width: 100, height: 380 };
+        
+        t1.checkpoints[0] = Checkpoint.{ x: 200, y: 90, width: 80, height: 20, id: 0 };
+        t1.checkpoints[1] = Checkpoint.{ x: 750, y: 150, width: 20, height: 80, id: 1 };
+        t1.checkpoints[2] = Checkpoint.{ x: 650, y: 580, width: 80, height: 20, id: 2 };
+        t1.checkpoints[3] = Checkpoint.{ x: 130, y: 450, width: 20, height: 80, id: 3 };
+        t1.checkpointCount = 4;
+        
+        // 障碍物
+        t1.obstacles[0] = Obstacle.{ x: 300, y: 350, width: 40, height: 40, active: true };
+        t1.obstacles[1] = Obstacle.{ x: 500, y: 300, width: 40, height: 40, active: true };
+        t1.obstacleCount = 2;
+        
+        // ===== 赛道3: 8字赛道 (困难) =====
+        var t2 = &self.tracks[2];
+        t2.name = "Figure-8 Fury";
+        t2.type = TrackType.Figure8;
+        t2.difficulty = Difficulty.Hard;
+        t2.lapCount = 3;
+        t2.timeLimit = 120000;  // 2分钟
+        t2.startX = WINDOW_WIDTH / 2.0;
+        t2.startY = WINDOW_HEIGHT - 120.0;
+        t2.startAngle = -3.14159 / 2.0;
+        
+        // 8字外框
+        t2.outerRects[0] = Rect.{ x: 100, y: 50, width: 700, height: 280 };
+        t2.outerRects[1] = Rect.{ x: 100, y: 370, width: 700, height: 280 };
+        t2.innerRects[0] = Rect.{ x: 180, y: 130, width: 540, height: 100 };
+        t2.innerRects[1] = Rect.{ x: 180, y: 450, width: 540, height: 100 };
+        
+        t2.checkpoints[0] = Checkpoint.{ x: 400, y: 60, width: 80, height: 20, id: 0 };
+        t2.checkpoints[1] = Checkpoint.{ x: 780, y: 170, width: 20, height: 60, id: 1 };
+        t2.checkpoints[2] = Checkpoint.{ x: 400, y: 380, width: 80, height: 20, id: 2 };
+        t2.checkpoints[3] = Checkpoint.{ x: 100, y: 170, width: 20, height: 60, id: 3 };
+        t2.checkpoints[4] = Checkpoint.{ x: 400, y: 620, width: 80, height: 20, id: 4 };
+        t2.checkpoints[5] = Checkpoint.{ x: 780, y: 470, width: 20, height: 60, id: 5 };
+        t2.checkpoints[6] = Checkpoint.{ x: 400, y: 270, width: 80, height: 20, id: 6 };
+        t2.checkpoints[7] = Checkpoint.{ x: 100, y: 470, width: 20, height: 60, id: 7 };
+        t2.checkpointCount = 8;
+        
+        t2.obstacles[0] = Obstacle.{ x: 250, y: 150, width: 35, height: 35, active: true };
+        t2.obstacles[1] = Obstacle.{ x: 600, y: 150, width: 35, height: 35, active: true };
+        t2.obstacles[2] = Obstacle.{ x: 250, y: 500, width: 35, height: 35, active: true };
+        t2.obstacles[3] = Obstacle.{ x: 600, y: 500, width: 35, height: 35, active: true };
+        t2.obstacleCount = 4;
+        
+        // ===== 赛道4: 卡丁车道 (困难) =====
+        var t3 = &self.tracks[3];
+        t3.name = "Karting Chaos";
+        t3.type = TrackType.Karting;
+        t3.difficulty = Difficulty.Hard;
+        t3.lapCount = 4;
+        t3.timeLimit = 150000;  // 2.5分钟
+        t3.startX = 120.0;
+        t3.startY = WINDOW_HEIGHT / 2.0;
+        t3.startAngle = 0.0;
+        
+        // S弯卡丁车道
+        t3.outerRects[0] = Rect.{ x: 80, y: 80, width: 740, height: 540 };
+        t3.innerRects[0] = Rect.{ x: 160, y: 160, width: 200, height: 380 };
+        t3.innerRects[1] = Rect.{ x: 440, y: 160, width: 200, height: 380 };
+        
+        t3.checkpoints[0] = Checkpoint.{ x: 90, y: 300, width: 20, height: 80, id: 0 };
+        t3.checkpoints[1] = Checkpoint.{ x: 300, y: 90, width: 80, height: 20, id: 1 };
+        t3.checkpoints[2] = Checkpoint.{ x: 500, y: 590, width: 80, height: 20, id: 2 };
+        t3.checkpoints[3] = Checkpoint.{ x: 790, y: 300, width: 20, height: 80, id: 3 };
+        t3.checkpointCount = 4;
+        
+        t3.obstacles[0] = Obstacle.{ x: 280, y: 200, width: 40, height: 40, active: true };
+        t3.obstacles[1] = Obstacle.{ x: 280, y: 450, width: 40, height: 40, active: true };
+        t3.obstacles[2] = Obstacle.{ x: 560, y: 200, width: 40, height: 40, active: true };
+        t3.obstacles[3] = Obstacle.{ x: 560, y: 450, width: 40, height: 40, active: true };
+        t3.obstacles[4] = Obstacle.{ x: 400, y: 320, width: 50, height: 50, active: true };
+        t3.obstacleCount = 5;
+        
+        // ===== 赛道5: 高速赛道 (极限) =====
+        var t4 = &self.tracks[4];
+        t4.name = "Speedway Extreme";
+        t4.type = TrackType.Speedway;
+        t4.difficulty = Difficulty.Extreme;
+        t4.lapCount = 5;
+        t4.timeLimit = 180000;  // 3分钟
+        t4.startX = WINDOW_WIDTH / 2.0;
+        t4.startY = WINDOW_HEIGHT - 100.0;
+        t4.startAngle = -3.14159 / 2.0;
+        
+        // 高速长直道
+        t4.outerRects[0] = Rect.{ x: 50, y: 50, width: 800, height: 600 };
+        t4.innerRects[0] = Rect.{ x: 130, y: 130, width: 640, height: 440 };
+        
+        t4.checkpoints[0] = Checkpoint.{ x: 400, y: 60, width: 100, height: 20, id: 0 };
+        t4.checkpoints[1] = Checkpoint.{ x: 820, y: 300, width: 20, height: 100, id: 1 };
+        t4.checkpoints[2] = Checkpoint.{ x: 400, y: 620, width: 100, height: 20, id: 2 };
+        t4.checkpoints[3] = Checkpoint.{ x: 60, y: 300, width: 20, height: 100, id: 3 };
+        t4.checkpointCount = 4;
+        
+        // 极限难度 - 更多障碍
+        t4.obstacles[0] = Obstacle.{ x: 250, y: 200, width: 30, height: 30, active: true };
+        t4.obstacles[1] = Obstacle.{ x: 600, y: 200, width: 30, height: 30, active: true };
+        t4.obstacles[2] = Obstacle.{ x: 250, y: 470, width: 30, height: 30, active: true };
+        t4.obstacles[3] = Obstacle.{ x: 600, y: 470, width: 30, height: 30, active: true };
+        t4.obstacles[4] = Obstacle.{ x: 400, y: 300, width: 40, height: 40, active: true };
+        t4.obstacles[5] = Obstacle.{ x: 300, y: 330, width: 25, height: 25, active: true };
+        t4.obstacles[6] = Obstacle.{ x: 550, y: 330, width: 25, height: 25, active: true };
+        t4.obstacles[7] = Obstacle.{ x: 400, y: 180, width: 35, height: 35, active: true };
+        t4.obstacles[8] = Obstacle.{ x: 400, y: 470, width: 35, height: 35, active: true };
+        t4.obstacleCount = 9;
+    }
+    
+    fn onInit() {
+        self.defineTracks();
+        self.inMenu = true;
+        self.selectedTrack = 0;
+        self.selectedDifficulty = 2;
+        self.tireMarkCount = 0;
+        self.dustCount = 0;
+        self.speedLineCount = 0;
+        self.raceFinished = false;
+        self.bestLapTime = 999999;
+        
+        self.setState(GameState.Ready);
+    }
+    
+    fn startRace() {
+        var track = &self.tracks[self.selectedTrack];
+        
+        // 初始化赛车
+        self.car = Car.{
+            x: track.startX,
+            y: track.startY,
+            angle: track.startAngle,
+            speed: 0.0,
+            steering: 0.0,
+            accelerating: false,
+            braking: false,
+            checkpointTimes: [0, 0, 0, 0, 0, 0, 0, 0],
+            currentCheckpoint: 0,
+            finishTime: 0,
+        };
+        
+        // 复制赛道数据
+        self.trackOuter = track.outerRects[0];
+        self.trackInner = track.innerRects[0];
+        
+        self.checkpointCount = track.checkpointCount;
+        for i in 0..track.checkpointCount {
+            self.checkpoints[i] = track.checkpoints[i];
+        }
+        
+        self.obstacleCount = track.obstacleCount;
+        for i in 0..track.obstacleCount {
+            self.obstacles[i] = track.obstacles[i];
+        }
+        
+        self.lap = 0;
+        self.totalLaps = track.lapCount;
+        self.lastCheckpoint = -1;
+        self.raceTimeLimit = track.timeLimit;
+        self.timeUp = false;
+        self.keyUp = false;
+        self.keyLeft = false;
+        self.keyRight = false;
+        self.keySpace = false;
+        self.maxSpeedSeen = 0.0;
+        self.startTime = getTickCount();
+        self.elapsedTime = 0;
+        self.currentLapStart = self.startTime;
+        self.inMenu = false;
+        self.raceFinished = false;
+        self.isSharpTurn = false;
+        self.nearObstacle = false;
+        
+        self.tireMarkCount = 0;
+        self.dustCount = 0;
+        self.speedLineCount = 0;
+        
+        self.setState(GameState.Playing);
+    }
+    
+    fn onShutdown() {}
+    
+    fn onUpdate(dt: u32) {
+        if self.getState() != GameState.Playing || self.inMenu || self.raceFinished {
+            return;
+        }
+        
+        var car = &self.car;
+        var track = &self.tracks[self.selectedTrack];
+        
+        // 时间限制
+        if self.raceTimeLimit > 0 {
+            if self.elapsedTime >= self.raceTimeLimit {
+                self.timeUp = true;
+                self.raceFinished = true;
+                return;
+            }
+        }
+        
+        // 加速
+        if self.keyUp {
+            car.speed = car.speed + ACCELERATION * (dt as float / 1000.0);
+        }
+        
+        // 刹车
+        if self.keySpace {
+            car.speed = car.speed - BRAKE_POWER * (dt as float / 1000.0);
+            if car.speed < 0 { car.speed = 0; }
+        }
+        
+        // 摩擦力
+        var onTrack = self.isOnTrack(car.x as int, car.y as int);
+        var friction = if onTrack { FRICTION } else { OFF_ROAD_FRICTION };
+        
+        // 接近障碍物时额外减速
+        if self.nearObstacle && car.speed > MAX_SPEED * 0.5 {
+            friction = friction - 0.03;
+        }
+        
+        // 急弯减速
+        if self.isSharpTurn && car.speed > MAX_SPEED * 0.6 {
+            friction = friction - 0.02;
+        }
+        
+        car.speed = car.speed * friction;
+        
+        // 速度限制
+        if car.speed > MAX_SPEED { car.speed = MAX_SPEED; }
+        if car.speed < -MAX_SPEED / 3 { car.speed = -MAX_SPEED / 3; }
+        
+        // 转向 (与速度相关)
+        if car.speed != 0.0 {
+            var speedFactor = (car.speed / MAX_SPEED);
+            var baseTurn = TURN_SPEED * (dt as float / 1000.0);
+            
+            // 高速时转向效率降低
+            var turnEfficiency = if speedFactor > 0.8 { 0.7 } else { 1.0 };
+            
+            if self.keyLeft {
+                car.angle = car.angle - baseTurn * speedFactor * turnEfficiency;
+            }
+            if self.keyRight {
+                car.angle = car.angle + baseTurn * speedFactor * turnEfficiency;
+            }
+        }
+        
+        // 移动
+        var oldX = car.x;
+        var oldY = car.y;
+        car.x = car.x + cos(car.angle) * car.speed;
+        car.y = car.y + sin(car.angle) * car.speed;
+        
+        // 边界约束
+        if car.x < CAR_WIDTH as float { car.x = CAR_WIDTH as float; car.speed = car.speed * 0.3; }
+        if car.x > (WINDOW_WIDTH - CAR_WIDTH) as float { car.x = (WINDOW_WIDTH - CAR_WIDTH) as float; car.speed = car.speed * 0.3; }
+        if car.y < CAR_HEIGHT as float { car.y = CAR_HEIGHT as float; car.speed = car.speed * 0.3; }
+        if car.y > (WINDOW_HEIGHT - CAR_HEIGHT) as float { car.y = (WINDOW_HEIGHT - CAR_HEIGHT) as float; car.speed = car.speed * 0.3; }
+        
+        // 检查点检测
+        self.checkCheckpoint(car.x as int, car.y as int);
+        
+        // 障碍物碰撞
+        self.checkObstacleCollision(&oldX, &oldY);
+        
+        // 轮胎痕迹
+        if !onTrack && abs(car.speed) > 2.0 {
+            self.addTireMark(car.x as int, car.y as int);
+        }
+        
+        // 尘土粒子
+        if !onTrack && abs(car.speed) > 1.0 && self.dustCount < 50 {
+            self.addDustParticle(car.x, car.y);
+        }
+        
+        // 速度线
+        if car.speed > MAX_SPEED * 0.8 && self.speedLineCount < 20 {
+            self.addSpeedLine(car.x as int, car.y as int, car.angle);
+        }
+        
+        // 更新粒子
+        self.updateParticles(dt);
+        
+        // 检测急弯和近障碍
+        self.isSharpTurn = self.detectSharpTurn();
+        self.nearObstacle = self.detectNearObstacle();
+        
+        // 更新峰值速度
+        if car.speed > self.maxSpeedSeen { self.maxSpeedSeen = car.speed; }
+        
+        // 更新计时
+        self.elapsedTime = getTickCount() - self.startTime;
+        
+        // 检测完成
+        if self.lap >= self.totalLaps && self.lastCheckpoint == self.checkpointCount - 1 {
+            car.finishTime = self.elapsedTime;
+            self.raceFinished = true;
+        }
+    }
+    
+    fn addTireMark(x: int, y: int) {
+        if self.tireMarkCount >= 100 { return; }
+        self.tireMarks[self.tireMarkCount] = TireMark.{ x: x, y: y, age: 0, active: true };
+        self.tireMarkCount = self.tireMarkCount + 1;
+    }
+    
+    fn addDustParticle(x: float, y: float) {
+        if self.dustCount >= 50 { return; }
+        self.dustParticles[self.dustCount] = DustParticle.{
+            x: x, y: y,
+            vx: (rand() % 20 - 10) as float * 0.5,
+            vy: (rand() % 20 - 10) as float * 0.5,
+            life: 30 + rand() % 20,
+            active: true,
+        };
+        self.dustCount = self.dustCount + 1;
+    }
+    
+    fn addSpeedLine(x: int, y: int, angle: float) {
+        if self.speedLineCount >= 20 { return; }
+        var backX = x - cos(angle) * 40;
+        var backY = y - sin(angle) * 40;
+        self.speedLines[self.speedLineCount] = SpeedLine.{
+            x1: x, y1: y,
+            x2: backX as int, y2: backY as int,
+            alpha: 150,
+            active: true,
+        };
+        self.speedLineCount = self.speedLineCount + 1;
+    }
+    
+    fn updateParticles(dt: u32) {
+        // 更新尘土
+        for i in 0..self.dustCount {
+            if self.dustParticles[i].active {
+                self.dustParticles[i].x = self.dustParticles[i].x + self.dustParticles[i].vx;
+                self.dustParticles[i].y = self.dustParticles[i].y + self.dustParticles[i].vy;
+                self.dustParticles[i].life = self.dustParticles[i].life - 1;
+                if self.dustParticles[i].life <= 0 {
+                    self.dustParticles[i].active = false;
+                }
+            }
+        }
+        
+        // 更新速度线
+        for i in 0..self.speedLineCount {
+            if self.speedLines[i].active {
+                self.speedLines[i].alpha = self.speedLines[i].alpha - 15;
+                if self.speedLines[i].alpha <= 0 {
+                    self.speedLines[i].active = false;
+                }
+            }
+        }
+        
+        // 更新轮胎痕迹
+        for i in 0..self.tireMarkCount {
+            if self.tireMarks[i].active {
+                self.tireMarks[i].age = self.tireMarks[i].age + 1;
+                if self.tireMarks[i].age > 120 {
+                    self.tireMarks[i].active = false;
+                }
+            }
+        }
+    }
+    
+    fn detectSharpTurn() -> bool {
+        // 简化检测：当前速度与前一次速度方向变化大时认为是急弯
+        return false;
+    }
+    
+    fn detectNearObstacle() -> bool {
+        var car = &self.car;
+        var carCX = car.x as int;
+        var carCY = car.y as int;
+        
+        for i in 0..self.obstacleCount {
+            var obs = &self.obstacles[i];
+            if !obs.active { continue; }
+            
+            var dist = distance(carCX, carCY, obs.x + obs.width/2, obs.y + obs.height/2);
+            if dist < 60 {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    fn checkObstacleCollision(oldX: &float, oldY: &float) {
+        var car = &self.car;
+        var carCX = car.x as int;
+        var carCY = car.y as int;
+        
+        for i in 0..self.obstacleCount {
+            var obs = &self.obstacles[i];
+            if !obs.active { continue; }
+            
+            // AABB碰撞检测
+            if carCX + CAR_WIDTH/2 > obs.x && carCX - CAR_WIDTH/2 < obs.x + obs.width &&
+               carCY + CAR_HEIGHT/2 > obs.y && carCY - CAR_HEIGHT/2 < obs.y + obs.height {
+                
+                // 反弹
+                car.x = *oldX;
+                car.y = *oldY;
+                car.speed = car.speed * -0.3;
+                
+                // 障碍闪烁
+                obs.active = false;
+                // 3秒后复活
+                // 简化：不复活
+            }
+        }
+    }
+    
+    fn checkCheckpoint(cx: int, cy: int) {
+        var nextCP = (self.lastCheckpoint + 1) % self.checkpointCount;
+        var cp = &self.checkpoints[nextCP];
+        
+        if cx >= cp.x && cx <= cp.x + cp.width &&
+           cy >= cp.y && cy <= cp.y + cp.height {
+            self.lastCheckpoint = nextCP;
+            self.car.checkpointTimes[nextCP] = self.elapsedTime;
+            
+            // 完成一圈
+            if nextCP == 0 && self.lastCheckpoint > 0 {
+                var lapTime = self.elapsedTime - self.currentLapStart;
+                if lapTime < self.bestLapTime {
+                    self.bestLapTime = lapTime;
+                }
+                self.lap = self.lap + 1;
+                self.currentLapStart = self.elapsedTime;
+            }
+        }
+    }
+    
+    fn isOnTrack(x: int, y: int) -> bool {
+        var inOuter = x >= self.trackOuter.x && x <= self.trackOuter.x + self.trackOuter.width &&
+                      y >= self.trackOuter.y && y <= self.trackOuter.y + self.trackOuter.height;
+        var inInner = x >= self.trackInner.x && x <= self.trackInner.x + self.trackInner.width &&
+                      y >= self.trackInner.y && y <= self.trackInner.y + self.trackInner.height;
+        
+        // 检查障碍物区域也不是赛道
+        for i in 0..self.obstacleCount {
+            var obs = &self.obstacles[i];
+            if obs.active && 
+               x >= obs.x && x <= obs.x + obs.width &&
+               y >= obs.y && y <= obs.y + obs.height {
+                return false;
+            }
+        }
+        
+        return inOuter && !inInner;
+    }
+    
+    fn onRender(canvas: Canvas) {
+        if self.inMenu {
+            self.drawMenu(canvas);
+            return;
+        }
+        
+        // 清屏 - 草地背景
+        canvas.clear(Color.Green());
+        
+        // 绘制轮胎痕迹
+        self.drawTireMarks(canvas);
+        
+        // 绘制赛道
+        self.drawTrack(canvas);
+        
+        // 绘制障碍物
+        self.drawObstacles(canvas);
+        
+        // 绘制尘土粒子
+        self.drawDust(canvas);
+        
+        // 绘制速度线
+        self.drawSpeedLines(canvas);
+        
+        // 绘制赛车
+        self.drawCar(canvas);
+        
+        // 绘制 HUD
+        self.drawHUD(canvas);
+        
+        // 绘制结束画面
+        if self.raceFinished {
+            self.drawFinishScreen(canvas);
+        }
+    }
+    
+    fn drawMenu(canvas: Canvas) {
+        canvas.clear(Color.RGB(20, 30, 50));
+        
+        // 标题
+        canvas.drawText(WINDOW_WIDTH/2 - 150, 50, "RACING+", Color.RGB(255, 200, 0), Font.("Arial", 48));
+        canvas.drawText(WINDOW_WIDTH/2 - 180, 110, "MORE TRACKS, MORE CHALLENGE", Color.RGB(150, 150, 150), Font.("Arial", 16));
+        
+        // 赛道选择
+        canvas.drawText(100, 180, "SELECT TRACK:", Color.White(), Font.("Arial", 20));
+        
+        for i in 0..5 {
+            var y = 220 + i * 50;
+            var track = &self.tracks[i];
+            var selected = (i == self.selectedTrack);
+            var color = if selected { Color.Yellow() } else { Color.Gray() };
+            var marker = if selected { ">> " } else { "   " };
+            
+            var difficultyColor = match track.difficulty {
+                Difficulty.Easy => Color.Green(),
+                Difficulty.Normal => Color.Cyan(),
+                Difficulty.Hard => Color.Orange(),
+                Difficulty.Extreme => Color.Red(),
+                _ => Color.White(),
+            };
+            
+            canvas.drawText(120, y, marker ++ track.name, color, Font.("Arial", 18));
+            canvas.drawText(400, y, "LAPS: " ++ track.lapCount.toString(), Color.Gray(), Font.("Arial", 14));
+            
+            var diffStr = match track.difficulty {
+                Difficulty.Easy => "[EASY]",
+                Difficulty.Normal => "[NORMAL]",
+                Difficulty.Hard => "[HARD]",
+                Difficulty.Extreme => "[EXTREME]",
+                _ => "[???]",
+            };
+            canvas.drawText(520, y, diffStr, difficultyColor, Font.("Arial", 14));
+            
+            if track.timeLimit > 0 {
+                canvas.drawText(650, y, "TIME LIMIT: " ++ (track.timeLimit/1000).toString() ++ "s", Color.Magenta(), Font.("Arial", 14));
+            }
+        }
+        
+        // 操作说明
+        canvas.drawText(100, WINDOW_HEIGHT - 100, "CONTROLS:", Color.White(), Font.("Arial", 16));
+        canvas.drawText(100, WINDOW_HEIGHT - 75, "UP: Accelerate  |  LEFT/RIGHT: Steer  |  SPACE: Brake  |  ESC: Back to Menu", Color.Gray(), Font.("Arial", 14));
+        
+        // 开始提示
+        canvas.drawText(WINDOW_WIDTH/2 - 120, WINDOW_HEIGHT - 45, "Press ENTER to Start", Color.RGB(255, 200, 0), Font.("Arial", 20));
+    }
+    
+    fn drawTrack(canvas: Canvas) {
+        // 赛道背景 (泥土色)
+        canvas.fillRect(
+            self.trackOuter.x, self.trackOuter.y,
+            self.trackOuter.width, self.trackOuter.height,
+            Color.RGB(139, 90, 43)
+        );
+        
+        // 草地中心
+        canvas.fillRect(
+            self.trackInner.x, self.trackInner.y,
+            self.trackInner.width, self.trackInner.height,
+            Color.Green()
+        );
+        
+        // 赛道边界线 - 白线
+        var c = Color.White();
+        canvas.drawRect(self.trackOuter.x, self.trackOuter.y,
+                        self.trackOuter.width, self.trackOuter.height, c);
+        canvas.drawRect(self.trackInner.x, self.trackInner.y,
+                        self.trackInner.width, self.trackInner.height, c);
+        
+        // 弯道标线 (黄线)
+        var track = &self.tracks[self.selectedTrack];
+        if track.type == TrackType.Technical || track.type == TrackType.Karting {
+            canvas.drawLine(380, 160, 380, 540, Color.Yellow());
+            canvas.drawLine(520, 160, 520, 540, Color.Yellow());
+        }
+        
+        // 开始/终点线
+        var startX = WINDOW_WIDTH / 2 - 60;
+        var startY = WINDOW_HEIGHT - 130;
+        canvas.fillRect(startX, startY, 120, 12, Color.White());
+        
+        // 黑白格子
+        var check        var checkSize = 12;
+        for i in 0..10 {
+            if i % 2 == 0 {
+                canvas.fillRect(startX + i * checkSize, startY, checkSize, 12, Color.Black());
+            }
+        }
+        
+        // 检查点提示
+        for i in 0..self.checkpointCount {
+            var cp = &self.checkpoints[i];
+            var color = if i == (self.lastCheckpoint + 1) % self.checkpointCount {
+                Color.ARGB(150, 255, 255, 0)
+            } else {
+                Color.ARGB(60, 255, 255, 255)
+            };
+            canvas.fillRect(cp.x, cp.y, cp.width, cp.height, color);
+        }
+        
+        // 下一个检查点方向指示
+        if self.lastCheckpoint >= 0 && self.lastCheckpoint < self.checkpointCount {
+            var nextCP = (self.lastCheckpoint + 1) % self.checkpointCount;
+            var cp = &self.checkpoints[nextCP];
+            var cx = cp.x + cp.width / 2;
+            var cy = cp.y + cp.height / 2;
+            
+            // 绘制箭头指向检查点
+            var car = &self.car;
+            var angle = atan2(cy as float - car.y, cx as float - car.x);
+            var arrowLen = 30;
+            var ax1 = car.x + cos(angle) * 60;
+            var ay1 = car.y + sin(angle) * 60;
+            var ax2 = ax1 + cos(angle) * arrowLen;
+            var ay2 = ay1 + sin(angle) * arrowLen;
+            
+            canvas.drawLine(ax1 as int, ay1 as int, ax2 as int, ay2 as int, Color.Yellow());
+        }
+    }
+    
+    fn drawObstacles(canvas: Canvas) {
+        for i in 0..self.obstacleCount {
+            var obs = &self.obstacles[i];
+            if obs.active {
+                // 障碍物 - 红白条纹
+                var isEven = (i % 2 == 0);
+                var color = if isEven { Color.Red() } else { Color.White() };
+                canvas.fillRect(obs.x, obs.y, obs.width, obs.height, color);
+                canvas.drawRect(obs.x, obs.y, obs.width, obs.height, Color.DarkGray());
+                
+                // 警告标志
+                canvas.drawText(obs.x + 8, obs.y + 8, "X", Color.Black(), Font.("Arial", 16));
+            }
+        }
+    }
+    
+    fn drawTireMarks(canvas: Canvas) {
+        for i in 0..self.tireMarkCount {
+            if self.tireMarks[i].active {
+                var alpha = 200 - self.tireMarks[i].age * 2;
+                if alpha > 0 {
+                    canvas.setPixel(self.tireMarks[i].x, self.tireMarks[i].y, Color.ARGB(alpha as u8, 30, 30, 30));
+                }
+            }
+        }
+    }
+    
+    fn drawDust(canvas: Canvas) {
+        for i in 0..self.dustCount {
+            if self.dustParticles[i].active {
+                var alpha = (self.dustParticles[i].life * 5) as u8;
+                var size = (30 - self.dustParticles[i].life) / 5 + 1;
+                canvas.fillCircle(
+                    self.dustParticles[i].x as int,
+                    self.dustParticles[i].y as int,
+                    size,
+                    Color.ARGB(alpha, 139, 119, 101)
+                );
+            }
+        }
+    }
+    
+    fn drawSpeedLines(canvas: Canvas) {
+        for i in 0..self.speedLineCount {
+            if self.speedLines[i].active && self.speedLines[i].alpha > 0 {
+                canvas.drawLine(
+                    self.speedLines[i].x1, self.speedLines[i].y1,
+                    self.speedLines[i].x2, self.speedLines[i].y2,
+                    Color.ARGB(self.speedLines[i].alpha as u8, 255, 255, 255)
+                );
+            }
+        }
+    }
+    
+    fn drawCar(canvas: Canvas) {
+        var car = &self.car;
+        var cx = car.x as int;
+        var cy = car.y as int;
+        
+        var hw = CAR_WIDTH / 2;
+        var hh = CAR_HEIGHT / 2;
+        
+        // 速度相关的车身颜色
+        var speedRatio = (abs(car.speed) / MAX_SPEED) as float;
+        var r = (180 + 75 * speedRatio) as u8;
+        var g = (50 as float + 100 * speedRatio) as u8;
+        var b = (50 as float + 50 * speedRatio) as u8;
+        var carColor = Color.RGB(r, g, b);
+        
+        // 刹车时车尾灯
+        if self.keySpace && car.speed > 0 {
+            canvas.fillRect(cx - hw - 2, cy + hh - 6, 4, 4, Color.Red());
+            canvas.fillRect(cx + hw - 2, cy + hh - 6, 4, 4, Color.Red());
+        }
+        
+        // 绘制车身
+        canvas.fillRect(cx - hw, cy - hh, CAR_WIDTH, CAR_HEIGHT, carColor);
+        canvas.drawRect(cx - hw, cy - hh, CAR_WIDTH, CAR_HEIGHT, Color.White());
+        
+        // 方向指示
+        var cos_a = cos(car.angle);
+        var sin_a = sin(car.angle);
+        
+        // 车头位置
+        var noseX = cx + cos_a * (hh as float + 6);
+        var noseY = cy + sin_a * (hh as float + 6);
+        
+        // 车头标记
+        canvas.fillCircle(noseX as int, noseY as int, 4, Color.Yellow());
+        
+        // 车尾位置
+        var tailX = cx - cos_a * (hh as float + 3);
+        var tailY = cy - sin_a * (hh as float + 3);
+        
+        // 速度条背景
+        canvas.fillRect(cx - 15, cy + hh + 5, 30, 5, Color.DarkGray());
+        
+        // 速度条前景
+        var speedWidth = (30 * (abs(car.speed) / MAX_SPEED)) as int;
+        if speedWidth > 0 {
+            var speedColor = if car.speed > MAX_SPEED * 0.75 {
+                Color.Red()
+            } else if car.speed > MAX_SPEED * 0.4 {
+                Color.Yellow()
+            } else {
+                Color.Green()
+            };
+            canvas.fillRect(cx - 15, cy + hh + 5, speedWidth, 5, speedColor);
+        }
+        
+        // 漂移痕迹指示 (当在赛道外且有速度时)
+        if !self.isOnTrack(cx, cy) && abs(car.speed) > 3.0 {
+            canvas.drawLine(tailX as int - 5, tailY as int, tailX as int + 5, tailY as int, Color.ARGB(100, 50, 50, 50));
+        }
+    }
+    
+    fn drawHUD(canvas: Canvas) {
+        var track = &self.tracks[self.selectedTrack];
+        
+        // 速度表
+        var speed = (abs(self.car.speed) * 30) as int;
+        var speedText = speed.toString() ++ " km/h";
+        
+        canvas.fillRect(10, 10, 160, 75, Color.ARGB(200, 0, 0, 0));
+        canvas.drawRect(10, 10, 160, 75, Color.White());
+        canvas.drawText(20, 18, "SPEED", Color.Gray(), Font.("Arial", 12));
+        canvas.drawText(20, 38, speedText, Color.White(), Font.("Arial", 24));
+        
+        // 最高速度记录
+        var maxSpeed = (self.maxSpeedSeen * 30) as int;
+        canvas.drawText(20, 62, "MAX:" ++ maxSpeed.toString(), Color.Cyan(), Font.("Arial", 11));
+        
+        // 圈数
+        canvas.fillRect(WINDOW_WIDTH - 130, 10, 120, 50, Color.ARGB(200, 0, 0, 0));
+        canvas.drawRect(WINDOW_WIDTH - 130, 10, 120, 50, Color.White());
+        canvas.drawText(WINDOW_WIDTH - 120, 18, "LAP " ++ self.lap.toString() ++ "/" ++ self.totalLaps.toString(), Color.White(), Font.("Arial", 20));
+        
+        // 最佳圈速
+        if self.bestLapTime < 999999 {
+            var bestStr = (self.bestLapTime / 1000).toString() ++ "." ++ ((self.bestLapTime % 1000) / 100).toString() ++ "s";
+            canvas.drawText(WINDOW_WIDTH - 120, 42, "BEST:" ++ bestStr, Color.Yellow(), Font.("Arial", 12));
+        }
+        
+        // 时间
+        var secs = self.elapsedTime / 1000;
+        var ms = self.elapsedTime % 1000;
+        var timeStr = (secs / 60).toString() ++ ":" ++ ((secs % 60) / 10).toString() ++ 
+                      ((secs % 60) % 10).toString() ++ "." ++ (ms / 100).toString();
+        canvas.fillRect(WINDOW_WIDTH - 160, 65, 150, 35, Color.ARGB(200, 0, 0, 0));
+        canvas.drawText(WINDOW_WIDTH - 150, 72, timeStr, Color.Cyan(), Font.("Arial", 18));
+        
+        // 时间限制
+        if self.raceTimeLimit > 0 {
+            var remaining = self.raceTimeLimit - self.elapsedTime;
+            if remaining < 30000 && remaining > 0 {
+                var remSecs = remaining / 1000;
+                var remStr = "TIME: " ++ (remSecs / 60).toString() ++ ":" ++ ((remSecs % 60) / 10).toString() ++ ((remSecs % 60) % 10).toString();
+                canvas.drawText(WINDOW_WIDTH/2 - 80, 40, remStr, Color.Red(), Font.("Arial", 22));
+            }
+        }
+        
+        // 赛道名
+        canvas.fillRect(WINDOW_WIDTH/2 - 100, 10, 200, 30, Color.ARGB(180, 0, 0, 0));
+        canvas.drawText(WINDOW_WIDTH/2 - 80, 18, track.name, Color.RGB(255, 200, 0), Font.("Arial", 16));
+        
+        // 操作提示
+        canvas.drawText(WINDOW_WIDTH/2 - 130, WINDOW_HEIGHT - 30,
+                        "UP:GAS  LEFT/RIGHT:STEER  SPACE:BRAKE  ESC:MENU", Color.RGB(100, 100, 100), Font.("Arial", 11));
+        
+        // 当前位置警告
+        if !self.isOnTrack(self.car.x as int, self.car.y as int) {
+            canvas.drawText(WINDOW_WIDTH/2 - 60, 65, "OFF TRACK!", Color.Red(), Font.("Arial", 16));
+        }
+        
+        // 障碍物警告
+        if self.nearObstacle {
+            canvas.drawText(WINDOW_WIDTH/2 - 50, 65, "WARNING!", Color.Orange(), Font.("Arial", 16));
+        }
+    }
+    
+    fn drawFinishScreen(canvas: Canvas) {
+        // 半透明遮罩
+        canvas.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, Color.ARGB(180, 0, 0, 0));
+        
+        var car = &self.car;
+        
+        // 完成信息
+        var boxY = WINDOW_HEIGHT/2 - 120;
+        canvas.fillRect(WINDOW_WIDTH/2 - 200, boxY, 400, 240, Color.ARGB(230, 20, 20, 40));
+        canvas.drawRect(WINDOW_WIDTH/2 - 200, boxY, 400, 240, Color.Gold());
+        
+        var title = if self.timeUp { "TIME'S UP!" } else { "RACE COMPLETE!" };
+        var titleColor = if self.timeUp { Color.Red() } else { Color.Gold() };
+        canvas.drawText(WINDOW_WIDTH/2 - 100, boxY + 20, title, titleColor, Font.("Arial", 32));
+        
+        // 圈数
+        canvas.drawText(WINDOW_WIDTH/2 - 80, boxY + 70, "Laps: " ++ self.lap.toString() ++ "/" ++ self.totalLaps.toString(), Color.White(), Font.("Arial", 20));
+        
+        // 总时间
+        var totalSecs = car.finishTime / 1000;
+        var totalStr = "Total: " ++ (totalSecs / 60).toString() ++ ":" ++ 
+                       ((totalSecs % 60) / 10).toString() ++ ((totalSecs % 60) % 10).toString();
+        canvas.drawText(WINDOW_WIDTH/2 - 80, boxY + 100, totalStr, Color.Cyan(), Font.("Arial", 20));
+        
+        // 最佳圈速
+        if self.bestLapTime < 999999 {
+            var bestSecs = self.bestLapTime / 1000;
+            var bestStr = "Best Lap: " ++ bestSecs.toString() ++ "." ++ ((self.bestLapTime % 1000) / 100).toString() ++ "s";
+            canvas.drawText(WINDOW_WIDTH/2 - 90, boxY + 130, bestStr, Color.Yellow(), Font.("Arial", 18));
+        }
+        
+        // 提示
+        canvas.drawText(WINDOW_WIDTH/2 - 110, boxY + 180, "Press ESC for Menu", Color.Gray(), Font.("Arial", 16));
+    }
+    
+    fn onKeyDown(key: VirtualKey) {
+        if self.inMenu {
+            match key {
+                VirtualKey.Up => {
+                    if self.selectedTrack > 0 { self.selectedTrack = self.selectedTrack - 1; }
+                }
+                VirtualKey.Down => {
+                    if self.selectedTrack < 4 { self.selectedTrack = self.selectedTrack + 1; }
+                }
+                VirtualKey.Enter => {
+                    self.startRace();
+                }
+                VirtualKey.Escape => {
+                    self.stop();
+                }
+                _ => {}
+            }
+            return;
+        }
+        
+        // 比赛中
+        match key {
+            VirtualKey.Up => { self.keyUp = true; }
+            VirtualKey.Left => { self.keyLeft = true; }
+            VirtualKey.Right => { self.keyRight = true; }
+            VirtualKey.Space => { self.keySpace = true; }
+            VirtualKey.Escape => {
+                if self.raceFinished || self.getState() == GameState.Playing {
+                    self.inMenu = true;
+                    self.setState(GameState.Ready);
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    fn onKeyUp(key: VirtualKey) {
+        match key {
+            VirtualKey.Up => { self.keyUp = false; }
+            VirtualKey.Left => { self.keyLeft = false; }
+            VirtualKey.Right => { self.keyRight = false; }
+            VirtualKey.Space => { self.keySpace = false; }
+            _ => {}
+        }
+    }
+    
+    fn onMouseDown(x: int, y: int, button: MouseButton) {}
+    fn onMouseUp(x: int, y: int, button: MouseButton) {}
+}
+
+// ============================================================================
+// 数学辅助函数
+// ============================================================================
+fn abs(x: float) -> float {
+    return if x < 0.0 { -x } else { x };
+}
+
+fn cos(x: float) -> float {
+    var x2 = x * x;
+    var x4 = x2 * x2;
+    var x6 = x4 * x2;
+    return 1.0 - x2 / 2.0 + x4 / 24.0 - x6 / 720.0;
+}
+
+fn sin(x: float) -> float {
+    var x2 = x * x;
+    var x3 = x2 * x;
+    var x5 = x3 * x2;
+    return x - x3 / 6.0 + x5 / 120.0;
+}
+
+fn atan2(y: float, x: float) -> float {
+    if x > 0.0 {
+        return atan(y / x);
+    } else if x < 0.0 && y >= 0.0 {
+        return atan(y / x) + 3.14159;
+    } else if x < 0.0 && y < 0.0 {
+        return atan(y / x) - 3.14159;
+    } else if x == 0.0 && y > 0.0 {
+        return 3.14159 / 2.0;
+    } else if x == 0.0 && y < 0.0 {
+        return -3.14159 / 2.0;
+    }
+    return 0.0;
+}
+
+fn atan(x: float) -> float {
+    // 简化的反正切
+    return x - x*x*x/3.0 + x*x*x*x*x/5.0;
+}
+
+fn distance(x1: int, y1: int, x2: int, y2: int) -> int {
+    var dx = x2 - x1;
+    var dy = y2 - y1;
+    return sqrt(dx*dx + dy*dy);
+}
+
+fn sqrt(n: int) -> int {
+    if n < 0 { return 0; }
+    var x = n;
+    var y = 1;
+    while y < x {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    return x;
+}
+
+var rng_seed: u32 = 12345;
+
+fn rand() -> u32 {
+    rng_seed = rng_seed * 1103515245 + 12345;
+    return rng_seed;
+}
+
+// ============================================================================
+// 主函数
+// ============================================================================
+pub fn main() {
+    println("============================================");
+    println("  038-RacingPlus 俯视角赛车游戏增强版");
+    println("  Zen-C + 003-framework");
+    println("  更多赛道，更高难度!");
+    println("============================================");
+    println("");
+    println("操作说明:");
+    println("  UP    - 加速");
+    println("  LEFT/RIGHT - 转向");
+    println("  SPACE - 刹车");
+    println("  ESC   - 退出/返回菜单");
+    println("  ENTER - 开始比赛");
+    println("");
+    
+    initPlatform();
+    
+    var game = RacingGamePlus.("038-RacingPlus 赛车增强版", WINDOW_WIDTH, WINDOW_HEIGHT, FPS);
+    game.run();
+    game.destroy();
+    
+    shutdownPlatform();
+    
+    println("游戏结束");
+}
