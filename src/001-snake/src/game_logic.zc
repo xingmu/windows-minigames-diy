@@ -31,7 +31,7 @@ struct Position {
 
 // 蛇结构
 struct Snake {
-    body: [MAX_SNAKE_LENGTH]Position,
+    body: Position[MAX_SNAKE_LENGTH],
     length: i32,
     direction: Direction,
     next_direction: Direction
@@ -53,7 +53,7 @@ struct GameState {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &mut GameState) {
+fn init_game(game: GameState*) {
     // 初始化随机数种子
     let seed = time.now().nanos();
     math.srand(seed);
@@ -83,9 +83,9 @@ fn init_game(game: &mut GameState) {
 }
 
 // 生成食物
-fn generate_food(game: &mut GameState) {
-    let mut valid_position = false;
-    let mut attempts = 0;
+fn generate_food(game: GameState*) {
+    let valid_position = false;
+    let attempts = 0;
     def MAX_ATTEMPTS: i32 = 100;
     
     while !valid_position && attempts < MAX_ATTEMPTS {
@@ -109,7 +109,7 @@ fn generate_food(game: &mut GameState) {
 }
 
 // 处理输入
-fn handle_input(game: &mut GameState, key: i32) -> bool {
+fn handle_input(game: GameState*, key: i32) -> bool {
     match key {
         // 上方向
         38 || 87 || 119 => { // 上箭头、W、w
@@ -169,7 +169,7 @@ fn handle_input(game: &mut GameState, key: i32) -> bool {
 }
 
 // 更新游戏状态
-fn update_game(game: &mut GameState) -> bool {
+fn update_game(game: GameState*) -> bool {
     if game.game_over || game.paused {
         return true;
     }
@@ -178,7 +178,7 @@ fn update_game(game: &mut GameState) -> bool {
     game.snake.direction = game.snake.next_direction;
     
     // 移动蛇
-    let mut new_head = game.snake.body[0];
+    let new_head = game.snake.body[0];
     
     match game.snake.direction {
         Direction::DirUp => new_head.y -= 1,
