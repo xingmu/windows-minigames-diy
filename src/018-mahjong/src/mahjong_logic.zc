@@ -31,20 +31,20 @@ enum TileSuit {
 // 获取牌的花色
 pub fn getTileSuit(tile: TileType) -> TileSuit {
     match tile {
-        TileType.Wan1...TileType::Wan9 => return TileSuit.Wan,
-        TileType.Tong1...TileType::Tong9 => return TileSuit.Tong,
-        TileType.Suo1...TileType::Suo9 => return TileSuit.Suo,
-        TileType.Dong...TileType::Bei => return TileSuit.Feng,
-        TileType.Zhong, TileType.Fa, TileType::Bai => return TileSuit.Yuan,
+        TileType::Wan1..TileType::Wan9 => return TileSuit.Wan,
+        TileType::Tong1..TileType::Tong9 => return TileSuit.Tong,
+        TileType::Suo1..TileType::Suo9 => return TileSuit.Suo,
+        TileType::Dong..TileType::Bei => return TileSuit.Feng,
+        TileType::Zhong, TileType::Fa, TileType::Bai => return TileSuit.Yuan,
     }
 }
 
 // 获取牌的值（1-9对于数牌，0对于字牌）
 pub fn getTileValue(tile: TileType) -> int {
     match tile {
-        TileType.Wan1...TileType::Wan9 => return ((int)tile - TileType(int)Wan1) + 1,
-        TileType.Tong1...TileType::Tong9 => return ((int)tile - TileType(int)Tong1) + 1,
-        TileType.Suo1...TileType::Suo9 => return ((int)tile - TileType(int)Suo1) + 1,
+        TileType::Wan1..TileType::Wan9 => return ((int)tile - TileType(int)Wan1) + 1,
+        TileType::Tong1..TileType::Tong9 => return ((int)tile - TileType(int)Tong1) + 1,
+        TileType::Suo1..TileType::Suo9 => return ((int)tile - TileType(int)Suo1) + 1,
         _ => return 0,
     }
 }
@@ -199,9 +199,9 @@ pub struct Melds {
 pub impl Melds {
     pub fn new() -> Melds {
         return Melds {
-            chi: [TileType.Wan1, TileType.Wan1, TileType.Wan1],
-            peng: [TileType.Wan1, TileType.Wan1, TileType.Wan1],
-            gang: [TileType.Wan1, TileType.Wan1, TileType.Wan1, TileType.Wan1],
+            chi: [TileType::Wan1, TileType::Wan1, TileType::Wan1],
+            peng: [TileType::Wan1, TileType::Wan1, TileType::Wan1],
+            gang: [TileType::Wan1, TileType::Wan1, TileType::Wan1, TileType::Wan1],
             hasChi: false,
             hasPeng: false,
             hasGang: false,
@@ -223,7 +223,7 @@ pub struct TileWall {
 pub impl TileWall {
     pub fn new() -> TileWall {
         return TileWall {
-            tiles: [TileType.Wan1; WALL_SIZE],
+            tiles: [TileType::Wan1; WALL_SIZE],
             top: WALL_SIZE,
             dice: [0, 0],
         };
@@ -234,31 +234,31 @@ pub impl TileWall {
         // 初始化所有牌
         let index = 0;
         // 每种牌4张
-        for t in TileType.Wan1...TileType.Wan9 {
+        for t in TileType::Wan1..TileType::Wan9 {
             for i in 0..4 {
                 self.tiles[index] = t;
                 index = index + 1;
             }
         }
-        for t in TileType.Tong1...TileType.Tong9 {
+        for t in TileType::Tong1..TileType::Tong9 {
             for i in 0..4 {
                 self.tiles[index] = t;
                 index = index + 1;
             }
         }
-        for t in TileType.Suo1...TileType.Suo9 {
+        for t in TileType::Suo1..TileType::Suo9 {
             for i in 0..4 {
                 self.tiles[index] = t;
                 index = index + 1;
             }
         }
-        for t in TileType.Dong...TileType.Bei {
+        for t in TileType::Dong..TileType::Bei {
             for i in 0..4 {
                 self.tiles[index] = t;
                 index = index + 1;
             }
         }
-        for t in TileType.Zhong...TileType.Bai {
+        for t in TileType::Zhong..TileType::Bai {
             for i in 0..4 {
                 self.tiles[index] = t;
                 index = index + 1;
@@ -286,7 +286,7 @@ pub impl TileWall {
     // 摸牌
     pub fn draw(&self) -> TileType {
         if self.top < 0 {
-            return TileType.Wan1;  // 无牌可摸
+            return TileType::Wan1;  // 无牌可摸
         }
         let tile = self.tiles[self.top];
         self.top = self.top - 1;
@@ -481,9 +481,9 @@ pub fn canChi(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
 // 获取吃牌的具体组合
 pub fn getChiCombinations(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
                           discardedTile: TileType) -> [[TileType; 2]; 3] {
-    let result: [[TileType; 2]; 3] = [[TileType.Wan1, TileType.Wan1], 
-                                       [TileType.Wan1, TileType.Wan1],
-                                       [TileType.Wan1, TileType.Wan1]];
+    let result: [[TileType; 2]; 3] = [[TileType::Wan1, TileType::Wan1], 
+                                       [TileType::Wan1, TileType::Wan1],
+                                       [TileType::Wan1, TileType::Wan1]];
     let count = 0;
     
     let suit = getTileSuit(discardedTile);
@@ -551,7 +551,7 @@ pub fn canGang(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
 
 // 检查能否暗杠（手牌中有4张相同）
 pub fn canAnGang(hand: &[TileType; MAX_HAND_SIZE], handSize: int) -> [TileType; 4] {
-    let result: [TileType; 4] = [TileType.Wan1, TileType.Wan1, TileType.Wan1, TileType.Wan1];
+    let result: [TileType; 4] = [TileType::Wan1, TileType::Wan1, TileType::Wan1, TileType::Wan1];
     let count = 0;
     
     let tileCount = countTiles(hand, handSize);
@@ -625,7 +625,7 @@ fn aiEasyDecision(hand: &[TileType; MAX_HAND_SIZE], handSize: int) -> AIDecision
     let decision: AIDecision;
     decision.discardTile = hand[randInt(0, handSize - 1)];
     decision.wantGang = false;
-    decision.gangTile = TileType.Wan1;
+    decision.gangTile = TileType::Wan1;
     decision.wantHu = false;
     return decision;
 }
@@ -801,7 +801,7 @@ pub fn removeFromHand(hand: &[TileType; MAX_HAND_SIZE], handSize: int,
             for j in i..(handSize - 1) {
                 hand[j] = hand[j + 1];
             }
-            hand[handSize - 1] = TileType.Wan1;  // 填充无效值
+            hand[handSize - 1] = TileType::Wan1;  // 填充无效值
             return true;
         }
     }

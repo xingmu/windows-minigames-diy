@@ -57,7 +57,7 @@ struct SudokuGame {
 // ==================== 数独算法 ====================
 
 // 检查在指定位置放置数字是否有效
-fn isValid(grid: &i32[GRID_SIZE][GRID_SIZE], row: i32, col: i32, num: i32) -> bool {
+fn isValid(grid: i32[GRID_SIZE][GRID_SIZE], row: i32, col: i32, num: i32) -> bool {
     // 检查行
     for c in 0..GRID_SIZE {
         if grid[row][c] == num {
@@ -114,7 +114,7 @@ fn solveSudoku(grid: i32*[GRID_SIZE][GRID_SIZE], solution: i32*[GRID_SIZE][GRID_
 }
 
 // 生成数独题目
-fn generatePuzzle(game: &SudokuGame, difficulty: Difficulty) {
+fn generatePuzzle(game: SudokuGame*, difficulty: Difficulty) {
     // 初始化空网格
     for r in 0..GRID_SIZE {
         for c in 0..GRID_SIZE {
@@ -175,7 +175,7 @@ fn generatePuzzle(game: &SudokuGame, difficulty: Difficulty) {
 }
 
 // 填充对角线三个3x3宫格
-fn fillDiagonalBlocks(grid: &i32[GRID_SIZE][GRID_SIZE]) {
+fn fillDiagonalBlocks(grid: i32[GRID_SIZE][GRID_SIZE]) {
     for block in 0..3 {
         let start_row = block * 3;
         let start_col = block * 3;
@@ -202,7 +202,7 @@ fn fillDiagonalBlocks(grid: &i32[GRID_SIZE][GRID_SIZE]) {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &SudokuGame, difficulty: Difficulty) {
+fn init_game(game: SudokuGame*, difficulty: Difficulty) {
     game.difficulty = difficulty;
     game.state = SudokuState.Input;
     game.selected_row = -1;
@@ -225,7 +225,7 @@ fn getSelectedValue(game: SudokuGame*) -> i32 {
 }
 
 // 选择单元格
-fn selectCell(game: &SudokuGame, row: i32, col: i32) -> bool {
+fn selectCell(game: SudokuGame*, row: i32, col: i32) -> bool {
     if row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE {
         game.selected_row = row;
         game.selected_col = col;
@@ -235,7 +235,7 @@ fn selectCell(game: &SudokuGame, row: i32, col: i32) -> bool {
 }
 
 // 清除选中单元格的值
-fn clearSelectedCell(game: &SudokuGame) -> bool {
+fn clearSelectedCell(game: SudokuGame*) -> bool {
     if game.selected_row >= 0 && game.selected_row < GRID_SIZE &&
        game.selected_col >= 0 && game.selected_col < GRID_SIZE {
         if !game.grid.fixed[game.selected_row][game.selected_col] {
@@ -248,7 +248,7 @@ fn clearSelectedCell(game: &SudokuGame) -> bool {
 }
 
 // 输入数字到选中单元格
-fn inputNumber(game: &SudokuGame, num: i32) -> bool {
+fn inputNumber(game: SudokuGame*, num: i32) -> bool {
     if game.selected_row < 0 || game.selected_col < 0 {
         return false;
     }
@@ -281,7 +281,7 @@ fn inputNumber(game: &SudokuGame, num: i32) -> bool {
 }
 
 // 使用提示
-fn useHint(game: &SudokuGame) -> bool {
+fn useHint(game: SudokuGame*) -> bool {
     if game.selected_row < 0 || game.selected_col < 0 {
         return false;
     }
@@ -315,7 +315,7 @@ fn checkWin(game: SudokuGame*) -> bool {
 }
 
 // 检查当前状态
-fn checkErrors(game: &SudokuGame) {
+fn checkErrors(game: SudokuGame*) {
     for r in 0..GRID_SIZE {
         for c in 0..GRID_SIZE {
             if !game.grid.fixed[r][c] && game.grid.values[r][c] != 0 {
@@ -340,7 +340,7 @@ fn getDifficultyName(difficulty: Difficulty) -> string {
 }
 
 // 计算游戏区域在窗口中的位置
-fn calculateGameArea(game: SudokuGame*, offset_x: &i32, offset_y: &i32) {
+fn calculateGameArea(game: SudokuGame*, offset_x: i32*, offset_y: i32*) {
     let game_width = BOARD_SIZE;
     let game_height = BOARD_SIZE;
     
@@ -352,7 +352,7 @@ fn calculateGameArea(game: SudokuGame*, offset_x: &i32, offset_y: &i32) {
 }
 
 // 更新计时器
-fn updateTimer(game: &SudokuGame, dt: u32) {
+fn updateTimer(game: SudokuGame*, dt: u32) {
     if game.state == SudokuState.Input {
         game.timer += dt;
     }
