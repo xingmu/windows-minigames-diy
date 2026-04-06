@@ -204,9 +204,9 @@ fn drawButtonText(canvas: Canvas*, x: i32, y: i32, text: string, color: Color) {
 // 绘制UI信息
 fn drawUI(canvas: Canvas*) {
     // 计算游戏区域位置
-    let mut game_offset_x: i32 = 0;
-    let mut game_offset_y: i32 = 0;
-    calculateGameArea(&game, &mut game_offset_x, &mut game_offset_y);
+    let game_offset_x: i32 = 0;
+    let game_offset_y: i32 = 0;
+    calculateGameArea(&game, &game_offset_x, &game_offset_y);
     
     // 游戏信息区域（顶部）
     let info_y = 20;
@@ -219,16 +219,16 @@ fn drawUI(canvas: Canvas*) {
     // 绘制按钮
     for i in 0..3 {
         let hovered = (hovered_button == i);
-        drawButton(canvas, &buttons[i], hovered);
+        drawButton(canvas, buttons[i], hovered);
     }
 }
 
 // 绘制胜利画面
 fn drawWinScreen(canvas: Canvas*) {
     // 半透明遮罩
-    let mut info_offset_x: i32 = 0;
-    let mut info_offset_y: i32 = 0;
-    calculateGameArea(&game, &mut info_offset_x, &mut info_offset_y);
+    let info_offset_x: i32 = 0;
+    let info_offset_y: i32 = 0;
+    calculateGameArea(&game, &info_offset_x, &info_offset_y);
     
     canvas.fillRect(info_offset_x, info_offset_y, BOARD_SIZE, BOARD_SIZE, 
                    rgb(255, 255, 200));
@@ -240,18 +240,18 @@ fn drawWinScreen(canvas: Canvas*) {
 fn handleMouseClick(x: i32, y: i32) {
     // 检查按钮点击
     for i in 0..3 {
-        let btn = &buttons[i];
+        let btn = buttons[i];
         if x >= btn.x && x <= btn.x + btn.width &&
            y >= btn.y && y <= btn.y + btn.height {
             match btn.action {
                 0 => { // 新游戏
-                    init_game(&mut game, Difficulty::Medium);
+                    init_game(&game, Difficulty::Medium);
                 },
                 1 => { // 提示
-                    let _ = useHint(&mut game);
+                    let _ = useHint(&game);
                 },
                 2 => { // 检查
-                    checkErrors(&mut game);
+                    checkErrors(&game);
                 },
             }
             return;
@@ -259,14 +259,14 @@ fn handleMouseClick(x: i32, y: i32) {
     }
     
     // 计算游戏区域
-    let mut game_offset_x: i32 = 0;
-    let mut game_offset_y: i32 = 0;
-    calculateGameArea(&game, &mut game_offset_x, &mut game_offset_y);
+    let game_offset_x: i32 = 0;
+    let game_offset_y: i32 = 0;
+    calculateGameArea(&game, &game_offset_x, &game_offset_y);
     
     // 检查是否点击在网格上
     let (in_grid, row, col) = isPointInGrid(game_offset_x, game_offset_y, x, y);
     if in_grid {
-        let _ = selectCell(&mut game, row, col);
+        let _ = selectCell(&game, row, col);
     }
 }
 
@@ -275,35 +275,35 @@ fn handleKeyInput(key: VirtualKey) -> bool {
     // 数字键 1-9
     match key {
         VirtualKey.Key1 || VirtualKey::Numpad1 => {
-            let _ = inputNumber(&mut game, 1);
+            let _ = inputNumber(&game, 1);
         },
         VirtualKey.Key2 || VirtualKey::Numpad2 => {
-            let _ = inputNumber(&mut game, 2);
+            let _ = inputNumber(&game, 2);
         },
         VirtualKey.Key3 || VirtualKey::Numpad3 => {
-            let _ = inputNumber(&mut game, 3);
+            let _ = inputNumber(&game, 3);
         },
         VirtualKey.Key4 || VirtualKey::Numpad4 => {
-            let _ = inputNumber(&mut game, 4);
+            let _ = inputNumber(&game, 4);
         },
         VirtualKey.Key5 || VirtualKey::Numpad5 => {
-            let _ = inputNumber(&mut game, 5);
+            let _ = inputNumber(&game, 5);
         },
         VirtualKey.Key6 || VirtualKey::Numpad6 => {
-            let _ = inputNumber(&mut game, 6);
+            let _ = inputNumber(&game, 6);
         },
         VirtualKey.Key7 || VirtualKey::Numpad7 => {
-            let _ = inputNumber(&mut game, 7);
+            let _ = inputNumber(&game, 7);
         },
         VirtualKey.Key8 || VirtualKey::Numpad8 => {
-            let _ = inputNumber(&mut game, 8);
+            let _ = inputNumber(&game, 8);
         },
         VirtualKey.Key9 || VirtualKey::Numpad9 => {
-            let _ = inputNumber(&mut game, 9);
+            let _ = inputNumber(&game, 9);
         },
         // 0 或 Backspace 清除
         VirtualKey.Key0 || VirtualKey.Numpad0 || VirtualKey::Backspace => {
-            let _ = clearSelectedCell(&mut game);
+            let _ = clearSelectedCell(&game);
         },
         // 方向键移动选择
         VirtualKey::Up => {
@@ -328,15 +328,15 @@ fn handleKeyInput(key: VirtualKey) -> bool {
         },
         // H 键提示
         VirtualKey::KeyH => {
-            let _ = useHint(&mut game);
+            let _ = useHint(&game);
         },
         // N 键新游戏
         VirtualKey::KeyN => {
-            init_game(&mut game, Difficulty::Medium);
+            init_game(&game, Difficulty::Medium);
         },
         // C 键检查
         VirtualKey::KeyC => {
-            checkErrors(&mut game);
+            checkErrors(&game);
         },
         // ESC 退出
         VirtualKey::Escape => {
@@ -351,9 +351,9 @@ fn handleKeyInput(key: VirtualKey) -> bool {
 fn drawMain(canvas: Canvas*, window_width: i32, window_height: i32) {
     drawBackground(canvas);
     
-    let mut game_offset_x: i32 = 0;
-    let mut game_offset_y: i32 = 0;
-    calculateGameArea(&game, &mut game_offset_x, &mut game_offset_y);
+    let game_offset_x: i32 = 0;
+    let game_offset_y: i32 = 0;
+    calculateGameArea(&game, &game_offset_x, &game_offset_y);
     
     drawGrid(canvas, game_offset_x, game_offset_y);
     drawUI(canvas);
@@ -373,7 +373,7 @@ fn main() -> i32 {
     // 初始化游戏
     game.window_width = WINDOW_WIDTH;
     game.window_height = WINDOW_HEIGHT;
-    init_game(&mut game, Difficulty::Medium);
+    init_game(&game, Difficulty::Medium);
     
     // 初始化按钮
     initButtons();
@@ -410,7 +410,7 @@ fn main() -> i32 {
 
 // 事件循环
 fn runEventLoop(win: WindowHandle) {
-    let mut last_time = getTickCount();
+    let last_time = getTickCount();
     running = true;
     
     while running {
@@ -456,7 +456,7 @@ fn runEventLoop(win: WindowHandle) {
         let current_time = getTickCount();
         let dt = current_time - last_time;
         last_time = current_time;
-        updateTimer(&mut game, dt);
+        updateTimer(&game, dt);
     }
 }
 

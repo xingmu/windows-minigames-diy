@@ -131,8 +131,8 @@ fn dist2(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
 
 fn sqrt_int(n: i32) -> i32 {
     if n <= 0 { return 0; }
-    let mut x = n;
-    let mut y = 1;
+    let x = n;
+    let y = 1;
     while y < x {
         x = (x + y) / 2;
         y = n / x;
@@ -198,7 +198,7 @@ fn getHoleData(holeIndex: i32) -> Hole {
 
 // ==================== 初始化 ====================
 
-fn initHole(game: &mut GolfGame) {
+fn initHole(game: &GolfGame) {
     game.hole = getHoleData(game.currentHole);
     game.ball.x = 100;
     game.ball.y = 300;
@@ -212,7 +212,7 @@ fn initHole(game: &mut GolfGame) {
 }
 
 // 初始化游戏
-fn golfInit(game: &mut GolfGame) {
+fn golfInit(game: &GolfGame) {
     game.currentHole = 0;
     game.totalStrokes = 0;
     game.score = 0;
@@ -232,8 +232,8 @@ fn getObstacleAt(ball: GolfBall*, hole: Hole*) -> Obstacle {
     return Obstacle { x: -1, y: -1, width: 0, height: 0, type: -1 };
 }
 
-fn updateBall(game: &mut GolfGame) -> bool {
-    let mut ball = game.ball;
+fn updateBall(game: &GolfGame) -> bool {
+    let ball = game.ball;
     
     if !ball.active {
         return false;
@@ -317,7 +317,7 @@ fn allBallsStopped(game: GolfGame*) -> bool {
 }
 
 // 击球
-fn shoot(game: &mut GolfGame, power: i32, dx: i32, dy: i32) {
+fn shoot(game: &GolfGame, power: i32, dx: i32, dy: i32) {
     let dist = sqrt_int(dx * dx + dy * dy);
     if dist == 0 || power <= 0 {
         return;
@@ -339,7 +339,7 @@ fn shoot(game: &mut GolfGame, power: i32, dx: i32, dy: i32) {
 
 // ==================== 鼠标处理 ====================
 
-fn golfOnMouseDown(game: &mut GolfGame, x: i32, y: i32) {
+fn golfOnMouseDown(game: &GolfGame, x: i32, y: i32) {
     if game.gameStatus == GolfState.Moving {
         return;
     }
@@ -370,7 +370,7 @@ fn golfOnMouseDown(game: &mut GolfGame, x: i32, y: i32) {
     game.showPowerBar = true;
 }
 
-fn golfOnMouseMove(game: &mut GolfGame, x: i32, y: i32) {
+fn golfOnMouseMove(game: &GolfGame, x: i32, y: i32) {
     game.mouseX = x;
     game.mouseY = y;
     
@@ -381,7 +381,7 @@ fn golfOnMouseMove(game: &mut GolfGame, x: i32, y: i32) {
     }
 }
 
-fn golfOnMouseUp(game: &mut GolfGame, x: i32, y: i32) {
+fn golfOnMouseUp(game: &GolfGame, x: i32, y: i32) {
     if game.gameStatus == GolfState.Dragging {
         if game.power > 1 {
             // 从终点到起点的方向就是击球方向
@@ -523,7 +523,7 @@ fn drawPowerBar(canvas: Canvas*, game: GolfGame*) {
     canvas.drawRect(barX, barY, barWidth, barHeight, Color.White());
     
     // 文字
-    // canvas.drawText(barX + 5, barY + 3, "力度: {game}".power.toString(), Color.White(), Font.new("Arial", 12));
+    // canvas.drawText(barX + 5, barY + 3, "力度: {game}".power.toString(), Color.White(), Font("Arial", 12));
 }
 
 fn drawUI(canvas: Canvas*, game: GolfGame*) {
@@ -531,13 +531,13 @@ fn drawUI(canvas: Canvas*, game: GolfGame*) {
     canvas.fillRect(0, 0, GAME_WIDTH, 50, Color.RGB(20, 60, 20));
     
     // 洞名称
-    // canvas.drawText(10, 10, game.hole.name, Color.White(), Font.new("Arial", 14));
+    // canvas.drawText(10, 10, game.hole.name, Color.White(), Font("Arial", 14));
     
     // 杆数
-    // canvas.drawText(300, 10, "杆数: {game}"."{strokes} (Par {game}".hole."{par})", Color.White(), Font.new("Arial", 14));
+    // canvas.drawText(300, 10, "杆数: {game}"."{strokes} (Par {game}".hole."{par})", Color.White(), Font("Arial", 14));
     
     // 总杆数
-    // canvas.drawText(550, 10, "总杆数: {game}".totalStrokes.toString(), Color.White(), Font.new("Arial", 14));
+    // canvas.drawText(550, 10, "总杆数: {game}".totalStrokes.toString(), Color.White(), Font("Arial", 14));
 }
 
 fn drawStatus(canvas: Canvas*, game: GolfGame*) {
@@ -545,18 +545,18 @@ fn drawStatus(canvas: Canvas*, game: GolfGame*) {
         // 显示完成信息
         canvas.fillRect(300, 250, 200, 100, Color.RGB(0, 100, 0));
         canvas.drawRect(300, 250, 200, 100, Color.White());
-        // canvas.drawText(320, 280, "进洞了!", Color.Yellow(), Font.new("Arial", 20));
-        // canvas.drawText(320, 320, "点击进入下一洞", Color.White(), Font.new("Arial", 14));
+        // canvas.drawText(320, 280, "进洞了!", Color.Yellow(), Font("Arial", 20));
+        // canvas.drawText(320, 320, "点击进入下一洞", Color.White(), Font("Arial", 14));
     } else if game.gameStatus == GolfState.GameComplete {
         // 显示游戏完成
         canvas.fillRect(250, 200, 300, 150, Color.RGB(0, 100, 0));
         canvas.drawRect(250, 200, 300, 150, Color.White());
-        // canvas.drawText(280, 240, "恭喜完成所有洞!", Color.Yellow(), Font.new("Arial", 20));
-        // canvas.drawText(280, 280, "总杆数: {game}".totalStrokes.toString(), Color.White(), Font.new("Arial", 16));
-        // canvas.drawText(280, 310, "点击重新开始", Color.White(), Font.new("Arial", 14));
+        // canvas.drawText(280, 240, "恭喜完成所有洞!", Color.Yellow(), Font("Arial", 20));
+        // canvas.drawText(280, 280, "总杆数: {game}".totalStrokes.toString(), Color.White(), Font("Arial", 16));
+        // canvas.drawText(280, 310, "点击重新开始", Color.White(), Font("Arial", 14));
     } else if game.gameStatus == GolfState.Ready || game.gameStatus == GolfState.Dragging {
         // 显示提示
-        // canvas.drawText(10, GAME_HEIGHT - 30, "提示: 点击拖拽蓄力，松开击球", Color.RGB(200, 200, 100), Font.new("Arial", 12));
+        // canvas.drawText(10, GAME_HEIGHT - 30, "提示: 点击拖拽蓄力，松开击球", Color.RGB(200, 200, 100), Font("Arial", 12));
     }
 }
 
@@ -608,7 +608,7 @@ impl GolfGame {
         self.running = true;
         self.lastFrame = getTickCount();
         
-        golfInit(&mut self);
+        golfInit(&self);
         
         while self.running {
             self.processEvents();
@@ -636,13 +636,13 @@ impl GolfGame {
                     }
                 }
                 MessageType::MouseDown => {
-                    golfOnMouseDown(&mut self, event.mouse.x, event.mouse.y);
+                    golfOnMouseDown(&self, event.mouse.x, event.mouse.y);
                 }
                 MessageType::MouseMove => {
-                    golfOnMouseMove(&mut self, event.mouse.x, event.mouse.y);
+                    golfOnMouseMove(&self, event.mouse.x, event.mouse.y);
                 }
                 MessageType::MouseUp => {
-                    golfOnMouseUp(&mut self, event.mouse.x, event.mouse.y);
+                    golfOnMouseUp(&self, event.mouse.x, event.mouse.y);
                 }
                 _ => {}
             }
@@ -655,7 +655,7 @@ impl GolfGame {
         }
         
         if self.gameStatus == GolfState.Moving {
-            let stillMoving = updateBall(&mut self);
+            let stillMoving = updateBall(&self);
             if !stillMoving {
                 self.gameStatus = GolfState.Ready;
             }

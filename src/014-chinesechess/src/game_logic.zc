@@ -326,7 +326,7 @@ fn evaluateMove(game: ChessGame*, pieceIndex: int, toCol: int, toRow: int) -> in
     return score;
 }
 
-fn selectAIMove(game: &mut ChessGame) -> bool {
+fn selectAIMove(game: &ChessGame) -> bool {
     let bestScore = -1;
     let bestPiece = -1;
     let bestCol = -1;
@@ -376,7 +376,7 @@ fn selectAIMove(game: &mut ChessGame) -> bool {
 
 // ==================== 游戏操作 ====================
 
-fn makeMove(game: &mut ChessGame, pieceIndex: int, toCol: int, toRow: int) -> bool {
+fn makeMove(game: &ChessGame, pieceIndex: int, toCol: int, toRow: int) -> bool {
     if !isValidMove(game, pieceIndex, toCol, toRow) {
         return false;
     }
@@ -410,7 +410,7 @@ fn makeMove(game: &mut ChessGame, pieceIndex: int, toCol: int, toRow: int) -> bo
     return true;
 }
 
-fn handleBoardClick(game: &mut ChessGame, boardX: int, boardY: int) -> bool {
+fn handleBoardClick(game: &ChessGame, boardX: int, boardY: int) -> bool {
     let col = boardX / CELL_SIZE;
     let row = boardY / CELL_SIZE;
     

@@ -226,14 +226,14 @@ fn draw_gameover_screen(game: ShootingGalleryState*) {
 // ==================== 事件处理器 ====================
 
 fn on_mouse_click(x: i32, y: i32) {
-    start_game(&mut game);
+    start_game(&game);
     if game.status == GameStatus.Playing {
-        handle_shoot(&mut game, x, y);
+        handle_shoot(&game, x, y);
     }
 }
 
 fn on_mouse_move(x: i32, y: i32) {
-    update_crosshair(&mut game, x, y);
+    update_crosshair(&game, x, y);
 }
 
 fn on_key(key: KeyCode) -> bool {
@@ -248,7 +248,7 @@ fn on_key(key: KeyCode) -> bool {
 }
 
 fn on_timer() -> bool {
-    return update_game(&mut game);
+    return update_game(&game);
 }
 
 fn on_paint(w: i32, h: i32) {
@@ -304,7 +304,7 @@ fn main() -> i32 {
     io.println "========================================";
     
     // 初始化游戏状态
-    init_game(&mut game, WINDOW_WIDTH, WINDOW_HEIGHT);
+    init_game(&game, WINDOW_WIDTH, WINDOW_HEIGHT);
     
     // 创建窗口
     let title = "Shooting Gallery - 射击游戏";
@@ -316,9 +316,9 @@ fn main() -> i32 {
     }
     
     // 获取客户区大小
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         game.width = cw;
         game.height = ch;
@@ -354,7 +354,7 @@ fn main() -> i32 {
     redraw_window(window);
     
     // 运行事件循环
-    run_event_loop(window, &mut game);
+    run_event_loop(window, &game);
     
     io.println "游戏结束!";
     io.println "========================================";

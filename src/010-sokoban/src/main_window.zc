@@ -80,7 +80,7 @@ class SokobanGame extends Game {
         }
         
         // 初始化游戏
-        initGame(&mut self.state, 0);
+        initGame(&self.state, 0);
         
         // 设置随机种子
         setRandomSeed(getTickCount());
@@ -390,25 +390,25 @@ class SokobanGame extends Game {
     pub fn onKeyDown(key: VirtualKey) {
         match key {
             VirtualKey::Left => {
-                movePlayer(&mut self.state, Direction.Left);
+                movePlayer(&self.state, Direction.Left);
             }
             VirtualKey::Right => {
-                movePlayer(&mut self.state, Direction.Right);
+                movePlayer(&self.state, Direction.Right);
             }
             VirtualKey::Up => {
-                movePlayer(&mut self.state, Direction.Up);
+                movePlayer(&self.state, Direction.Up);
             }
             VirtualKey::Down => {
-                movePlayer(&mut self.state, Direction.Down);
+                movePlayer(&self.state, Direction.Down);
             }
             VirtualKey::KeyR => {
                 // 重置当前关卡
-                resetLevel(&mut self.state);
+                resetLevel(&self.state);
             }
             VirtualKey::KeyN => {
                 // 下一关（仅在当前关卡完成时）
                 if self.state.levelWon && !self.state.allWon {
-                    nextLevel(&mut self.state);
+                    nextLevel(&self.state);
                 }
             }
             VirtualKey::Escape => {

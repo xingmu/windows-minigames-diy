@@ -155,7 +155,7 @@ fn isInPocket(ball: Ball*) -> bool {
 // ==================== 球台物理 ====================
 
 // 边界碰撞检测
-fn checkWallCollision(ball: &mut Ball) {
+fn checkWallCollision(ball: &Ball) {
     if !ball.active || ball.pocketed {
         return;
     }
@@ -194,7 +194,7 @@ fn checkBallCollision(balls: &[MAX_BALLS]Ball, ballCount: i32) {
                 continue;
             }
 
-            if ballsColliding(&balls[i], &balls[j]) {
+            if ballsColliding(balls[i], balls[j]) {
                 // 碰撞法向量
                 let dx = balls[j].x - balls[i].x;
                 let dy = balls[j].y - balls[i].y;
@@ -256,7 +256,7 @@ fn sqrt_int(n: i32) -> i32 {
 // ==================== 初始化 ====================
 
 // 初始化台球布局 (俯视斯诺克)
-fn initBalls(state: &mut BilliardsState) {
+fn initBalls(state: &BilliardsState) {
     state.ballCount = 0;
     state.score = 0;
     state.shots = 0;
@@ -453,7 +453,7 @@ fn initBalls(state: &mut BilliardsState) {
 }
 
 // 初始化游戏
-fn init_game(state: &mut BilliardsState) {
+fn init_game(state: &BilliardsState) {
     state.width = GAME_WIDTH;
     state.height = GAME_HEIGHT;
     state.status = GameStatus.Ready;
@@ -469,11 +469,11 @@ fn init_game(state: &mut BilliardsState) {
 // ==================== 更新逻辑 ====================
 
 // 更新所有球的物理状态
-fn updateBalls(state: &mut BilliardsState) -> bool {
+fn updateBalls(state: &BilliardsState) -> bool {
     let anyMoving = false;
 
     for i in 0..state.ballCount {
-        let mut ball = state.balls[i];
+        let ball = state.balls[i];
 
         if !ball.active || ball.pocketed {
             continue;
@@ -506,7 +506,7 @@ fn updateBalls(state: &mut BilliardsState) -> bool {
         }
 
         // 边界碰撞
-        checkWallCollision(&mut ball);
+        checkWallCollision(&ball);
 
         // 检查落袋
         if isInPocket(&ball) {
@@ -563,7 +563,7 @@ fn allBallsStopped(state: BilliardsState*) -> bool {
 }
 
 // 击球
-fn shoot(state: &mut BilliardsState, power: i32, dx: i32, dy: i32) {
+fn shoot(state: &BilliardsState, power: i32, dx: i32, dy: i32) {
     if state.cueBall.pocketed {
         return;
     }
@@ -589,7 +589,7 @@ fn shoot(state: &mut BilliardsState, power: i32, dx: i32, dy: i32) {
 
 // ==================== 鼠标处理 ====================
 
-fn onMouseDown(state: &mut BilliardsState, x: i32, y: i32) {
+fn onMouseDown(state: &BilliardsState, x: i32, y: i32) {
     if state.status == GameStatus.Moving {
         return;
     }
@@ -607,7 +607,7 @@ fn onMouseDown(state: &mut BilliardsState, x: i32, y: i32) {
     state.mouseY = y;
 }
 
-fn onMouseMove(state: &mut BilliardsState, x: i32, y: i32) {
+fn onMouseMove(state: &BilliardsState, x: i32, y: i32) {
     state.mouseX = x;
     state.mouseY = y;
 
@@ -623,7 +623,7 @@ fn onMouseMove(state: &mut BilliardsState, x: i32, y: i32) {
     }
 }
 
-fn onMouseUp(state: &mut BilliardsState, x: i32, y: i32) {
+fn onMouseUp(state: &BilliardsState, x: i32, y: i32) {
     if state.status == GameStatus.Dragging {
         if state.power > 1 {
             // 从拖拽起点到终点的方向就是击球方向

@@ -133,7 +133,7 @@ pub struct Position {
 
 // ==================== 初始化函数 ====================
 
-pub fn init_baseball(state: &mut BaseballState) {
+pub fn init_baseball(state: &BaseballState) {
     state.phase = GamePhase.Title;
     state.balls = 0;
     state.strikes = 0;
@@ -162,7 +162,7 @@ pub fn init_baseball(state: &mut BaseballState) {
 
 // ==================== 投球函数 ====================
 
-pub fn start_pitch(state: &mut BaseballState) {
+pub fn start_pitch(state: &BaseballState) {
     state.phase = GamePhase.Pitching;
     state.pitcher.has_ball = false;
     state.ball.in_play = false;
@@ -184,7 +184,7 @@ pub fn start_pitch(state: &mut BaseballState) {
 
 // ==================== 更新函数 ====================
 
-pub fn update_pitch(state: &mut BaseballState, dt: f32) {
+pub fn update_pitch(state: &BaseballState, dt: f32) {
     if state.phase != GamePhase.Pitching {
         return;
     }
@@ -227,7 +227,7 @@ pub fn update_pitch(state: &mut BaseballState, dt: f32) {
     }
 }
 
-fn check_ball_or_strike(state: &mut BaseballState) {
+fn check_ball_or_strike(state: &BaseballState) {
     // 球落在好球区 (本垒板周围)
     let dx = abs(state.ball.x - HOME_X as f32);
     let dy = abs(state.ball.y - HOME_Y as f32);
@@ -264,7 +264,7 @@ fn check_ball_or_strike(state: &mut BaseballState) {
     state.hit_result_timer = 1.0;
 }
 
-fn calculate_hit(state: &mut BaseballState) {
+fn calculate_hit(state: &BaseballState) {
     // 基于击球时机和力量计算结果
     let timing = state.batter.timing;  // -1 到 1
     let power = state.batter.power;    // 0 到 100
@@ -298,7 +298,7 @@ fn calculate_hit(state: &mut BaseballState) {
     state.hit_result_timer = 2.0;
 }
 
-fn calculate_trajectory(state: &mut BaseballState) {
+fn calculate_trajectory(state: &BaseballState) {
     // 击球方向: 基于时机
     let hit_angle = -90.0 + state.batter.timing * 60.0;  // -150 到 -30 度
     
@@ -347,7 +347,7 @@ fn calculate_trajectory(state: &mut BaseballState) {
     state.ball_land_y = y as int;
 }
 
-pub fn update_ball_flight(state: &mut BaseballState, dt: f32) {
+pub fn update_ball_flight(state: &BaseballState, dt: f32) {
     if state.phase != GamePhase.BallInFlight {
         return;
     }
@@ -360,7 +360,7 @@ pub fn update_ball_flight(state: &mut BaseballState, dt: f32) {
     }
 }
 
-fn handle_hit_result(state: &mut BaseballState) {
+fn handle_hit_result(state: &BaseballState) {
     match state.hit_result {
         HitType::Foul => {
             state.strikes = min(state.strikes + 1, 2);
@@ -407,7 +407,7 @@ fn handle_hit_result(state: &mut BaseballState) {
     state.ball.in_play = false;
 }
 
-fn switch_inning(state: &mut BaseballState) {
+fn switch_inning(state: &BaseballState) {
     state.outs = 0;
     state.balls = 0;
     state.strikes = 0;
@@ -429,7 +429,7 @@ fn switch_inning(state: &mut BaseballState) {
     }
 }
 
-pub fn update_half_inning(state: &mut BaseballState, dt: f32) {
+pub fn update_half_inning(state: &BaseballState, dt: f32) {
     if state.phase != GamePhase.HalfInning {
         return;
     }
@@ -441,7 +441,7 @@ pub fn update_half_inning(state: &mut BaseballState, dt: f32) {
     }
 }
 
-pub fn swing(state: &mut BaseballState, power: f32, timing: f32) {
+pub fn swing(state: &BaseballState, power: f32, timing: f32) {
     if state.phase == GamePhase.Batting || state.phase == GamePhase.Pitching {
         state.batter.swinging = true;
         state.batter.swing_timer = 0.0;
@@ -450,7 +450,7 @@ pub fn swing(state: &mut BaseballState, power: f32, timing: f32) {
     }
 }
 
-pub fn update_batter_swing(state: &mut BaseballState, dt: f32) {
+pub fn update_batter_swing(state: &BaseballState, dt: f32) {
     if state.batter.swinging {
         state.batter.swing_timer = state.batter.swing_timer + dt;
         

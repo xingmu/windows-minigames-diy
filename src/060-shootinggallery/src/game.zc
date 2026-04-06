@@ -291,7 +291,7 @@ class ShootingGalleryGame {
         let x = (math.rand() % (self.gallery.width - TARGET_WIDTH - 100)) as int + 50;
         let y = (math.rand() % 280) as int + 200;
         
-        let target = &mut self.gallery.targets[slot];
+        let target = &self.gallery.targets[slot];
         target.x = x;
         target.y = y;
         target.width = TARGET_WIDTH;
@@ -318,7 +318,7 @@ class ShootingGalleryGame {
         let currentTime = getTickCount();
         
         for i in 0..MAX_TARGETS {
-            let target = &mut self.gallery.targets[i];
+            let target = &self.gallery.targets[i];
             
             if !target.alive {
                 continue;
@@ -851,7 +851,7 @@ class ShootingGalleryGame {
         let hit = false;
         
         for i in 0..MAX_TARGETS {
-            let target = &mut self.gallery.targets[i];
+            let target = &self.gallery.targets[i];
             
             if !target.alive || target.hit {
                 continue;

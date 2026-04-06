@@ -15,7 +15,7 @@ def WINNING_VALUE = TILE_COUNT - 1;  // 15为最后一个数字
 
 // 游戏板 - 4x4网格，0表示空白
 struct Board {
-    cells: [TILE_COUNT]i32,  // 存储1-15和0(空白)
+    cells: i32[TILE_COUNT],  // 存储1-15和0(空白)
 }
 
 // 游戏状态
@@ -44,7 +44,7 @@ fn get_cell(board: Board*, x: i32, y: i32) -> i32 {
 }
 
 // 设置格子值
-fn set_cell(board: &mut Board, x: i32, y: i32, value: i32) {
+fn set_cell(board: &Board, x: i32, y: i32, value: i32) {
     if x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE {
         board.cells[cell_index(x, y)] = value;
     }
@@ -63,7 +63,7 @@ fn find_empty(board: Board*) -> (i32, i32) {
 }
 
 // 初始化游戏
-fn init_game(game: &mut GameData) {
+fn init_game(game: &GameData) {
     // 初始化随机数种子
     let seed = time.now().nanos();
     math.srand(seed);
@@ -83,7 +83,7 @@ fn init_game(game: &mut GameData) {
 }
 
 // 生成一个可解的随机拼图
-fn shuffle_game(game: &mut GameData) {
+fn shuffle_game(game: &GameData) {
     // 首先设置为完成状态
     for i in 0..(TILE_COUNT - 1) {
         game.board.cells[i] = i + 1 as i32;
@@ -156,7 +156,7 @@ fn check_solved(board: Board*) -> bool {
 }
 
 // 尝试移动指定位置的方块
-fn try_move(game: &mut GameData, x: i32, y: i32) -> bool {
+fn try_move(game: &GameData, x: i32, y: i32) -> bool {
     if game.solved {
         return false;
     }
@@ -186,8 +186,8 @@ fn try_move(game: &mut GameData, x: i32, y: i32) -> bool {
     }
     
     // 交换
-    set_cell(&mut game.board, ex, ey, value);
-    set_cell(&mut game.board, x, y, 0);
+    set_cell(&game.board, ex, ey, value);
+    set_cell(&game.board, x, y, 0);
     
     game.moves = game.moves + 1;
     
@@ -201,7 +201,7 @@ fn try_move(game: &mut GameData, x: i32, y: i32) -> bool {
 }
 
 // 处理输入 - 根据方向键移动空白位置旁边的方块
-fn handle_input(game: &mut GameData, key_code: i32) -> bool {
+fn handle_input(game: &GameData, key_code: i32) -> bool {
     if game.solved {
         // 完成后按任意键重新开始
         return true;

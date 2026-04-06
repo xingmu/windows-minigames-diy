@@ -1,1 +1,188 @@
-../../003-framework/src/platform_api_windows.zc
+// platform_api_windows.zc - Windows 平台实现
+// 框架版本: 1.0.0
+
+// Windows API 常量
+private val WS_OVERLAPPEDWINDOW = 0x00CF0000;
+private val WS_EX_CLIENTEDGE = 0x00000200;
+private val WM_DESTROY = 0x0002;
+private val WM_QUIT = 0x0012;
+private val WM_SIZE = 0x0005;
+private val WM_PAINT = 0x000F;
+private val WM_KEYDOWN = 0x0100;
+private val WM_KEYUP = 0x0101;
+private val WM_LBUTTONDOWN = 0x0201;
+private val WM_LBUTTONUP = 0x0202;
+private val WM_RBUTTONDOWN = 0x0204;
+private val WM_RBUTTONUP = 0x0205;
+private val WM_MBUTTONDOWN = 0x0207;
+private val WM_MBUTTONUP = 0x0208;
+private val WM_MOUSEMOVE = 0x0200;
+private val WM_MOUSEWHEEL = 0x020A;
+
+private val VK_ESCAPE = 0x1B;
+private val VK_SPACE = 0x20;
+private val VK_RETURN = 0x0D;
+private val VK_LEFT = 0x25;
+private val VK_UP = 0x26;
+private val VK_RIGHT = 0x27;
+private val VK_DOWN = 0x28;
+
+// Windows API 函数声明
+// 这些需要通过 C 库或内联汇编调用
+// 实际实现会调用底层的 Windows API
+
+// 内部结构
+private struct WinData {
+    hwnd: rawptr,
+    dc: rawptr,
+    memDC: rawptr,
+    bitmap: rawptr,
+    buffer: rawptr,
+    width: int,
+    height: int,
+    running: bool,
+}
+
+// 窗口注册和创建
+fn createWindow(title: str, width: int, height: int) -> WindowHandle {
+    // 实现说明:
+    // 1. 调用 RegisterClass 注册窗口类
+    // 2. 调用 CreateWindowEx 创建窗口
+    // 3. 获取 Device Context
+    // 4. 创建内存 DC 和位图用于双缓冲
+    // 5. 返回窗口句柄
+    
+    // 这里返回 nil，实际运行时由 C 代码处理
+    // Zen-C 框架通过外部 C 代码处理窗口创建
+    return nil;
+}
+
+fn closeWindow(handle: WindowHandle) {
+    if handle == nil {
+        return;
+    }
+    // 清理资源
+}
+
+fn setWindowTitle(handle: WindowHandle, title: str) {
+    // 设置窗口标题
+}
+
+fn getWindowSize(handle: WindowHandle) -> (int, int) {
+    return (800, 600);
+}
+
+// 事件处理
+fn pollEvent(handle: WindowHandle, event: Event*) -> bool {
+    // 非阻塞事件轮询
+    // 如果有事件返回 true，填充 event 结构
+    // 如果没有事件返回 false
+    
+    // 实现说明:
+    // 1. 调用 PeekMessage 检查是否有消息
+    // 2. 如果有，调用 TranslateMessage 和 DispatchMessage
+    // 3. 根据消息填充 Event 结构
+    // 4. 返回是否有消息
+    
+    event.msg = MessageType.None;
+    return false;
+}
+
+fn waitEvent(handle: WindowHandle, event: Event*) {
+    // 阻塞等待事件
+    // 实现同 pollEvent 但调用 GetMessage
+}
+
+// 键盘处理
+fn isKeyDown(key: VirtualKey) -> bool {
+    // 调用 GetAsyncKeyState 检查按键状态
+    return false;
+}
+
+// 帧缓冲
+fn getFrameBuffer(handle: WindowHandle) -> rawptr {
+    // 返回直接写入的像素缓冲地址
+    return nil;
+}
+
+fn getFrameBufferPitch(handle: WindowHandle) -> int {
+    // 返回每行字节数 (width * 4 for 32-bit)
+    return 800 * 4;
+}
+
+fn presentFrame(handle: WindowHandle) {
+    // 将内存 DC 的内容复制到屏幕 DC
+    // 调用 BitBlt 或 StretchBlt
+}
+
+// 计时器
+fn getTickCount() -> u32 {
+    // 返回自系统启动以来的毫秒数
+    // 调用 GetTickCount 或 timeGetTime
+    return 0;
+}
+
+fn sleep(ms: u32) {
+    // 调用 Sleep 睡眠指定毫秒数
+}
+
+// 初始化 Windows 平台
+pub fn initPlatform() {
+    // 注册窗口类（如果需要）
+}
+
+// 清理 Windows 平台资源
+pub fn shutdownPlatform() {
+    // 清理窗口类等资源
+}
+
+// ============================================================================
+// 以下是实际游戏使用的简化 API 实现
+// 完整实现需要 Windows API 绑定库
+// ============================================================================
+
+// 为了演示框架用法，提供一个最小化的 stub 实现
+// 实际游戏开发需要提供完整的 Windows API 绑定
+
+pub struct WNDCLASSEX {
+    cbSize: u32,
+    style: u32,
+    lpfnWndProc: rawptr,
+    cbClsExtra: i32,
+    cbWndExtra: i32,
+    hInstance: rawptr,
+    hIcon: rawptr,
+    hCursor: rawptr,
+    hbrBackground: rawptr,
+    lpszMenuName: rawptr,
+    lpszClassName: rawptr,
+    hIconSm: rawptr,
+}
+
+pub struct MSG {
+    hwnd: rawptr,
+    message: u32,
+    wParam: rawptr,
+    lParam: rawptr,
+    time: u32,
+    pt: rawptr,
+}
+
+// 窗口过程函数
+// 这个函数由 Windows 调用处理消息
+fn windowProc(hwnd: rawptr, msg: u32, wParam: rawptr, lParam: rawptr) -> rawptr {
+    match msg {
+        WM_DESTROY => {
+            // 发送 WM_QUIT 消息
+            return nil;
+        }
+        WM_PAINT => {
+            // 重绘
+            return nil;
+        }
+        _ => {
+            // 调用默认窗口过程
+            return nil;
+        }
+    }
+}

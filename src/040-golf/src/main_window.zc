@@ -41,10 +41,10 @@ fn fb_draw_line(x1: i32, y1: i32, x2: i32, y2: i32, color: Color) {
     let dy = abs(y2 - y1);
     let sx = if x1 < x2 { 1 } else { -1 };
     let sy = if y1 < y2 { 1 } else { -1 };
-    let mut err = dx - dy;
+    let err = dx - dy;
 
-    let mut x = x1;
-    let mut y = y1;
+    let x = x1;
+    let y = y1;
 
     loop {
         fb_set_pixel(x, y, color);
@@ -74,9 +74,9 @@ fn fb_fill_rect(x: i32, y: i32, w: i32, h: i32, color: Color) {
 }
 
 fn fb_draw_circle(cx: i32, cy: i32, radius: i32, color: Color) {
-    let mut d = 3 - 2 * radius;
-    let mut x = 0;
-    let mut y = radius;
+    let d = 3 - 2 * radius;
+    let x = 0;
+    let y = radius;
 
     loop {
         fb_set_pixel(cx + x, cy + y, color);
@@ -136,14 +136,14 @@ fn handle_key(key: VirtualKey) -> bool {
     if key == VirtualKey.Space {
         if game.status == GameStatus.Ready {
             // 空格轻击
-            shoot(&mut game, 5, 100, 0);
+            shoot(&game, 5, 100, 0);
         }
     }
     if key == VirtualKey.Enter {
         if game.status == GameStatus.HoleIn {
             // 回车进入下一洞
             if game.currentHole < 8 {
-                loadHole(&mut game, game.currentHole + 1);
+                loadHole(&game, game.currentHole + 1);
             } else {
                 game.status = GameStatus.GameComplete;
             }
@@ -159,7 +159,7 @@ fn handle_timer() -> bool {
         if game.holeAnimTimer <= 0 {
             // 自动进入下一洞
             if game.currentHole < 8 {
-                loadHole(&mut game, game.currentHole + 1);
+                loadHole(&game, game.currentHole + 1);
             } else {
                 game.status = GameStatus.GameComplete;
             }
@@ -168,7 +168,7 @@ fn handle_timer() -> bool {
     }
     
     if game.status == GameStatus.Moving {
-        let stillMoving = updatePhysics(&mut game);
+        let stillMoving = updatePhysics(&game);
         if !stillMoving && allStopped(&game) {
             game.status = GameStatus.Ready;
         }
@@ -178,15 +178,15 @@ fn handle_timer() -> bool {
 }
 
 fn handle_mouse_down(x: i32, y: i32, button: MouseButton) {
-    onMouseDown(&mut game, x, y);
+    onMouseDown(&game, x, y);
 }
 
 fn handle_mouse_up(x: i32, y: i32, button: MouseButton) {
-    onMouseUp(&mut game, x, y);
+    onMouseUp(&game, x, y);
 }
 
 fn handle_mouse_move(x: i32, y: i32) {
-    onMouseMove(&mut game, x, y);
+    onMouseMove(&game, x, y);
 }
 
 // ==================== 绘制函数 ====================
@@ -486,7 +486,7 @@ fn main() -> i32 {
     io.println "========================================";
 
     // 初始化游戏状态
-    init_game(&mut game);
+    init_game(&game);
 
     // 创建窗口
     let title = "高尔夫 - Mini Golf";

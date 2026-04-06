@@ -86,7 +86,7 @@ class HuarongDao extends Game {
     
     fn onInit() {
         self.state = GameState.Playing;
-        init_board(&mut self.board, &mut self.blocks);
+        init_board(&self.board, &self.blocks);
         self.moves = 0;
         self.won = false;
         self.dragging = false;
@@ -196,7 +196,7 @@ class HuarongDao extends Game {
                 // 向右
                 let new_col = self.drag_block_start_col + 1;
                 if can_move_to(&self.board, &block, block.row, new_col) {
-                    move_block(&mut self.board, &mut self.blocks, self.drag_block_id, block.row, new_col);
+                    move_block(&self.board, &self.blocks, self.drag_block_id, block.row, new_col);
                     self.drag_block_start_col = new_col;
                     self.moves = self.moves + 1;
                 }
@@ -205,7 +205,7 @@ class HuarongDao extends Game {
                 // 向左
                 let new_col = self.drag_block_start_col - 1;
                 if can_move_to(&self.board, &block, block.row, new_col) {
-                    move_block(&mut self.board, &mut self.blocks, self.drag_block_id, block.row, new_col);
+                    move_block(&self.board, &self.blocks, self.drag_block_id, block.row, new_col);
                     self.drag_block_start_col = new_col;
                     self.moves = self.moves + 1;
                 }
@@ -217,7 +217,7 @@ class HuarongDao extends Game {
                 // 向下
                 let new_row = self.drag_block_start_row + 1;
                 if can_move_to(&self.board, &block, new_row, block.col) {
-                    move_block(&mut self.board, &mut self.blocks, self.drag_block_id, new_row, block.col);
+                    move_block(&self.board, &self.blocks, self.drag_block_id, new_row, block.col);
                     self.drag_block_start_row = new_row;
                     self.moves = self.moves + 1;
                 }
@@ -226,7 +226,7 @@ class HuarongDao extends Game {
                 // 向上
                 let new_row = self.drag_block_start_row - 1;
                 if can_move_to(&self.board, &block, new_row, block.col) {
-                    move_block(&mut self.board, &mut self.blocks, self.drag_block_id, new_row, block.col);
+                    move_block(&self.board, &self.blocks, self.drag_block_id, new_row, block.col);
                     self.drag_block_start_row = new_row;
                     self.moves = self.moves + 1;
                 }
@@ -241,7 +241,7 @@ class HuarongDao extends Game {
     }
     
     fn reset_game() {
-        init_board(&mut self.board, &mut self.blocks);
+        init_board(&self.board, &self.blocks);
         self.moves = 0;
         self.won = false;
         self.state = GameState.Playing;

@@ -105,7 +105,7 @@ pub class MineBoard {
         for i in 0..rows {
             self.board[i] = []Cell.alloc(cols);
             for j in 0..cols {
-                self.board[i][j] = Cell.new();
+                self.board[i][j] = Cell();
             }
         }
     }

@@ -19,7 +19,7 @@ static mut game_speed: u32 = 16;  // ~60 FPS
 fn on_key(key: KeyCode) -> bool {
     match key {
         KeyCode::KeyR => {
-            initGame(&mut game);
+            initGame(&game);
         },
         KeyCode::KeyEscape => {
             running = false;
@@ -31,7 +31,7 @@ fn on_key(key: KeyCode) -> bool {
 }
 
 fn on_timer() -> bool {
-    return updateGame(&mut game);
+    return updateGame(&game);
 }
 
 fn on_paint(w: i32, h: i32) {
@@ -70,15 +70,15 @@ fn on_paint(w: i32, h: i32) {
 }
 
 fn on_mouse_down(x: i32, y: i32) {
-    onMouseDown(&mut game, x, y);
+    onMouseDown(&game, x, y);
 }
 
 fn on_mouse_move(x: i32, y: i32) {
-    onMouseMove(&mut game, x, y);
+    onMouseMove(&game, x, y);
 }
 
 fn on_mouse_up(x: i32, y: i32) {
-    onMouseUp(&mut game, x, y);
+    onMouseUp(&game, x, y);
 }
 
 fn on_destroy() {
@@ -288,7 +288,7 @@ fn main() -> i32 {
     io.println "========================================";
 
     // 初始化游戏状态
-    initGame(&mut game);
+    initGame(&game);
 
     // 创建窗口
     let title = "保龄球 - Bowling";
@@ -300,9 +300,9 @@ fn main() -> i32 {
     }
 
     // 获取实际客户区大小
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         game.width = cw;
         game.height = ch;

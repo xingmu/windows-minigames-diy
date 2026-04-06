@@ -96,7 +96,7 @@ fn rgb(r: u8, g: u8, b: u8) -> u32 {
 // ==================== 游戏逻辑 ====================
 
 // 初始化游戏
-pub fn init_game(state: &mut MemoryGameState) {
+pub fn init_game(state: &MemoryGameState) {
     // 初始化所有卡牌为背面朝上
     for r in 0..GRID_ROWS {
         for c in 0..GRID_COLS {
@@ -163,7 +163,7 @@ pub fn get_card_position(state: MemoryGameState*, row: int, col: int) -> (int, i
 }
 
 // 点击卡牌
-pub fn click_card(state: &mut MemoryGameState, row: int, col: int, currentTime: u32) -> bool {
+pub fn click_card(state: &MemoryGameState, row: int, col: int, currentTime: u32) -> bool {
     // 忽略无效点击
     if row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS {
         return false;
@@ -236,7 +236,7 @@ pub fn click_card(state: &mut MemoryGameState, row: int, col: int, currentTime: 
 }
 
 // 更新游戏状态(检查匹配超时等)
-pub fn update_game(state: &mut MemoryGameState, currentTime: u32) {
+pub fn update_game(state: &MemoryGameState, currentTime: u32) {
     if state.gameOver {
         return;
     }
@@ -277,7 +277,7 @@ pub fn update_game(state: &mut MemoryGameState, currentTime: u32) {
 }
 
 // 重新开始游戏
-pub fn restart_game(state: &mut MemoryGameState) {
+pub fn restart_game(state: &MemoryGameState) {
     init_game(state);
 }
 

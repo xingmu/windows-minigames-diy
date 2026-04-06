@@ -102,7 +102,7 @@ fn color_to_u32(c: Color) -> u32 {
 
 // ==================== 初始化函数 ====================
 
-fn init_game(game: &mut ArcheryState, width: i32, height: i32) {
+fn init_game(game: &ArcheryState, width: i32, height: i32) {
     game.width = width;
     game.height = height;
     game.score = 0;
@@ -138,7 +138,7 @@ fn init_game(game: &mut ArcheryState, width: i32, height: i32) {
     }
 }
 
-fn reset_round(game: &mut ArcheryState) {
+fn reset_round(game: &ArcheryState) {
     game.arrowsLeft = ROUND_ARROWS;
     game.wind = (rand_float() * 4.0 - 2.0) * 0.5;  // -1.0 to 1.0 wind
     game.status = GameStatus.Playing;
@@ -155,7 +155,7 @@ fn reset_round(game: &mut ArcheryState) {
     spawn_target(game);
 }
 
-fn reset_game(game: &mut ArcheryState) {
+fn reset_game(game: &ArcheryState) {
     game.score = 0;
     game.round = 1;
     game.combo = 0;
@@ -164,7 +164,7 @@ fn reset_game(game: &mut ArcheryState) {
 
 // ==================== 随机数 ====================
 
-private let mut rng_state: u32 = 12345;
+private let rng_state: u32 = 12345;
 
 fn srand(seed: u32) {
     rng_state = seed;
@@ -182,7 +182,7 @@ fn rand_int(max: i32) -> i32 {
 
 // ==================== 游戏逻辑 ====================
 
-fn update_bow(game: &mut ArcheryState) {
+fn update_bow(game: &ArcheryState) {
     let bowX = game.bow.x as float;
     let bowY = game.bow.y as float;
     let mouseX = game.mouseX as float;
@@ -206,7 +206,7 @@ fn update_bow(game: &mut ArcheryState) {
     }
 }
 
-fn shoot_arrow(game: &mut ArcheryState) {
+fn shoot_arrow(game: &ArcheryState) {
     if game.arrowsLeft <= 0 || game.status != GameStatus.Playing {
         return;
     }
@@ -239,7 +239,7 @@ fn shoot_arrow(game: &mut ArcheryState) {
     game.bow.power = MIN_POWER;
 }
 
-fn update_arrows(game: &mut ArcheryState) {
+fn update_arrows(game: &ArcheryState) {
     for i in 0..MAX_ARROWS {
         let arrow = &game.arrows[i];
         if !arrow.active {
@@ -323,7 +323,7 @@ fn update_arrows(game: &mut ArcheryState) {
     }
 }
 
-fn spawn_target(game: &mut ArcheryState) {
+fn spawn_target(game: &ArcheryState) {
     // Find inactive target slot
     let slot = -1;
     for i in 0..MAX_TARGETS {
@@ -346,7 +346,7 @@ fn spawn_target(game: &mut ArcheryState) {
     target.ring = -1;  // Not hit yet
 }
 
-fn update_targets(game: &mut ArcheryState) {
+fn update_targets(game: &ArcheryState) {
     // Spawn new targets if needed
     let time = get_tick_count();
     if time - game.lastSpawnTime > TARGET_SPAWN_INTERVAL {
@@ -364,7 +364,7 @@ fn update_targets(game: &mut ArcheryState) {
     }
 }
 
-fn check_round_end(game: &mut ArcheryState) {
+fn check_round_end(game: &ArcheryState) {
     if game.arrowsLeft <= 0 && game.status == GameStatus.Playing {
         // Check if any arrows are still active
         let anyActive = false;
@@ -386,7 +386,7 @@ fn check_round_end(game: &mut ArcheryState) {
     }
 }
 
-fn update_game(game: &mut ArcheryState) {
+fn update_game(game: &ArcheryState) {
     let time = get_tick_count();
     
     if game.gameStartTime == 0 {

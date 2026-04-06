@@ -60,7 +60,7 @@ struct DartsState {
     darts: [TOTAL_DARTS]Dart,
     currentDart: i32,
     currentRound: i32,
-    scores: [ROUNDS]i32,
+    scores: i32[ROUNDS],
     totalScore: i32,
     status: DartsStatus,
     mouseX: i32,
@@ -144,7 +144,7 @@ fn atanF(x: f32) -> f32 {
 
 // ==================== 初始化游戏 ====================
 
-fn init_game(game: &mut DartsState) {
+fn init_game(game: &DartsState) {
     game.width = GAME_WIDTH;
     game.height = GAME_HEIGHT;
     game.currentRound = 1;
@@ -179,12 +179,12 @@ fn init_game(game: &mut DartsState) {
 
 // ==================== 鼠标/输入处理 ====================
 
-fn on_mouse_move(game: &mut DartsState, x: i32, y: i32) {
+fn on_mouse_move(game: &DartsState, x: i32, y: i32) {
     game.mouseX = x;
     game.mouseY = y;
 }
 
-fn on_mouse_down(game: &mut DartsState, x: i32, y: i32) {
+fn on_mouse_down(game: &DartsState, x: i32, y: i32) {
     if game.status == DartsStatus.Flying || game.status == DartsStatus.GameOver {
         return;
     }
@@ -194,7 +194,7 @@ fn on_mouse_down(game: &mut DartsState, x: i32, y: i32) {
     game.status = DartsStatus.Aiming;
 }
 
-fn on_mouse_up(game: &mut DartsState, x: i32, y: i32) {
+fn on_mouse_up(game: &DartsState, x: i32, y: i32) {
     if !game.isDragging || game.status == DartsStatus.Flying || game.status == DartsStatus.GameOver {
         game.isDragging = false;
         return;
@@ -239,7 +239,7 @@ fn on_mouse_up(game: &mut DartsState, x: i32, y: i32) {
     game.status = DartsStatus.Flying;
 }
 
-fn on_key_press(game: &mut DartsState, key: KeyCode) -> bool {
+fn on_key_press(game: &DartsState, key: KeyCode) -> bool {
     match key {
         KeyCode::KeyR => {
             if game.status == DartsStatus.GameOver {
@@ -256,7 +256,7 @@ fn on_key_press(game: &mut DartsState, key: KeyCode) -> bool {
 
 // ==================== 更新游戏逻辑 ====================
 
-fn update_game(game: &mut DartsState) -> bool {
+fn update_game(game: &DartsState) -> bool {
     if game.status != DartsStatus.Flying {
         return true;
     }

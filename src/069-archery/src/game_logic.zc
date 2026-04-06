@@ -96,7 +96,7 @@ struct ArcheryState {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &mut ArcheryState) {
+fn init_game(game: &ArcheryState) {
     game.score = 0;
     game.round = 1;
     game.arrows_left = ARROWS_PER_ROUND;
@@ -130,7 +130,7 @@ fn init_game(game: &mut ArcheryState) {
 }
 
 // 初始化目标
-fn init_targets(game: &mut ArcheryState) {
+fn init_targets(game: &ArcheryState) {
     let distances = [200, 350, 500];  // 不同距离
     
     for i in 0..TARGET_COUNT {
@@ -163,7 +163,7 @@ fn init_targets(game: &mut ArcheryState) {
 }
 
 // 处理鼠标移动
-fn handle_mouse_move(game: &mut ArcheryState, mouse_x: i32, mouse_y: i32) {
+fn handle_mouse_move(game: &ArcheryState, mouse_x: i32, mouse_y: i32) {
     game.mouse_x = mouse_x;
     game.mouse_y = mouse_y;
     
@@ -185,7 +185,7 @@ fn handle_mouse_move(game: &mut ArcheryState, mouse_x: i32, mouse_y: i32) {
 }
 
 // 处理鼠标点击(射箭)
-fn handle_shoot(game: &mut ArcheryState) -> bool {
+fn handle_shoot(game: &ArcheryState) -> bool {
     if game.status == GameStatus.Ready {
         game.status = GameStatus.Playing;
     }
@@ -224,7 +224,7 @@ fn handle_shoot(game: &mut ArcheryState) -> bool {
 }
 
 // 更新游戏逻辑
-fn update_game(game: &mut ArcheryState) -> bool {
+fn update_game(game: &ArcheryState) -> bool {
     let needs_redraw = false;
     
     // 更新飞行中的弓箭
@@ -286,7 +286,7 @@ fn update_game(game: &mut ArcheryState) -> bool {
 }
 
 // 检查弓箭是否击中目标
-fn check_arrow_target_hit(game: &mut ArcheryState, arrow_idx: i32, target_idx: i32) -> bool {
+fn check_arrow_target_hit(game: &ArcheryState, arrow_idx: i32, target_idx: i32) -> bool {
     let arrow = game.arrows[arrow_idx];
     let target = game.targets[target_idx];
     
@@ -340,7 +340,7 @@ fn check_arrow_target_hit(game: &mut ArcheryState, arrow_idx: i32, target_idx: i
 }
 
 // 开始下一轮
-fn next_round(game: &mut ArcheryState) {
+fn next_round(game: &ArcheryState) {
     game.round = game.round + 1;
     game.arrows_left = ARROWS_PER_ROUND;
     game.status = GameStatus.Playing;
@@ -361,7 +361,7 @@ fn next_round(game: &mut ArcheryState) {
 }
 
 // 重新开始游戏
-fn restart_game(game: &mut ArcheryState) {
+fn restart_game(game: &ArcheryState) {
     game.score = 0;
     game.round = 1;
     game.arrows_left = ARROWS_PER_ROUND;

@@ -291,9 +291,9 @@ fn draw_gameover_screen(state: FishGameState*) {
 
 // 鼠标点击
 fn on_mouse_click(x: i32, y: i32) {
-    start_game(&mut game);
+    start_game(&game);
     if game.status == GameStatus.Playing {
-        shoot(&mut game);
+        shoot(&game);
     }
 }
 
@@ -311,7 +311,7 @@ fn on_key(key: KeyCode) -> bool {
             return false;
         }
         KeyCode::KeyP => {
-            pause_game(&mut game);
+            pause_game(&game);
         }
         _ => {}
     }
@@ -321,7 +321,7 @@ fn on_key(key: KeyCode) -> bool {
 // 定时器更新
 fn on_timer() -> bool {
     gameTimeCounter = gameTimeCounter + 16;
-    return update_game(&mut game, 16);
+    return update_game(&game, 16);
 }
 
 // 绘制
@@ -420,7 +420,7 @@ fn main() -> i32 {
     io.println "===========================================";
     
     // 初始化游戏
-    init_game(&mut game, GAME_WIDTH, GAME_HEIGHT);
+    init_game(&game, GAME_WIDTH, GAME_HEIGHT);
     
     // 创建窗口
     let title = "Fish Hunter - 捕鱼达人";
@@ -432,9 +432,9 @@ fn main() -> i32 {
     }
     
     // 获取客户区大小
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         game.width = cw;
         game.height = ch;
@@ -473,7 +473,7 @@ fn main() -> i32 {
     redraw_window(window);
     
     // 运行事件循环
-    run_event_loop(window, &mut game);
+    run_event_loop(window, &game);
     
     io.println "游戏结束!";
     io.println "===========================================";

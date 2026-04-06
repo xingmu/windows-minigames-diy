@@ -34,7 +34,7 @@ static mut g_height: i32 = 600;
 // ==================== 绘图函数 ====================
 
 // 绘制场地背景
-fn draw_field(ctx: &mut RenderContext) {
+fn draw_field(ctx: &RenderContext) {
     // 草皮条纹
     let stripe_w = 50;
     for i in 0..16 {
@@ -65,7 +65,7 @@ fn draw_field(ctx: &mut RenderContext) {
 }
 
 // 绘制球门
-fn draw_goal(ctx: &mut RenderContext, goal: Goal*) {
+fn draw_goal(ctx: &RenderContext, goal: Goal*) {
     // 球网
     let spacing = 20;
     // 垂直线
@@ -88,7 +88,7 @@ fn draw_goal(ctx: &mut RenderContext, goal: Goal*) {
 }
 
 // 绘制球
-fn draw_ball(ctx: &mut RenderContext, ball: Ball*) {
+fn draw_ball(ctx: &RenderContext, ball: Ball*) {
     let x = ball.x as i32;
     let y = ball.y as i32;
     let r = ball.radius;
@@ -108,7 +108,7 @@ fn draw_ball(ctx: &mut RenderContext, ball: Ball*) {
 }
 
 // 绘制守门员
-fn draw_keeper(ctx: &mut RenderContext, keeper: Keeper*) {
+fn draw_keeper(ctx: &RenderContext, keeper: Keeper*) {
     let x = keeper.x;
     let y = keeper.y;
     let w = keeper.width;
@@ -142,7 +142,7 @@ fn draw_keeper(ctx: &mut RenderContext, keeper: Keeper*) {
 }
 
 // 绘制瞄准目标
-fn draw_target(ctx: &mut RenderContext, target: Target*, ball: Ball*) {
+fn draw_target(ctx: &RenderContext, target: Target*, ball: Ball*) {
     if !target.visible || game.phase != GamePhase.Aiming {
         return;
     }
@@ -176,7 +176,7 @@ fn draw_target(ctx: &mut RenderContext, target: Target*, ball: Ball*) {
 }
 
 // 绘制UI
-fn draw_ui(ctx: &mut RenderContext) {
+fn draw_ui(ctx: &RenderContext) {
     let panel_h = 80;
     let panel_y = g_height - panel_h;
     
@@ -186,7 +186,7 @@ fn draw_ui(ctx: &mut RenderContext) {
 }
 
 // 绘制游戏
-fn draw_game(ctx: &mut RenderContext) {
+fn draw_game(ctx: &RenderContext) {
     draw_field(ctx);
     draw_goal(ctx, &game.goal);
     draw_target(ctx, &game.target, &game.ball);
@@ -199,20 +199,20 @@ fn draw_game(ctx: &mut RenderContext) {
 
 fn on_mouse_move(x: i32, y: i32) {
     if game.phase == GamePhase.Aiming {
-        set_aim(&mut game, x, y);
+        set_aim(&game, x, y);
     }
 }
 
 fn on_click(x: i32, y: i32) {
     match game.phase {
         GamePhase::Aiming => {
-            shoot(&mut game);
+            shoot(&game);
         },
         GamePhase::Result => {
-            next_round(&mut game);
+            next_round(&game);
         },
         GamePhase::GameEnd => {
-            restart_game(&mut game);
+            restart_game(&game);
         },
         _ => {}
     }
@@ -222,12 +222,12 @@ fn on_key(key: i32) -> bool {
     match key {
         32 => { // 空格
             match game.phase {
-                GamePhase::Result => next_round(&mut game),
-                GamePhase::GameEnd => restart_game(&mut game),
+                GamePhase::Result => next_round(&game),
+                GamePhase::GameEnd => restart_game(&game),
                 _ => {}
             }
         },
-        82 => { restart_game(&mut game); }, // R
+        82 => { restart_game(&game); }, // R
         27 => { return false; }, // ESC
         _ => {}
     }
@@ -238,8 +238,8 @@ fn on_key(key: i32) -> bool {
 
 fn update() {
     if game.phase == GamePhase.Shooting {
-        update_keeper(&mut game);
-        update_ball(&mut game);
+        update_keeper(&game);
+        update_ball(&game);
     }
 }
 
@@ -250,13 +250,13 @@ struct RenderContext {
 }
 
 impl RenderContext {
-    fn fill_rect(self: &mut RenderContext, x: i32, y: i32, w: i32, h: i32, color: u32) {
+    fn fill_rect(self: &RenderContext, x: i32, y: i32, w: i32, h: i32, color: u32) {
         #if IS_WINDOWS
         self.fill_rect_win(x, y, w, h, color);
         #endif
     }
     
-    fn draw_rect(self: &mut RenderContext, x: i32, y: i32, w: i32, h: i32, color: u32, thick: i32) {
+    fn draw_rect(self: &RenderContext, x: i32, y: i32, w: i32, h: i32, color: u32, thick: i32) {
         // 用fill_rect画边框
         // 上
         self.fill_rect(x, y, w, thick, color);
@@ -268,25 +268,25 @@ impl RenderContext {
         self.fill_rect(x + w - thick, y, thick, h, color);
     }
     
-    fn draw_line(self: &mut RenderContext, x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {
+    fn draw_line(self: &RenderContext, x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {
         #if IS_WINDOWS
         self.draw_line_win(x1, y1, x2, y2, color);
         #endif
     }
     
-    fn draw_circle(self: &mut RenderContext, cx: i32, cy: i32, r: i32, color: u32, thick: i32) {
+    fn draw_circle(self: &RenderContext, cx: i32, cy: i32, r: i32, color: u32, thick: i32) {
         // 简化：画填充圆
         self.fill_circle(cx, cy, r, color);
     }
     
-    fn fill_circle(self: &mut RenderContext, cx: i32, cy: i32, r: i32, color: u32) {
+    fn fill_circle(self: &RenderContext, cx: i32, cy: i32, r: i32, color: u32) {
         #if IS_WINDOWS
         self.fill_circle_win(cx, cy, r, color);
         #endif
     }
     
     #if IS_WINDOWS
-    fn fill_rect_win(self: &mut RenderContext, x: i32, y: i32, w: i32, h: i32, color: u32) {
+    fn fill_rect_win(self: &RenderContext, x: i32, y: i32, w: i32, h: i32, color: u32) {
         let brush = CreateSolidBrush(color as COLORREF);
         let old = SelectObject(self.hdc, brush);
         Rectangle(self.hdc, x, y, x + w, y + h);
@@ -294,7 +294,7 @@ impl RenderContext {
         DeleteObject(brush);
     }
     
-    fn draw_line_win(self: &mut RenderContext, x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {
+    fn draw_line_win(self: &RenderContext, x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {
         MoveToEx(self.hdc, x1, y1, nil);
         let pen = CreatePen(0, 1, color as COLORREF);
         let old = SelectObject(self.hdc, pen);
@@ -303,7 +303,7 @@ impl RenderContext {
         DeleteObject(pen);
     }
     
-    fn fill_circle_win(self: &mut RenderContext, cx: i32, cy: i32, r: i32, color: u32) {
+    fn fill_circle_win(self: &RenderContext, cx: i32, cy: i32, r: i32, color: u32) {
         let brush = CreateSolidBrush(color as COLORREF);
         let old = SelectObject(self.hdc, brush);
         Ellipse(self.hdc, cx - r, cy - r, cx + r, cy + r);
@@ -335,7 +335,7 @@ fn main() -> i32 {
     initPlatform();
     
     // 初始化游戏
-    init_game(&mut game);
+    init_game(&game);
     game.window_width = 800;
     game.window_height = 600;
     
@@ -380,13 +380,13 @@ extern fn WindowProc(hwnd: WindowHandle, msg: u32, wParam: rawptr, lParam: rawpt
             let ps = PAINTSTRUCT { hdc: nil, fErase: 0, rcPaint: RECT { left: 0, top: 0, right: 0, bottom: 0 }, fRestore: 0, fIncUpdate: 0, rgbReserved: [0; 32] };
             let hdc = BeginPaint(hwnd, &ps);
             
-            let mut rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+            let rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
             GetClientRect(hwnd, &rect);
             g_width = rect.right;
             g_height = rect.bottom;
             
-            let mut ctx = RenderContext { hdc: hdc };
-            draw_game(&mut ctx);
+            let ctx = RenderContext { hdc: hdc };
+            draw_game(&ctx);
             
             EndPaint(hwnd, &ps);
             return nil;
@@ -474,7 +474,7 @@ fn set_game_timer(interval: u32) {
 }
 
 fn run_event_loop() {
-    let mut msg = MSG { hwnd: nil, message: 0, wParam: nil, lParam: nil, time: 0, pt: 0 };
+    let msg = MSG { hwnd: nil, message: 0, wParam: nil, lParam: nil, time: 0, pt: 0 };
     loop {
         if !running {
             break;

@@ -38,7 +38,7 @@ fn dimColor(c: u32, factor: f32) -> u32 {
 // ==================== 事件处理 ====================
 
 fn onKey(key: KeyCode) -> bool {
-    return handleInput(&mut game, key);
+    return handleInput(&game, key);
 }
 
 fn onTimer() -> bool {
@@ -56,7 +56,7 @@ fn onTimer() -> bool {
         }
     }
 
-    return update_game(&mut game);
+    return update_game(&game);
 }
 
 fn onPaint(w: i32, h: i32) {
@@ -248,7 +248,7 @@ fn main() -> i32 {
     io.println "========================================";
 
     // 初始化游戏状态
-    init_game(&mut game);
+    init_game(&game);
 
     // 创建窗口
     let title = "BreakoutPlus - 打砖块增强版";
@@ -260,9 +260,9 @@ fn main() -> i32 {
     }
 
     // 获取实际客户区大小
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         game.width = cw;
         game.height = ch;

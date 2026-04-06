@@ -59,7 +59,7 @@ def DIR_LEFT: i32 = 3;
 // ==================== 迷宫生成算法 ====================
 
 // 递归回溯法生成迷宫
-fn generate_maze(game: &mut GameState) {
+fn generate_maze(game: &GameState) {
     // 初始化所有单元格为墙壁
     for y in 0..MAZE_HEIGHT {
         for x in 0..MAZE_WIDTH {
@@ -90,7 +90,7 @@ fn generate_maze(game: &mut GameState) {
 }
 
 // 递归回溯 carving
-fn carve_passage(game: &mut GameState, x: i32, y: i32) {
+fn carve_passage(game: &GameState, x: i32, y: i32) {
     game.maze[y][x].visited = true;
     game.maze[y][x].cell_type = CellType::Path;
     
@@ -148,7 +148,7 @@ fn get_direction_offset(dir: i32) -> (i32, i32, i32, i32) {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &mut GameState) {
+fn init_game(game: &GameState) {
     // 初始化游戏状态
     game.score = 1000;
     game.moves = 0;
@@ -168,7 +168,7 @@ fn init_game(game: &mut GameState) {
 }
 
 // 处理输入
-fn handle_input(game: &mut GameState, key: i32) -> bool {
+fn handle_input(game: &GameState, key: i32) -> bool {
     if game.game_over || game.paused {
         // R键 - 重新开始
         if key == 82 || key == 114 {
@@ -178,9 +178,9 @@ fn handle_input(game: &mut GameState, key: i32) -> bool {
         return false;
     }
     
-    let mut new_x = game.player.x;
-    let mut new_y = game.player.y;
-    let mut moved = false;
+    let new_x = game.player.x;
+    let new_y = game.player.y;
+    let moved = false;
     
     match key {
         // 上方向
@@ -269,7 +269,7 @@ fn get_end_position(game: GameState*) -> Player {
 }
 
 // 计算游戏区域在窗口中的位置
-fn calculate_game_area(game: GameState*, offset_x: &mut i32, offset_y: &mut i32) {
+fn calculate_game_area(game: GameState*, offset_x: &i32, offset_y: &i32) {
     let game_width = MAZE_WIDTH * CELL_SIZE;
     let game_height = MAZE_HEIGHT * CELL_SIZE;
     

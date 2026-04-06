@@ -103,7 +103,7 @@ enum GamePhase {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &mut GameState) {
+fn init_game(game: &GameState) {
     // 初始化随机数种子
     let seed = time.now().nanos();
     math.srand(seed);
@@ -162,7 +162,7 @@ fn init_game(game: &mut GameState) {
 }
 
 // 设置瞄准位置
-fn set_aim(game: &mut GameState, x: i32, y: i32) {
+fn set_aim(game: &GameState, x: i32, y: i32) {
     game.aim_x = x;
     game.aim_y = y;
     
@@ -182,7 +182,7 @@ fn set_aim(game: &mut GameState, x: i32, y: i32) {
 }
 
 // 开始射门
-fn shoot(game: &mut GameState) {
+fn shoot(game: &GameState) {
     if game.phase != GamePhase.Aiming || game.ball.active {
         return;
     }
@@ -208,7 +208,7 @@ fn shoot(game: &mut GameState) {
 }
 
 // 更新守门员AI
-fn update_keeper(game: &mut GameState) {
+fn update_keeper(game: &GameState) {
     if game.phase != GamePhase.Shooting {
         return;
     }
@@ -265,7 +265,7 @@ fn update_keeper(game: &mut GameState) {
 }
 
 // 更新球的位置
-fn update_ball(game: &mut GameState) {
+fn update_ball(game: &GameState) {
     if !game.ball.active {
         return;
     }
@@ -339,7 +339,7 @@ struct Rect {
 }
 
 // 进入下一轮
-fn next_round(game: &mut GameState) {
+fn next_round(game: &GameState) {
     game.shots += 1;
     
     if game.shots >= game.total_shots {
@@ -364,7 +364,7 @@ fn next_round(game: &mut GameState) {
 }
 
 // 重新开始游戏
-fn restart_game(game: &mut GameState) {
+fn restart_game(game: &GameState) {
     init_game(game);
 }
 

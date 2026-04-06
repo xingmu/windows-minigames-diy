@@ -71,7 +71,7 @@ private struct WinData {
     lastKey: VirtualKey,
 }
 
-private let mut winData: WinData;
+private let winData: WinData;
 
 fn windowProc(hwnd: rawptr, msg: u32, wParam: rawptr, lParam: rawptr) -> rawptr {
     match msg {
@@ -193,10 +193,10 @@ fn sleep(ms: u32) {
 }
 
 // Framebuffer data for direct pixel access
-private let mut fbWidth: int = 800;
-private let mut fbHeight: int = 600;
-private let mut fbBuffer: [800 * 600]u32;
-private let mut fbValid: bool = false;
+private let fbWidth: int = 800;
+private let fbHeight: int = 600;
+private let fbBuffer: [800 * 600]u32;
+private let fbValid: bool = false;
 
 pub fn fb_init(handle: WindowHandle, width: int, height: int) -> bool {
     fbWidth = width;
@@ -395,7 +395,7 @@ pub fn setGameTimer(handle: WindowHandle, ms: i32) {
 pub fn redrawWindow(handle: WindowHandle) {
 }
 
-pub fn runEventLoop(handle: WindowHandle, data: &mut rawptr) {
+pub fn runEventLoop(handle: WindowHandle, data: &rawptr) {
     // Simple event loop - in real impl would use Windows message loop
 }
 

@@ -126,7 +126,7 @@ pub fn fb_shutdown() {
 
 pub fn fb_clear(color: u32) {
     if !fb_data.valid { return; }
-    let pixels = fb_data.(u32)buffer mut;
+    let pixels = fb_data.(u32)(buffer) mut;
     let count = (fb_data.pitch * fb_data.height) / 4;
     for i in 0..count {
         pixels[i] = color;
@@ -137,7 +137,7 @@ pub fn fb_set_pixel(x: int, y: int, color: u32) {
     if !fb_data.valid { return; }
     if x < 0 || x >= fb_data.width || y < 0 || y >= fb_data.height { return; }
     let offset = y * (fb_data.pitch / 4) + x;
-    let pixels = fb_data.(u32)buffer mut;
+    let pixels = fb_data.(u32)(buffer) mut;
     pixels[offset] = color;
 }
 
@@ -237,7 +237,7 @@ pub fn create_window(title: str, width: int, height: int) -> WindowHandle {
     return nil;
 }
 
-pub fn get_window_client_size(window: WindowHandle, width: &mut int, height: &mut int) {
+pub fn get_window_client_size(window: WindowHandle, width: &int, height: &int) {
     width = 0;
     height = 0;
 }

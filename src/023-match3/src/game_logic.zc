@@ -85,8 +85,8 @@ fn max_i(a: i32, b: i32) -> i32 {
 
 fn sqrt_i(n: i32) -> i32 {
     if n <= 0 { return 0; }
-    let mut x = n;
-    let mut y = 1;
+    let x = n;
+    let y = 1;
     while y < x {
         x = (x + y) / 2;
         y = n / x;
@@ -97,7 +97,7 @@ fn sqrt_i(n: i32) -> i32 {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &mut Match3State) {
+fn init_game(game: &Match3State) {
     game.width = GAME_WIDTH;
     game.height = GAME_HEIGHT;
     game.score = 0;
@@ -116,7 +116,7 @@ fn init_game(game: &mut Match3State) {
     // 填充网格，不产生初始匹配
     for row in 0..GRID_ROWS {
         for col in 0..GRID_COLS {
-            let mut ci: i32;
+            let ci: i32;
             loop {
                 ci = rand_int(0, 5);
                 game.grid[row][col].color_index = ci;
@@ -141,7 +141,7 @@ fn init_game(game: &mut Match3State) {
 }
 
 // 重置发射球
-fn reset_ball(game: &mut Match3State) {
+fn reset_ball(game: &Match3State) {
     game.ball.x = GAME_WIDTH / 2 as f32;
     game.ball.y = SHOOTER_Y as f32;
     game.ball.vx = 0.0;
@@ -152,7 +152,7 @@ fn reset_ball(game: &mut Match3State) {
 }
 
 // 计算发射方向
-fn calculate_velocity(game: &mut Match3State, target_x: i32, target_y: i32) {
+fn calculate_velocity(game: &Match3State, target_x: i32, target_y: i32) {
     let dx = target_x as f32 - game.ball.x;
     let dy = target_y as f32 - game.ball.y;
     let dist = sqrt_f(dx*dx + dy*dy);
@@ -164,8 +164,8 @@ fn calculate_velocity(game: &mut Match3State, target_x: i32, target_y: i32) {
 
 fn sqrt_f(n: f32) -> f32 {
     if n <= 0.0 { return 0.0; }
-    let mut x = n;
-    let mut y = 1.0;
+    let x = n;
+    let y = 1.0;
     while y < x {
         x = (x + y) / 2.0;
         y = n / x;
@@ -174,7 +174,7 @@ fn sqrt_f(n: f32) -> f32 {
 }
 
 // 发射球
-fn shoot_ball(game: &mut Match3State, target_x: i32, target_y: i32) {
+fn shoot_ball(game: &Match3State, target_x: i32, target_y: i32) {
     if game.ball.active { return; }
     if game.status != GameStatus.Playing { return; }
     
@@ -186,7 +186,7 @@ fn shoot_ball(game: &mut Match3State, target_x: i32, target_y: i32) {
 }
 
 // 更新游戏逻辑
-fn update_game(game: &mut Match3State) -> bool {
+fn update_game(game: &Match3State) -> bool {
     if game.status != GameStatus.Playing {
         return false;
     }
@@ -247,7 +247,7 @@ fn update_game(game: &mut Match3State) -> bool {
 }
 
 // 查找并移除匹配
-fn find_and_remove_matches(game: &mut Match3State) -> i32 {
+fn find_and_remove_matches(game: &Match3State) -> i32 {
     let matched: bool[GRID_ROWS][GRID_COLS];
     for row in 0..GRID_ROWS {
         for col in 0..GRID_COLS {
@@ -317,11 +317,11 @@ fn find_and_remove_matches(game: &mut Match3State) -> i32 {
 }
 
 // 重力掉落
-fn apply_gravity(game: &mut Match3State) {
+fn apply_gravity(game: &Match3State) {
     // 从底部向顶部处理
     for col in 0..GRID_COLS {
         // 收集非空块
-        let temp: [GRID_ROWS]i32;
+        let temp: i32[GRID_ROWS];
         let temp_count = 0;
         
         for row in 0..GRID_ROWS {
@@ -346,7 +346,7 @@ fn apply_gravity(game: &mut Match3State) {
 }
 
 // 处理键盘输入
-fn handle_input(game: &mut Match3State, key: KeyCode) -> bool {
+fn handle_input(game: &Match3State, key: KeyCode) -> bool {
     match key {
         KeyCode::KeySpace => {
             if game.status == GameStatus.Ready || game.status == GameStatus.GameOver {
@@ -363,7 +363,7 @@ fn handle_input(game: &mut Match3State, key: KeyCode) -> bool {
 }
 
 // 处理鼠标点击
-fn handle_mouse_click(game: &mut Match3State, x: i32, y: i32) {
+fn handle_mouse_click(game: &Match3State, x: i32, y: i32) {
     if game.status == GameStatus.Ready {
         game.status = GameStatus.Playing;
         return;
@@ -375,7 +375,7 @@ fn handle_mouse_click(game: &mut Match3State, x: i32, y: i32) {
 }
 
 // 递减计时器
-fn tick_timer(game: &mut Match3State) -> bool {
+fn tick_timer(game: &Match3State) -> bool {
     if game.status != GameStatus.Playing {
         return false;
     }

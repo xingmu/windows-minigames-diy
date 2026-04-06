@@ -88,7 +88,7 @@ struct BreakoutState {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &mut BreakoutState) {
+fn init_game(game: &BreakoutState) {
     game.width = GAME_WIDTH;
     game.height = GAME_HEIGHT;
     game.score = 0;
@@ -112,7 +112,7 @@ fn init_game(game: &mut BreakoutState) {
 }
 
 // 重置球
-fn reset_ball(game: &mut BreakoutState) {
+fn reset_ball(game: &BreakoutState) {
     game.ball.x = GAME_WIDTH / 2;
     game.ball.y = GAME_HEIGHT / 2 + 100;
     game.ball.vx = BALL_SPEED;
@@ -121,7 +121,7 @@ fn reset_ball(game: &mut BreakoutState) {
 }
 
 // 初始化砖块
-fn init_bricks(game: &mut BreakoutState) {
+fn init_bricks(game: &BreakoutState) {
     game.bricks.rows = BRICK_ROWS;
     game.bricks.cols = BRICK_COLS;
 
@@ -144,7 +144,7 @@ fn init_bricks(game: &mut BreakoutState) {
 }
 
 // 处理键盘输入
-fn handle_input(game: &mut BreakoutState, key: KeyCode) -> bool {
+fn handle_input(game: &BreakoutState, key: KeyCode) -> bool {
     match key {
         KeyCode::KeyLeft => {
             game.paddle.x = game.paddle.x - game.paddle.speed;
@@ -185,7 +185,7 @@ fn handle_input(game: &mut BreakoutState, key: KeyCode) -> bool {
 }
 
 // 更新游戏逻辑
-fn update_game(game: &mut BreakoutState) -> bool {
+fn update_game(game: &BreakoutState) -> bool {
     if game.status != GameStatus.Playing {
         return false;
     }
@@ -254,7 +254,7 @@ fn update_game(game: &mut BreakoutState) -> bool {
     }
 
     // 砖块碰撞
-    let mut bricks_remaining = 0;
+    let bricks_remaining = 0;
     for i in 0..(BRICK_ROWS * BRICK_COLS) {
         if game.bricks.bricks[i].alive {
             bricks_remaining = bricks_remaining + 1;

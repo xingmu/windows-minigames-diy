@@ -679,7 +679,7 @@ fn sortCardsInPlace(cards: &[i32] mut, count: i32) {
 
 // ==================== 叫分逻辑 ====================
 
-fn doBid(gs: &mut GameState, playerIdx: i32, bid: i32) {
+fn doBid(gs: &GameState, playerIdx: i32, bid: i32) {
     if bid > gs.highestBid && bid <= 3 {
         gs.highestBid = bid;
         gs.highestBidder = playerIdx;
@@ -912,7 +912,7 @@ fn findBestPlayGroup(gs: GameState*, playerIdx: i32) -> CardGroup {
 
 // ==================== 出牌逻辑 ====================
 
-fn playCards(gs: &mut GameState, playerIdx: i32, group: CardGroup) {
+fn playCards(gs: &GameState, playerIdx: i32, group: CardGroup) {
     let player = getPlayer(gs, playerIdx);
     
     if group.cardType == CT_INVALID {

@@ -853,8 +853,8 @@ class WrestlingGame extends Game {
         canvas.drawLine(RING_RIGHT, ropeY3, RING_RIGHT, RING_BOTTOM - 20, ropeColor3);
         
         // 观众席提示
-        canvas.drawText(20, 100, "CROWD>>>", Color.DarkGray(), Font.new("Arial", 14));
-        canvas.drawText(SCREEN_WIDTH - 120, 100, "<<<CROWD", Color.DarkGray(), Font.new("Arial", 14));
+        canvas.drawText(20, 100, "CROWD>>>", Color.DarkGray(), Font("Arial", 14));
+        canvas.drawText(SCREEN_WIDTH - 120, 100, "<<<CROWD", Color.DarkGray(), Font("Arial", 14));
     }
     
     pub fn drawWrestler(canvas: Canvas*, wrestler: Wrestler*, isPlayer1: bool) {
@@ -994,7 +994,7 @@ class WrestlingGame extends Game {
             let eff = &self.player1.effects[i];
             if eff.timer > 0 {
                 canvas.fillRect(eff.x - 40, eff.y - 10, 80, 20, Color.ARGB(180, 0, 0, 0));
-                canvas.drawText(eff.x - 35, eff.y - 8, eff.text, eff.color, Font.new("Arial", 14));
+                canvas.drawText(eff.x - 35, eff.y - 8, eff.text, eff.color, Font("Arial", 14));
             }
             i = i + 1;
         }
@@ -1004,7 +1004,7 @@ class WrestlingGame extends Game {
             let eff = &self.player2.effects[i];
             if eff.timer > 0 {
                 canvas.fillRect(eff.x - 40, eff.y - 10, 80, 20, Color.ARGB(180, 0, 0, 0));
-                canvas.drawText(eff.x - 35, eff.y - 8, eff.text, eff.color, Font.new("Arial", 14));
+                canvas.drawText(eff.x - 35, eff.y - 8, eff.text, eff.color, Font("Arial", 14));
             }
             i = i + 1;
         }
@@ -1012,14 +1012,14 @@ class WrestlingGame extends Game {
     
     pub fn drawUI(canvas: Canvas*) {
         // 玩家1血条
-        canvas.drawText(20, 20, "P1", Color.White(), Font.new("Arial", 16));
+        canvas.drawText(20, 20, "P1", Color.White(), Font("Arial", 16));
         canvas.fillRect(60, 15, 220, 20, COLOR_HP_BG);
-        let hpWidth1 = (self.player1.(int)hp * 220) / MAX_HP;
+        let hpWidth1 = ((int)(self.player1.hp) * 220) / MAX_HP;
         canvas.fillRect(60, 15, hpWidth1, 20, COLOR_HP_P1);
         
         // P1 能量条
         canvas.fillRect(60, 38, 220, 12, COLOR_ENERGY_BG);
-        let energyWidth1 = (self.player1.(int)energy * 220) / MAX_ENERGY;
+        let energyWidth1 = ((int)(self.player1.energy) * 220) / MAX_ENERGY;
         canvas.fillRect(60, 38, energyWidth1, 12, COLOR_ENERGY);
         
         // P1 胜利标记
@@ -1034,18 +1034,18 @@ class WrestlingGame extends Game {
             canvas.fillRect(60, 55, 220, 8, COLOR_ENERGY_BG);
             let pinW = ((int)(self.pinProgress1) * 220) / 3000;
             canvas.fillRect(60, 55, pinW, 8, COLOR_PIN);
-            canvas.drawText(60, 65, "PINNING!", COLOR_PIN, Font.new("Arial", 12));
+            canvas.drawText(60, 65, "PINNING!", COLOR_PIN, Font("Arial", 12));
         }
         
         // 玩家2血条
-        canvas.drawText(SCREEN_WIDTH - 280, 20, "CPU", Color.White(), Font.new("Arial", 16));
+        canvas.drawText(SCREEN_WIDTH - 280, 20, "CPU", Color.White(), Font("Arial", 16));
         canvas.fillRect(SCREEN_WIDTH - 240, 15, 220, 20, COLOR_HP_BG);
-        let hpWidth2 = (self.player2.(int)hp * 220) / MAX_HP;
+        let hpWidth2 = ((int)(self.player2.hp) * 220) / MAX_HP;
         canvas.fillRect(SCREEN_WIDTH - 240 + (220 - hpWidth2), 15, hpWidth2, 20, COLOR_HP_P2);
         
         // P2 能量条
         canvas.fillRect(SCREEN_WIDTH - 240, 38, 220, 12, COLOR_ENERGY_BG);
-        let energyWidth2 = (self.player2.(int)energy * 220) / MAX_ENERGY;
+        let energyWidth2 = ((int)(self.player2.energy) * 220) / MAX_ENERGY;
         canvas.fillRect(SCREEN_WIDTH - 240 + (220 - energyWidth2), 38, energyWidth2, 12, COLOR_ENERGY);
         
         // P2 胜利标记
@@ -1060,13 +1060,13 @@ class WrestlingGame extends Game {
             canvas.fillRect(SCREEN_WIDTH - 280, 55, 220, 8, COLOR_ENERGY_BG);
             let pinW2 = ((int)(self.pinProgress2) * 220) / 3000;
             canvas.fillRect(SCREEN_WIDTH - 280 + (220 - pinW2), 55, pinW2, 8, COLOR_PIN);
-            canvas.drawText(SCREEN_WIDTH - 200, 65, "PINNING!", COLOR_PIN, Font.new("Arial", 12));
+            canvas.drawText(SCREEN_WIDTH - 200, 65, "PINNING!", COLOR_PIN, Font("Arial", 12));
         }
         
         // 回合
         let roundStr = "ROUND ";
         roundStr = roundStr ++ self.round.toString();
-        canvas.drawText(SCREEN_WIDTH / 2 - 40, 15, roundStr, Color.White(), Font.new("Arial", 20));
+        canvas.drawText(SCREEN_WIDTH / 2 - 40, 15, roundStr, Color.White(), Font("Arial", 20));
         
         // 时间
         let seconds = self.roundTimer / 1000;
@@ -1077,24 +1077,24 @@ class WrestlingGame extends Game {
             timeStr = "{timeStr}0";
         }
         timeStr = timeStr ++ (seconds % 60).toString();
-        canvas.drawText(SCREEN_WIDTH / 2 - 25, 45, timeStr, Color.White(), Font.new("Arial", 16));
+        canvas.drawText(SCREEN_WIDTH / 2 - 25, 45, timeStr, Color.White(), Font("Arial", 16));
         
         // 胜场提示
         if self.wins1 == 1 {
-            canvas.drawText(SCREEN_WIDTH / 2 - 80, 70, "FIRST TO 2 WINS!", Color.Yellow(), Font.new("Arial", 14));
+            canvas.drawText(SCREEN_WIDTH / 2 - 80, 70, "FIRST TO 2 WINS!", Color.Yellow(), Font("Arial", 14));
         }
         
         // 控制提示
-        canvas.drawText(15, SCREEN_HEIGHT - 90, "P1: Arrows move, A:Grapple/Attack, B:Special, C:Dodge", Color.LightGray(), Font.new("Arial", 11));
-        canvas.drawText(15, SCREEN_HEIGHT - 72, "Combos: A+C=Pin, B+C=Taunt, Up+Down+B=Suplex, <-+B=IrishWhip", Color.LightGray(), Font.new("Arial", 11));
-        canvas.drawText(15, SCREEN_HEIGHT - 54, "Jump: Up, Run: hold direction, Get close for Grapple!", Color.LightGray(), Font.new("Arial", 11));
+        canvas.drawText(15, SCREEN_HEIGHT - 90, "P1: Arrows move, A:Grapple/Attack, B:Special, C:Dodge", Color.LightGray(), Font("Arial", 11));
+        canvas.drawText(15, SCREEN_HEIGHT - 72, "Combos: A+C=Pin, B+C=Taunt, Up+Down+B=Suplex, <-+B=IrishWhip", Color.LightGray(), Font("Arial", 11));
+        canvas.drawText(15, SCREEN_HEIGHT - 54, "Jump: Up, Run: hold direction, Get close for Grapple!", Color.LightGray(), Font("Arial", 11));
         
         // 压制成功提示
         if self.pinProgress1 >= 2500 && self.pinProgress1 < 3000 {
-            canvas.drawText(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 - 100, "ALMOST THERE!", Color.Magenta(), Font.new("Arial", 24));
+            canvas.drawText(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 - 100, "ALMOST THERE!", Color.Magenta(), Font("Arial", 24));
         }
         if self.pinProgress2 >= 2500 && self.pinProgress2 < 3000 {
-            canvas.drawText(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 - 100, "ALMOST THERE!", Color.Magenta(), Font.new("Arial", 24));
+            canvas.drawText(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 - 100, "ALMOST THERE!", Color.Magenta(), Font("Arial", 24));
         }
     }
     
@@ -1105,13 +1105,13 @@ class WrestlingGame extends Game {
             let centerY = SCREEN_HEIGHT / 2 - 80;
             canvas.fillRect(centerX - 10, centerY - 10, 120, 80, Color.ARGB(200, 50, 50, 100));
             canvas.drawRect(centerX - 10, centerY - 10, 120, 80, Color.Yellow());
-            canvas.drawText(centerX + 35, centerY + 15, text, Color.Yellow(), Font.new("Arial", 60));
+            canvas.drawText(centerX + 35, centerY + 15, text, Color.Yellow(), Font("Arial", 60));
         } else {
             let text2 = "WRESTLE!";
             let cx2 = SCREEN_WIDTH / 2 - 100;
             let cy2 = SCREEN_HEIGHT / 2 - 80;
             canvas.fillRect(cx2, cy2, 200, 70, Color.ARGB(220, 100, 0, 0));
-            canvas.drawText(cx2 + 20, cy2 + 15, text2, Color.Yellow(), Font.new("Arial", 40));
+            canvas.drawText(cx2 + 20, cy2 + 15, text2, Color.Yellow(), Font("Arial", 40));
         }
     }
     

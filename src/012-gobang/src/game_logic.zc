@@ -29,7 +29,7 @@ def WIN_LINE_COLOR = rgb(255, 0, 0);
 // ==================== 数据结构 ====================
 
 // 方向向量：横、竖、左斜、右斜
-def DIRS: [4][int; 2] = [
+def DIRS: [[int; 2]; 4] = [
     [1, 0],   // 水平
     [0, 1],   // 垂直
     [1, 1],   // 左斜
@@ -79,7 +79,7 @@ fn max(a: int, b: int) -> int {
 // ==================== 游戏逻辑 ====================
 
 // 初始化游戏
-pub fn init_game(state: &mut GobangState) {
+pub fn init_game(state: GobangState*) {
     // 清空棋盘
     for r in 0..BOARD_SIZE {
         for c in 0..BOARD_SIZE {
@@ -102,7 +102,7 @@ pub fn init_game(state: &mut GobangState) {
 }
 
 // 在指定位置落子
-pub fn place_piece(state: &mut GobangState, row: int, col: int) -> bool {
+pub fn place_piece(state: GobangState*, row: int, col: int) -> bool {
     if row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE {
         return false;
     }
@@ -374,7 +374,7 @@ fn evaluate_direction(state: GobangState*, row: int, col: int, dx: int, dy: int,
 }
 
 // AI 回合：计算最佳落子位置
-pub fn ai_move(state: &mut GobangState) -> bool {
+pub fn ai_move(state: GobangState*) -> bool {
     if state.gameOver || state.currentPlayer != WHITE {
         return false;
     }

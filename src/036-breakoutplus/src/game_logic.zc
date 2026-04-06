@@ -256,7 +256,7 @@ fn getBrickColor(row: i32, maxRows: i32) -> u32 {
 
 // ==================== 道具激活函数 ====================
 
-fn activatePowerUp(game: &mut BreakoutState, ptype: PowerUpType) {
+fn activatePowerUp(game: &BreakoutState, ptype: PowerUpType) {
     match ptype {
         PowerUpType::ExpandPaddle => {
             game.paddle.width = (game.paddle.baseWidth * 1.5) as i32;
@@ -322,7 +322,7 @@ fn activatePowerUp(game: &mut BreakoutState, ptype: PowerUpType) {
 
 // ==================== 游戏初始化 ====================
 
-fn init_game(game: &mut BreakoutState) {
+fn init_game(game: &BreakoutState) {
     game.width = GAME_WIDTH;
     game.height = GAME_HEIGHT;
     game.score = 0;
@@ -358,7 +358,7 @@ fn init_game(game: &mut BreakoutState) {
     }
 }
 
-fn initLevel(game: &mut BreakoutState, level: i32) {
+fn initLevel(game: &BreakoutState, level: i32) {
     let config = getLevelConfig(level);
     game.level = level;
     game.brickCount = config.rows * config.cols;
@@ -407,7 +407,7 @@ fn initLevel(game: &mut BreakoutState, level: i32) {
     }
 }
 
-fn resetBall(game: &mut BreakoutState, index: i32) {
+fn resetBall(game: &BreakoutState, index: i32) {
     let config = getLevelConfig(game.level);
     game.balls[index].x = GAME_WIDTH / 2 as f32;
     game.balls[index].y = GAME_HEIGHT / 2 as f32 + 100.0;
@@ -422,7 +422,7 @@ fn resetBall(game: &mut BreakoutState, index: i32) {
     game.balls[index].vy = -speed * math.cos(angle);
 }
 
-fn addParticle(game: &mut BreakoutState, x: f32, y: f32, color: u32) {
+fn addParticle(game: &BreakoutState, x: f32, y: f32, color: u32) {
     if game.effectCount < 20 {
         let idx = game.effectCount;
         game.effects[idx].x = x;
@@ -439,7 +439,7 @@ fn addParticle(game: &mut BreakoutState, x: f32, y: f32, color: u32) {
 
 // ==================== 键盘处理 ====================
 
-fn handleInput(game: &mut BreakoutState, key: KeyCode) -> bool {
+fn handleInput(game: &BreakoutState, key: KeyCode) -> bool {
     match key {
         KeyCode::KeyLeft => {
             game.paddle.x = game.paddle.x - game.paddle.speed;
@@ -510,7 +510,7 @@ fn handleInput(game: &mut BreakoutState, key: KeyCode) -> bool {
 
 // ==================== 更新游戏逻辑 ====================
 
-fn update_game(game: &mut BreakoutState) -> bool {
+fn update_game(game: &BreakoutState) -> bool {
     if game.status != GameStatus.Playing {
         return false;
     }

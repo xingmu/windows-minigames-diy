@@ -65,7 +65,7 @@ struct MineState {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &mut MineState) {
+fn init_game(game: &MineState) {
     game.score = 0;
     game.status = GameStatus.Ready;
     game.elapsed_seconds = 0;
@@ -90,13 +90,13 @@ fn init_game(game: &mut MineState) {
 }
 
 // 放置地雷（在首次点击后调用）
-fn place_mines(game: &mut MineState, avoid_row: i32, avoid_col: i32) {
+fn place_mines(game: &MineState, avoid_row: i32, avoid_col: i32) {
     // 使用计时器作为随机种子
     let seed = get_tick() as u32;
     set_random_seed(seed);
     
-    let mut placed = 0;
-    let mut attempts = 0;
+    let placed = 0;
+    let attempts = 0;
     
     while placed < MINE_COUNT && attempts < 1000 {
         let r = rand_int(0, GRID_ROWS - 1);
@@ -127,7 +127,7 @@ fn place_mines(game: &mut MineState, avoid_row: i32, avoid_col: i32) {
                 continue;
             }
             
-            let mut count = 0;
+            let count = 0;
             for dr in -1..=1 {
                 for dc in -1..=1 {
                     if dr == 0 && dc == 0 {
@@ -149,7 +149,7 @@ fn place_mines(game: &mut MineState, avoid_row: i32, avoid_col: i32) {
 }
 
 // 处理左键点击
-fn handle_left_click(game: &mut MineState, row: i32, col: i32) {
+fn handle_left_click(game: &MineState, row: i32, col: i32) {
     if game.status == GameStatus.Won || game.status == GameStatus.Lost {
         return;
     }
@@ -182,7 +182,7 @@ fn handle_left_click(game: &mut MineState, row: i32, col: i32) {
 }
 
 // 处理右键点击（标记/取消标记）
-fn handle_right_click(game: &mut MineState, row: i32, col: i32) {
+fn handle_right_click(game: &MineState, row: i32, col: i32) {
     if game.status == GameStatus.Won || game.status == GameStatus.Lost {
         return;
     }
@@ -208,7 +208,7 @@ fn handle_right_click(game: &mut MineState, row: i32, col: i32) {
 }
 
 // 揭开格子（递归展开空白区域）
-fn reveal_cell(game: &mut MineState, row: i32, col: i32) {
+fn reveal_cell(game: &MineState, row: i32, col: i32) {
     if row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS {
         return;
     }
@@ -243,8 +243,8 @@ fn reveal_cell(game: &mut MineState, row: i32, col: i32) {
 }
 
 // 检查胜利条件
-fn check_win(game: &mut MineState) -> bool {
-    let mut revealed_count = 0;
+fn check_win(game: &MineState) -> bool {
+    let revealed_count = 0;
     for i in 0..(GRID_ROWS * GRID_COLS) {
         if game.grid.cells[i].is_revealed {
             revealed_count = revealed_count + 1;
@@ -262,7 +262,7 @@ fn pixel_to_cell(x: i32, y: i32) -> (i32, i32) {
 }
 
 // 处理键盘输入
-fn handle_key_input(game: &mut MineState, key: KeyCode) -> bool {
+fn handle_key_input(game: &MineState, key: KeyCode) -> bool {
     match key {
         KeyCode::KeyR => {
             init_game(game);
@@ -277,7 +277,7 @@ fn handle_key_input(game: &mut MineState, key: KeyCode) -> bool {
 }
 
 // 更新计时器
-fn update_timer(game: &mut MineState) -> bool {
+fn update_timer(game: &MineState) -> bool {
     if game.status == GameStatus.Playing {
         game.elapsed_seconds = game.elapsed_seconds + 1;
         return true;
@@ -304,7 +304,7 @@ fn get_remaining_mines(game: MineState*) -> i32 {
 fn get_timer_text(game: MineState*) -> string {
     let mins = game.elapsed_seconds / 60;
     let secs = game.elapsed_seconds % 60;
-    let mut result = "";
+    let result = "";
     
     if mins < 10 {
         result = "0{mins}";

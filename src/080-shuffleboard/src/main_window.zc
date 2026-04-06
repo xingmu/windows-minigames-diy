@@ -376,7 +376,7 @@ class ShuffleboardGame extends Game {
 
     private fn drawScoreLabel(canvas: Canvas, x: int, y: int, text: str, color: Color) {
         // 简化的分数文字绘制
-        canvas.drawText(x - 10, y - 4, text, color, Font.new("Arial", 10));
+        canvas.drawText(x - 10, y - 4, text, color, Font("Arial", 10));
     }
 
     private fn drawDiscs(canvas: Canvas) {
@@ -390,7 +390,7 @@ class ShuffleboardGame extends Game {
                 let numStr = if self.discs[i].owner == 0
                     { "1" } else { "2" };
                 canvas.drawText(self.discs[i].x - 4, self.discs[i].y - 4,
-                               numStr, Color.White(), Font.new("Arial", 10));
+                               numStr, Color.White(), Font("Arial", 10));
             }
         }
 
@@ -400,7 +400,7 @@ class ShuffleboardGame extends Game {
             canvas.drawCircle(COURT_X + COURT_WIDTH / 2, SHOOTER_Y, DISC_RADIUS, Color.White());
             let playerStr = if self.currentPlayer == 0 { "1" } else { "2" };
             canvas.drawText(COURT_X + COURT_WIDTH / 2 - 4, SHOOTER_Y - 4,
-                           playerStr, Color.Black(), Font.new("Arial", 10));
+                           playerStr, Color.Black(), Font("Arial", 10));
         }
     }
 
@@ -441,50 +441,50 @@ class ShuffleboardGame extends Game {
 
         canvas.drawText(COURT_X, COURT_Y - 45,
                        "玩家1 (红色): {self}".intToStr(self.getScore()),
-                       p1Color, Font.new("Arial", 14));
+                       p1Color, Font("Arial", 14));
 
         // 玩家2分数（简化存储）
         let p2Score = self.getPlayer2ScoreDisplay();
         canvas.drawText(COURT_X + 250, COURT_Y - 45,
                        "玩家2 (蓝色): {self}".intToStr(p2Score),
-                       p2Color, Font.new("Arial", 14));
+                       p2Color, Font("Arial", 14));
 
         // 回合信息
         canvas.drawText(COURT_X + COURT_WIDTH - 150, COURT_Y - 45,
                        "回合: {self}".intToStr(self.roundNumber),
-                       Color.White(), Font.new("Arial", 14));
+                       Color.White(), Font("Arial", 14));
 
         // 当前玩家
         let playerStr = if self.currentPlayer == 0 { "玩家1" } else { "玩家2" };
         canvas.drawText(COURT_X + COURT_WIDTH + 20, COURT_Y + 20,
-                       "{playerStr} 回合", Color.White(), Font.new("Arial", 12));
+                       "{playerStr} 回合", Color.White(), Font("Arial", 12));
 
         // 操作提示
         canvas.drawText(COURT_X + COURT_WIDTH + 20, COURT_Y + 300,
-                       "拖拽鼠标", Color.LightGray(), Font.new("Arial", 10));
+                       "拖拽鼠标", Color.LightGray(), Font("Arial", 10));
         canvas.drawText(COURT_X + COURT_WIDTH + 20, COURT_Y + 320,
-                       "蓄力发射", Color.LightGray(), Font.new("Arial", 10));
+                       "蓄力发射", Color.LightGray(), Font("Arial", 10));
         canvas.drawText(COURT_X + COURT_WIDTH + 20, COURT_Y + 340,
-                       "ESC 退出", Color.LightGray(), Font.new("Arial", 10));
+                       "ESC 退出", Color.LightGray(), Font("Arial", 10));
 
         // 阶段提示
         if self.phase == Phase.Aiming {
             canvas.drawText(COURT_X + COURT_WIDTH / 2 - 80, SHOOTER_Y + 30,
-                           "拖拽蓄力，松开发射", Color.Yellow(), Font.new("Arial", 12));
+                           "拖拽蓄力，松开发射", Color.Yellow(), Font("Arial", 12));
         } else if self.phase == Phase.Sliding {
             canvas.drawText(COURT_X + COURT_WIDTH / 2 - 60, SHOOTER_Y + 30,
-                           "滑动中...", Color.Cyan(), Font.new("Arial", 12));
+                           "滑动中...", Color.Cyan(), Font("Arial", 12));
         } else if self.phase == Phase.RoundEnd {
             canvas.drawText(COURT_X + COURT_WIDTH / 2 - 100, SHOOTER_Y + 30,
                            "本回合: P1+{self}".intToStr(self.roundP1Score)
                            ++ " P2+{self}".intToStr(self.roundP2Score),
-                           Color.Yellow(), Font.new("Arial", 12));
+                           Color.Yellow(), Font("Arial", 12));
         } else if self.phase == Phase.GameEnd {
             let winner = if self.getScore() >= WINNING_SCORE { "玩家1" }
                         else { "玩家2" };
             canvas.drawText(COURT_X + COURT_WIDTH / 2 - 100, SHOOTER_Y,
                            "{winner} 获胜! 按 ESC 退出",
-                           Color.Gold(), Font.new("Arial", 16));
+                           Color.Gold(), Font("Arial", 16));
         }
     }
 

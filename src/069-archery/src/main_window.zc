@@ -31,12 +31,12 @@ fn on_key(key: KeyCode) -> bool {
     match key {
         KeyCode::KeySpace => {
             if game.status == GameStatus.RoundEnd {
-                next_round(&mut game);
+                next_round(&game);
                 redraw_window(window);
             }
         },
         KeyCode::KeyR => {
-            restart_game(&mut game);
+            restart_game(&game);
             redraw_window(window);
         },
         KeyCode::KeyEscape => {
@@ -49,7 +49,7 @@ fn on_key(key: KeyCode) -> bool {
 
 fn on_timer() -> bool {
     if game.status == GameStatus.Playing || game.status == GameStatus.Shooting {
-        return update_game(&mut game);
+        return update_game(&game);
     }
     return false;
 }
@@ -60,12 +60,12 @@ fn on_mouse_click(x: i32, y: i32) {
     }
     
     if game.status == GameStatus.Playing {
-        handle_shoot(&mut game);
+        handle_shoot(&game);
     }
 }
 
 fn on_mouse_move(x: i32, y: i32) {
-    handle_mouse_move(&mut game, x, y);
+    handle_mouse_move(&game, x, y);
     // 不需要每次移动都重绘，只有在射击或显示轨迹时才需要
 }
 
@@ -371,7 +371,7 @@ fn main() -> i32 {
     math.srand(seed);
 
     // 初始化游戏状态
-    init_game(&mut game);
+    init_game(&game);
 
     // 创建窗口
     let title = "Archery - 射箭游戏";
@@ -383,9 +383,9 @@ fn main() -> i32 {
     }
 
     // 获取实际客户区大小
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         set_client_size(cw, ch);
     }

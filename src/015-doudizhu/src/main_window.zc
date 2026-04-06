@@ -540,7 +540,7 @@ fn handleCardClick(x: i32, y: i32, gs: GameState*) {
     }
 }
 
-fn handleBidClick(x: i32, y: i32, gs: &mut GameState) {
+fn handleBidClick(x: i32, y: i32, gs: &GameState) {
     if gs.phase != PHASE_BIDDING || gs.currentBidder != 0 {
         return;
     }
@@ -583,7 +583,7 @@ fn handleBidClick(x: i32, y: i32, gs: &mut GameState) {
 }
 
 // 处理空格键出牌
-fn handleSpaceKey(gs: &mut GameState) {
+fn handleSpaceKey(gs: &GameState) {
     if gs.phase != PHASE_PLAYING || gs.currentPlayer != 0 {
         return;
     }
@@ -613,7 +613,7 @@ fn handleSpaceKey(gs: &mut GameState) {
 }
 
 // 处理Q键过
-fn handlePassKey(gs: &mut GameState) {
+fn handlePassKey(gs: &GameState) {
     if gs.phase != PHASE_PLAYING || gs.currentPlayer != 0 {
         return;
     }
@@ -650,7 +650,7 @@ fn resetGame() {
 
 // ==================== CPU自动行动 ====================
 
-fn updateCpuAction(gs: &mut GameState, dt: i32) {
+fn updateCpuAction(gs: &GameState, dt: i32) {
     if gs.phase == PHASE_BIDDING {
         // CPU叫分
         if gs.currentBidder != 0 {
@@ -823,7 +823,7 @@ fn gameLoop() {
         processInput();
         
         // CPU自动行动
-        updateCpuAction(&mut g_game, 16);
+        updateCpuAction(&g_game, 16);
         
         // 渲染
         render();

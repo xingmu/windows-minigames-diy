@@ -126,7 +126,7 @@ fn get_wave_slope(wave_offset: i32, x: i32, base_y: i32) -> i32 {
 }
 
 // 初始化游戏
-fn init_game(state: &mut SurfingState) {
+fn init_game(state: &SurfingState) {
     state.status = GameStatus.Ready;
     state.score = 0;
     state.level = 1;
@@ -161,7 +161,7 @@ fn init_game(state: &mut SurfingState) {
 }
 
 // 开始新游戏
-fn start_game(state: &mut SurfingState) {
+fn start_game(state: &SurfingState) {
     state.status = GameStatus.Playing;
     state.score = 0;
     state.level = 1;
@@ -184,7 +184,7 @@ fn start_game(state: &mut SurfingState) {
 }
 
 // 处理输入
-fn handle_input(state: &mut SurfingState, key: i32) -> bool {
+fn handle_input(state: &SurfingState, key: i32) -> bool {
     match state.status {
         GameStatus::Ready => {
             if key == 32 || key == 13 { // 空格或回车
@@ -251,7 +251,7 @@ fn handle_input(state: &mut SurfingState, key: i32) -> bool {
 }
 
 // 释放按键
-fn release_input(state: &mut SurfingState, key: i32) {
+fn release_input(state: &SurfingState, key: i32) {
     if state.status != GameStatus.Playing {
         return;
     }
@@ -274,7 +274,7 @@ fn release_input(state: &mut SurfingState, key: i32) {
 }
 
 // 生成收集物品
-fn spawn_collectibles(state: &mut SurfingState) {
+fn spawn_collectibles(state: &SurfingState) {
     let base_y = GAME_HEIGHT / 2 + 20;
     for i in 0..COLLECTIBLE_COUNT {
         if !state.collectibles[i].active {
@@ -288,7 +288,7 @@ fn spawn_collectibles(state: &mut SurfingState) {
 }
 
 // 更新游戏状态
-fn update_game(state: &mut SurfingState, dt: u32) -> bool {
+fn update_game(state: &SurfingState, dt: u32) -> bool {
     if state.status != GameStatus.Playing {
         return true;
     }
@@ -379,7 +379,7 @@ fn update_game(state: &mut SurfingState, dt: u32) -> bool {
 
     // 更新收集物品
     for i in 0..COLLECTIBLE_COUNT {
-        let c = &mut state.collectibles[i];
+        let c = &state.collectibles[i];
         if c.active {
             // 物品跟随波浪
             c.y = get_wave_y(state.wave_offset, c.x, wave_base_y) - 40 + c.anim_offset;

@@ -146,8 +146,8 @@ fn sqrt_int(n: i32) -> i32 {
     if n <= 0 {
         return 0;
     }
-    let mut x = n;
-    let mut y = 1;
+    let x = n;
+    let y = 1;
     while y < x {
         x = (x + y) / 2;
         y = n / x;
@@ -183,7 +183,7 @@ fn isInPocket(ball: Ball*) -> bool {
 // ==================== 物理引擎 ====================
 
 // 边界碰撞
-fn checkWallCollision(ball: &mut Ball) {
+fn checkWallCollision(ball: &Ball) {
     if !ball.active || ball.pocketed {
         return;
     }
@@ -211,7 +211,7 @@ fn checkWallCollision(ball: &mut Ball) {
 }
 
 // 球球碰撞
-fn checkBallCollision(balls: &[MAX_BALLS]Ball, ballCount: i32, state: &mut NineBallState) {
+fn checkBallCollision(balls: &[MAX_BALLS]Ball, ballCount: i32, state: &NineBallState) {
     for i in 0..ballCount {
         if !balls[i].active || balls[i].pocketed {
             continue;
@@ -222,7 +222,7 @@ fn checkBallCollision(balls: &[MAX_BALLS]Ball, ballCount: i32, state: &mut NineB
                 continue;
             }
 
-            if ballsColliding(&balls[i], &balls[j]) {
+            if ballsColliding(balls[i], balls[j]) {
                 let dx = balls[j].x - balls[i].x;
                 let dy = balls[j].y - balls[i].y;
                 let dist = sqrt_int(dist2(balls[i].x, balls[i].y, balls[j].x, balls[j].y));
@@ -290,7 +290,7 @@ fn getBallColor(num: i32) -> Color {
     }
 }
 
-fn initBalls(state: &mut NineBallState) {
+fn initBalls(state: &NineBallState) {
     state.ballCount = 0;
     state.score = 0;
     state.shots = 0;
@@ -442,7 +442,7 @@ fn initBalls(state: &mut NineBallState) {
 }
 
 // 初始化游戏
-fn init_game(state: &mut NineBallState) {
+fn init_game(state: &NineBallState) {
     state.width = GAME_WIDTH;
     state.height = GAME_HEIGHT;
     state.phase = GamePhase.Setup;
@@ -459,9 +459,9 @@ fn init_game(state: &mut NineBallState) {
 
 // ==================== 更新逻辑 ====================
 
-fn updateBalls(state: &mut NineBallState) -> bool {
+fn updateBalls(state: &NineBallState) -> bool {
     let anyMoving = false;
-    let pocketedThisFrame: [MAX_BALLS]bool;
+    let pocketedThisFrame: bool[MAX_BALLS];
     
     for i in 0..MAX_BALLS {
         pocketedThisFrame[i] = false;
@@ -500,7 +500,7 @@ fn updateBalls(state: &mut NineBallState) -> bool {
         }
 
         // 边界
-        checkWallCollision(&mut ball);
+        checkWallCollision(&ball);
 
         // 进袋检测
         if isInPocket(&ball) {
@@ -560,7 +560,7 @@ fn allBallsStopped(state: NineBallState*) -> bool {
 }
 
 // 击球
-fn shoot(state: &mut NineBallState, power: i32, dx: i32, dy: i32) {
+fn shoot(state: &NineBallState, power: i32, dx: i32, dy: i32) {
     if state.cueBall.pocketed {
         return;
     }
@@ -587,7 +587,7 @@ fn shoot(state: &mut NineBallState, power: i32, dx: i32, dy: i32) {
 
 // ==================== 鼠标处理 ====================
 
-fn onMouseDown(state: &mut NineBallState, x: i32, y: i32) {
+fn onMouseDown(state: &NineBallState, x: i32, y: i32) {
     if state.phase == GamePhase.Moving {
         return;
     }
@@ -616,7 +616,7 @@ fn onMouseDown(state: &mut NineBallState, x: i32, y: i32) {
     state.mouseY = y;
 }
 
-fn onMouseMove(state: &mut NineBallState, x: i32, y: i32) {
+fn onMouseMove(state: &NineBallState, x: i32, y: i32) {
     state.mouseX = x;
     state.mouseY = y;
 
@@ -630,7 +630,7 @@ fn onMouseMove(state: &mut NineBallState, x: i32, y: i32) {
     }
 }
 
-fn onMouseUp(state: &mut NineBallState, x: i32, y: i32) {
+fn onMouseUp(state: &NineBallState, x: i32, y: i32) {
     if state.phase == GamePhase.Dragging {
         if state.power > 2 {
             let dx = state.dragStartX - x;

@@ -98,7 +98,7 @@ def START_LINE_H: i32 = 10;
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &mut GameState) {
+fn init_game(game: &GameState) {
     // 初始化随机种子
     let seed = time.now().nanos();
     math.srand(seed);
@@ -153,7 +153,7 @@ fn init_game(game: &mut GameState) {
 }
 
 // 处理输入
-fn handle_input(game: &mut GameState, key: i32, pressed: bool) -> bool {
+fn handle_input(game: &GameState, key: i32, pressed: bool) -> bool {
     match key {
         // 上
         38 || 87 || 119 => {
@@ -187,7 +187,7 @@ fn handle_input(game: &mut GameState, key: i32, pressed: bool) -> bool {
 }
 
 // 设置按键状态 (用于持续按键检测)
-fn set_key_state(game: &mut GameState, key: i32, pressed: bool) {
+fn set_key_state(game: &GameState, key: i32, pressed: bool) {
     match key {
         38 || 87 || 119 => game.key_up = pressed,
         40 || 83 || 115 => game.key_down = pressed,
@@ -198,7 +198,7 @@ fn set_key_state(game: &mut GameState, key: i32, pressed: bool) {
 }
 
 // 更新赛车
-fn update_car(game: &mut GameState) {
+fn update_car(game: &GameState) {
     if game.race_finished || game.paused {
         return;
     }
@@ -322,7 +322,7 @@ fn is_on_track(x: i32, y: i32) -> bool {
 }
 
 // 检查点检测
-fn check_checkpoint(game: &mut GameState) {
+fn check_checkpoint(game: &GameState) {
     if game.race_finished || game.paused {
         return;
     }
@@ -370,7 +370,7 @@ fn check_checkpoint(game: &mut GameState) {
 }
 
 // 更新游戏状态
-fn update_game(game: &mut GameState) {
+fn update_game(game: &GameState) {
     if game.game_over {
         return;
     }

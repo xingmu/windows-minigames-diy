@@ -56,9 +56,9 @@ fn draw_pixel_line(ctx: GraphicsContext*, x1: i32, y1: i32, x2: i32, y2: i32, co
     let dy = if y2 > y1 { y2 - y1 } else { y1 - y2 };
     let sx = if x1 < x2 { 1 } else { -1 };
     let sy = if y1 < y2 { 1 } else { -1 };
-    let mut err = dx - dy;
-    let mut x = x1;
-    let mut y = y1;
+    let err = dx - dy;
+    let x = x1;
+    let y = y1;
     
     loop {
         draw_pixel(ctx, x, y, color);
@@ -81,9 +81,9 @@ fn draw_pixel_line(ctx: GraphicsContext*, x1: i32, y1: i32, x2: i32, y2: i32, co
 
 // 绘制像素圆
 fn draw_pixel_circle(ctx: GraphicsContext*, cx: i32, cy: i32, radius: i32, color: Color) {
-    let mut x = 0;
-    let mut y = radius;
-    let mut d = 3 - 2 * radius;
+    let x = 0;
+    let y = radius;
+    let d = 3 - 2 * radius;
     
     loop {
         draw_pixel(ctx, cx + x, cy + y, color);
@@ -211,8 +211,8 @@ fn draw_car(ctx: GraphicsContext*, x: f32, y: f32, angle: f32, state: CarState) 
     ];
     
     // 旋转并转换为中心点数组
-    let mut pts_x: [i32; 4] = [0; 4];
-    let mut pts_y: [i32; 4] = [0; 4];
+    let pts_x: [i32; 4] = [0; 4];
+    let pts_y: [i32; 4] = [0; 4];
     
     for i in 0..4 {
         let rx = corners_x[i] as f32 * cos_a - corners_y[i] as f32 * sin_a;
@@ -230,10 +230,10 @@ fn draw_car(ctx: GraphicsContext*, x: f32, y: f32, angle: f32, state: CarState) 
     
     // 绘制车身 (4个点组成的多边形简化为矩形)
     // 计算 bounding box
-    let mut min_x = pts_x[0];
-    let mut max_x = pts_x[0];
-    let mut min_y = pts_y[0];
-    let mut max_y = pts_y[0];
+    let min_x = pts_x[0];
+    let max_x = pts_x[0];
+    let min_y = pts_y[0];
+    let max_y = pts_y[0];
     for i in 1..4 {
         if pts_x[i] < min_x { min_x = pts_x[i]; }
         if pts_x[i] > max_x { max_x = pts_x[i]; }
@@ -395,10 +395,10 @@ fn draw_game(ctx: GraphicsContext*, game: GameState*) {
 extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
     match uMsg {
         WM_PAINT => {
-            let mut ps: [u8; 64] = [0; 64];
+            let ps: [u8; 64] = [0; 64];
             let hdc = BeginPaint(hwnd, &ps);
             
-            let mut rect: [i32; 4] = [0; 4];
+            let rect: [i32; 4] = [0; 4];
             GetClientRect(hwnd, &rect);
             let width = rect[2] - rect[0];
             let height = rect[3] - rect[1];
@@ -416,7 +416,7 @@ extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) ->
                 running = false;
                 PostQuitMessage(0);
             } else {
-                handle_input_key(&mut game, key, true);
+                handle_input_key(&game, key, true);
                 InvalidateRect(hwnd, null, true);
             }
             return 0;
@@ -424,13 +424,13 @@ extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) ->
         
         WM_KEYUP => {
             let key = wParam as i32;
-            handle_input_key(&mut game, key, false);
+            handle_input_key(&game, key, false);
             InvalidateRect(hwnd, null, true);
             return 0;
         },
         
         WM_TIMER => {
-            update_game(&mut game);
+            update_game(&game);
             InvalidateRect(hwnd, null, false);
             return 0;
         },
@@ -466,7 +466,7 @@ fn on_paint(ctx: GraphicsContext*, width: i32, height: i32) {
 }
 
 // 按键输入处理
-fn handle_input_key(game: &mut GameState, key: i32, pressed: bool) {
+fn handle_input_key(game: &GameState, key: i32, pressed: bool) {
     handle_input(game, key, pressed);
 }
 
@@ -490,7 +490,7 @@ fn main() {
     io.println "========================================";
     
     // 初始化游戏
-    init_game(&mut game);
+    init_game(&game);
     
     // 创建窗口
     let window_title = "Zen-C Racing - 俯视角赛车";

@@ -42,7 +42,7 @@ fn fb_shutdown() {
 
 fn fb_clear(color: u32) {
     if !fb_data.valid { return; }
-    let pixels = fb_data.(u32)buffer mut;
+    let pixels = (u32)(fb_data.buffer) mut;
     let count = (fb_data.pitch * fb_data.height) / 4;
     for i in 0..count {
         pixels[i] = color;
@@ -60,7 +60,7 @@ fn fb_draw_rect(x: int, y: int, w: int, h: int, color: u32) {
     if !fb_data.valid { return; }
     if x < 0 || y < 0 || w <= 0 || h <= 0 { return; }
 
-    let pixels = fb_data.(u32)buffer mut;
+    let pixels = (u32)(fb_data.buffer) mut;
     let pitch32 = fb_data.pitch / 4;
 
     for py in y..(y + h) {
@@ -86,7 +86,7 @@ fn fb_draw_line(x1: int, y1: int, x2: int, y2: int, color: u32) {
 
     loop {
         if x >= 0 && x < fb_data.width && y >= 0 && y < fb_data.height {
-            let pixels = fb_data.(u32)buffer mut;
+            let pixels = (u32)(fb_data.buffer) mut;
             let pitch32 = fb_data.pitch / 4;
             pixels[y * pitch32 + x] = color;
         }
@@ -125,7 +125,7 @@ fn fb_draw_circle(cx: int, cy: int, radius: int, color: u32) {
         for p in pts {
             let (px, py) = p;
             if px >= 0 && px < fb_data.width && py >= 0 && py < fb_data.height {
-                let pixels = fb_data.(u32)buffer mut;
+                let pixels = (u32)(fb_data.buffer) mut;
                 let pitch32 = fb_data.pitch / 4;
                 pixels[py * pitch32 + px] = color;
             }
@@ -147,7 +147,7 @@ fn fb_fill_circle(cx: int, cy: int, radius: int, color: u32) {
     if !fb_data.valid { return; }
     if radius <= 0 { return; }
 
-    let pixels = fb_data.(u32)buffer mut;
+    let pixels = (u32)(fb_data.buffer) mut;
     let pitch32 = fb_data.pitch / 4;
 
     for py in (-radius)..(radius + 1) {
@@ -393,7 +393,7 @@ fn on_key(key: KeyCode) -> bool {
             return false;
         },
         KeyCode::KeyR => {
-            restart_game(&mut game);
+            restart_game(&game);
             return true;
         },
         _ => {},
@@ -411,10 +411,10 @@ fn on_mouse(x: i32, y: i32, button: MouseButton) {
     if !valid { return; }
     if !is_empty(&game, row, col) { return; }
 
-    if place_piece(&mut game, row, col) {
+    if place_piece(&game, row, col) {
         // 玩家落子后，触发 AI
         if !game.gameOver && game.currentPlayer == WHITE {
-            ai_move(&mut game);
+            ai_move(&game);
         }
     }
 }
@@ -431,7 +431,7 @@ fn main() -> i32 {
     io.println "========================================";
 
     // 初始化游戏
-    init_game(&mut game);
+    init_game(&game);
 
     // 创建窗口
     let title = "五子棋 Gobang";
@@ -443,9 +443,9 @@ fn main() -> i32 {
     }
 
     // 获取实际客户区大小
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         set_client_size(cw, ch);
     }

@@ -15,7 +15,7 @@ def MAX_PEGS: i32 = 3;
 
 // 杆子结构
 struct Peg {
-    disks: [MAX_DISKS]i32,  // 存储每层盘子的大小 (0表示空)
+    disks: i32[MAX_DISKS],  // 存储每层盘子的大小 (0表示空)
     count: i32              // 盘子在杆子上的数量
 }
 
@@ -46,7 +46,7 @@ fn calculate_min_moves(n: i32) -> i32 {
 }
 
 // 初始化游戏
-fn init_game(game: &mut GameState, disk_count: i32) {
+fn init_game(game: &GameState, disk_count: i32) {
     // 限制盘子数量在有效范围内
     game.disk_count = if disk_count < MIN_DISKS { MIN_DISKS } 
                  else if disk_count > MAX_DISKS { MAX_DISKS }
@@ -85,7 +85,7 @@ fn init_game(game: &mut GameState, disk_count: i32) {
 }
 
 // 重新开始游戏
-fn restart_game(game: &mut GameState) {
+fn restart_game(game: &GameState) {
     init_game(game, game.disk_count);
 }
 
@@ -127,7 +127,7 @@ fn can_move(game: GameState*, from_peg: i32, to_peg: i32) -> bool {
 }
 
 // 执行移动
-fn execute_move(game: &mut GameState, from_peg: i32, to_peg: i32) -> bool {
+fn execute_move(game: &GameState, from_peg: i32, to_peg: i32) -> bool {
     if !can_move(game, from_peg, to_peg) {
         return false;
     }
@@ -152,7 +152,7 @@ fn execute_move(game: &mut GameState, from_peg: i32, to_peg: i32) -> bool {
 }
 
 // 处理输入
-fn handle_input(game: &mut GameState, key: i32) -> bool {
+fn handle_input(game: &GameState, key: i32) -> bool {
     if game.game_over {
         // 游戏结束后只响应重新开始
         match key {
@@ -195,7 +195,7 @@ fn handle_input(game: &mut GameState, key: i32) -> bool {
                 if game.selected_peg >= 0 {
                     // 找到另一个可用的杆子作为目标
                     let from = game.selected_peg;
-                    let mut to = -1;
+                    let to = -1;
                     
                     // 优先选择能移动的方向
                     for t in 0..MAX_PEGS {
@@ -258,7 +258,7 @@ fn handle_input(game: &mut GameState, key: i32) -> bool {
 }
 
 // 更新游戏状态 (用于动画等)
-fn update_game(game: &mut GameState) -> bool {
+fn update_game(game: &GameState) -> bool {
     // 更新动画进度
     if game.animation_disk >= 0 {
         game.animation_progress += 0.1f;

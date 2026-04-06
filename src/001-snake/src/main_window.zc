@@ -146,9 +146,9 @@ fn draw_ui_panel(ctx: GraphicsContext, panel_x: i32, panel_y: i32,
 // 绘制游戏界面
 fn draw_game_ui(ctx: GraphicsContext, window_width: i32, window_height: i32) {
     // 计算游戏区域位置
-    let mut game_offset_x: i32 = 0;
-    let mut game_offset_y: i32 = 0;
-    calculate_game_area(&game, &mut game_offset_x, &mut game_offset_y);
+    let game_offset_x: i32 = 0;
+    let game_offset_y: i32 = 0;
+    calculate_game_area(&game, &game_offset_x, &game_offset_y);
     
     // 更新窗口尺寸
     game.window_width = window_width;
@@ -192,12 +192,12 @@ fn on_paint_event(ctx: GraphicsContext, window_width: i32, window_height: i32) {
 
 // 处理键盘事件
 fn on_key_event(key_code: i32) -> bool {
-    return handle_input(&mut game, key_code);
+    return handle_input(&game, key_code);
 }
 
 // 处理定时器事件
 fn on_timer_event() -> bool {
-    let needs_redraw = update_game(&mut game);
+    let needs_redraw = update_game(&game);
     return needs_redraw;
 }
 
@@ -209,10 +209,10 @@ fn on_timer_event() -> bool {
 extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
     match uMsg {
         WM_PAINT => {
-            let mut ps: [u8; 64] = [0; 64];
+            let ps: [u8; 64] = [0; 64];
             let hdc = BeginPaint(hwnd, &ps);
             
-            let mut rect: [i32; 4] = [0; 4];
+            let rect: [i32; 4] = [0; 4];
             GetClientRect(hwnd, &rect);
             let width = rect[2] - rect[0];
             let height = rect[3] - rect[1];
@@ -302,7 +302,7 @@ fn main() -> i32 {
         window_height: 600
     };
     
-    init_game(&mut game);
+    init_game(&game);
     
     // 创建窗口
     let window_title = "Zen-C Snake Game - 跨平台窗体版本";

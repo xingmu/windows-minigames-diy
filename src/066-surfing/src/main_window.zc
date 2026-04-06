@@ -25,22 +25,22 @@ fn on_key(key: VirtualKey) -> bool {
     match key {
         VirtualKey::KeyLeft => {
             key_states[0] = true;
-            handle_input(&mut game, key);
+            handle_input(&game, key);
         },
         VirtualKey::KeyRight => {
             key_states[1] = true;
-            handle_input(&mut game, key);
+            handle_input(&game, key);
         },
         VirtualKey::KeyUp => {
             key_states[2] = true;
-            handle_input(&mut game, key);
+            handle_input(&game, key);
         },
         VirtualKey::KeyDown => {
             key_states[3] = true;
-            handle_input(&mut game, key);
+            handle_input(&game, key);
         },
         _ => {
-            return handle_input(&mut game, key);
+            return handle_input(&game, key);
         }
     }
     return true;
@@ -62,7 +62,7 @@ fn on_key_up(key: VirtualKey) {
         },
         _ => {}
     }
-    handle_key_up(&mut game, key);
+    handle_key_up(&game, key);
 }
 
 // ==================== 绘制函数 ====================
@@ -535,7 +535,7 @@ fn draw_heart(pixels: &u32 mut, pitch: &i32, x: i32, y: i32, color: Color, w: i3
 
 fn main() {
     // 初始化游戏
-    init_game(&mut game);
+    init_game(&game);
     game.width = GAME_WIDTH;
     game.height = GAME_HEIGHT;
     
@@ -601,7 +601,7 @@ fn main() {
                 game.surfer.velocity_y = SURFER_SPEED;
             }
             
-            update_game(&mut game);
+            update_game(&game);
         }
         
         // 渲染

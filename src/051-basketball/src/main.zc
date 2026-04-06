@@ -269,7 +269,7 @@ fn draw_hoop(ctx: Canvas, hoop: Hoop*) {
 
 fn draw_trajectory(ctx: Canvas, startX: int, startY: int, endX: int, endY: int) {
     let points: [(i32, i32); 50];
-    let count = calculate_trajectory(&game, startX, startY, endX, endY, &mut points, 50);
+    let count = calculate_trajectory(&game, startX, startY, endX, endY, &points, 50);
 
     for i in 0..count {
         let alpha = (255 - i * 5) as u8;
@@ -412,7 +412,7 @@ fn handle_events() -> bool {
                 }
                 if event.key.key == VirtualKey.R {
                     // 重新开始
-                    init_game(&mut game, 800, 500);
+                    init_game(&game, 800, 500);
                 }
             }
             MessageType::MouseDown => {
@@ -427,7 +427,7 @@ fn handle_events() -> bool {
             }
             MessageType::MouseUp => {
                 if event.mouse.button == MouseButton.Left && mouseDown && game.isAiming {
-                    aim_ball(&mut game, mouseStartX, mouseStartY, mouseX, mouseY);
+                    aim_ball(&game, mouseStartX, mouseStartY, mouseX, mouseY);
                     mouseDown = false;
                     game.isAiming = false;
                 }
@@ -453,7 +453,7 @@ fn main() {
     println "===========================================";
 
     // 初始化
-    init_game(&mut game, 800, 500);
+    init_game(&game, 800, 500);
 
     // 创建窗口
     window = createWindow("Zen-C Basketball", 800, 520);
@@ -482,7 +482,7 @@ fn main() {
 
         // 更新
         if game.state != GameState.GameOver {
-            update_game(&mut game);
+            update_game(&game);
 
             // 检查是否需要开始新投篮
             if game.ball.isFlying {

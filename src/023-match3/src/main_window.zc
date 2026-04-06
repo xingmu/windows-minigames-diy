@@ -18,7 +18,7 @@ static mut timer_accum: i32 = 0;
 // ==================== 事件处理 ====================
 
 fn on_key(key: KeyCode) -> bool {
-    return handle_input(&mut game, key);
+    return handle_input(&game, key);
 }
 
 fn on_timer() -> bool {
@@ -27,13 +27,13 @@ fn on_timer() -> bool {
     // 每秒递减计时器
     if timer_accum >= 1000 {
         timer_accum = timer_accum - 1000;
-        if tick_timer(&mut game) {
+        if tick_timer(&game) {
             return true;
         }
     }
     
     if game.status == GameStatus.Playing {
-        return update_game(&mut game);
+        return update_game(&game);
     }
     return false;
 }
@@ -132,7 +132,7 @@ fn on_paint(w: i32, h: i32) {
 }
 
 fn on_mouse(x: i32, y: i32) {
-    handle_mouse_click(&mut game, x, y);
+    handle_mouse_click(&game, x, y);
 }
 
 fn on_destroy() {
@@ -150,7 +150,7 @@ fn main() -> i32 {
     rng_seed = 12345;
 
     // 初始化游戏状态
-    init_game(&mut game);
+    init_game(&game);
 
     // 创建窗口
     let title = "Match3 - 消消乐游戏";
@@ -162,9 +162,9 @@ fn main() -> i32 {
     }
 
     // 获取实际客户区大小
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         game.width = cw;
         game.height = ch;

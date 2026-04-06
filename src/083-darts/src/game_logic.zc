@@ -83,7 +83,7 @@ struct DartsState {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &mut DartsState) {
+fn init_game(game: &DartsState) {
     game.score = INITIAL_SCORE;
     game.round = 1;
     game.darts_thrown = 0;
@@ -152,7 +152,7 @@ fn calculate_score(dx: i32, dy: i32) -> (i32, i32) {
 }
 
 // 投掷飞镖
-fn throw_dart(game: &mut DartsState, target_x: i32, target_y: i32) {
+fn throw_dart(game: &DartsState, target_x: i32, target_y: i32) {
     if game.status != GameStatus.Aiming {
         return;
     }
@@ -214,7 +214,7 @@ fn throw_dart(game: &mut DartsState, target_x: i32, target_y: i32) {
 }
 
 // 开始下一轮
-fn next_round(game: &mut DartsState) {
+fn next_round(game: &DartsState) {
     game.round = game.round + 1;
     game.darts_thrown = 0;
     game.round_score = 0;
@@ -232,14 +232,14 @@ fn next_round(game: &mut DartsState) {
 }
 
 // 重置游戏
-fn reset_game(game: &mut DartsState) {
+fn reset_game(game: &DartsState) {
     init_game(game);
     game.status = GameStatus.Aiming;
     game.message = "新游戏开始！".to_string();
 }
 
 // 处理键盘输入
-fn handle_input(game: &mut DartsState, key: KeyCode) -> bool {
+fn handle_input(game: &DartsState, key: KeyCode) -> bool {
     match key {
         KeyCode::KeySpace => {
             if game.status == GameStatus.Ready {

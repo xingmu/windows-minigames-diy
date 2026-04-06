@@ -193,7 +193,7 @@ fn on_key(key: KeyCode) -> bool {
             return false;
         },
         KeyCode::KeyR => {
-            restart_game(&mut game);
+            restart_game(&game);
             return true;
         },
         _ => {},
@@ -203,7 +203,7 @@ fn on_key(key: KeyCode) -> bool {
 
 fn on_timer() -> bool {
     if !game.gameOver {
-        let updated = update_time(&mut game);
+        let updated = update_time(&game);
         return updated;
     }
     return false;
@@ -219,7 +219,7 @@ fn on_mouse(x: i32, y: i32, button: MouseButton) {
     let row = (y - GRID_OFFSET_Y) / (TILE_SIZE + TILE_GAP);
     
     if row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS {
-        if click_tile(&mut game, row, col) {
+        if click_tile(&game, row, col) {
             // 检查是否没有可用的移动
             if !game.gameOver && !game.gameWon && !has_possible_moves(&game) {
                 // 没有可用移动，重新排列
@@ -241,7 +241,7 @@ fn main() -> i32 {
     io.println "========================================";
 
     // 初始化游戏状态
-    init_game(&mut game);
+    init_game(&game);
 
     // 创建窗口
     let title = "LinkLink 连连看";
@@ -253,9 +253,9 @@ fn main() -> i32 {
     }
 
     // 获取实际客户区大小
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         set_client_size(cw, ch);
     }

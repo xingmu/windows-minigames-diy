@@ -346,7 +346,7 @@ fn handleClick(x: i32, y: i32) {
             needRedraw = true;
         } else {
             // 尝试移动
-            if makeMove(&mut game, game.selectedIndex, col, row) {
+            if makeMove(&game, game.selectedIndex, col, row) {
                 // 玩家移动完成，等待 AI
                 aiCooldown = 0;
             }
@@ -396,7 +396,7 @@ extern fn WindowProc(hwnd: WindowHandle, msg: u32, wParam: u32, lParam: u32) -> 
             if game.currentTurn == COLOR_BLACK && !game.gameOver {
                 aiCooldown = aiCooldown + 1;
                 if aiCooldown > 10 {
-                    if selectAIMove(&mut game) {
+                    if selectAIMove(&game) {
                         // AI 移动完成
                     }
                     aiCooldown = 0;
@@ -496,7 +496,7 @@ fn main() -> i32 {
         if game.currentTurn == COLOR_BLACK && !game.gameOver {
             aiCooldown = aiCooldown + 1;
             if aiCooldown > 60 {
-                if selectAIMove(&mut game) {
+                if selectAIMove(&game) {
                     InvalidateRect(window, null, 0);
                 }
                 aiCooldown = 0;

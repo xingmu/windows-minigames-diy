@@ -80,7 +80,7 @@ fn inBounds(x: i32, y: i32) -> bool {
 // ==================== 迷宫生成算法 ====================
 
 // 递归回溯生成迷宫
-fn generateMaze(game: &mut MazeGameState) {
+fn generateMaze(game: &MazeGameState) {
     // 初始化所有单元格
     for i in 0..(MAZE_WIDTH * MAZE_HEIGHT) {
         game.maze[i].visited = false;
@@ -174,7 +174,7 @@ fn generateMaze(game: &mut MazeGameState) {
 
 // ==================== 游戏初始化 ====================
 
-fn initGame(game: &mut MazeGameState) {
+fn initGame(game: &MazeGameState) {
     game.width = GAME_WIDTH;
     game.height = GAME_HEIGHT;
     game.score = 0;
@@ -192,7 +192,7 @@ fn initGame(game: &mut MazeGameState) {
 
 // ==================== 重新开始游戏 ====================
 
-fn restartGame(game: &mut MazeGameState) {
+fn restartGame(game: &MazeGameState) {
     game.score = 0;
     game.moves = 0;
     game.gameWon = false;
@@ -208,7 +208,7 @@ fn restartGame(game: &mut MazeGameState) {
 
 // ==================== 键盘输入处理 ====================
 
-fn handleInput(game: &mut MazeGameState, key: VirtualKey) -> bool {
+fn handleInput(game: &MazeGameState, key: VirtualKey) -> bool {
     if game.gameWon {
         // 游戏结束后按任意键重新开始
         restartGame(game);

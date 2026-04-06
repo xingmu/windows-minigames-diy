@@ -255,7 +255,7 @@ fn on_mouse_down(button: i32) {
             let power = max(0.0, min(100.0, 100.0 - (mouse_y as f32 * 100.0 / 600.0)));
             let timing = ((mouse_x as f32 - 400.0) / 100.0);
             
-            swing(&mut game, power, timing);
+            swing(&game, power, timing);
         }
     }
 }
@@ -268,7 +268,7 @@ fn on_key_down(key: i32) {
             } else if game.phase == GamePhase.HalfInning {
                 game.phase = GamePhase.Batting;
             } else if game.phase == GamePhase.GameOver {
-                init_baseball(&mut game);
+                init_baseball(&game);
                 game.phase = GamePhase.Batting;
             }
         }
@@ -292,7 +292,7 @@ fn update_auto_play(dt: f32) {
         GamePhase::Batting => {
             // 随机时间后自动投球
             if auto_swing_timer > 1.0 {
-                start_pitch(&mut game);
+                start_pitch(&game);
                 auto_swing_timer = 0.0;
             }
         }
@@ -302,7 +302,7 @@ fn update_auto_play(dt: f32) {
                 // 模拟击中
                 let power = 50.0 + (rand() % 50) as f32;
                 let timing = (rand() % 100 - 50) as f32 / 100.0;
-                swing(&mut game, power, timing);
+                swing(&game, power, timing);
                 auto_swing_timer = 0.0;
             }
         }
@@ -314,7 +314,7 @@ fn update_auto_play(dt: f32) {
         }
         GamePhase::GameOver => {
             if auto_swing_timer > 3.0 {
-                init_baseball(&mut game);
+                init_baseball(&game);
                 game.phase = GamePhase.Batting;
                 auto_swing_timer = 0.0;
             }
@@ -334,7 +334,7 @@ fn main() {
     io.println "========================================";
     
     // 初始化游戏
-    init_baseball(&mut game);
+    init_baseball(&game);
     
     io.println "游戏已初始化!";
     io.println "按空格键开始游戏";

@@ -87,7 +87,7 @@ fn isValid(grid: &i32[GRID_SIZE][GRID_SIZE], row: i32, col: i32, num: i32) -> bo
 }
 
 // 回溯法求解数独
-fn solveSudoku(grid: &i32mut[GRID_SIZE][GRID_SIZE], solution: &i32mut[GRID_SIZE][GRID_SIZE]) -> bool {
+fn solveSudoku(grid: i32*[GRID_SIZE][GRID_SIZE], solution: i32*[GRID_SIZE][GRID_SIZE]) -> bool {
     for row in 0..GRID_SIZE {
         for col in 0..GRID_SIZE {
             if grid[row][col] == 0 {
@@ -114,7 +114,7 @@ fn solveSudoku(grid: &i32mut[GRID_SIZE][GRID_SIZE], solution: &i32mut[GRID_SIZE]
 }
 
 // 生成数独题目
-fn generatePuzzle(game: &mut SudokuGame, difficulty: Difficulty) {
+fn generatePuzzle(game: &SudokuGame, difficulty: Difficulty) {
     // 初始化空网格
     for r in 0..GRID_SIZE {
         for c in 0..GRID_SIZE {
@@ -132,7 +132,7 @@ fn generatePuzzle(game: &mut SudokuGame, difficulty: Difficulty) {
     fillDiagonalBlocks(game.grid.values);
     
     // 求解剩余部分
-    let _ = solveSudoku(&mut game.grid.values, &mut game.solution);
+    let _ = solveSudoku(&game.grid.values, &game.solution);
     
     // 根据难度挖空
     let cells_to_remove = match difficulty {
@@ -150,8 +150,8 @@ fn generatePuzzle(game: &mut SudokuGame, difficulty: Difficulty) {
     }
     
     // 随机挖空
-    let mut removed = 0;
-    let mut attempts = 0;
+    let removed = 0;
+    let attempts = 0;
     while removed < cells_to_remove && attempts < 200 {
         let r = math.rand() as i32 % GRID_SIZE;
         let c = math.rand() as i32 % GRID_SIZE;
@@ -175,11 +175,11 @@ fn generatePuzzle(game: &mut SudokuGame, difficulty: Difficulty) {
 }
 
 // 填充对角线三个3x3宫格
-fn fillDiagonalBlocks(grid: &mut i32[GRID_SIZE][GRID_SIZE]) {
+fn fillDiagonalBlocks(grid: &i32[GRID_SIZE][GRID_SIZE]) {
     for block in 0..3 {
         let start_row = block * 3;
         let start_col = block * 3;
-        let mut nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
         
         // Fisher-Yates 洗牌
         for i in 8..0 {
@@ -189,7 +189,7 @@ fn fillDiagonalBlocks(grid: &mut i32[GRID_SIZE][GRID_SIZE]) {
             nums[j] = temp;
         }
         
-        let mut idx = 0;
+        let idx = 0;
         for r in 0..3 {
             for c in 0..3 {
                 grid[start_row + r][start_col + c] = nums[idx];
@@ -202,7 +202,7 @@ fn fillDiagonalBlocks(grid: &mut i32[GRID_SIZE][GRID_SIZE]) {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &mut SudokuGame, difficulty: Difficulty) {
+fn init_game(game: &SudokuGame, difficulty: Difficulty) {
     game.difficulty = difficulty;
     game.state = SudokuState.Input;
     game.selected_row = -1;
@@ -225,7 +225,7 @@ fn getSelectedValue(game: SudokuGame*) -> i32 {
 }
 
 // 选择单元格
-fn selectCell(game: &mut SudokuGame, row: i32, col: i32) -> bool {
+fn selectCell(game: &SudokuGame, row: i32, col: i32) -> bool {
     if row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE {
         game.selected_row = row;
         game.selected_col = col;
@@ -235,7 +235,7 @@ fn selectCell(game: &mut SudokuGame, row: i32, col: i32) -> bool {
 }
 
 // 清除选中单元格的值
-fn clearSelectedCell(game: &mut SudokuGame) -> bool {
+fn clearSelectedCell(game: &SudokuGame) -> bool {
     if game.selected_row >= 0 && game.selected_row < GRID_SIZE &&
        game.selected_col >= 0 && game.selected_col < GRID_SIZE {
         if !game.grid.fixed[game.selected_row][game.selected_col] {
@@ -248,7 +248,7 @@ fn clearSelectedCell(game: &mut SudokuGame) -> bool {
 }
 
 // 输入数字到选中单元格
-fn inputNumber(game: &mut SudokuGame, num: i32) -> bool {
+fn inputNumber(game: &SudokuGame, num: i32) -> bool {
     if game.selected_row < 0 || game.selected_col < 0 {
         return false;
     }
@@ -281,7 +281,7 @@ fn inputNumber(game: &mut SudokuGame, num: i32) -> bool {
 }
 
 // 使用提示
-fn useHint(game: &mut SudokuGame) -> bool {
+fn useHint(game: &SudokuGame) -> bool {
     if game.selected_row < 0 || game.selected_col < 0 {
         return false;
     }
@@ -315,7 +315,7 @@ fn checkWin(game: SudokuGame*) -> bool {
 }
 
 // 检查当前状态
-fn checkErrors(game: &mut SudokuGame) {
+fn checkErrors(game: &SudokuGame) {
     for r in 0..GRID_SIZE {
         for c in 0..GRID_SIZE {
             if !game.grid.fixed[r][c] && game.grid.values[r][c] != 0 {
@@ -340,7 +340,7 @@ fn getDifficultyName(difficulty: Difficulty) -> string {
 }
 
 // 计算游戏区域在窗口中的位置
-fn calculateGameArea(game: SudokuGame*, offset_x: &mut i32, offset_y: &mut i32) {
+fn calculateGameArea(game: SudokuGame*, offset_x: &i32, offset_y: &i32) {
     let game_width = BOARD_SIZE;
     let game_height = BOARD_SIZE;
     
@@ -352,7 +352,7 @@ fn calculateGameArea(game: SudokuGame*, offset_x: &mut i32, offset_y: &mut i32) 
 }
 
 // 更新计时器
-fn updateTimer(game: &mut SudokuGame, dt: u32) {
+fn updateTimer(game: &SudokuGame, dt: u32) {
     if game.state == SudokuState.Input {
         game.timer += dt;
     }

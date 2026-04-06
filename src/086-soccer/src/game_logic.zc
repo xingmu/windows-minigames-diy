@@ -108,7 +108,7 @@ impl Player {
         return Vec2 { x: self.x, y: self.y };
     }
     
-    pub fn update(self: &mut Player) {
+    pub fn update(self: &Player) {
         // 应用速度
         self.x = self.x + self.vx;
         self.y = self.y + self.vy;
@@ -149,7 +149,7 @@ struct Ball {
     vx: f64,
     vy: f64,
     radius: i32,
-    owner: &mut Player,
+    owner: &Player,
 }
 
 impl Ball {
@@ -168,7 +168,7 @@ impl Ball {
         return Vec2 { x: self.x, y: self.y };
     }
     
-    pub fn update(self: &mut Ball) {
+    pub fn update(self: &Ball) {
         // 如果有主人，跟随主人
         if self.owner != nil {
             self.x = self.owner.x;
@@ -234,7 +234,7 @@ impl Ball {
         self.check_goal_collision();
     }
     
-    fn check_goal_collision(self: &mut Ball) {
+    fn check_goal_collision(self: &Ball) {
         // 左球门（玩家进攻方向）
         let left_goal_x = (FIELD_WIDTH - GOAL_WIDTH) / 2;
         let left_goal_y = 0;
@@ -336,20 +336,20 @@ enum GamePhase {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &mut GameState) {
+fn init_game(game: &GameState) {
     // 初始化球门
-    game.left_goal = Goal.new((FIELD_WIDTH - GOAL_WIDTH) / 2, 0, GOAL_WIDTH, GOAL_HEIGHT);
-    game.right_goal = Goal.new((FIELD_WIDTH - GOAL_WIDTH) / 2, FIELD_HEIGHT - GOAL_HEIGHT, GOAL_WIDTH, GOAL_HEIGHT);
+    game.left_goal = Goal((FIELD_WIDTH - GOAL_WIDTH) / 2, 0, GOAL_WIDTH, GOAL_HEIGHT);
+    game.right_goal = Goal((FIELD_WIDTH - GOAL_WIDTH) / 2, FIELD_HEIGHT - GOAL_HEIGHT, GOAL_WIDTH, GOAL_HEIGHT);
     
     // 初始化球
-    game.ball = Ball.new();
+    game.ball = Ball();
     
     // 初始化玩家（底部）
-    game.player = Player.new(FIELD_WIDTH as f64 / 2.0, FIELD_HEIGHT as f64 * 0.75, 0);
+    game.player = Player(FIELD_WIDTH as f64 / 2.0, FIELD_HEIGHT as f64 * 0.75, 0);
     
     // 初始化AI球员（顶部）
-    game.ai_players[0] = Player.new(FIELD_WIDTH as f64 / 2.0, FIELD_HEIGHT as f64 * 0.25, 1);
-    game.ai_players[1] = Player.new(FIELD_WIDTH as f64 * 0.3, FIELD_HEIGHT as f64 * 0.15, 1);
+    game.ai_players[0] = Player(FIELD_WIDTH as f64 / 2.0, FIELD_HEIGHT as f64 * 0.25, 1);
+    game.ai_players[1] = Player(FIELD_WIDTH as f64 * 0.3, FIELD_HEIGHT as f64 * 0.15, 1);
     
     // 初始化分数和时间
     game.player_score = 0;
@@ -364,7 +364,7 @@ fn init_game(game: &mut GameState) {
 }
 
 // 重置位置到开球
-fn reset_positions(game: &mut GameState) {
+fn reset_positions(game: &GameState) {
     game.ball.x = FIELD_WIDTH as f64 / 2.0;
     game.ball.y = FIELD_HEIGHT as f64 / 2.0;
     game.ball.vx = 0.0;
@@ -400,13 +400,13 @@ fn circle_collision(x1: f64, y1: f64, r1: i32, x2: f64, y2: f64, r2: i32) -> boo
 }
 
 // 更新玩家输入
-fn update_player_input(game: &mut GameState, up: bool, down: bool, left: bool, right: bool, kick: bool) {
+fn update_player_input(game: &GameState, up: bool, down: bool, left: bool, right: bool, kick: bool) {
     if game.phase != GamePhase.Playing {
         return;
     }
     
-    let mut vx = 0.0;
-    let mut vy = 0.0;
+    let vx = 0.0;
+    let vy = 0.0;
     
     if up { vy = vy - PLAYER_SPEED; }
     if down { vy = vy + PLAYER_SPEED; }
@@ -426,12 +426,12 @@ fn update_player_input(game: &mut GameState, up: bool, down: bool, left: bool, r
     
     // 踢球
     if kick && game.player.kick_cooldown <= 0 && game.ball.owner == &game.player {
-        kick_ball(game, &mut game.player);
+        kick_ball(game, &game.player);
     }
 }
 
 // 踢球
-fn kick_ball(game: &mut GameState, player: &mut Player) {
+fn kick_ball(game: &GameState, player: &Player) {
     // 计算球到球门的方向
     let target_y = if player.team == 0 { 0.0 } else { FIELD_HEIGHT as f64 };
     let target_x = FIELD_WIDTH as f64 / 2.0;
@@ -451,13 +451,13 @@ fn kick_ball(game: &mut GameState, player: &mut Player) {
 }
 
 // 更新AI
-fn update_ai(game: &mut GameState) {
+fn update_ai(game: &GameState) {
     if game.phase != GamePhase.Playing {
         return;
     }
     
     for i in 0..2 {
-        let ai = &mut game.ai_players[i];
+        let ai = &game.ai_players[i];
         
         // AI行为：追逐球
         let dx = game.ball.x - ai.x;
@@ -505,7 +505,7 @@ fn update_ai(game: &mut GameState) {
 }
 
 // 检测球员和球的碰撞
-fn check_ball_collision(game: &mut GameState) {
+fn check_ball_collision(game: &GameState) {
     // 检查玩家和球的碰撞
     if game.ball.owner == nil {
         if circle_collision(game.player.x, game.player.y, PLAYER_RADIUS,
@@ -517,7 +517,7 @@ fn check_ball_collision(game: &mut GameState) {
     
     // 检查AI和球的碰撞
     for i in 0..2 {
-        let ai = &mut game.ai_players[i];
+        let ai = &game.ai_players[i];
         if game.ball.owner == nil {
             if circle_collision(ai.x, ai.y, PLAYER_RADIUS,
                               game.ball.x, game.ball.y, BALL_RADIUS) {
@@ -528,7 +528,7 @@ fn check_ball_collision(game: &mut GameState) {
     }
     
     // 球员之间的碰撞
-    let mut all_players: [&mut Player; 3] = [&mut game.player, &mut game.ai_players[0], &mut game.ai_players[1]];
+    let all_players: [&Player; 3] = [&game.player, &game.ai_players[0], &game.ai_players[1]];
     
     for i in 0..3 {
         for j in (i+1)..3 {
@@ -556,7 +556,7 @@ fn check_ball_collision(game: &mut GameState) {
 }
 
 // 检查进球
-fn check_goals(game: &mut GameState) -> bool {
+fn check_goals(game: &GameState) -> bool {
     // 玩家进球（球进入右球门）
     if game.ball.y > FIELD_HEIGHT as f64 - GOAL_HEIGHT as f64 - BALL_RADIUS as f64 &&
        game.ball.x > game.right_goal.x as f64 &&
@@ -585,7 +585,7 @@ fn which_goal(game: GameState*) -> i32 {
 }
 
 // 更新游戏主循环
-fn update_game(game: &mut GameState) {
+fn update_game(game: &GameState) {
     match game.phase {
         GamePhase::Ready => {
             // 等待开始
@@ -645,7 +645,7 @@ fn update_game(game: &mut GameState) {
 }
 
 // 开始游戏
-fn start_game(game: &mut GameState) {
+fn start_game(game: &GameState) {
     if game.phase == GamePhase.Ready || game.phase == GamePhase.GameOver {
         init_game(game);
         game.phase = GamePhase.Countdown;
@@ -654,7 +654,7 @@ fn start_game(game: &mut GameState) {
 }
 
 // 暂停/继续游戏
-fn toggle_pause(game: &mut GameState) {
+fn toggle_pause(game: &GameState) {
     if game.phase == GamePhase.Playing {
         game.paused = !game.paused;
     }

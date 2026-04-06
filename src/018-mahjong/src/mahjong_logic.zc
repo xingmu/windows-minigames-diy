@@ -230,7 +230,7 @@ pub impl TileWall {
     }
     
     // 初始化牌墙（洗牌）
-    pub fn shuffle(&mut self) {
+    pub fn shuffle(&self) {
         // 初始化所有牌
         let index = 0;
         // 每种牌4张
@@ -278,13 +278,13 @@ pub impl TileWall {
     }
     
     // 掷骰子
-    pub fn rollDice(&mut self) {
+    pub fn rollDice(&self) {
         self.dice[0] = randInt(1, 6);
         self.dice[1] = randInt(1, 6);
     }
     
     // 摸牌
-    pub fn draw(&mut self) -> TileType {
+    pub fn draw(&self) -> TileType {
         if self.top < 0 {
             return TileType.Wan1;  // 无牌可摸
         }
@@ -777,7 +777,7 @@ struct GameState {
 }
 
 // 排序手牌
-pub fn sortHand(hand: &mut [TileType; MAX_HAND_SIZE], handSize: int) {
+pub fn sortHand(hand: &[TileType; MAX_HAND_SIZE], handSize: int) {
     // 简单的冒泡排序
     for i in 0..handSize {
         for j in (i + 1)..handSize {
@@ -793,7 +793,7 @@ pub fn sortHand(hand: &mut [TileType; MAX_HAND_SIZE], handSize: int) {
 }
 
 // 从手牌中移除一张牌
-pub fn removeFromHand(hand: &mut [TileType; MAX_HAND_SIZE], handSize: int, 
+pub fn removeFromHand(hand: &[TileType; MAX_HAND_SIZE], handSize: int, 
                       tile: TileType) -> bool {
     for i in 0..handSize {
         if hand[i] == tile {

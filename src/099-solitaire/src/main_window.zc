@@ -456,7 +456,7 @@ fn handle_click(x: i32, y: i32) {
     let (pile_type, pile_index, card_index) = get_pile_at(x, y);
     
     if pile_type < 0 {
-        deselect(&mut game);
+        deselect(&game);
         need_redraw = true;
         return;
     }
@@ -468,7 +468,7 @@ fn handle_click(x: i32, y: i32) {
     
     if pile_type == 0 {
         // 点击stock，翻牌
-        draw_from_stock(&mut game);
+        draw_from_stock(&game);
         need_redraw = true;
         return;
     }
@@ -477,7 +477,7 @@ fn handle_click(x: i32, y: i32) {
         // 点击waste
         if game.selected_pile >= 0 && game.selected_pile < TABLEAU_PILES {
             // 尝试移动到tableau
-            if move_waste_to_tableau(&mut game, pile_index) {
+            if move_waste_to_tableau(&game, pile_index) {
                 need_redraw = true;
                 return;
             }
@@ -485,14 +485,14 @@ fn handle_click(x: i32, y: i32) {
         if game.selected_pile == 7 {
             // 已经选中了waste的牌，尝试移动到foundation
             for i in 0..FOUNDATION_PILES {
-                if move_waste_to_foundation(&mut game, i) {
+                if move_waste_to_foundation(&game, i) {
                     need_redraw = true;
                     return;
                 }
             }
         }
         // 选择waste的牌
-        select_card(&mut game, 1, pile_index, card_index);
+        select_card(&game, 1, pile_index, card_index);
         need_redraw = true;
         return;
     }
@@ -504,7 +504,7 @@ fn handle_click(x: i32, y: i32) {
             if game.selected_index == game.tableau[game.selected_pile].len() - 1 {
                 // 只能移动顶牌
                 let old_pile = game.selected_pile;
-                if move_tableau_to_foundation(&mut game, old_pile) {
+                if move_tableau_to_foundation(&game, old_pile) {
                     need_redraw = true;
                     return;
                 }
@@ -513,13 +513,13 @@ fn handle_click(x: i32, y: i32) {
         if game.selected_pile == 7 {
             // 从waste移动
             for i in 0..FOUNDATION_PILES {
-                if move_waste_to_foundation(&mut game, i) {
+                if move_waste_to_foundation(&game, i) {
                     need_redraw = true;
                     return;
                 }
             }
         }
-        deselect(&mut game);
+        deselect(&game);
         need_redraw = true;
         return;
     }
@@ -528,7 +528,7 @@ fn handle_click(x: i32, y: i32) {
         // 点击tableau
         if game.selected_pile >= 0 && game.selected_pile < TABLEAU_PILES && game.selected_pile != pile_index {
             // 从一个tableau移动到另一个
-            if move_tableau_to_tableau(&mut game, game.selected_pile, pile_index, game.selected_index) {
+            if move_tableau_to_tableau(&game, game.selected_pile, pile_index, game.selected_index) {
                 need_redraw = true;
                 return;
             }
@@ -536,7 +536,7 @@ fn handle_click(x: i32, y: i32) {
         
         if game.selected_pile == 7 {
             // 从waste移动
-            if move_waste_to_tableau(&mut game, pile_index) {
+            if move_waste_to_tableau(&game, pile_index) {
                 need_redraw = true;
                 return;
             }
@@ -548,7 +548,7 @@ fn handle_click(x: i32, y: i32) {
             if card.face_up {
                 if card_index == game.tableau[pile_index].len() - 1 {
                     // 点击顶牌，尝试自动移动到foundation
-                    if is_double_click || auto_move_to_foundation(&mut game) {
+                    if is_double_click || auto_move_to_foundation(&game) {
                         need_redraw = true;
                         return;
                     }
@@ -568,7 +568,7 @@ fn handle_click(x: i32, y: i32) {
         return;
     }
     
-    deselect(&mut game);
+    deselect(&game);
     need_redraw = true;
 }
 
@@ -576,12 +576,12 @@ fn handle_click(x: i32, y: i32) {
 fn handle_key(key: VirtualKey) -> bool {
     match key {
         VirtualKey::Space => {
-            draw_from_stock(&mut game);
+            draw_from_stock(&game);
             need_redraw = true;
             return true;
         },
         VirtualKey::KeyN => {
-            init_game(&mut game);
+            init_game(&game);
             need_redraw = true;
             return true;
         },
@@ -682,18 +682,18 @@ fn main() -> i32 {
     
     // 初始化游戏
     game = GameState {
-        tableau: [CardPile.new(); TABLEAU_PILES],
-        foundation: [CardPile.new(); FOUNDATION_PILES],
-        stock: CardPile.new(),
-        waste: CardPile.new(),
+        tableau: [CardPile(); TABLEAU_PILES],
+        foundation: [CardPile(); FOUNDATION_PILES],
+        stock: CardPile(),
+        waste: CardPile(),
         selected_pile: -1,
         selected_index: -1,
         game_won: false,
         game_started: false,
-        stats: GameStats.new()
+        stats: GameStats()
     };
     
-    init_game(&mut game);
+    init_game(&game);
     
     // 创建窗口
     let window_title = "Zen-C 纸牌接龙 Solitaire";

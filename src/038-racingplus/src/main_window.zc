@@ -1010,7 +1010,7 @@ impl RacingGamePlus {
                         "UP:GAS  LEFT/RIGHT:STEER  SPACE:BRAKE  ESC:MENU", Color.RGB(100, 100, 100), Font("Arial", 11));
         
         // 当前位置警告
-        if !self.isOnTrack(self.car.(int)x, self.car.(int)y) {
+        if !self.isOnTrack((int)(self.car.x), (int)(self.car.y)) {
             canvas.drawText(WINDOW_WIDTH/2 - 60, 65, "OFF TRACK!", Color.Red(), Font("Arial", 16));
         }
         

@@ -823,9 +823,9 @@ class BoxingGame extends Game {
     
     pub fn drawUI(canvas: Canvas*) {
         // 玩家1血条
-        canvas.drawText(20, 20, "P1", Color.White(), Font.new("Arial", 16));
+        canvas.drawText(20, 20, "P1", Color.White(), Font("Arial", 16));
         canvas.fillRect(60, 15, 250, 25, COLOR_HP_BG);
-        let hpWidth1 = (self.player1.(int)hp * 250) / MAX_HP;
+        let hpWidth1 = ((int)(self.player1.hp) * 250) / MAX_HP;
         canvas.fillRect(60, 15, hpWidth1, 25, COLOR_HP_P1);
         
         // P1 胜利标记
@@ -836,9 +836,9 @@ class BoxingGame extends Game {
         }
         
         // 玩家2血条
-        canvas.drawText(SCREEN_WIDTH - 280, 20, "CPU", Color.White(), Font.new("Arial", 16));
+        canvas.drawText(SCREEN_WIDTH - 280, 20, "CPU", Color.White(), Font("Arial", 16));
         canvas.fillRect(SCREEN_WIDTH - 230, 15, 250, 25, COLOR_HP_BG);
-        let hpWidth2 = (self.player2.(int)hp * 250) / MAX_HP;
+        let hpWidth2 = ((int)(self.player2.hp) * 250) / MAX_HP;
         canvas.fillRect(SCREEN_WIDTH - 230, 15, hpWidth2, 25, COLOR_HP_P2);
         
         // P2 胜利标记
@@ -851,7 +851,7 @@ class BoxingGame extends Game {
         // 回合
         let roundStr = "ROUND ";
         roundStr = roundStr ++ self.round.toString();
-        canvas.drawText(SCREEN_WIDTH / 2 - 30, 20, roundStr, Color.White(), Font.new("Arial", 20));
+        canvas.drawText(SCREEN_WIDTH / 2 - 30, 20, roundStr, Color.White(), Font("Arial", 20));
         
         // 时间
         let seconds = self.roundTimer / 1000;
@@ -862,11 +862,11 @@ class BoxingGame extends Game {
             timeStr = "{timeStr}0";
         }
         timeStr = timeStr ++ (seconds % 60).toString();
-        canvas.drawText(SCREEN_WIDTH / 2 - 20, 50, timeStr, Color.White(), Font.new("Arial", 16));
+        canvas.drawText(SCREEN_WIDTH / 2 - 20, 50, timeStr, Color.White(), Font("Arial", 16));
         
         // 控制提示
-        canvas.drawText(20, SCREEN_HEIGHT - 80, "P1: Arrows move, A/B attack, C special", Color.LightGray(), Font.new("Arial", 12));
-        canvas.drawText(20, SCREEN_HEIGHT - 60, "Combos: <-+A, ->+A, A+A, A+B", Color.LightGray(), Font.new("Arial", 12));
+        canvas.drawText(20, SCREEN_HEIGHT - 80, "P1: Arrows move, A/B attack, C special", Color.LightGray(), Font("Arial", 12));
+        canvas.drawText(20, SCREEN_HEIGHT - 60, "Combos: <-+A, ->+A, A+A, A+B", Color.LightGray(), Font("Arial", 12));
     }
     
     pub fn drawCountdown(canvas: Canvas*) {
@@ -875,9 +875,9 @@ class BoxingGame extends Game {
             let centerX = SCREEN_WIDTH / 2 - 50;
             let centerY = SCREEN_HEIGHT / 2 - 50;
             canvas.fillRect(centerX, centerY, 100, 100, Color.ARGB(200, 255, 200, 100));
-            canvas.drawText(centerX + 35, centerY + 30, text, Color.Red(), Font.new("Arial", 72));
+            canvas.drawText(centerX + 35, centerY + 30, text, Color.Red(), Font("Arial", 72));
         } else {
-            canvas.drawText(SCREEN_WIDTH / 2 - 80, SCREEN_HEIGHT / 2 - 50, "FIGHT!", Color.Yellow(), Font.new("Arial", 48));
+            canvas.drawText(SCREEN_WIDTH / 2 - 80, SCREEN_HEIGHT / 2 - 50, "FIGHT!", Color.Yellow(), Font("Arial", 48));
         }
     }
     
@@ -885,13 +885,13 @@ class BoxingGame extends Game {
         if self.player1.comboCount > 1 {
             let comboText = self.player1.comboCount.toString();
             comboText = "{comboText} HITS!";
-            canvas.drawText(100, 80, comboText, Color.Yellow(), Font.new("Arial", 24));
+            canvas.drawText(100, 80, comboText, Color.Yellow(), Font("Arial", 24));
         }
         
         if self.player2.comboCount > 1 {
             let comboText = self.player2.comboCount.toString();
             comboText = "{comboText} HITS!";
-            canvas.drawText(SCREEN_WIDTH - 200, 80, comboText, Color.Yellow(), Font.new("Arial", 24));
+            canvas.drawText(SCREEN_WIDTH - 200, 80, comboText, Color.Yellow(), Font("Arial", 24));
         }
     }
     

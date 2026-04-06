@@ -145,12 +145,12 @@ fn ShowWindow(hWnd: HWND, nCmdShow: i32) -> i32;
 fn UpdateWindow(hWnd: HWND) -> i32;
 fn DefWindowProcA(hWnd: HWND, Msg: u32, wParam: i32, lParam: i32) -> i32;
 fn PostQuitMessage(exitCode: i32);
-fn GetMessageA(msg: &mut MSG, hWnd: HWND, wMsgFilterMin: u32, wMsgFilterMax: u32) -> i32;
+fn GetMessageA(msg: &MSG, hWnd: HWND, wMsgFilterMin: u32, wMsgFilterMax: u32) -> i32;
 fn TranslateMessage(msg: &def MSG) -> i32;
 fn DispatchMessageA(msg: &def MSG) -> i32;
 fn SetWindowTextA(hWnd: HWND, lpString: &i8) -> i32;
-fn GetClientRect(hWnd: HWND, lpRect: &mut RECT) -> i32;
-fn GetWindowRect(hWnd: HWND, lpRect: &mut RECT) -> i32;
+fn GetClientRect(hWnd: HWND, lpRect: &RECT) -> i32;
+fn GetWindowRect(hWnd: HWND, lpRect: &RECT) -> i32;
 fn MoveWindow(hWnd: HWND, X: i32, Y: i32, nWidth: i32, nHeight: i32, bRepaint: i32) -> i32;
 fn DestroyWindow(hWnd: HWND) -> i32;
 
@@ -165,7 +165,7 @@ fn GetDC(hWnd: HWND) -> i32;
 fn ReleaseDC(hWnd: HWND, hDC: i32) -> i32;
 fn SetBkMode(hdc: i32, mode: i32) -> i32;
 fn SetTextColor(hdc: i32, color: u32) -> i32;
-fn DrawTextA(hdc: i32, lpString: &i8, nCount: i32, lpRect: &mut RECT, uFormat: u32) -> i32;
+fn DrawTextA(hdc: i32, lpString: &i8, nCount: i32, lpRect: &RECT, uFormat: u32) -> i32;
 fn FillRect(hdc: i32, lprc: &def RECT, hbr: i32) -> i32;
 fn FrameRect(hdc: i32, lprc: &def RECT, hbr: i32) -> i32;
 
@@ -250,7 +250,7 @@ fn WinMain(hInstance: HINSTANCE, hPrevInstance: HINSTANCE,
 fn GetCommandLineA() -> &i8;
 
 // Parse command line
-fn CommandLineToArgv(lpCmdLine: &i8, pNumArgs: &mut i32) -> &i8;
+fn CommandLineToArgv(lpCmdLine: &i8, pNumArgs: &i32) -> &i8;
 
 // Free memory
 fn LocalFree(hMem: i32) -> i32;

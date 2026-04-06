@@ -17,7 +17,7 @@ static mut game_speed: u32 = 1000;  // 1秒定时器用于计时
 // ==================== 事件处理 ====================
 
 fn on_key(key: KeyCode) -> bool {
-    return handle_key_input(&mut game, key);
+    return handle_key_input(&game, key);
 }
 
 fn on_timer() -> bool {
@@ -188,7 +188,7 @@ fn on_mouse(x: i32, y: i32) {
     if y >= GRID_OFFSET_Y {
         let (row, col) = pixel_to_cell(x, y);
         if row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS {
-            handle_left_click(&mut game, row, col);
+            handle_left_click(&game, row, col);
         }
     }
 }
@@ -198,7 +198,7 @@ fn on_rmouse(x: i32, y: i32) {
     if y >= GRID_OFFSET_Y {
         let (row, col) = pixel_to_cell(x, y);
         if row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS {
-            handle_right_click(&mut game, row, col);
+            handle_right_click(&game, row, col);
         }
     }
 }
@@ -215,7 +215,7 @@ fn main() -> i32 {
     io.println "========================================";
     
     // 初始化游戏状态
-    init_game(&mut game);
+    init_game(&game);
     
     // 创建窗口
     let title = "Minesweeper - 扫雷游戏";
@@ -227,9 +227,9 @@ fn main() -> i32 {
     }
     
     // 获取实际客户区大小
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         set_client_size(cw, ch);
     }

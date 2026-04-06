@@ -193,8 +193,8 @@ struct GameState {
 
 // 创建一副新牌
 fn create_deck() -> CardPile {
-    let mut deck = CardPile.new();
-    let mut card_id = 0;
+    let deck = CardPile();
+    let card_id = 0;
     
     for suit in 0..SUITS {
         for rank in 1..=RANKS_PER_SUIT {
@@ -232,30 +232,30 @@ fn shuffle_deck(mut deck: CardPile) {
 }
 
 // 初始化游戏
-fn init_game(game: &mut GameState) {
+fn init_game(game: &GameState) {
     // 初始化随机数种子
     let seed = time.now().nanos();
     math.srand((u32)seed);
     
     // 创建并洗牌
-    let mut deck = create_deck();
+    let deck = create_deck();
     shuffle_deck(deck);
     
     // 初始化各牌堆
     for i in 0..TABLEAU_PILES {
-        game.tableau[i] = CardPile.new();
+        game.tableau[i] = CardPile();
     }
     for i in 0..FOUNDATION_PILES {
-        game.foundation[i] = CardPile.new();
+        game.foundation[i] = CardPile();
     }
-    game.stock = CardPile.new();
-    game.waste = CardPile.new();
+    game.stock = CardPile();
+    game.waste = CardPile();
     
     // 发牌到7个tableau
-    let mut card_index = 0;
+    let card_index = 0;
     for pile in 0..TABLEAU_PILES {
         for card_num in 0..=pile {
-            let mut card = deck.get(card_index);
+            let card = deck.get(card_index);
             card_index += 1;
             // 每摞最上面的牌要翻开
             if card_num == pile {
@@ -267,7 +267,7 @@ fn init_game(game: &mut GameState) {
     
     // 剩余的牌放入stock
     while card_index < TOTAL_CARDS {
-        let mut card = deck.get(card_index);
+        let card = deck.get(card_index);
         card.face_up = false;  // stock中的牌默认不翻开
         game.stock.push(card);
         card_index += 1;
@@ -278,24 +278,24 @@ fn init_game(game: &mut GameState) {
     game.selected_index = -1;
     game.game_won = false;
     game.game_started = true;
-    game.stats = GameStats.new();
+    game.stats = GameStats();
     game.stats.start_time = (time.now().nanos() / 1_000_000_000) as u64;
 }
 
 // ==================== 游戏逻辑函数 ====================
 
 // 从stock翻牌到waste
-fn draw_from_stock(game: &mut GameState) {
+fn draw_from_stock(game: &GameState) {
     if game.stock.is_empty() {
         // stock为空，把waste的牌全部回收(正面朝下)
         while !game.waste.is_empty() {
-            let mut card = game.waste.pop();
+            let card = game.waste.pop();
             card.face_up = false;
             game.stock.push(card);
         }
     } else {
         // 从stock翻一张牌到waste
-        let mut card = game.stock.pop();
+        let card = game.stock.pop();
         card.face_up = true;
         game.waste.push(card);
     }
@@ -303,7 +303,7 @@ fn draw_from_stock(game: &mut GameState) {
 }
 
 // 移动waste的牌(只能移动顶牌)
-fn move_waste_to_tableau(game: &mut GameState, tableau_index: i32) -> bool {
+fn move_waste_to_tableau(game: &GameState, tableau_index: i32) -> bool {
     if game.waste.is_empty() {
         return false;
     }
@@ -325,7 +325,7 @@ fn move_waste_to_tableau(game: &mut GameState, tableau_index: i32) -> bool {
 }
 
 // 移动waste的牌到foundation
-fn move_waste_to_foundation(game: &mut GameState, foundation_index: i32) -> bool {
+fn move_waste_to_foundation(game: &GameState, foundation_index: i32) -> bool {
     if game.waste.is_empty() {
         return false;
     }
@@ -347,7 +347,7 @@ fn move_waste_to_foundation(game: &mut GameState, foundation_index: i32) -> bool
 }
 
 // 移动tableau的牌到另一个tableau
-fn move_tableau_to_tableau(game: &mut GameState, from_pile: i32, to_pile: i32, card_index: i32) -> bool {
+fn move_tableau_to_tableau(game: &GameState, from_pile: i32, to_pile: i32, card_index: i32) -> bool {
     if from_pile < 0 || from_pile >= TABLEAU_PILES || to_pile < 0 || to_pile >= TABLEAU_PILES {
         return false;
     }
@@ -372,7 +372,7 @@ fn move_tableau_to_tableau(game: &mut GameState, from_pile: i32, to_pile: i32, c
         
         // 翻开新的顶牌
         if game.tableau[from_pile].count > 0 {
-            let mut top_card = game.tableau[from_pile].get_top();
+            let top_card = game.tableau[from_pile].get_top();
             if !top_card.face_up {
                 top_card.face_up = true;
                 game.tableau[from_pile].cards[game.tableau[from_pile].count - 1] = top_card;
@@ -390,7 +390,7 @@ fn move_tableau_to_tableau(game: &mut GameState, from_pile: i32, to_pile: i32, c
 }
 
 // 移动tableau的牌到foundation
-fn move_tableau_to_foundation(game: &mut GameState, tableau_index: i32) -> bool {
+fn move_tableau_to_foundation(game: &GameState, tableau_index: i32) -> bool {
     if tableau_index < 0 || tableau_index >= TABLEAU_PILES {
         return false;
     }
@@ -409,7 +409,7 @@ fn move_tableau_to_foundation(game: &mut GameState, tableau_index: i32) -> bool 
             
             // 翻开新的顶牌
             if !game.tableau[tableau_index].is_empty() {
-                let mut top_card = game.tableau[tableau_index].get_top();
+                let top_card = game.tableau[tableau_index].get_top();
                 if !top_card.face_up {
                     top_card.face_up = true;
                     game.tableau[tableau_index].cards[game.tableau[tableau_index].count - 1] = top_card;
@@ -428,7 +428,7 @@ fn move_tableau_to_foundation(game: &mut GameState, tableau_index: i32) -> bool 
 }
 
 // 移动foundation的牌到tableau
-fn move_foundation_to_tableau(game: &mut GameState, foundation_index: i32, tableau_index: i32) -> bool {
+fn move_foundation_to_tableau(game: &GameState, foundation_index: i32, tableau_index: i32) -> bool {
     if foundation_index < 0 || foundation_index >= FOUNDATION_PILES {
         return false;
     }
@@ -488,7 +488,7 @@ fn can_place_on_foundation(card: Card, pile: CardPile, foundation_index: i32) ->
 }
 
 // 检查胜利条件
-fn check_win_condition(game: &mut GameState) {
+fn check_win_condition(game: &GameState) {
     let total_foundation = 0;
     for i in 0..FOUNDATION_PILES {
         total_foundation += game.foundation[i].len();
@@ -500,7 +500,7 @@ fn check_win_condition(game: &mut GameState) {
 }
 
 // 选择牌堆中的牌
-fn select_card(game: &mut GameState, pile_type: i32, pile_index: i32, card_index: i32) {
+fn select_card(game: &GameState, pile_type: i32, pile_index: i32, card_index: i32) {
     // pile_type: 0=tableau, 1=waste, 2=foundation
     // pile_index: 牌堆索引
     // card_index: 牌在堆中的索引(仅tableau有效)
@@ -524,13 +524,13 @@ fn select_card(game: &mut GameState, pile_type: i32, pile_index: i32, card_index
 }
 
 // 取消选择
-fn deselect(game: &mut GameState) {
+fn deselect(game: &GameState) {
     game.selected_pile = -1;
     game.selected_index = -1;
 }
 
 // 尝试自动移动到foundation
-fn auto_move_to_foundation(game: &mut GameState) -> bool {
+fn auto_move_to_foundation(game: &GameState) -> bool {
     // 优先处理选中的牌
     if game.selected_pile == 7 {
         // waste顶牌
@@ -559,7 +559,7 @@ fn auto_move_to_foundation(game: &mut GameState) -> bool {
                     
                     // 翻开新的顶牌
                     if !game.tableau[pile].is_empty() {
-                        let mut top_card = game.tableau[pile].get_top();
+                        let top_card = game.tableau[pile].get_top();
                         if !top_card.face_up {
                             top_card.face_up = true;
                             game.tableau[pile].cards[game.tableau[pile].count - 1] = top_card;
@@ -594,7 +594,7 @@ fn get_game_status_text(game: GameState*) -> string {
 fn get_stats_text(game: GameState*) -> string {
     let mins = game.stats.elapsed_seconds / 60;
     let secs = game.stats.elapsed_seconds % 60;
-    let mut foundation_total = 0;
+    let foundation_total = 0;
     for i in 0..FOUNDATION_PILES {
         foundation_total += game.foundation[i].len();
     }

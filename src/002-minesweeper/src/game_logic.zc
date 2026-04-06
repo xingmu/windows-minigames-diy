@@ -103,7 +103,7 @@ fn get_difficulty_config(diff: Difficulty) -> GameConfig {
 }
 
 // Initialize game
-fn init_game(game: &mut GameState, difficulty: Difficulty) {
+fn init_game(game: &GameState, difficulty: Difficulty) {
     game.config = get_difficulty_config(difficulty);
     let seed = time.now().nanos();
     math.srand(seed);
@@ -129,12 +129,12 @@ fn init_game(game: &mut GameState, difficulty: Difficulty) {
 }
 
 // Default init
-fn init_game_default(game: &mut GameState) {
+fn init_game_default(game: &GameState) {
     init_game(game, Difficulty::Easy);
 }
 // Place mines after first click
-fn place_mines(game: &mut GameState, safe_row: i32, safe_col: i32) {
-    let mut mines_placed = 0;
+fn place_mines(game: &GameState, safe_row: i32, safe_col: i32) {
+    let mines_placed = 0;
     let rows = game.config.rows;
     let cols = game.config.cols;
     let total_cells = rows * cols;
@@ -159,7 +159,7 @@ fn place_mines(game: &mut GameState, safe_row: i32, safe_col: i32) {
     for r in 0..rows {
         for c in 0..cols {
             if !game.board[r][c].is_mine {
-                let mut count = 0;
+                let count = 0;
                 for dr in -1..=1 {
                     for dc in -1..=1 {
                         if dr == 0 && dc == 0 { continue; }
@@ -182,10 +182,10 @@ fn is_valid_position(game: GameState*, row: i32, col: i32) -> bool {
 }
 
 // Reveal a single tile
-fn reveal_tile(game: &mut GameState, row: i32, col: i32) -> bool {
+fn reveal_tile(game: &GameState, row: i32, col: i32) -> bool {
     if !is_valid_position(game, row, col) { return false; }
     
-    let tile = &mut game.board[row][col];
+    let tile = &game.board[row][col];
     if tile.state == TileState::Hidden {
         tile.state = TileState::Revealed;
         
@@ -204,7 +204,7 @@ fn reveal_tile(game: &mut GameState, row: i32, col: i32) -> bool {
 }
 
 // Auto reveal empty tiles (flood fill)
-fn auto_reveal(game: &mut GameState, row: i32, col: i32) {
+fn auto_reveal(game: &GameState, row: i32, col: i32) {
     for dr in -1..=1 {
         for dc in -1..=1 {
             if dr == 0 && dc == 0 { continue; }
@@ -224,10 +224,10 @@ fn auto_reveal(game: &mut GameState, row: i32, col: i32) {
 }
 
 // Toggle flag on a tile
-fn toggle_flag(game: &mut GameState, row: i32, col: i32) {
+fn toggle_flag(game: &GameState, row: i32, col: i32) {
     if !is_valid_position(game, row, col) { return; }
     
-    let tile = &mut game.board[row][col];
+    let tile = &game.board[row][col];
     if tile.state == TileState::Hidden {
         tile.state = TileState::Flagged;
         game.mine_count -= 1;

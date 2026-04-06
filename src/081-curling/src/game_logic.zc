@@ -156,8 +156,8 @@ fn dist(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
 
 fn sqrt_int(n: i32) -> i32 {
     if n <= 0 { return 0; }
-    let mut x = n;
-    let mut y = 1;
+    let x = n;
+    let y = 1;
     while y < x {
         x = (x + y) / 2;
         y = n / x;
@@ -187,7 +187,7 @@ fn initStone(index: i32, player: i32) -> Stone {
 }
 
 // 重置石头到发射位置
-fn resetStoneToThrow(state: &mut CurlingState, index: i32) {
+fn resetStoneToThrow(state: &CurlingState, index: i32) {
     let player = if state.currentPlayer == 1 { PLAYER_RED } else { PLAYER_YELLOW };
     let color = if player == PLAYER_RED { STONE_RED } else { STONE_YELLOW };
 
@@ -207,7 +207,7 @@ fn resetStoneToThrow(state: &mut CurlingState, index: i32) {
 }
 
 // 初始化游戏
-fn initGame(state: &mut CurlingState) {
+fn initGame(state: &CurlingState) {
     state.width = GAME_WIDTH;
     state.height = GAME_HEIGHT;
     state.endNumber = 1;
@@ -236,7 +236,7 @@ fn initGame(state: &mut CurlingState) {
 // ==================== 投掷逻辑 ====================
 
 // 执行投掷
-fn throwStone(state: &mut CurlingState, power: i32, angle: i32, curlDir: i32) {
+fn throwStone(state: &CurlingState, power: i32, angle: i32, curlDir: i32) {
     if state.stoneCount >= MAX_STONES {
         return;
     }
@@ -276,13 +276,13 @@ fn hasPassedHogLine(stone: Stone*) -> bool {
 }
 
 // 更新滑行石头
-fn updateSlidingStone(state: &mut CurlingState) -> bool {
+fn updateSlidingStone(state: &CurlingState) -> bool {
     let idx = state.throwStoneIndex;
     if idx < 0 || idx >= state.stoneCount {
         return false;
     }
 
-    let stone = &mut state.stones[idx];
+    let stone = &state.stones[idx];
     if !stone.active {
         return false;
     }
@@ -372,7 +372,7 @@ fn updateSlidingStone(state: &mut CurlingState) -> bool {
 }
 
 // 石头间碰撞检测
-fn checkStoneCollision(state: &mut CurlingState) {
+fn checkStoneCollision(state: &CurlingState) {
     let idx = state.throwStoneIndex;
     if idx < 0 || idx >= state.stoneCount {
         return;
@@ -432,11 +432,11 @@ fn checkStoneCollision(state: &mut CurlingState) {
 }
 
 // 更新所有石头
-fn updateAllStones(state: &mut CurlingState) -> bool {
+fn updateAllStones(state: &CurlingState) -> bool {
     let anyMoving = false;
 
     for i in 0..state.stoneCount {
-        let stone = &mut state.stones[i];
+        let stone = &state.stones[i];
         if !stone.active {
             continue;
         }
@@ -505,7 +505,7 @@ fn updateAllStones(state: &mut CurlingState) -> bool {
 // ==================== 得分计算 ====================
 
 // 计算本局得分
-fn calculateEndScore(state: &mut CurlingState) -> (i32, i32) {
+fn calculateEndScore(state: &CurlingState) -> (i32, i32) {
     // 找出最接近圆心的石头
     let closestDist = 99999;
     let closestPlayer = 0;
@@ -552,7 +552,7 @@ fn calculateEndScore(state: &mut CurlingState) -> (i32, i32) {
 // ==================== 游戏流程 ====================
 
 // 下一块石头
-fn nextStone(state: &mut CurlingState) {
+fn nextStone(state: &CurlingState) {
     // 切换玩家
     if state.currentPlayer == PLAYER_RED {
         state.currentPlayer = PLAYER_YELLOW;
@@ -585,7 +585,7 @@ fn nextStone(state: &mut CurlingState) {
 }
 
 // 开始下一局
-fn startNextEnd(state: &mut CurlingState) {
+fn startNextEnd(state: &CurlingState) {
     state.stoneCount = 0;
     state.stonesThisEnd = 0;
     state.lastStoneInHouse = -1;
@@ -595,7 +595,7 @@ fn startNextEnd(state: &mut CurlingState) {
 
 // ==================== 游戏主更新 ====================
 
-fn updateGame(state: &mut CurlingState) -> bool {
+fn updateGame(state: &CurlingState) -> bool {
     match state.status {
         GameStatus.Sliding, GameStatus::Sweeping => {
             let moving = updateSlidingStone(state);
@@ -628,7 +628,7 @@ fn updateGame(state: &mut CurlingState) -> bool {
 
 // ==================== 鼠标处理 ====================
 
-fn onMouseDown(state: &mut CurlingState, x: i32, y: i32) {
+fn onMouseDown(state: &CurlingState, x: i32, y: i32) {
     if state.status == GameStatus.GameOver {
         initGame(state);
         return;
@@ -655,7 +655,7 @@ fn onMouseDown(state: &mut CurlingState, x: i32, y: i32) {
     state.mouseY = y;
 }
 
-fn onMouseMove(state: &mut CurlingState, x: i32, y: i32) {
+fn onMouseMove(state: &CurlingState, x: i32, y: i32) {
     state.mouseX = x;
     state.mouseY = y;
 
@@ -682,7 +682,7 @@ fn onMouseMove(state: &mut CurlingState, x: i32, y: i32) {
     }
 }
 
-fn onMouseUp(state: &mut CurlingState, x: i32, y: i32) {
+fn onMouseUp(state: &CurlingState, x: i32, y: i32) {
     if state.status == GameStatus.Sweeping {
         state.isSweeping = false;
         return;

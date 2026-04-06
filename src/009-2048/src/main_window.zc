@@ -62,7 +62,7 @@ class Game2048 extends Game {
     fn onInit() {
         self.state = GameState.Playing;
         self.score = 0;
-        init_game(&mut self.game_data);
+        init_game(&self.game_data);
         
         io.println "[Game; 2048] initialized!";
         io.println "[Use; 2048] arrow keys to move tiles";
@@ -107,14 +107,14 @@ class Game2048 extends Game {
     fn onKeyDown(key: VirtualKey) {
         // R键重新开始
         if key == VirtualKey.Enter {
-            init_game(&mut self.game_data);
+            init_game(&self.game_data);
             self.score = 0;
             return;
         }
         
         // 如果游戏结束或获胜，任意键重新开始
         if self.game_data.won || self.game_data.game_over {
-            init_game(&mut self.game_data);
+            init_game(&self.game_data);
             self.score = 0;
             return;
         }
@@ -130,7 +130,7 @@ class Game2048 extends Game {
         }
         
         if key_code != 0 {
-            handle_input(&mut self.game_data, key_code);
+            handle_input(&self.game_data, key_code);
             self.score = get_score(&self.game_data);
         }
     }

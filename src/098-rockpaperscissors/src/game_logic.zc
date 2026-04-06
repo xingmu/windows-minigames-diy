@@ -91,7 +91,7 @@ def BUTTONS: [Button; 3] = [
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-pub fn init_game(game: &mut GameState) {
+pub fn init_game(game: &GameState) {
     // 初始化随机数种子
     let seed = time.now().nanos();
     math.srand(seed);
@@ -153,7 +153,7 @@ pub fn determine_winner(player: Choice, cpu: Choice) -> GameResult {
 }
 
 // 处理玩家选择
-pub fn make_choice(game: &mut GameState, choice: Choice) {
+pub fn make_choice(game: &GameState, choice: Choice) {
     if game.phase != 0 {
         return;  // 只有在等待选择阶段才能选择
     }
@@ -181,7 +181,7 @@ pub fn make_choice(game: &mut GameState, choice: Choice) {
 }
 
 // 继续下一轮
-pub fn next_round(game: &mut GameState) {
+pub fn next_round(game: &GameState) {
     if game.phase != 2 {
         return;
     }
@@ -190,7 +190,7 @@ pub fn next_round(game: &mut GameState) {
 }
 
 // 更新动画
-pub fn update_animation(game: &mut GameState, dt: i32) {
+pub fn update_animation(game: &GameState, dt: i32) {
     if game.phase == 1 {
         game.animation_timer = game.animation_timer + dt;
         // 动画持续1秒，然后进入等待下一轮阶段

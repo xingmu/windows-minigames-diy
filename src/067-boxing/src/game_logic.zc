@@ -162,7 +162,7 @@ fn createBoxer(x: i32, y: i32, color: Color, name: str, facingRight: bool) -> Bo
     };
 }
 
-fn updateBoxer(boxer: &mut Boxer, dt: i32) {
+fn updateBoxer(boxer: &Boxer, dt: i32) {
     // 更新冷却时间
     if boxer.jabCooldown > 0 {
         boxer.jabCooldown = boxer.jabCooldown - dt;
@@ -196,7 +196,7 @@ fn boxerCanPunch(boxer: Boxer*) -> bool {
     return boxer.action == BoxerAction.Idle && !boxer.isHit;
 }
 
-fn boxerPerformJab(boxer: &mut Boxer) -> bool {
+fn boxerPerformJab(boxer: &Boxer) -> bool {
     if !boxerCanPunch(boxer) || boxer.jabCooldown > 0 {
         return false;
     }
@@ -206,7 +206,7 @@ fn boxerPerformJab(boxer: &mut Boxer) -> bool {
     return true;
 }
 
-fn boxerPerformHook(boxer: &mut Boxer) -> bool {
+fn boxerPerformHook(boxer: &Boxer) -> bool {
     if !boxerCanPunch(boxer) || boxer.hookCooldown > 0 {
         return false;
     }
@@ -216,7 +216,7 @@ fn boxerPerformHook(boxer: &mut Boxer) -> bool {
     return true;
 }
 
-fn boxerMove(boxer: &mut Boxer, dir: BoxerAction) {
+fn boxerMove(boxer: &Boxer, dir: BoxerAction) {
     if boxer.action != BoxerAction.Idle && boxer.action != BoxerAction.MoveLeft 
         && boxer.action != BoxerAction.MoveRight {
         return;
@@ -224,14 +224,14 @@ fn boxerMove(boxer: &mut Boxer, dir: BoxerAction) {
     boxer.action = dir;
 }
 
-fn boxerStopMove(boxer: &mut Boxer) {
+fn boxerStopMove(boxer: &Boxer) {
     if boxer.action == BoxerAction.MoveLeft || boxer.action == BoxerAction.MoveRight
         || boxer.action == BoxerAction.MoveForward || boxer.action == BoxerAction.MoveBackward {
         boxer.action = BoxerAction.Idle;
     }
 }
 
-fn boxerGetHit(boxer: &mut Boxer, damage: i32) {
+fn boxerGetHit(boxer: &Boxer, damage: i32) {
     boxer.health = boxer.health - damage;
     if boxer.health < 0 { boxer.health = 0; }
     boxer.isHit = true;
@@ -247,7 +247,7 @@ fn boxerInRange(attacker: Boxer*, defender: Boxer*) -> bool {
 
 // ==================== AI逻辑 ====================
 
-fn updateAI(ai: &mut Boxer, player: Boxer*, dt: i32) {
+fn updateAI(ai: &Boxer, player: Boxer*, dt: i32) {
     // 如果正在执行动作，不做决策
     if ai.action != BoxerAction.Idle {
         updateBoxer(ai, dt);
@@ -307,7 +307,7 @@ fn updateAI(ai: &mut Boxer, player: Boxer*, dt: i32) {
 
 // ==================== 游戏逻辑函数 ====================
 
-fn initGame(game: &mut BoxingState) {
+fn initGame(game: &BoxingState) {
     game.round = 1;
     game.roundTime = 99000;  // 99秒
     game.status = GameStatus.Ready;
@@ -319,7 +319,7 @@ fn initGame(game: &mut BoxingState) {
     initRound(game);
 }
 
-fn initRound(game: &mut BoxingState) {
+fn initRound(game: &BoxingState) {
     // 玩家在左边，AI在右边
     game.player = createBoxer(180, 340, PLAYER_COLOR, "PLAYER", true);
     game.ai = createBoxer(550, 340, AI_COLOR, "CPU", false);
@@ -329,7 +329,7 @@ fn initRound(game: &mut BoxingState) {
     game.messageTimer = 2000;
 }
 
-fn updateGame(game: &mut BoxingState, dt: i32) {
+fn updateGame(game: &BoxingState, dt: i32) {
     // 更新消息显示
     if game.messageTimer > 0 {
         game.messageTimer = game.messageTimer - dt;
@@ -384,19 +384,19 @@ fn updateGame(game: &mut BoxingState, dt: i32) {
             }
             
             // 更新拳击手
-            updateBoxer(&mut game.player, dt);
-            updateBoxer(&mut game.ai, dt);
+            updateBoxer(&game.player, dt);
+            updateBoxer(&game.ai, dt);
             
             // AI决策
-            updateAI(&mut game.ai, &game.player, dt);
+            updateAI(&game.ai, &game.player, dt);
             
             // 检测攻击命中
-            checkPunchHit(&mut game.player, &mut game.ai, &mut game.punchEffectTimer, &mut game.hitEffectTimer);
-            checkPunchHit(&mut game.ai, &mut game.player, &mut game.punchEffectTimer, &mut game.hitEffectTimer);
+            checkPunchHit(&game.player, &game.ai, &game.punchEffectTimer, &game.hitEffectTimer);
+            checkPunchHit(&game.ai, &game.player, &game.punchEffectTimer, &game.hitEffectTimer);
             
             // 限制移动范围
-            constrainBoxerPosition(&mut game.player);
-            constrainBoxerPosition(&mut game.ai);
+            constrainBoxerPosition(&game.player);
+            constrainBoxerPosition(&game.ai);
             
             // 检查KO
             if game.player.health <= 0 {
@@ -431,7 +431,7 @@ fn updateGame(game: &mut BoxingState, dt: i32) {
     }
 }
 
-fn checkPunchHit(attacker: &mut Boxer, defender: &mut Boxer, punchTimer: &mut i32, hitTimer: &mut i32) {
+fn checkPunchHit(attacker: &Boxer, defender: &Boxer, punchTimer: &i32, hitTimer: &i32) {
     // Jab检测 - 在动作开始时检测
     if attacker.action == BoxerAction.Jab && attacker.actionTimer > 100 {
         if boxerInRange(attacker, defender) {
@@ -451,7 +451,7 @@ fn checkPunchHit(attacker: &mut Boxer, defender: &mut Boxer, punchTimer: &mut i3
     }
 }
 
-fn constrainBoxerPosition(boxer: &mut Boxer) {
+fn constrainBoxerPosition(boxer: &Boxer) {
     // 限制在擂台内
     boxer.x = clamp(boxer.x, RING_LEFT + BOXER_WIDTH/2, RING_RIGHT - BOXER_WIDTH/2);
     boxer.y = clamp(boxer.y, RING_TOP + BOXER_HEIGHT/2, RING_BOTTOM - BOXER_HEIGHT/2);
@@ -459,7 +459,7 @@ fn constrainBoxerPosition(boxer: &mut Boxer) {
 
 // ==================== 输入处理 ====================
 
-fn handleInput(game: &mut BoxingState, key: VirtualKey) {
+fn handleInput(game: &BoxingState, key: VirtualKey) {
     if game.status == GameStatus.Ready {
         game.status = GameStatus.RoundStart;
         game.message = "ROUND {intToString}"(game.round);
@@ -499,10 +499,10 @@ fn handleInput(game: &mut BoxingState, key: VirtualKey) {
             }
         },
         VirtualKey.KeyJ, VirtualKey::Space => {
-            boxerPerformJab(&mut game.player);
+            boxerPerformJab(&game.player);
         },
         VirtualKey.KeyK, VirtualKey::Enter => {
-            boxerPerformHook(&mut game.player);
+            boxerPerformHook(&game.player);
         },
         _ => {}
     }

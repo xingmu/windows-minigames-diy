@@ -83,7 +83,7 @@ fn color_to_u32(c: Color) -> u32 {
 
 // ==================== 初始化函数 ====================
 
-fn init_game(game: &mut ShootingGalleryState, width: i32, height: i32) {
+fn init_game(game: &ShootingGalleryState, width: i32, height: i32) {
     game.width = width;
     game.height = height;
     game.score = 0;
@@ -102,7 +102,7 @@ fn init_game(game: &mut ShootingGalleryState, width: i32, height: i32) {
     }
 }
 
-fn reset_game(game: &mut ShootingGalleryState) {
+fn reset_game(game: &ShootingGalleryState) {
     game.score = 0;
     game.timeLeft = GAME_DURATION;
     game.status = GameStatus.Playing;
@@ -121,7 +121,7 @@ fn reset_game(game: &mut ShootingGalleryState) {
 
 // ==================== 目标生成 ====================
 
-fn spawn_target(game: &mut ShootingGalleryState) {
+fn spawn_target(game: &ShootingGalleryState) {
     let slot: i32 = -1;
     for i in 0..MAX_TARGETS {
         if !game.targets[i].alive {
@@ -145,7 +145,7 @@ fn spawn_target(game: &mut ShootingGalleryState) {
     let x = (math.rand() % (game.width - TARGET_WIDTH - 100)) as i32 + 50;
     let y = (math.rand() % 280) as i32 + 200;
     
-    let target = &mut game.targets[slot];
+    let target = &game.targets[slot];
     target.x = x;
     target.y = y;
     target.width = TARGET_WIDTH;
@@ -169,7 +169,7 @@ fn spawn_target(game: &mut ShootingGalleryState) {
 
 // ==================== 更新游戏逻辑 ====================
 
-fn update_game(game: &mut ShootingGalleryState) -> bool {
+fn update_game(game: &ShootingGalleryState) -> bool {
     if game.status != GameStatus.Playing {
         return false;
     }
@@ -192,7 +192,7 @@ fn update_game(game: &mut ShootingGalleryState) -> bool {
     }
     
     for i in 0..MAX_TARGETS {
-        let target = &mut game.targets[i];
+        let target = &game.targets[i];
         
         if !target.alive {
             continue;
@@ -233,7 +233,7 @@ fn update_game(game: &mut ShootingGalleryState) -> bool {
 
 // ==================== 射击处理 ====================
 
-fn handle_shoot(game: &mut ShootingGalleryState, shootX: i32, shootY: i32) -> bool {
+fn handle_shoot(game: &ShootingGalleryState, shootX: i32, shootY: i32) -> bool {
     if game.status != GameStatus.Playing {
         return false;
     }
@@ -241,7 +241,7 @@ fn handle_shoot(game: &mut ShootingGalleryState, shootX: i32, shootY: i32) -> bo
     let hit = false;
     
     for i in 0..MAX_TARGETS {
-        let target = &mut game.targets[i];
+        let target = &game.targets[i];
         
         if !target.alive || target.hit {
             continue;
@@ -278,12 +278,12 @@ fn handle_shoot(game: &mut ShootingGalleryState, shootX: i32, shootY: i32) -> bo
     return hit;
 }
 
-fn update_crosshair(game: &mut ShootingGalleryState, x: i32, y: i32) {
+fn update_crosshair(game: &ShootingGalleryState, x: i32, y: i32) {
     game.crosshair.x = x;
     game.crosshair.y = y;
 }
 
-fn start_game(game: &mut ShootingGalleryState) {
+fn start_game(game: &ShootingGalleryState) {
     if game.status == GameStatus.Ready || game.status == GameStatus.GameOver {
         reset_game(game);
     }

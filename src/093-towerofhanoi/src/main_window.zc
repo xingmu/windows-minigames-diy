@@ -179,12 +179,12 @@ fn on_paint_event(ctx: GraphicsContext) {
 
 // 处理键盘事件
 fn on_key_event(key_code: i32) -> bool {
-    return handle_input(&mut game, key_code);
+    return handle_input(&game, key_code);
 }
 
 // 处理定时器事件
 fn on_timer_event() -> bool {
-    return update_game(&mut game);
+    return update_game(&game);
 }
 
 // ==================== 平台特定窗口过程 ====================
@@ -211,7 +211,7 @@ static mut running: bool = true;
 fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
     match uMsg {
         WM_PAINT => {
-            let mut ps: [u8; 64] = [0; 64];
+            let ps: [u8; 64] = [0; 64];
             let hdc = BeginPaint(hwnd, &ps);
             on_paint_event(hdc);
             EndPaint(hwnd, &ps);
@@ -291,7 +291,7 @@ fn main() -> i32 {
         animation_progress: 0.0f
     };
     
-    init_game(&mut game);
+    init_game(&game);
     
     // 创建窗口
     let window_title = "Zen-C 汉诺塔游戏 - Tower of Hanoi";

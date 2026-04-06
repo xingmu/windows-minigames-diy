@@ -382,12 +382,12 @@ fn draw_paused_screen(canvas: Canvas*) {
 
 // 处理键盘按下
 fn on_key_down(key_code: i32) -> bool {
-    return handle_input(&mut game, key_code);
+    return handle_input(&game, key_code);
 }
 
 // 处理键盘释放
 fn on_key_up(key_code: i32) {
-    release_input(&mut game, key_code);
+    release_input(&game, key_code);
 }
 
 // ==================== 主渲染函数 ====================
@@ -408,7 +408,7 @@ fn render_game(canvas: Canvas*) {
     // 绘制云朵
     let clouds = get_clouds(&game);
     for i in 0..5 {
-        draw_cloud(canvas, &clouds[i]);
+        draw_cloud(canvas, clouds[i]);
     }
 
     // 绘制波浪
@@ -472,7 +472,7 @@ fn main() -> i32 {
         game_over_reason: "",
     };
 
-    init_game(&mut game);
+    init_game(&game);
 
     // 创建窗口
     let title = "Zen-C Surfing - 冲浪游戏";
@@ -523,7 +523,7 @@ fn main() -> i32 {
         // 更新游戏逻辑
         let current_time = getTickCount();
         if current_time - last_update >= update_interval {
-            update_game(&mut game, update_interval);
+            update_game(&game, update_interval);
 
             // 渲染
             let fb = getFrameBuffer(window);

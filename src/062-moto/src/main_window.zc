@@ -54,9 +54,9 @@ fn format_int(n: i32) -> string {
     if n == 0 {
         return "0";
     }
-    let mut digits: [u8; 16] = [0; 16];
-    let mut count = 0;
-    let mut value = n;
+    let digits: [u8; 16] = [0; 16];
+    let count = 0;
+    let value = n;
     if value < 0 {
         value = -value;
     }
@@ -65,7 +65,7 @@ fn format_int(n: i32) -> string {
         value = value / 10;
         count += 1;
     }
-    let mut result = "";
+    let result = "";
     for i in 0..count {
         result = string.from_char(digits[count - 1 - i] as i32) ++ result;
     }
@@ -96,7 +96,7 @@ fn draw_road(ctx: GraphicsContext, offset_x: i32, offset_y: i32) {
 
     for lane in 1..LANE_COUNT {
         let lane_x = offset_x + 8 + lane * LANE_WIDTH - 2;
-        let mut y = offset_y + dash_y - 40;
+        let y = offset_y + dash_y - 40;
 
         while y < offset_y + road_h {
             if y >= offset_y {
@@ -151,7 +151,7 @@ fn draw_barrier(ctx: GraphicsContext, x: i32, y: i32, w: i32, h: i32) {
 
     let stripe_h = 8;
     let stripe_gap = 10;
-    let mut sy = y + 2;
+    let sy = y + 2;
 
     while sy < y + h - stripe_h {
         draw_rect(ctx, x + 4, sy, w - 8, stripe_h, COLOR_BARRIER_STRIPE);
@@ -331,17 +331,17 @@ fn on_paint_event(ctx: GraphicsContext, window_width: i32, window_height: i32) {
 fn on_key_event(key_code: i32) -> bool {
     match key_code {
         37 || 65 || 97 => {
-            move_left(&mut game);
+            move_left(&game);
         },
         39 || 68 || 100 => {
-            move_right(&mut game);
+            move_right(&game);
         },
         32 => {
-            toggle_pause(&mut game);
+            toggle_pause(&game);
         },
         82 || 114 => {
             if is_game_over(&game) {
-                reset_game(&mut game);
+                reset_game(&game);
             }
         },
         27 => {
@@ -356,7 +356,7 @@ fn on_key_event(key_code: i32) -> bool {
 fn on_timer_event(current_time: u64) -> bool {
     anim_frame += 1;
     frame_count += 1;
-    return update_game(&mut game, current_time);
+    return update_game(&game, current_time);
 }
 
 // ==================== Windows 特定代码 ====================
@@ -366,9 +366,9 @@ fn on_timer_event(current_time: u64) -> bool {
 extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
     match uMsg {
         WM_PAINT => {
-            let mut ps: [u8; 64] = [0; 64];
+            let ps: [u8; 64] = [0; 64];
             let hdc = BeginPaint(hwnd, &ps);
-            let mut rect: [i32; 4] = [0; 4];
+            let rect: [i32; 4] = [0; 4];
             GetClientRect(hwnd, &rect);
             let width = rect[2] - rect[0];
             let height = rect[3] - rect[1];
@@ -437,7 +437,7 @@ fn main() -> i32 {
     io.println "========================================";
 
     // 初始化游戏
-    init_game(&mut game);
+    init_game(&game);
     game.window_width = WINDOW_WIDTH;
     game.window_height = WINDOW_HEIGHT;
 

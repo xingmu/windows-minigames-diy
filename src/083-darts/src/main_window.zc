@@ -18,7 +18,7 @@ static mut show_aim: bool = true;
 // ==================== 事件处理 ====================
 
 fn on_key(key: KeyCode) -> bool {
-    return handle_input(&mut game, key);
+    return handle_input(&game, key);
 }
 
 fn on_mouse_move(x: i32, y: i32) {
@@ -29,13 +29,13 @@ fn on_mouse_move(x: i32, y: i32) {
 fn on_mouse_click(x: i32, y: i32, button: i32) {
     // 左键投掷
     if button == 0 && game.status == GameStatus.Aiming {
-        throw_dart(&mut game, x, y);
+        throw_dart(&game, x, y);
         redraw_window(window);
     }
     // 右键或空格开始下一轮
     else if button == 1 || (button == 0 && game.status == GameStatus.RoundEnd) {
         if game.status == GameStatus.RoundEnd {
-            next_round(&mut game);
+            next_round(&game);
         }
     }
 }
@@ -371,7 +371,7 @@ fn main() -> i32 {
     io.println "========================================";
 
     // 初始化游戏状态
-    init_game(&mut game);
+    init_game(&game);
 
     // 创建窗口
     let title = "Darts - 飞镖游戏";
@@ -383,9 +383,9 @@ fn main() -> i32 {
     }
 
     // 获取实际客户区大小
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         game.width = cw;
         game.height = ch;

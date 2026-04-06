@@ -38,8 +38,8 @@ fn draw_circle(ctx: rawptr, cx: i32, cy: i32, radius: i32, color: u32) {
     // 使用setPixel绘制圆形
     let r = radius;
     let d = 3 - 2 * r;
-    let mut x = 0;
-    let mut y = r;
+    let x = 0;
+    let y = r;
     
     while x <= y {
         // 绘制八分圆
@@ -291,9 +291,9 @@ fn int_to_string(n: i32) -> str {
         return "0";
     }
     
-    let mut result = "";
-    let mut num = n;
-    let mut negative = false;
+    let result = "";
+    let num = n;
+    let negative = false;
     
     if num < 0 {
         negative = true;
@@ -401,7 +401,7 @@ fn handle_mouse_click(x: i32, y: i32, button: MouseButton) {
             let btn = BUTTONS[i];
             if x >= btn.x && x <= btn.x + btn.width &&
                y >= btn.y && y <= btn.y + btn.height {
-                make_choice(&mut game, btn.choice);
+                make_choice(&game, btn.choice);
                 return;
             }
         }
@@ -413,7 +413,7 @@ fn handle_mouse_click(x: i32, y: i32, button: MouseButton) {
         let btn_y = RESULT_Y + RESULT_HEIGHT + 20;
         if x >= btn_x && x <= btn_x + 120 &&
            y >= btn_y && y <= btn_y + 40 {
-            next_round(&mut game);
+            next_round(&game);
         }
     }
 }
@@ -428,7 +428,7 @@ pub fn main() {
     println "";
     
     // 初始化游戏
-    init_game(&mut game);
+    init_game(&game);
     
     // 创建窗口
     window = createWindow("石头剪刀布", GAME_WIDTH, GAME_HEIGHT);
@@ -468,7 +468,7 @@ pub fn main() {
         // 更新动画
         let current_time = getTickCount();
         let dt = (current_time - last_time) as i32;
-        update_animation(&mut game, dt);
+        update_animation(&game, dt);
         
         // 渲染
         let fb = getFrameBuffer(window);

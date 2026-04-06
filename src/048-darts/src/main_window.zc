@@ -16,12 +16,12 @@ static mut game_speed: u32 = 16;
 // ==================== 事件处理 ====================
 
 fn on_key(key: KeyCode) -> bool {
-    return on_key_press(&mut game, key);
+    return on_key_press(&game, key);
 }
 
 fn on_timer() -> bool {
     if game.status == DartsStatus.Flying {
-        return update_game(&mut game);
+        return update_game(&game);
     }
     return false;
 }
@@ -82,19 +82,19 @@ fn on_paint(w: i32, h: i32) {
 }
 
 fn on_mouse_move_only(x: i32, y: i32) {
-    on_mouse_move(&mut game, x, y);
+    on_mouse_move(&game, x, y);
 }
 
 fn on_mouse_down_only(x: i32, y: i32, button: i32) {
-    on_mouse_down(&mut game, x, y);
+    on_mouse_down(&game, x, y);
 }
 
 fn on_mouse_up_only(x: i32, y: i32, button: i32) {
-    on_mouse_up(&mut game, x, y);
+    on_mouse_up(&game, x, y);
 }
 
 fn on_mouse_combined(x: i32, y: i32, button: i32) {
-    on_mouse_move(&mut game, x, y);
+    on_mouse_move(&game, x, y);
 }
 
 fn on_destroy() {
@@ -236,10 +236,10 @@ fn draw_aim_line() {
             let vx = actualPower * cosF(angle);
             let vy = actualPower * sinF(angle);
 
-            let mut px = THROW_X as f32;
-            let mut py = THROW_Y as f32;
-            let mut pvx = vx;
-            let mut pvy = vy;
+            let px = THROW_X as f32;
+            let py = THROW_Y as f32;
+            let pvx = vx;
+            let pvy = vy;
             let gravity = 0.15;
 
             for i in 0..30 {
@@ -316,7 +316,7 @@ fn main() -> i32 {
     io.println "Zen-C Darts 飞镖游戏";
     io.println "========================================";
 
-    init_game(&mut game);
+    init_game(&game);
 
     let title = "Darts - 飞镖游戏";
     window = create_window(title, GAME_WIDTH, GAME_HEIGHT);
@@ -326,9 +326,9 @@ fn main() -> i32 {
         return 1;
     }
 
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         game.width = cw;
         game.height = ch;

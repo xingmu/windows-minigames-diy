@@ -30,7 +30,7 @@ fn draw_circle(ctx: rawptr, cx: i32, cy: i32, radius: i32, col: Color) {
 // ==================== 事件处理 ====================
 
 fn on_key(key: VirtualKey) -> bool {
-    return handleInput(&mut game, key);
+    return handleInput(&game, key);
 }
 
 fn on_timer() -> bool {
@@ -148,7 +148,7 @@ fn main() -> i32 {
     io.println "========================================";
 
     // 初始化游戏状态
-    initGame(&mut game);
+    initGame(&game);
 
     // 创建窗口
     let title = "Maze - 迷宫游戏";
@@ -160,9 +160,9 @@ fn main() -> i32 {
     }
 
     // 获取实际客户区大小
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         game.width = cw;
         game.height = ch;

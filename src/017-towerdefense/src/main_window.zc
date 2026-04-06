@@ -225,7 +225,7 @@ fn findTarget(tower: Tower*) -> Enemy* {
     let closestDist: float = 9999.0;
     let closestEnemy: Enemy* = nil;
     for i in 0..enemyCount {
-        let enemy = &enemies[i];
+        let enemy = enemies[i];
         let dist = distance(towerX, towerY, enemy.x, enemy.y);
         if dist <= tower.(float)range && dist < closestDist { closestDist = dist; closestEnemy = enemy; }
     }
@@ -243,7 +243,7 @@ fn fireProjectile(tower: Tower*, target: Enemy*) {
 
 fn updateTowers() {
     for i in 0..towerCount {
-        let tower = &towers[i];
+        let tower = towers[i];
         if gameTime - tower.lastFire >= tower.fireRate {
             let target = findTarget(tower);
             if target != nil { fireProjectile(tower, target); tower.lastFire = gameTime; }
@@ -254,19 +254,19 @@ fn updateTowers() {
 fn updateProjectiles(dt: float) {
     for i in 0..projectileCount {
         if !projectiles[i].active { continue; }
-        let proj = &projectiles[i];
+        let proj = projectiles[i];
         let dx = proj.targetX - proj.x; let dy = proj.targetY - proj.y;
         let dist = sqrtFloat(dx * dx + dy * dy);
         if dist < proj.speed * dt {
             proj.active = false;
             if proj.towerType == TowerType.Cannon {
                 for j in 0..enemyCount {
-                    let enemy = &enemies[j];
+                    let enemy = enemies[j];
                     if distance(proj.x, proj.y, enemy.x, enemy.y) <= 50.0 { enemy.hp = enemy.hp - proj.damage; }
                 }
             } else if proj.towerType == TowerType.Ice {
                 for j in 0..enemyCount {
-                    let enemy = &enemies[j];
+                    let enemy = enemies[j];
                     if distance(proj.x, proj.y, enemy.x, enemy.y) <= 30.0 {
                         enemy.slowed = true; enemy.slowTimer = gameTime + 2000; enemy.hp = enemy.hp - proj.damage;
                     }
@@ -290,7 +290,7 @@ fn updateProjectiles(dt: float) {
 
 fn updateEnemies(dt: float) {
     for i in 0..enemyCount {
-        let enemy = &enemies[i];
+        let enemy = enemies[i];
         if enemy.slowed && gameTime >= enemy.slowTimer { enemy.slowed = false; }
         let speed = enemy.speed; if enemy.slowed { speed = speed * 0.5; }
         if enemy.pathIndex < PATH.len - 1 {
@@ -391,7 +391,7 @@ fn drawTower(tower: Tower*, pitch: int, buffer: rawptr) {
     if tower.level > 1 { drawRect(nil, cx - 8, cy + 12, 16, 4, pitch, buffer, GOLD_COLOR); }
 }
 
-fn drawTowers(pitch: int, buffer: rawptr) { for i in 0..towerCount { drawTower(&towers[i], pitch, buffer); } }
+fn drawTowers(pitch: int, buffer: rawptr) { for i in 0..towerCount { drawTower(towers[i], pitch, buffer); } }
 
 fn drawEnemy(enemy: Enemy*, pitch: int, buffer: rawptr) {
     let cx = enemy.x as int; let cy = enemy.y as int; let radius = 12;
@@ -406,12 +406,12 @@ fn drawEnemy(enemy: Enemy*, pitch: int, buffer: rawptr) {
     drawRect(nil, barX + 1, barY + 1, (int)hpWidth, 2, pitch, buffer, hpColor);
 }
 
-fn drawEnemies(pitch: int, buffer: rawptr) { for i in 0..enemyCount { drawEnemy(&enemies[i], pitch, buffer); } }
+fn drawEnemies(pitch: int, buffer: rawptr) { for i in 0..enemyCount { drawEnemy(enemies[i], pitch, buffer); } }
 
 fn drawProjectiles(pitch: int, buffer: rawptr) {
     for i in 0..projectileCount {
         if !projectiles[i].active { continue; }
-        let proj = &projectiles[i]; let cx = proj.x as int; let cy = proj.y as int;
+        let proj = projectiles[i]; let cx = proj.x as int; let cy = proj.y as int;
         match proj.towerType {
             TowerType::Arrow => { drawLine(nil, cx - 5, cy - 5, cx + 5, cy + 5, pitch, buffer, Color.Brown()); drawLine(nil, cx + 5, cy - 5, cx - 5, cy + 5, pitch, buffer, Color.Brown()); },
             TowerType::Cannon => { fillCircle(nil, cx, cy, 5, pitch, buffer, Color.Black()); },

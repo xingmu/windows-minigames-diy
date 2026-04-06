@@ -132,7 +132,7 @@ def MAZE_TEMPLATE: i32[MAZE_HEIGHT][MAZE_WIDTH] = [
 
 // ==================== 初始化 ====================
 
-fn init_game(game: &mut GameState) {
+fn init_game(game: &GameState) {
     let seed = time.now().nanos();
     math.srand(seed);
     
@@ -207,7 +207,7 @@ fn get_ghost_scatter_target(t: GhostType) -> Position {
 
 // ==================== 输入处理 ====================
 
-fn handle_input(game: &mut GameState, key: i32) -> bool {
+fn handle_input(game: &GameState, key: i32) -> bool {
     match key {
         // 上方向
         38 || 87 || 119 => { // 上箭头、W、w
@@ -304,7 +304,7 @@ fn can_move(maze: &i32[MAZE_HEIGHT][MAZE_WIDTH], x: i32, y: i32, dir: Direction)
 
 // ==================== 更新游戏 ====================
 
-fn update_game(game: &mut GameState) -> bool {
+fn update_game(game: &GameState) -> bool {
     if game.game_over || game.won || game.paused {
         return false;
     }
@@ -336,7 +336,7 @@ fn update_game(game: &mut GameState) -> bool {
     return true;
 }
 
-fn update_pacman(game: &mut GameState) {
+fn update_pacman(game: &GameState) {
     // 先尝试转向
     if game.next_dir != game.pacman_dir {
         if can_move(&game.maze, game.pacman_pos.x, game.pacman_pos.y, game.next_dir) {
@@ -398,12 +398,12 @@ fn update_pacman(game: &mut GameState) {
     check_ghost_collision(game);
 }
 
-fn update_ghosts(game: &mut GameState) {
+fn update_ghosts(game: &GameState) {
     // 释放幽灵计时器
     game.ghost_release_timer += 1;
     
     for i in 0..4 {
-        let ghost = &mut game.ghosts[i];
+        let ghost = &game.ghosts[i];
         
         // 分批释放
         if ghost.in_house {
@@ -433,7 +433,7 @@ fn update_ghosts(game: &mut GameState) {
     }
 }
 
-fn move_ghost_home(ghost: &mut Ghost, maze: &i32[MAZE_HEIGHT][MAZE_WIDTH]) {
+fn move_ghost_home(ghost: &Ghost, maze: &i32[MAZE_HEIGHT][MAZE_WIDTH]) {
     // 简单地向老家移动
     let dx = ghost.home_x - ghost.pos.x;
     let dy = ghost.home_y - ghost.pos.y;
@@ -445,7 +445,7 @@ fn move_ghost_home(ghost: &mut Ghost, maze: &i32[MAZE_HEIGHT][MAZE_WIDTH]) {
     }
 }
 
-fn move_ghost(ghost: &mut Ghost, game: GameState*) {
+fn move_ghost(ghost: &Ghost, game: GameState*) {
     // 每隔几帧移动一次（速度控制）
     if game.last_update % 2 != 0 && ghost.state == GhostState::Normal {
         return;
@@ -455,8 +455,8 @@ fn move_ghost(ghost: &mut Ghost, game: GameState*) {
     let target = get_ghost_target(ghost, game);
     
     // 获取可移动方向
-    let mut dirs: [Direction; 4];
-    let mut dir_count = 0;
+    let dirs: [Direction; 4];
+    let dir_count = 0;
     
     // 不能反向（除非是唯一选择）
     let opposite = get_opposite_dir(ghost.dir);
@@ -483,8 +483,8 @@ fn move_ghost(ghost: &mut Ghost, game: GameState*) {
     }
     
     // 选择最优方向
-    let mut best_dir = ghost.dir;
-    let mut best_dist = 10000;
+    let best_dir = ghost.dir;
+    let best_dist = 10000;
     
     for d in 0..dir_count {
         let nx = ghost.pos.x + get_dir_dx(dirs[d]);
@@ -588,7 +588,7 @@ fn get_ghost_target(ghost: Ghost*, game: GameState*) -> Position {
     }
 }
 
-fn check_ghost_collision(game: &mut GameState) {
+fn check_ghost_collision(game: &GameState) {
     for i in 0..4 {
         let ghost = &game.ghosts[i];
         if ghost.pos.x == game.pacman_pos.x && ghost.pos.y == game.pacman_pos.y {
@@ -612,7 +612,7 @@ fn check_ghost_collision(game: &mut GameState) {
     }
 }
 
-fn reset_positions(game: &mut GameState) {
+fn reset_positions(game: &GameState) {
     game.pacman_pos = Position { x: 13, y: 23 };
     game.pacman_dir = Direction::DirLeft;
     game.next_dir = Direction::DirLeft;

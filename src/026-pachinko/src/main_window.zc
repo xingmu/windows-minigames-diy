@@ -16,16 +16,16 @@ static mut game_speed: u32 = 16;  // ~60 FPS
 // ==================== 事件处理 ====================
 
 fn on_key(key: KeyCode) -> bool {
-    return handle_input(&mut game, key);
+    return handle_input(&game, key);
 }
 
 fn on_key_up(key: KeyCode) {
-    handle_key_up(&mut game, key);
+    handle_key_up(&game, key);
 }
 
 fn on_timer() -> bool {
     if game.status == GameStatus.Playing {
-        return update_game(&mut game);
+        return update_game(&game);
     }
     return false;
 }
@@ -137,7 +137,7 @@ fn on_mouse(x: i32, y: i32) {
             }
         }
     } else if game.status == GameStatus.GameOver {
-        init_game(&mut game);
+        init_game(&game);
     }
 }
 
@@ -153,7 +153,7 @@ fn main() -> i32 {
     io.println "========================================";
 
     // 初始化游戏状态
-    init_game(&mut game);
+    init_game(&game);
 
     // 创建窗口
     let title = "Pachinko - 弹珠台游戏";
@@ -165,9 +165,9 @@ fn main() -> i32 {
     }
 
     // 获取实际客户区大小
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         game.width = cw;
         game.height = ch;

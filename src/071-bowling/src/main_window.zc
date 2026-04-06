@@ -51,10 +51,10 @@ fn fb_draw_line(x1: i32, y1: i32, x2: i32, y2: i32, color: Color) {
     let dy = abs(y2 - y1);
     let sx = if x1 < x2 { 1 } else { -1 };
     let sy = if y1 < y2 { 1 } else { -1 };
-    let mut err = dx - dy;
+    let err = dx - dy;
 
-    let mut x = x1;
-    let mut y = y1;
+    let x = x1;
+    let y = y1;
 
     loop {
         fb_set_pixel(x, y, color);
@@ -95,9 +95,9 @@ fn fb_draw_circle(cx: i32, cy: i32, radius: i32, color: Color) {
     if radius <= 0 {
         return;
     }
-    let mut d = 3 - 2 * radius;
-    let mut x = 0;
-    let mut y = radius;
+    let d = 3 - 2 * radius;
+    let x = 0;
+    let y = radius;
 
     loop {
         fb_set_pixel(cx + x, cy + y, color);
@@ -464,8 +464,8 @@ fn sqrt_int(n: i32) -> i32 {
     if n <= 0 {
         return 0;
     }
-    let mut x = n;
-    let mut y = 1;
+    let x = n;
+    let y = 1;
     while y < x {
         x = (x + y) / 2;
         y = n / x;
@@ -521,20 +521,20 @@ fn handle_key(key: VirtualKey) {
 fn handle_timer() {
     if game.status == GameStatus.Throwing {
         // 更新球
-        let ballMoving = updateBall(&mut game);
+        let ballMoving = updateBall(&game);
 
         // 球瓶碰撞
-        checkBallPinCollision(&mut game);
+        checkBallPinCollision(&game);
 
         // 更新瓶
-        updatePins(&mut game);
+        updatePins(&game);
 
         // 瓶瓶碰撞
-        checkPinPinCollision(&mut game);
+        checkPinPinCollision(&game);
 
         if !ballMoving && allPinsStopped(&game) {
             // 球停止，所有瓶也停止
-            nextRoll(&mut game);
+            nextRoll(&game);
         }
     } else if game.status == GameStatus.GameOver {
         // 等待点击重新开始
@@ -542,22 +542,22 @@ fn handle_timer() {
 }
 
 fn handle_mouse_down(x: i32, y: i32, button: MouseButton) {
-    onMouseDown(&mut game, x, y);
+    onMouseDown(&game, x, y);
 }
 
 fn handle_mouse_up(x: i32, y: i32, button: MouseButton) {
-    onMouseUp(&mut game, x, y);
+    onMouseUp(&game, x, y);
 }
 
 fn handle_mouse_move(x: i32, y: i32) {
-    onMouseMove(&mut game, x, y);
+    onMouseMove(&game, x, y);
 }
 
 // ==================== 主循环 ====================
 
 fn game_loop() {
-    let mut lastTime = getTickCount();
-    let mut event: Event;
+    let lastTime = getTickCount();
+    let event: Event;
 
     while running {
         // 处理事件
@@ -623,7 +623,7 @@ fn main() -> i32 {
     io.println "========================================";
 
     // 初始化游戏
-    init_game(&mut game);
+    init_game(&game);
 
     // 创建窗口
     window = createWindow(TITLE, GAME_WIDTH, GAME_HEIGHT);

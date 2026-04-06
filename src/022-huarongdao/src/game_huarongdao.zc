@@ -55,8 +55,8 @@ fn can_move_to(board: &[BOARD_ROWS * BOARD_COLS]i32, block: Block*, new_row: i32
 }
 
 // 移动方块到新位置
-fn move_block(board: &mut [BOARD_ROWS * BOARD_COLS]i32, blocks: &mut [Block; 10], block_id: i32, new_row: i32, new_col: i32) {
-    let mut block: Block = blocks[block_id];
+fn move_block(board: &[BOARD_ROWS * BOARD_COLS]i32, blocks: &[Block; 10], block_id: i32, new_row: i32, new_col: i32) {
+    let block: Block = blocks[block_id];
     
     // 清除旧位置
     for r in 0..block.height {
@@ -106,7 +106,7 @@ fn get_block_color(block_type: i32) -> u32 {
 }
 
 // 初始化游戏板
-fn init_board(board: &mut [BOARD_ROWS * BOARD_COLS]i32, blocks: &mut [Block; 10]) {
+fn init_board(board: &[BOARD_ROWS * BOARD_COLS]i32, blocks: &[Block; 10]) {
     // 全部初始化为-1(空)
     for i in 0..(BOARD_ROWS * BOARD_COLS) {
         board[i] = -1;

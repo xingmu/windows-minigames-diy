@@ -188,10 +188,10 @@ class MahjongGame extends Game {
         }
         
         // 初始化牌组
-        self.playerMelds = Melds.new();
-        self.ai1Melds = Melds.new();
-        self.ai2Melds = Melds.new();
-        self.ai3Melds = Melds.new();
+        self.playerMelds = Melds();
+        self.ai1Melds = Melds();
+        self.ai2Melds = Melds();
+        self.ai3Melds = Melds();
         
         // 初始化打出的牌
         for i in 0..64 {
@@ -202,7 +202,7 @@ class MahjongGame extends Game {
         }
         
         // 初始化牌墙
-        self.wall = TileWall.new();
+        self.wall = TileWall();
         
         // 初始化操作
         self.currentOperation.canChi = false;
@@ -211,11 +211,11 @@ class MahjongGame extends Game {
         self.currentOperation.canHu = false;
         
         // 初始化按钮区域
-        self.chiBtnRect = Rect.new(WINDOW_WIDTH / 2 - 200, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
-        self.pengBtnRect = Rect.new(WINDOW_WIDTH / 2 - 100, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
-        self.gangBtnRect = Rect.new(WINDOW_WIDTH / 2, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
-        self.huBtnRect = Rect.new(WINDOW_WIDTH / 2 + 100, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
-        self.cancelBtnRect = Rect.new(WINDOW_WIDTH / 2 + 200, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
+        self.chiBtnRect = Rect(WINDOW_WIDTH / 2 - 200, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
+        self.pengBtnRect = Rect(WINDOW_WIDTH / 2 - 100, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
+        self.gangBtnRect = Rect(WINDOW_WIDTH / 2, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
+        self.huBtnRect = Rect(WINDOW_WIDTH / 2 + 100, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
+        self.cancelBtnRect = Rect(WINDOW_WIDTH / 2 + 200, BTN_Y, BTN_WIDTH, BTN_HEIGHT);
         
         self.showChiBtn = false;
         self.showPengBtn = false;
@@ -239,10 +239,10 @@ class MahjongGame extends Game {
         self.ai3HandSize = 0;
         
         // 重置牌组
-        self.playerMelds = Melds.new();
-        self.ai1Melds = Melds.new();
-        self.ai2Melds = Melds.new();
-        self.ai3Melds = Melds.new();
+        self.playerMelds = Melds();
+        self.ai1Melds = Melds();
+        self.ai2Melds = Melds();
+        self.ai3Melds = Melds();
         
         // 重置打出的牌
         self.playerDiscardCount = 0;
@@ -1106,7 +1106,7 @@ class MahjongGame extends Game {
         
         // 开始按钮
         if self.phase == GamePhase.Start {
-            let startBtn = Rect.new(WINDOW_WIDTH / 2 - 100, 400, 200, 60);
+            let startBtn = Rect(WINDOW_WIDTH / 2 - 100, 400, 200, 60);
             if startBtn.contains(mx, my) {
                 return "start";
             }
@@ -1114,7 +1114,7 @@ class MahjongGame extends Game {
         
         // 重新开始按钮
         if self.phase == GamePhase.GAMEOver {
-            let restartBtn = Rect.new(WINDOW_WIDTH / 2 - 80, 430, 160, 50);
+            let restartBtn = Rect(WINDOW_WIDTH / 2 - 80, 430, 160, 50);
             if restartBtn.contains(mx, my) {
                 return "restart";
             }

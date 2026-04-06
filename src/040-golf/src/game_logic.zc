@@ -400,8 +400,8 @@ fn dist2(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
 
 fn sqrt_int(n: i32) -> i32 {
     if n <= 0 { return 0; }
-    let mut x = n;
-    let mut y = 1;
+    let x = n;
+    let y = 1;
     while y < x {
         x = (x + y) / 2;
         y = n / x;
@@ -446,7 +446,7 @@ fn circleRectIntersect(cx: i32, cy: i32, r: i32, x1: i32, y1: i32, x2: i32, y2: 
 
 // ==================== 初始化 ====================
 
-fn init_game(state: &mut GolfState) {
+fn init_game(state: &GolfState) {
     state.width = GAME_WIDTH;
     state.height = GAME_HEIGHT;
     state.radius = BALL_RADIUS;
@@ -458,7 +458,7 @@ fn init_game(state: &mut GolfState) {
     loadHole(state, 0);
 }
 
-fn loadHole(state: &mut GolfState, holeIndex: i32) {
+fn loadHole(state: &GolfState, holeIndex: i32) {
     state.currentHole = holeIndex;
     state.course = getCourse(holeIndex);
     state.ballX = state.course.teeX;
@@ -475,7 +475,7 @@ fn loadHole(state: &mut GolfState, holeIndex: i32) {
 
 // ==================== 物理更新 ====================
 
-fn updatePhysics(state: &mut GolfState) -> bool {
+fn updatePhysics(state: &GolfState) -> bool {
     let anyMoving = false;
     
     // 检查是否在沙坑中 (沙坑摩擦更大)
@@ -612,7 +612,7 @@ fn allStopped(state: GolfState*) -> bool {
 }
 
 // 击球
-fn shoot(state: &mut GolfState, power: i32, dx: i32, dy: i32) {
+fn shoot(state: &GolfState, power: i32, dx: i32, dy: i32) {
     let dist = sqrt_int(dx * dx + dy * dy);
     if dist == 0 || power <= 0 {
         return;
@@ -635,7 +635,7 @@ fn shoot(state: &mut GolfState, power: i32, dx: i32, dy: i32) {
 
 // ==================== 鼠标处理 ====================
 
-fn onMouseDown(state: &mut GolfState, x: i32, y: i32) {
+fn onMouseDown(state: &GolfState, x: i32, y: i32) {
     if state.status == GameStatus.HoleIn {
         // 进球动画结束后进入下一洞
         return;
@@ -658,7 +658,7 @@ fn onMouseDown(state: &mut GolfState, x: i32, y: i32) {
     state.mouseY = y;
 }
 
-fn onMouseMove(state: &mut GolfState, x: i32, y: i32) {
+fn onMouseMove(state: &GolfState, x: i32, y: i32) {
     state.mouseX = x;
     state.mouseY = y;
     
@@ -673,7 +673,7 @@ fn onMouseMove(state: &mut GolfState, x: i32, y: i32) {
     }
 }
 
-fn onMouseUp(state: &mut GolfState, x: i32, y: i32) {
+fn onMouseUp(state: &GolfState, x: i32, y: i32) {
     if state.status == GameStatus.Dragging {
         if state.power > 1 {
             // 从拖拽起点到终点的反方向就是击球方向 (拉弓射箭)

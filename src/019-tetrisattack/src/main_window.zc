@@ -179,14 +179,14 @@ fn on_key(key: KeyCode) -> bool {
             return false;
         },
         KeyCode::KeyR => {
-            restart_game(&mut game);
+            restart_game(&game);
             fallingTimer = getTickCount();
             return true;
         },
         KeyCode::Left => {
             if !game.gameOver {
                 if game.falling.active {
-                    move_falling_horizontal(&mut game, -1);
+                    move_falling_horizontal(&game, -1);
                 } else {
                     game.cursorCol = game.cursorCol - 1;
                     if game.cursorCol < 0 { game.cursorCol = 0; }
@@ -197,7 +197,7 @@ fn on_key(key: KeyCode) -> bool {
         KeyCode::Right => {
             if !game.gameOver {
                 if game.falling.active {
-                    move_falling_horizontal(&mut game, 1);
+                    move_falling_horizontal(&game, 1);
                 } else {
                     game.cursorCol = game.cursorCol + 1;
                     if game.cursorCol >= GRID_COLS { game.cursorCol = GRID_COLS - 1; }
@@ -207,7 +207,7 @@ fn on_key(key: KeyCode) -> bool {
         },
         KeyCode::Up => {
             if !game.gameOver && game.falling.active {
-                swap_falling_blocks(&mut game);
+                swap_falling_blocks(&game);
             }
             return true;
         },
@@ -215,19 +215,19 @@ fn on_key(key: KeyCode) -> bool {
             if !game.gameOver {
                 if game.falling.active {
                     // 快速下落
-                    if move_falling_down(&mut game) {
+                    if move_falling_down(&game) {
                         // 方块已放置，应用重力并检查消除
-                        apply_gravity(&mut game);
-                        let cleared = check_and_clear_matches(&mut game);
+                        apply_gravity(&game);
+                        let cleared = check_and_clear_matches(&game);
                         // 如果消除了方块，继续应用重力
                         while cleared > 0 {
-                            apply_gravity(&mut game);
-                            cleared = check_and_clear_matches(&mut game);
+                            apply_gravity(&game);
+                            cleared = check_and_clear_matches(&game);
                         }
                         
                         // 生成新的下落方块
                         if !game.gameOver {
-                            spawn_new_pair(&mut game);
+                            spawn_new_pair(&game);
                         }
                     }
                 }
@@ -248,7 +248,7 @@ fn on_key(key: KeyCode) -> bool {
 
 fn on_timer() -> bool {
     if !game.gameOver {
-        let updated = update_time(&mut game);
+        let updated = update_time(&game);
         return updated;
     }
     return false;
@@ -273,19 +273,19 @@ fn on_update() {
         if currentTime - fallingTimer > game.(u32)fallingSpeed {
             fallingTimer = currentTime;
             
-            if move_falling_down(&mut game) {
+            if move_falling_down(&game) {
                 // 方块已放置，应用重力并检查消除
-                apply_gravity(&mut game);
-                let cleared = check_and_clear_matches(&mut game);
+                apply_gravity(&game);
+                let cleared = check_and_clear_matches(&game);
                 // 如果消除了方块，继续应用重力
                 while cleared > 0 {
-                    apply_gravity(&mut game);
-                    cleared = check_and_clear_matches(&mut game);
+                    apply_gravity(&game);
+                    cleared = check_and_clear_matches(&game);
                 }
                 
                 // 生成新的下落方块
                 if !game.gameOver {
-                    spawn_new_pair(&mut game);
+                    spawn_new_pair(&game);
                 }
             }
         }
@@ -318,7 +318,7 @@ fn main() -> i32 {
     io.println "========================================";
 
     // 初始化游戏状态
-    init_game(&mut game);
+    init_game(&game);
 
     // 创建窗口
     let title = "TetrisAttack 俄罗斯方块消消乐";
@@ -330,9 +330,9 @@ fn main() -> i32 {
     }
 
     // 获取实际客户区大小
-    let mut cw = 0;
-    let mut ch = 0;
-    get_window_client_size(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    get_window_client_size(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         set_client_size(cw, ch);
     }

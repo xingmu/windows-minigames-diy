@@ -378,7 +378,7 @@ class RacingGame extends Game {
                         "↑: GAS  ← →: STEER", Color.White(), Font("Arial", 12));
         
         // 当前位置提示
-        if !self.isOnTrack(self.car.(int)x, self.car.(int)y) {
+        if !self.isOnTrack((int)(self.car.x), (int)(self.car.y)) {
             canvas.drawText(WINDOW_WIDTH / 2 - 80, 60, "OFF TRACK!", Color.Red(), Font("Arial", 16));
         }
     }

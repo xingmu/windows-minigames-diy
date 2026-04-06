@@ -314,15 +314,15 @@ fn handle_key_down(key: i32) {
         65 => { key_left = true; },  // A
         68 => { key_right = true; }, // D
         32 => { key_space = true; }, // Space
-        80 => { toggle_pause(&mut game); }, // P
-        82 => { init_game(&mut game); game.phase = GamePhase.Ready; }, // R
+        80 => { toggle_pause(&game); }, // P
+        82 => { init_game(&game); game.phase = GamePhase.Ready; }, // R
         27 => { running = false; }, // ESC
         _ => {}
     }
     
     // 空格开始游戏
     if key == 32 && (game.phase == GamePhase.Ready || game.phase == GamePhase.GameOver) {
-        start_game(&mut game);
+        start_game(&game);
     }
 }
 
@@ -341,7 +341,7 @@ fn handle_key_up(key: i32) {
 fn handle_kick() {
     if key_space && game.phase == GamePhase.Playing {
         if game.ball.owner == &game.player {
-            kick_ball(&mut game, &mut game.player);
+            kick_ball(&game, &game.player);
         }
     }
 }
@@ -349,7 +349,7 @@ fn handle_kick() {
 // 更新输入状态
 fn update_input() {
     if game.phase == GamePhase.Playing {
-        update_player_input(&mut game, key_up, key_down, key_left, key_right, key_space);
+        update_player_input(&game, key_up, key_down, key_left, key_right, key_space);
     }
 }
 
@@ -368,7 +368,7 @@ extern fn WindowProc(hwnd: WindowHandle, msg: u32, wParam: rawptr, lParam: rawpt
             let ps = PAINTSTRUCT { hdc: nil, fErase: 0, rcPaint: RECT { left: 0, top: 0, right: 0, bottom: 0 }, fRestore: 0, fIncUpdate: 0, rgbReserved: [0; 32] };
             let hdc = BeginPaint(hwnd, &ps);
             
-            let mut rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+            let rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
             GetClientRect(hwnd, &rect);
             g_width = rect.right;
             g_height = rect.bottom;
@@ -391,7 +391,7 @@ extern fn WindowProc(hwnd: WindowHandle, msg: u32, wParam: rawptr, lParam: rawpt
         },
         0x0111 => { // WM_TIMER
             update_input();
-            update_game(&mut game);
+            update_game(&game);
             redraw_window(hwnd);
             return nil;
         },
@@ -442,7 +442,7 @@ pub struct PAINTSTRUCT {
 }
 
 fn run_event_loop(window: WindowHandle) {
-    let mut msg = MSG { hwnd: nil, message: 0, wParam: nil, lParam: nil, time: 0, pt: 0 };
+    let msg = MSG { hwnd: nil, message: 0, wParam: nil, lParam: nil, time: 0, pt: 0 };
     loop {
         if !running {
             break;
@@ -456,7 +456,7 @@ fn run_event_loop(window: WindowHandle) {
         } else {
             // 更新逻辑
             update_input();
-            update_game(&mut game);
+            update_game(&game);
         }
         Sleep(16);
     }
@@ -544,7 +544,7 @@ fn main() -> i32 {
     initPlatform();
     
     // 初始化游戏
-    init_game(&mut game);
+    init_game(&game);
     
     // 创建窗口
     window = create_window("Zen-C 足球游戏", WINDOW_WIDTH, WINDOW_HEIGHT);

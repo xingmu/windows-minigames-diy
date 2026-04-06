@@ -167,8 +167,8 @@ fn sqrt_int(n: i32) -> i32 {
     if n <= 0 {
         return 0;
     }
-    let mut x = n;
-    let mut y = 1;
+    let x = n;
+    let y = 1;
     while y < x {
         x = (x + y) / 2;
         y = n / x;
@@ -180,8 +180,8 @@ fn sqrt_f(n: f32) -> f32 {
     if n <= 0.0 {
         return 0.0;
     }
-    let mut x = n;
-    let mut y = 1.0;
+    let x = n;
+    let y = 1.0;
     while y < x {
         x = (x + y) / 2.0;
         y = n / x;
@@ -250,7 +250,7 @@ fn isInHole(state: GolfState*, x: f32, y: f32) -> bool {
 
 // ==================== 限制球在球场范围内 ====================
 
-fn clampBallToCourse(state: &mut GolfState) {
+fn clampBallToCourse(state: &GolfState) {
     if state.ball.x < 20.0 {
         state.ball.x = 20.0;
         state.ball.vx = -state.ball.vx * 0.5;
@@ -271,7 +271,7 @@ fn clampBallToCourse(state: &mut GolfState) {
 
 // ==================== 初始化球道数据 ====================
 
-fn initCourse(state: &mut GolfState) {
+fn initCourse(state: &GolfState) {
     // 本游戏使用单一长球道设计 (18洞，每洞约500像素长)
     state.courseWidth = 9000;
 
@@ -407,7 +407,7 @@ fn initCourse(state: &mut GolfState) {
 
 // ==================== 初始化游戏 ====================
 
-fn init_game(state: &mut GolfState) {
+fn init_game(state: &GolfState) {
     state.width = GAME_WIDTH;
     state.height = GAME_HEIGHT;
     state.status = GameStatus.Ready;
@@ -426,7 +426,7 @@ fn init_game(state: &mut GolfState) {
     resetBall(state);
 }
 
-fn resetBall(state: &mut GolfState) {
+fn resetBall(state: &GolfState) {
     let tee = state.tees[state.currentHole];
     state.ball.x = tee.x as f32;
     state.ball.y = tee.y as f32;
@@ -462,7 +462,7 @@ pub fn randInt(min: i32, max: i32) -> i32 {
 
 // ==================== 击球 ====================
 
-fn shoot(state: &mut GolfState, power: i32, dx: i32, dy: i32) {
+fn shoot(state: &GolfState, power: i32, dx: i32, dy: i32) {
     let dist = sqrt_int(dx * dx + dy * dy);
     if dist == 0 {
         return;
@@ -483,7 +483,7 @@ fn shoot(state: &mut GolfState, power: i32, dx: i32, dy: i32) {
 
 // ==================== 更新球的物理 ====================
 
-fn updateBall(state: &mut GolfState) -> bool {
+fn updateBall(state: &GolfState) -> bool {
     if state.status != GameStatus.Moving {
         return false;
     }
@@ -493,7 +493,7 @@ fn updateBall(state: &mut GolfState) -> bool {
         return false;
     }
 
-    let mut ball = state.ball;
+    let ball = state.ball;
     let stillMoving = false;
 
     // 应用风力
@@ -592,7 +592,7 @@ fn updateBall(state: &mut GolfState) -> bool {
 }
 
 // 更新摄像机 (让球保持在屏幕中间)
-fn updateCamera(state: &mut GolfState) {
+fn updateCamera(state: &GolfState) {
     let targetX = state.ball.(i32)x - GAME_WIDTH / 2;
     let targetX = clamp(targetX, 0, state.courseWidth - GAME_WIDTH);
 
@@ -602,7 +602,7 @@ fn updateCamera(state: &mut GolfState) {
 
 // ==================== 鼠标处理 ====================
 
-fn onMouseDown(state: &mut GolfState, x: i32, y: i32) {
+fn onMouseDown(state: &GolfState, x: i32, y: i32) {
     if state.status == GameStatus.HoleComplete {
         // 进入下一洞
         state.currentHole = state.currentHole + 1;
@@ -633,7 +633,7 @@ fn onMouseDown(state: &mut GolfState, x: i32, y: i32) {
     state.mouseY = y;
 }
 
-fn onMouseMove(state: &mut GolfState, x: i32, y: i32) {
+fn onMouseMove(state: &GolfState, x: i32, y: i32) {
     state.mouseX = x + state.cameraX;
     state.mouseY = y;
 
@@ -651,7 +651,7 @@ fn onMouseMove(state: &mut GolfState, x: i32, y: i32) {
     }
 }
 
-fn onMouseUp(state: &mut GolfState, x: i32, y: i32) {
+fn onMouseUp(state: &GolfState, x: i32, y: i32) {
     if state.status == GameStatus.Dragging {
         if state.power > 1 {
             // 从起点到终点的方向就是击球方向 (相反)

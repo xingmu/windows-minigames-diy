@@ -390,7 +390,7 @@ fn on_mouse_down(x: i32, y: i32, button: MouseButton) {
     if button == MouseButton.Left {
         match game.status {
             GameStatus::Ready => {
-                reset_game(&mut game);
+                reset_game(&game);
                 game.status = GameStatus.Playing;
                 game.chargeStartTime = get_tick_count();
                 game.bow.drawing = true;
@@ -400,7 +400,7 @@ fn on_mouse_down(x: i32, y: i32, button: MouseButton) {
                 game.bow.drawing = true;
             }
             GameStatus::GameOver => {
-                reset_game(&mut game);
+                reset_game(&game);
                 game.status = GameStatus.Playing;
             }
             _ => {}
@@ -410,7 +410,7 @@ fn on_mouse_down(x: i32, y: i32, button: MouseButton) {
 
 fn on_mouse_up(x: i32, y: i32, button: MouseButton) {
     if button == MouseButton.Left && game.bow.drawing {
-        shoot_arrow(&mut game);
+        shoot_arrow(&game);
         game.bow.drawing = false;
         game.bow.power = MIN_POWER;
     }
@@ -430,7 +430,7 @@ fn on_key(key: VirtualKey) -> bool {
 }
 
 fn on_timer() -> bool {
-    update_game(&mut game);
+    update_game(&game);
     return true;
 }
 
@@ -501,7 +501,7 @@ fn main() -> i32 {
     srand(12345);
     
     // Initialize game state
-    init_game(&mut game, WINDOW_WIDTH, WINDOW_HEIGHT);
+    init_game(&game, WINDOW_WIDTH, WINDOW_HEIGHT);
     
     // Create window
     let title = "Archery - 射箭游戏";
@@ -513,9 +513,9 @@ fn main() -> i32 {
     }
     
     // Get client area size
-    let mut cw = 0;
-    let mut ch = 0;
-    getWindowSize(window, &mut cw, &mut ch);
+    let cw = 0;
+    let ch = 0;
+    getWindowSize(window, &cw, &ch);
     if cw > 0 && ch > 0 {
         game.width = cw;
         game.height = ch;
@@ -550,7 +550,7 @@ fn main() -> i32 {
     redrawWindow(window);
     
     // Run event loop
-    runEventLoop(window, &mut game);
+    runEventLoop(window, &game);
     
     io.println "游戏结束!";
     io.println "========================================";

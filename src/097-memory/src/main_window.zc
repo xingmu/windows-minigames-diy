@@ -349,12 +349,12 @@ fn on_key(key: VirtualKey) -> bool {
             return false;
         },
         VirtualKey::KeyR => {
-            restart_game(&mut game);
+            restart_game(&game);
             return true;
         },
         VirtualKey::KeyH => {
             let currentTime = getTickCount();
-            use_hint(&mut game, currentTime);
+            use_hint(&game, currentTime);
             return true;
         },
         _ => {},
@@ -373,13 +373,13 @@ fn on_mouse(x: int, y: int, button: MouseButton) {
     
     if row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS {
         let currentTime = getTickCount();
-        click_card(&mut game, row, col, currentTime);
+        click_card(&game, row, col, currentTime);
     }
 }
 
 fn on_timer(currentTime: u32) {
     if !game.gameOver {
-        update_game(&mut game, currentTime);
+        update_game(&game, currentTime);
     }
 }
 
@@ -395,7 +395,7 @@ fn main() -> i32 {
     setRandomSeed(u32)(getTickCount());
 
     // 初始化游戏状态
-    init_game(&mut game);
+    init_game(&game);
 
     // 创建窗口
     let title = "097 Memory 记忆翻牌";
@@ -435,11 +435,11 @@ fn main() -> i32 {
                     if event.key.key == VirtualKey.Escape {
                         running = false;
                     } else if event.key.key == VirtualKey.KeyR {
-                        restart_game(&mut game);
+                        restart_game(&game);
                         on_paint();
                     } else if event.key.key == VirtualKey.KeyH {
                         let currentTime = getTickCount();
-                        if use_hint(&mut game, currentTime) {
+                        if use_hint(&game, currentTime) {
                             on_paint();
                         }
                     }

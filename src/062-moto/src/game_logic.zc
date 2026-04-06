@@ -90,7 +90,7 @@ struct GameState {
 // ==================== 游戏逻辑函数 ====================
 
 // 初始化游戏
-fn init_game(game: &mut GameState) {
+fn init_game(game: &GameState) {
     // 初始化随机数种子
     let seed = time.now().nanos();
     math.srand(seed);
@@ -152,15 +152,15 @@ fn get_lane_center_x(lane: i32) -> i32 {
 }
 
 // 生成障碍物
-fn spawn_obstacle(game: &mut GameState) {
+fn spawn_obstacle(game: &GameState) {
     // 找到一个空闲的障碍物槽位
     for i in 0..MAX_OBSTACLES {
         if !game.obstacles[i].active {
             let lane = math.rand() % LANE_COUNT;
             let obstacle_type_val = math.rand() % 3;
-            let mut obs_type = ObstacleType.Barrier;
-            let mut width = OBSTACLE_WIDTH;
-            let mut height = OBSTACLE_HEIGHT;
+            let obs_type = ObstacleType.Barrier;
+            let width = OBSTACLE_WIDTH;
+            let height = OBSTACLE_HEIGHT;
 
             match obstacle_type_val {
                 0 => obs_type = ObstacleType.Barrier,
@@ -193,7 +193,7 @@ fn spawn_obstacle(game: &mut GameState) {
 }
 
 // 生成金币
-fn spawn_coin(game: &mut GameState) {
+fn spawn_coin(game: &GameState) {
     // 找到一个空闲的金币槽位
     for i in 0..MAX_COINS {
         if !game.coins[i].active {
@@ -213,7 +213,7 @@ fn spawn_coin(game: &mut GameState) {
 }
 
 // 处理输入 - 左移
-fn move_left(game: &mut GameState) {
+fn move_left(game: &GameState) {
     if game.game_over || game.paused {
         return;
     }
@@ -224,7 +224,7 @@ fn move_left(game: &mut GameState) {
 }
 
 // 处理输入 - 右移
-fn move_right(game: &mut GameState) {
+fn move_right(game: &GameState) {
     if game.game_over || game.paused {
         return;
     }
@@ -244,7 +244,7 @@ fn check_collision(ax: i32, ay: i32, aw: i32, ah: i32,
 }
 
 // 更新游戏状态
-fn update_game(game: &mut GameState, current_time: u64) -> bool {
+fn update_game(game: &GameState, current_time: u64) -> bool {
     if game.game_over || game.paused {
         return false;
     }
@@ -384,7 +384,7 @@ fn is_paused(game: GameState*) -> bool {
 }
 
 // 切换暂停状态
-fn toggle_pause(game: &mut GameState) {
+fn toggle_pause(game: &GameState) {
     game.paused = !game.paused;
 }
 
@@ -394,6 +394,6 @@ fn get_speed_level(game: GameState*) -> i32 {
 }
 
 // 重置游戏
-fn reset_game(game: &mut GameState) {
+fn reset_game(game: &GameState) {
     init_game(game);
 }

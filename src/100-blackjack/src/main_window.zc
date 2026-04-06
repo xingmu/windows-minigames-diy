@@ -271,7 +271,7 @@ fn on_mouse_click(x: i32, y: i32) {
     // 新游戏按钮
     let new_btn = Button { x: 750, y: 10, width: 100, height: 40, text: "新游戏", enabled: true };
     if is_in_button(x, y, new_btn) {
-        new_game(&mut game);
+        new_game(&game);
         redraw_window(window);
         return;
     }
@@ -303,7 +303,7 @@ fn on_mouse_click(x: i32, y: i32) {
                 enabled: game.current_bet >= MIN_BET
             };
             if is_in_button(x, y, deal_btn) && game.current_bet >= MIN_BET {
-                start_round(&mut game);
+                start_round(&game);
                 redraw_window(window);
             }
         },
@@ -312,7 +312,7 @@ fn on_mouse_click(x: i32, y: i32) {
             // 要牌
             let hit_btn = Button { x: 80, y: 480, width: 100, height: 40, text: "要牌(H)", enabled: game.can_hit };
             if is_in_button(x, y, hit_btn) && game.can_hit {
-                hit(&mut game);
+                hit(&game);
                 redraw_window(window);
                 return;
             }
@@ -320,7 +320,7 @@ fn on_mouse_click(x: i32, y: i32) {
             // 停牌
             let stand_btn = Button { x: 200, y: 480, width: 100, height: 40, text: "停牌(S)", enabled: game.can_stand };
             if is_in_button(x, y, stand_btn) && game.can_stand {
-                stand(&mut game);
+                stand(&game);
                 redraw_window(window);
                 return;
             }
@@ -328,7 +328,7 @@ fn on_mouse_click(x: i32, y: i32) {
             // 双倍
             let double_btn = Button { x: 320, y: 480, width: 100, height: 40, text: "双倍(D)", enabled: game.can_double };
             if is_in_button(x, y, double_btn) && game.can_double {
-                double_down(&mut game);
+                double_down(&game);
                 redraw_window(window);
                 return;
             }
@@ -336,7 +336,7 @@ fn on_mouse_click(x: i32, y: i32) {
             // 分裂
             let split_btn = Button { x: 440, y: 480, width: 100, height: 40, text: "分裂(P)", enabled: game.can_split };
             if is_in_button(x, y, split_btn) && game.can_split {
-                split_hand(&mut game);
+                split_hand(&game);
                 redraw_window(window);
                 return;
             }
@@ -344,7 +344,7 @@ fn on_mouse_click(x: i32, y: i32) {
             // 投降
             let surrender_btn = Button { x: 560, y: 480, width: 100, height: 40, text: "投降(Q)", enabled: game.can_surrender };
             if is_in_button(x, y, surrender_btn) && game.can_surrender {
-                surrender(&mut game);
+                surrender(&game);
                 redraw_window(window);
                 return;
             }
@@ -366,7 +366,7 @@ fn on_mouse_click(x: i32, y: i32) {
 fn on_key_event(key_code: i32) -> bool {
     // R键 - 新游戏
     if key_code == 82 || key_code == 114 {
-        new_game(&mut game);
+        new_game(&game);
         redraw_window(window);
         return true;
     }
@@ -375,31 +375,31 @@ fn on_key_event(key_code: i32) -> bool {
         GamePhase::PlayerTurn => {
             // H键 - 要牌
             if (key_code == 72 || key_code == 104) && game.can_hit {
-                hit(&mut game);
+                hit(&game);
                 redraw_window(window);
             }
             
             // S键 - 停牌
             if (key_code == 83 || key_code == 115) && game.can_stand {
-                stand(&mut game);
+                stand(&game);
                 redraw_window(window);
             }
             
             // D键 - 双倍
             if (key_code == 68 || key_code == 100) && game.can_double {
-                double_down(&mut game);
+                double_down(&game);
                 redraw_window(window);
             }
             
             // P键 - 分裂
             if (key_code == 80 || key_code == 112) && game.can_split {
-                split_hand(&mut game);
+                split_hand(&game);
                 redraw_window(window);
             }
             
             // Q键 - 投降
             if (key_code == 81 || key_code == 113) && game.can_surrender {
-                surrender(&mut game);
+                surrender(&game);
                 redraw_window(window);
             }
         },
@@ -430,7 +430,7 @@ fn on_timer_event() {
 extern fn WindowProc(hwnd: WindowHandle, uMsg: u32, wParam: u32, lParam: u32) -> i32 {
     match uMsg {
         WM_PAINT => {
-            let mut ps: [u8; 64] = [0; 64];
+            let ps: [u8; 64] = [0; 64];
             let hdc = BeginPaint(hwnd, &ps);
             
             draw_game(hdc);
@@ -495,7 +495,7 @@ fn main() -> i32 {
     io.println "========================================";
     
     // 初始化游戏
-    init_game(&mut game);
+    init_game(&game);
     
     // 创建窗口
     let window_title = "Zen-C Blackjack - 二十一点";

@@ -217,7 +217,7 @@ fn show_window(window: WindowHandle) {
     #endif
 }
 
-fn run_event_loop(window: WindowHandle, game: &mut ShootingGalleryState) {
+fn run_event_loop(window: WindowHandle, game: &ShootingGalleryState) {
     #if IS_WINDOWS
         let msg: [u8; 28] = [0; 28];
         while GetMessageA(&msg, window, 0, 0) {
@@ -251,7 +251,7 @@ fn redraw_window(window: WindowHandle) {
     #endif
 }
 
-fn get_window_client_size(window: WindowHandle, width: &mut i32, height: &mut i32) -> bool {
+fn get_window_client_size(window: WindowHandle, width: &i32, height: &i32) -> bool {
     #if IS_WINDOWS
         let rect: [i32; 4] = [0; 4];
         if GetClientRect(window, &rect) {

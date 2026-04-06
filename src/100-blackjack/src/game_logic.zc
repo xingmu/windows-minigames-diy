@@ -202,7 +202,7 @@ fn is_busted(hand: Hand*) -> bool {
 // ==================== 牌堆管理 ====================
 
 // 初始化牌堆(多副牌)
-fn init_deck(game: &mut GameState) {
+fn init_deck(game: &GameState) {
     let card_index: i32 = 0;
     
     // 创建6副牌
@@ -223,7 +223,7 @@ fn init_deck(game: &mut GameState) {
 }
 
 // 洗牌
-fn shuffle_deck(game: &mut GameState) {
+fn shuffle_deck(game: &GameState) {
     let seed = time.now().nanos();
     math.srand(seed);
     
@@ -237,7 +237,7 @@ fn shuffle_deck(game: &mut GameState) {
 }
 
 // 发一张牌
-fn deal_card(game: &mut GameState, hand: &mut Hand, face_up: bool) -> bool {
+fn deal_card(game: &GameState, hand: &Hand, face_up: bool) -> bool {
     if game.deck_count <= 0 {
         // 牌堆空了,重新洗牌
         shuffle_deck(game);
@@ -261,7 +261,7 @@ fn deal_card(game: &mut GameState, hand: &mut Hand, face_up: bool) -> bool {
 
 // ==================== 游戏初始化 ====================
 
-fn init_game(game: &mut GameState) {
+fn init_game(game: &GameState) {
     // 初始化玩家金币
     game.player.money = 10000;
     game.player.has_split = false;
@@ -311,7 +311,7 @@ fn init_game(game: &mut GameState) {
 // ==================== 游戏逻辑 ====================
 
 // 开始新回合(下注后)
-fn start_round(game: &mut GameState) {
+fn start_round(game: &GameState) {
     // 重置手牌
     game.player.current_hand.card_count = 0;
     game.player.current_hand.bet = game.current_bet;
@@ -329,10 +329,10 @@ fn start_round(game: &mut GameState) {
     game.player.insurance = 0;
     
     // 从牌堆发牌
-    deal_card(game, &mut game.player.current_hand, true);  // 玩家第1张
-    deal_card(game, &mut game.dealer_hand, true);            // 庄家第1张(正面)
-    deal_card(game, &mut game.player.current_hand, true);  // 玩家第2张
-    deal_card(game, &mut game.dealer_hand, false);           // 庄家第2张(背面)
+    deal_card(game, &game.player.current_hand, true);  // 玩家第1张
+    deal_card(game, &game.dealer_hand, true);            // 庄家第1张(正面)
+    deal_card(game, &game.player.current_hand, true);  // 玩家第2张
+    deal_card(game, &game.dealer_hand, false);           // 庄家第2张(背面)
     
     // 检查黑杰克
     if is_blackjack(&game.player.current_hand) {
@@ -388,7 +388,7 @@ fn can_split(hand: Hand*) -> bool {
 }
 
 // 买保险
-fn buy_insurance(game: &mut GameState) -> bool {
+fn buy_insurance(game: &GameState) -> bool {
     if !game.can_insurance || game.player.money < game.current_bet / 2 {
         return false;
     }
@@ -411,7 +411,7 @@ fn buy_insurance(game: &mut GameState) -> bool {
 }
 
 // 投降
-fn surrender(game: &mut GameState) -> bool {
+fn surrender(game: &GameState) -> bool {
     if !game.can_surrender {
         return false;
     }
@@ -424,12 +424,12 @@ fn surrender(game: &mut GameState) -> bool {
 }
 
 // 要牌
-fn hit(game: &mut GameState) -> bool {
+fn hit(game: &GameState) -> bool {
     if !game.can_hit {
         return false;
     }
     
-    deal_card(game, &mut game.player.current_hand, true);
+    deal_card(game, &game.player.current_hand, true);
     
     // 检查是否爆牌
     if is_busted(&game.player.current_hand) {
@@ -453,7 +453,7 @@ fn hit(game: &mut GameState) -> bool {
 }
 
 // 停牌
-fn stand(game: &mut GameState) {
+fn stand(game: &GameState) {
     game.can_hit = false;
     game.can_stand = false;
     game.can_double = false;
@@ -469,7 +469,7 @@ fn stand(game: &mut GameState) {
     
     // 庄家规则: 点数<17必须继续要牌
     while calculate_hand_value(&game.dealer_hand) < 17 {
-        deal_card(game, &mut game.dealer_hand, true);
+        deal_card(game, &game.dealer_hand, true);
     }
     
     // 判定结果
@@ -477,7 +477,7 @@ fn stand(game: &mut GameState) {
 }
 
 // 双倍下注
-fn double_down(game: &mut GameState) -> bool {
+fn double_down(game: &GameState) -> bool {
     if !game.can_double {
         return false;
     }
@@ -487,7 +487,7 @@ fn double_down(game: &mut GameState) -> bool {
     game.player.current_hand.is_doubled = true;
     
     // 双倍只能要一张牌
-    deal_card(game, &mut game.player.current_hand, true);
+    deal_card(game, &game.player.current_hand, true);
     
     // 强制停牌
     stand(game);
@@ -496,7 +496,7 @@ fn double_down(game: &mut GameState) -> bool {
 }
 
 // 分裂手牌
-fn split_hand(game: &mut GameState) -> bool {
+fn split_hand(game: &GameState) -> bool {
     if !game.can_split {
         return false;
     }
@@ -506,8 +506,8 @@ fn split_hand(game: &mut GameState) -> bool {
     
     // 第一张牌给当前手
     // 第二张牌给分裂手
-    deal_card(game, &mut game.player.current_hand, true);
-    deal_card(game, &mut game.player.split_hand, true);
+    deal_card(game, &game.player.current_hand, true);
+    deal_card(game, &game.player.split_hand, true);
     
     game.player.has_split = true;
     game.player.split_hand.bet = game.current_bet;
@@ -523,7 +523,7 @@ fn split_hand(game: &mut GameState) -> bool {
 }
 
 // 庄家亮牌后判定
-fn dealer_reveal(game: &mut GameState) {
+fn dealer_reveal(game: &GameState) {
     game.phase = GamePhase::RoundEnd;
     
     let player_value = calculate_hand_value(&game.player.current_hand);
@@ -549,7 +549,7 @@ fn dealer_reveal(game: &mut GameState) {
 }
 
 // 下注
-fn place_bet(game: &mut GameState, amount: i32) -> bool {
+fn place_bet(game: &GameState, amount: i32) -> bool {
     if amount < MIN_BET || amount > MAX_BET {
         return false;
     }
@@ -568,7 +568,7 @@ fn place_bet(game: &mut GameState, amount: i32) -> bool {
 }
 
 // 下注筹码选择
-fn select_chip(game: &mut GameState, value: i32) {
+fn select_chip(game: &GameState, value: i32) {
     match value {
         10 => game.selected_chip = 10,
         50 => game.selected_chip = 50,
@@ -580,7 +580,7 @@ fn select_chip(game: &mut GameState, value: i32) {
 }
 
 // 开始新游戏
-fn new_game(game: &mut GameState) {
+fn new_game(game: &GameState) {
     if game.player.money < MIN_BET {
         // 金币不足,重置
         game.player.money = 10000;

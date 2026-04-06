@@ -267,7 +267,7 @@ fn on_paint(ctx: GraphicsContext, width: i32, height: i32) {
 }
 
 fn on_key_down(key: VirtualKey) {
-    handleInput(&mut game, key);
+    handleInput(&game, key);
     invalidate_window(window);
 }
 
@@ -277,9 +277,9 @@ fn on_timer() {
     lastTime = current;
     
     if game.status == GameStatus.Playing {
-        updateGame(&mut game, dt);
+        updateGame(&game, dt);
     } else if game.status == GameStatus.RoundStart || game.status == GameStatus.RoundEnd {
-        updateGame(&mut game, dt);
+        updateGame(&game, dt);
     }
     
     invalidate_window(window);
@@ -353,7 +353,7 @@ fn main() -> i32 {
     setRandomSeed(12345);
     
     // 初始化游戏
-    initGame(&mut game);
+    initGame(&game);
     
     // 创建窗口
     let title = "Zen-C Boxing - 拳击游戏";
