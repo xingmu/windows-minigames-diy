@@ -75,7 +75,7 @@ pub struct Card {
 
 // 游戏状态
 pub struct MemoryGameState {
-    cards: [GRID_ROWS][GRID_COLS]Card,
+    cards: Card[GRID_ROWS][GRID_COLS],
     firstCardRow: int,      // 第一次翻牌的行 (-1表示无)
     firstCardCol: int,      // 第一次翻牌的列
     secondCardRow: int,     // 第二次翻牌的行
@@ -102,7 +102,7 @@ fn rgb(r: u8, g: u8, b: u8) -> u32 {
 // ==================== 游戏逻辑 ====================
 
 // 初始化游戏
-pub fn init_game(state: &MemoryGameState) {
+pub fn init_game(state: MemoryGameState*) {
     // 初始化所有卡牌
     for r in 0..GRID_ROWS {
         for c in 0..GRID_COLS {
@@ -170,7 +170,7 @@ pub fn get_card_position(state: MemoryGameState*, row: int, col: int) -> (int, i
 }
 
 // 点击卡牌
-pub fn click_card(state: &MemoryGameState, row: int, col: int, currentTime: u32) -> bool {
+pub fn click_card(state: MemoryGameState*, row: int, col: int, currentTime: u32) -> bool {
     // 忽略无效点击
     if row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS {
         return false;
@@ -243,7 +243,7 @@ pub fn click_card(state: &MemoryGameState, row: int, col: int, currentTime: u32)
 }
 
 // 使用提示
-pub fn use_hint(state: &MemoryGameState, currentTime: u32) -> bool {
+pub fn use_hint(state: MemoryGameState*, currentTime: u32) -> bool {
     if state.gameOver || !state.canFlip {
         return false;
     }
@@ -278,7 +278,7 @@ pub fn use_hint(state: &MemoryGameState, currentTime: u32) -> bool {
 }
 
 // 更新游戏状态
-pub fn update_game(state: &MemoryGameState, currentTime: u32) {
+pub fn update_game(state: MemoryGameState*, currentTime: u32) {
     if state.gameOver {
         return;
     }
@@ -335,24 +335,24 @@ pub fn update_game(state: &MemoryGameState, currentTime: u32) {
 }
 
 // 重新开始游戏
-pub fn restart_game(state: &MemoryGameState) {
+pub fn restart_game(state: MemoryGameState*) {
     init_game(state);
 }
 
 // 获取分数文本
 pub fn get_score_text(state: MemoryGameState*) -> str {
-    return "得分: {state}".score.toString();
+    return "得分: " ++ (state.score).str();
 }
 
 // 获取移动次数文本
 pub fn get_moves_text(state: MemoryGameState*) -> str {
-    return "步数: {state}".moves.toString();
+    return "步数: " ++ (state.moves).str();
 }
 
 // 获取剩余对数文本
 pub fn get_pairs_text(state: MemoryGameState*) -> str {
     let remaining = TOTAL_PAIRS - state.pairsFound;
-    return "剩余: {remaining}" ++ " 对";
+    return "剩余: " ++ (remaining).str() ++ " 对";
 }
 
 // 获取状态文本
@@ -363,7 +363,7 @@ pub fn get_status_text(state: MemoryGameState*) -> str {
     if state.pairsFound == 0 {
         return "找出所有配对!";
     }
-    return "已找到 {state}"."{pairsFound} / {TOTAL_PAIRS}" ++ " 对";
+    return "已找到 " ++ (state.pairsFound).str() ++ " / " ++ (TOTAL_PAIRS).str() ++ " 对";
 }
 
 // 获取控制说明

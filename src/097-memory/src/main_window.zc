@@ -250,10 +250,10 @@ fn on_paint() {
         
         fb_draw_text_size(WINDOW_WIDTH/2 - 50, WINDOW_HEIGHT/2 - 55, "🎉 恭喜通关! 🎉", GOLD_COLOR, 18);
         
-        let finalInfo = "得分: {game}"."{score} 步数: {game}".moves.toString();
+        let finalInfo = "得分: " ++ (game.score).str() ++ " 步数: " ++ (game.moves).str();
         fb_draw_text_size(WINDOW_WIDTH/2 - 65, WINDOW_HEIGHT/2 - 20, finalInfo, TEXT_COLOR, 15);
         
-        let avgStr = "平均 " ++ (game.moves / TOTAL_PAIRS).toString() ++ " 步/对";
+        let avgStr = "平均 " ++ (game.moves / TOTAL_PAIRS).str() ++ " 步/对";
         fb_draw_text_size(WINDOW_WIDTH/2 - 35, WINDOW_HEIGHT/2 + 5, avgStr, GREEN_COLOR, 14);
         
         fb_draw_text_size(WINDOW_WIDTH/2 - 55, WINDOW_HEIGHT/2 + 35, "按 R 重新开始", TEXT_DIM, 14);
@@ -471,8 +471,8 @@ fn main() -> i32 {
     closeWindow(window);
 
     io.println "游戏结束!";
-    io.println("最终得分: {game}".score.toString());
-    io.println("总步数: {game}".moves.toString());
+    io.println("最终得分: " ++ (game.score).str());
+    io.println("总步数: " ++ (game.moves).str());
     io.println "========================================";
 
     0

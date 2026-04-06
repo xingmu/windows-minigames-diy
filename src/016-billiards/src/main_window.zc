@@ -312,7 +312,7 @@ fn render_game() {
     }
 
     // 绘制UI信息
-    let info = "分数: {game}"."{score}  击球: {game}".shots.toString();
+    let info = "分数: " ++ (game.score).str() ++ "  击球: " ++ (game.shots).str();
     draw_text(10, 10, info, Color.White(), 18);
 
     let status = getStatusText(&game);
