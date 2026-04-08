@@ -94,7 +94,7 @@ pub fn get_block_position(row: int, col: int) -> (int, int) {
 // ==================== 游戏逻辑 ====================
 
 // 初始化随机数生成器
-fn init_random(state: &TetrisAttackState) {
+fn init_random(state: TetrisAttackState*) {
     // 使用当前时间初始化随机种子
     let seed = (getTickCount() % 10000) as u32;
     if seed == 0 { seed = 12345; }
@@ -102,7 +102,7 @@ fn init_random(state: &TetrisAttackState) {
 }
 
 // 初始化游戏
-pub fn init_game(state: &TetrisAttackState) {
+pub fn init_game(state: TetrisAttackState*) {
     // 初始化网格为空
     for r in 0..GRID_ROWS {
         for c in 0..GRID_COLS {
@@ -137,7 +137,7 @@ pub fn init_game(state: &TetrisAttackState) {
 }
 
 // 生成初始方块（底部6行）
-fn generate_initial_blocks(state: &TetrisAttackState) {
+fn generate_initial_blocks(state: TetrisAttackState*) {
     let startRow = GRID_ROWS - 6;
     
     for r in startRow..GRID_ROWS {
@@ -152,7 +152,7 @@ fn generate_initial_blocks(state: &TetrisAttackState) {
 }
 
 // 生成新的下落方块对
-pub fn spawn_new_pair(state: &TetrisAttackState) {
+pub fn spawn_new_pair(state: TetrisAttackState*) {
     // 检查顶部是否有空间
     if state.grid[0][state.cursorCol].visible || state.grid[1][state.cursorCol].visible {
         // 顶部已满，游戏结束
@@ -173,7 +173,7 @@ pub fn spawn_new_pair(state: &TetrisAttackState) {
 }
 
 // 将下落方块放到网格中
-fn place_falling_pair(state: &TetrisAttackState) {
+fn place_falling_pair(state: TetrisAttackState*) {
     let col = state.falling.col;
     let row = state.falling.row;
     
@@ -190,7 +190,7 @@ fn place_falling_pair(state: &TetrisAttackState) {
 }
 
 // 下落方块向下移动一格
-pub fn move_falling_down(state: &TetrisAttackState) -> bool {
+pub fn move_falling_down(state: TetrisAttackState*) -> bool {
     if !state.falling.active {
         return false;
     }
@@ -218,7 +218,7 @@ pub fn move_falling_down(state: &TetrisAttackState) -> bool {
 }
 
 // 左右移动下落方块
-pub fn move_falling_horizontal(state: &TetrisAttackState, direction: int) {
+pub fn move_falling_horizontal(state: TetrisAttackState*, direction: int) {
     if !state.falling.active {
         return;
     }
@@ -245,7 +245,7 @@ pub fn move_falling_horizontal(state: &TetrisAttackState, direction: int) {
 }
 
 // 交换两个下落方块的位置
-pub fn swap_falling_blocks(state: &TetrisAttackState) {
+pub fn swap_falling_blocks(state: TetrisAttackState*) {
     if !state.falling.active {
         return;
     }
@@ -256,11 +256,11 @@ pub fn swap_falling_blocks(state: &TetrisAttackState) {
 }
 
 // 应用重力 - 让悬空的方块下落
-fn apply_gravity(state: &TetrisAttackState) -> bool {
+fn apply_gravity(state: TetrisAttackState*) -> bool {
     let moved = false;
     
     // 从倒数第二行开始向上检查
-    for r in (1..GRID_ROWS).rev() {
+    for r in 1..GRID_ROWS {
         for c in 0..GRID_COLS {
             if state.grid[r][c].visible && !state.grid[r - 1][c].visible {
                 // 这个方块可以下落
@@ -276,7 +276,7 @@ fn apply_gravity(state: &TetrisAttackState) -> bool {
 }
 
 // 检查并消除相同的方块
-pub fn check_and_clear_matches(state: &TetrisAttackState) -> int {
+pub fn check_and_clear_matches(state: TetrisAttackState*) -> int {
     let cleared = 0;
     let toClear: bool[GRID_ROWS][GRID_COLS];
     
@@ -369,7 +369,7 @@ pub fn check_and_clear_matches(state: &TetrisAttackState) -> int {
 }
 
 // 更新游戏时间
-pub fn update_time(state: &TetrisAttackState) -> bool {
+pub fn update_time(state: TetrisAttackState*) -> bool {
     if state.gameOver {
         return false;
     }
@@ -386,7 +386,7 @@ pub fn update_time(state: &TetrisAttackState) -> bool {
 }
 
 // 重新开始游戏
-pub fn restart_game(state: &TetrisAttackState) {
+pub fn restart_game(state: TetrisAttackState*) {
     init_game(state);
 }
 
@@ -414,7 +414,7 @@ pub fn get_status_text(state: TetrisAttackState*) -> str {
         return "时间到！游戏结束！得分: {state}".score.toString();
     }
     if state.combo > 1 {
-        return "连击 x{state}"."{combo} !";
+        return "连击 x{state.combo} !";
     }
     return "相同颜色3个以上消除";
 }
