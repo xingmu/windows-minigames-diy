@@ -2,6 +2,7 @@
 // 捕鱼达人游戏 - Zen-C
 
 import "io.zc";
+import "platform_api.zc";
 
 // 鱼类型枚举
 enum FishType {
@@ -177,12 +178,12 @@ pub fn draw_fish(fish: Fish*) {
     }
     
     match fish.fishType {
-        SmallFish => draw_small_fish(fish);
-        MediumFish => draw_medium_fish(fish);
-        LargeFish => draw_large_fish(fish);
-        Shark => draw_shark(fish);
-        GoldFish => draw_goldfish(fish);
-        _ => draw_small_fish(fish);
+        SmallFish => { draw_small_fish(fish); }
+        MediumFish => { draw_medium_fish(fish); }
+        LargeFish => { draw_large_fish(fish); }
+        Shark => { draw_shark(fish); }
+        GoldFish => { draw_goldfish(fish); }
+        _ => { draw_small_fish(fish); }
     }
 }
 

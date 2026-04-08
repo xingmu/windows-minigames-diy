@@ -66,7 +66,7 @@ pub struct HitEffect {
 // ==================== 初始化 ====================
 
 // 初始化游戏
-pub fn init_game(state: &FishGameState, width: i32, height: i32) {
+pub fn init_game(state: FishGameState*, width: i32, height: i32) {
     state.status = GameStatus.Ready;
     state.score = 0;
     state.coins = 100;
@@ -112,7 +112,7 @@ pub fn init_game(state: &FishGameState, width: i32, height: i32) {
 // ==================== 游戏逻辑更新 ====================
 
 // 更新游戏
-pub fn update_game(state: &FishGameState, dt: i32) -> bool {
+pub fn update_game(state: FishGameState*, dt: i32) -> bool {
     if state.status != GameStatus.Playing {
         return true;
     }
@@ -146,7 +146,7 @@ pub fn update_game(state: &FishGameState, dt: i32) -> bool {
 }
 
 // 更新炮台角度
-fn update_cannon_angle(state: &FishGameState) {
+fn update_cannon_angle(state: FishGameState*) {
     let dx = state.mouseX - state.cannon.x;
     let dy = state.mouseY - state.cannon.y;
     
@@ -164,7 +164,7 @@ fn update_cannon_angle(state: &FishGameState) {
 }
 
 // 生成鱼
-fn update_fish_spawn(state: &FishGameState, dt: i32) {
+fn update_fish_spawn(state: FishGameState*, dt: i32) {
     state.lastFishSpawn = state.lastFishSpawn + dt;
     
     if state.lastFishSpawn >= FISH_SPAWN_INTERVAL && state.fishCount < MAX_FISH {
@@ -174,7 +174,7 @@ fn update_fish_spawn(state: &FishGameState, dt: i32) {
 }
 
 // 生成一条鱼
-fn spawn_fish(state: &FishGameState) {
+fn spawn_fish(state: FishGameState*) {
     // 找到空闲的鱼槽
     let slot = -1;
     for i in 0..MAX_FISH {
@@ -243,7 +243,7 @@ fn spawn_fish(state: &FishGameState) {
 }
 
 // 更新所有鱼
-fn update_fishes(state: &FishGameState, dt: i32) {
+fn update_fishes(state: FishGameState*, dt: i32) {
     for i in 0..MAX_FISH {
         let fish = &state.fishes[i];
         if !fish.alive { continue; }
@@ -272,7 +272,7 @@ fn update_fishes(state: &FishGameState, dt: i32) {
 }
 
 // 更新炮弹
-fn update_bullets(state: &FishGameState, dt: i32) {
+fn update_bullets(state: FishGameState*, dt: i32) {
     for i in 0..MAX_BULLETS {
         let bullet = &state.bullets[i];
         if !bullet.active { continue; }
@@ -294,7 +294,7 @@ fn update_bullets(state: &FishGameState, dt: i32) {
 }
 
 // 碰撞检测
-fn check_collisions(state: &FishGameState) {
+fn check_collisions(state: FishGameState*) {
     for i in 0..MAX_BULLETS {
         let bullet = &state.bullets[i];
         if !bullet.active { continue; }
@@ -319,7 +319,7 @@ fn check_collisions(state: &FishGameState) {
                 state.score = state.score + score;
                 
                 // 添加击中效果
-                add_hit_effect(state, fish.(i32)x, fish.(i32)y, score);
+                add_hit_effect(state, (i32)(fish.x), (i32)(fish.y), score);
                 
                 // 增加金币
                 state.coins = state.coins + score / 2;
@@ -338,7 +338,7 @@ fn check_collisions(state: &FishGameState) {
 }
 
 // 添加击中效果
-fn add_hit_effect(state: &FishGameState, x: i32, y: i32, score: i32) {
+fn add_hit_effect(state: FishGameState*, x: i32, y: i32, score: i32) {
     for i in 0..20 {
         if !state.hitEffects[i].active {
             state.hitEffects[i].x = x;
@@ -353,7 +353,7 @@ fn add_hit_effect(state: &FishGameState, x: i32, y: i32, score: i32) {
 }
 
 // 更新特效
-fn update_effects(state: &FishGameState, dt: i32) {
+fn update_effects(state: FishGameState*, dt: i32) {
     for i in 0..20 {
         if !state.hitEffects[i].active { continue; }
         
@@ -370,7 +370,7 @@ fn update_effects(state: &FishGameState, dt: i32) {
 // ==================== 射击 ====================
 
 // 发射炮弹
-pub fn shoot(state: &FishGameState) {
+pub fn shoot(state: FishGameState*) {
     if state.status != GameStatus.Playing { return; }
     if state.cannon.cooldown > 0 { return; }
     
@@ -405,7 +405,7 @@ pub fn shoot(state: &FishGameState) {
 }
 
 // 开始游戏
-pub fn start_game(state: &FishGameState) {
+pub fn start_game(state: FishGameState*) {
     if state.status == GameStatus.Ready || state.status == GameStatus.GameOver {
         state.status = GameStatus.Playing;
         state.score = 0;
@@ -432,7 +432,7 @@ pub fn start_game(state: &FishGameState) {
 }
 
 // 暂停游戏
-pub fn pause_game(state: &FishGameState) {
+pub fn pause_game(state: FishGameState*) {
     if state.status == GameStatus.Playing {
         state.status = GameStatus.Paused;
     } else if state.status == GameStatus.Paused {

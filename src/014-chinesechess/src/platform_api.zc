@@ -184,11 +184,11 @@ struct Color {
 }
 
 fn rgb(r: u8, g: u8, b: u8) -> Color {
-    Color { r, g, b }
+    Color { r: r, g: g, b: b }
 }
 
 fn colorToU32(c: Color) -> u32 {
-    return (c.(u32)r) | ((c.(u32)g) << 8) | ((c.(u32)b) << 16);
+    return (u32)(c.r) | ((u32)(c.g) << 8) | ((u32)(c.b) << 16);
 }
 
 fn draw_rect(ctx: GraphicsContext, x: i32, y: i32, width: i32, height: i32, color: Color) {
@@ -231,7 +231,7 @@ fn redraw_window(window: WindowHandle) {
 
 fn get_window_size(window: WindowHandle, width: i32*, height: i32*) -> bool {
     #if IS_WINDOWS
-        let rect: [i32; 4] = [0; 4];
+        let rect: [i32; 4] = [0, 0, 0, 0];
         if GetClientRect(window, &rect) {
             *width = rect[2] - rect[0];
             *height = rect[3] - rect[1];

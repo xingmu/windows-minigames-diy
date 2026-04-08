@@ -76,7 +76,7 @@ static mut g_cpu1LastPlay: CardGroup;
 static mut g_cpu2LastPlay: CardGroup;
 static mut g_keySpaceHeld: bool = false;
 static mut g_keySpaceHandled: bool = false;
-static mut g_phaseText: str = "";
+static mut g_phaseText: string = "";
 static mut g_actionTimer: i32 = 0;  // CPU动作延迟计时
 
 // ==================== 鼠标悬停检测区域 ====================
@@ -99,7 +99,7 @@ fn clamp(v: i32, minVal: i32, maxVal: i32) -> i32 {
     return if v < minVal { minVal } else if v > maxVal { maxVal } else { v };
 }
 
-fn intToStr(n: i32) -> str {
+fn intToStr(n: i32) -> string {
     if n == 0 { return "0"; }
     if n == 1 { return "1"; }
     if n == 2 { return "2"; }
@@ -475,7 +475,7 @@ fn drawInfo(ctx: GraphicsContext, gs: GameState*) {
 
 // ==================== 辅助函数 ====================
 
-fn cardTypeToString(ct: i32) -> str {
+fn cardTypeToString(ct: i32) -> string {
     match ct {
         CT_SINGLE => return "单张",
         CT_PAIR => return "对子",

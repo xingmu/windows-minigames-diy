@@ -58,7 +58,7 @@ struct ChessGame {
 
 // ==================== 棋子字符 ====================
 
-fn getPieceChar(pieceType: int, color: int) -> str {
+fn getPieceChar(pieceType: int, color: int) -> string {
     if color == COLOR_RED {
         match pieceType {
             PIECE_KING => return "帥";
@@ -303,12 +303,12 @@ fn evaluateMove(game: ChessGame*, pieceIndex: int, toCol: int, toRow: int) -> in
     
     if targetIdx != -1 {
         match game.board[targetIdx].pieceType {
-            PIECE_KING => score = score + 10000;
-            PIECE_CHARIOT => score = score + 900;
-            PIECE_HORSE => score = score + 400;
-            PIECE_CANNON => score = score + 450;
-            PIECE_ADVISOR || PIECE_ELEPHANT => score = score + 200;
-            PIECE_PAWN => score = score + 100;
+            PIECE_KING => { score = score + 10000; }
+            PIECE_CHARIOT => { score = score + 900; }
+            PIECE_HORSE => { score = score + 400; }
+            PIECE_CANNON => { score = score + 450; }
+            PIECE_ADVISOR || PIECE_ELEPHANT => { score = score + 200; }
+            PIECE_PAWN => { score = score + 100; }
         }
     }
     
@@ -326,7 +326,7 @@ fn evaluateMove(game: ChessGame*, pieceIndex: int, toCol: int, toRow: int) -> in
     return score;
 }
 
-fn selectAIMove(game: &ChessGame) -> bool {
+fn selectAIMove(game: ChessGame*) -> bool {
     let bestScore = -1;
     let bestPiece = -1;
     let bestCol = -1;
@@ -355,10 +355,10 @@ fn selectAIMove(game: &ChessGame) -> bool {
     
     if bestPiece != -1 {
         game.lastMoveFrom = Position {
-            col = game.board[bestPiece].col,
-            row = game.board[bestPiece].row
+            col: game.board[bestPiece].col,
+            row: game.board[bestPiece].row
         };
-        game.lastMoveTo = Position { col = bestCol, row: bestRow };
+        game.lastMoveTo = Position { col: bestCol, row: bestRow };
         game.showLastMove = true;
         
         let targetIdx = getPieceAt(game, bestCol, bestRow);
@@ -376,16 +376,16 @@ fn selectAIMove(game: &ChessGame) -> bool {
 
 // ==================== 游戏操作 ====================
 
-fn makeMove(game: &ChessGame, pieceIndex: int, toCol: int, toRow: int) -> bool {
+fn makeMove(game: ChessGame*, pieceIndex: int, toCol: int, toRow: int) -> bool {
     if !isValidMove(game, pieceIndex, toCol, toRow) {
         return false;
     }
     
     game.lastMoveFrom = Position {
-        col = game.board[pieceIndex].col,
-        row = game.board[pieceIndex].row
+        col: game.board[pieceIndex].col,
+        row: game.board[pieceIndex].row
     };
-    game.lastMoveTo = Position { col = toCol, row: toRow };
+    game.lastMoveTo = Position { col: toCol, row: toRow };
     game.showLastMove = true;
     
     let targetIdx = getPieceAt(game, toCol, toRow);
@@ -410,7 +410,7 @@ fn makeMove(game: &ChessGame, pieceIndex: int, toCol: int, toRow: int) -> bool {
     return true;
 }
 
-fn handleBoardClick(game: &ChessGame, boardX: int, boardY: int) -> bool {
+fn handleBoardClick(game: ChessGame*, boardX: int, boardY: int) -> bool {
     let col = boardX / CELL_SIZE;
     let row = boardY / CELL_SIZE;
     

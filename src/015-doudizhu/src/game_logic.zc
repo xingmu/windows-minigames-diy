@@ -75,7 +75,7 @@ struct CardUtils {
 }
 
 // 获取卡牌的显示名称
-fn getCardName(card: Card) -> str {
+fn getCardName(card: Card) -> string {
     if card.suit == SUIT_SMALL_JOKER {
         return "joker";
     }
@@ -519,7 +519,7 @@ fn canBeat(group: CardGroup, target: CardGroup) -> bool {
 // ==================== 游戏状态 ====================
 
 struct Player {
-    name: str,
+    name: string,
     cards: [i32],       // 手牌value数组
     cardCount: i32,
     isLandlord: bool,
@@ -717,9 +717,9 @@ fn doBid(gs: GameState*, playerIdx: i32, bid: i32) {
         gs.currentPlayer = gs.landlordPlayer;
         gs.roundCount = 0;
         
-        let landlordName = landlord.name;
+        let landlordName = landlord.name.c_str();
         let bidStr = (gs.landlordBid).str();
-        println("Landlord: {landlordName}, Bid: {bidStr}");
+        println(format("Landlord: %s, Bid: %s", landlordName, bidStr));
     }
 }
 
