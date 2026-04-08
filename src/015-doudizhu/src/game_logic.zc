@@ -717,7 +717,9 @@ fn doBid(gs: GameState*, playerIdx: i32, bid: i32) {
         gs.currentPlayer = gs.landlordPlayer;
         gs.roundCount = 0;
         
-        println("地主: {landlord}"."{name}, 叫分: {gs}".landlordBid.to_string());
+        let landlordName = landlord.name;
+        let bidStr = (gs.landlordBid).str();
+        println("Landlord: {landlordName}, Bid: {bidStr}");
     }
 }
 
@@ -968,9 +970,9 @@ fn playCards(gs: GameState*, playerIdx: i32, group: CardGroup) {
         gs.landlordWon = (playerIdx == gs.landlordPlayer);
         
         if gs.landlordWon {
-            println("★★★ 地主({player}"."{name})获胜! ★★★");
+            println("★★★ 地主({player.name})获胜! ★★★");
         } else {
-            println("★★★ 农民({player}"."{name})获胜! ★★★");
+            println("★★★ 农民({player.name})获胜! ★★★");
         }
     }
 }
